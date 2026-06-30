@@ -1,9 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function HomeScreen() {
+export default function ProgressScreen() {
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Home</Text>
+      <Text style={styles.title}>Progress</Text>
     </View>
   );
 }

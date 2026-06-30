@@ -1,9 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-export default function HomeScreen() {
+export default function StrengthConditioningScreen() {
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Home</Text>
+      <Text style={styles.title}>S&C</Text>
     </View>
   );
 }
