@@ -12,10 +12,9 @@ type TabIconName = ComponentProps<typeof Ionicons>["name"];
 
 const tokens = themes.dark;
 
-const tabIcons: Record<Exclude<TabRoute, "sportTraining">, TabIconName> = {
+const tabIcons: Record<Exclude<TabRoute, "sportTraining" | "strengthConditioning">, TabIconName> = {
   nutrition: "restaurant-outline",
   home: "home-outline",
-  strengthConditioning: "barbell-outline",
   progress: "trending-up-outline",
 };
 
@@ -73,6 +72,10 @@ export function BottomTabs({ activeRoute, bottomInset, onSelect }: BottomTabsPro
 function TabIcon({ color, route }: { color: string; route: TabRoute }) {
   if (route === "sportTraining") {
     return <MaterialCommunityIcons color={color} name="boxing-glove" size={22} />;
+  }
+
+  if (route === "strengthConditioning") {
+    return <MaterialCommunityIcons color={color} name="dumbbell" size={23} />;
   }
 
   return <Ionicons color={color} name={tabIcons[route]} size={22} />;

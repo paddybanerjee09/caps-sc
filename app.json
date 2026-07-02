@@ -5,6 +5,7 @@
     "version": "1.0.0",
     "description": "Combat Athlete Performance System",
     "orientation": "portrait",
+    "icon": "./assets/images/CAPS App Logo.png",
     "scheme": "capssc",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
