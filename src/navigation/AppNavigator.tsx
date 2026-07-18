@@ -7,7 +7,12 @@ import { Header } from "../components/Header";
 import { Sidebar } from "../components/Sidebar";
 import { ScreenForRoute } from "../screens/Screens";
 import { useAppTheme } from "../theme/ThemeContext";
-import { initialRoute, type RouteKey, type SidebarRoute, type TabRoute } from "./routes";
+import {
+  initialRoute,
+  type RouteKey,
+  type SidebarRoute,
+  type TabRoute,
+} from "./routes";
 
 export function AppNavigator() {
   const insets = useSafeAreaInsets();
@@ -31,11 +36,18 @@ export function AppNavigator() {
         backgroundColor={theme.colors.background}
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
       />
-      <Header onMenuPress={() => setSidebarOpen((open) => !open)} topInset={insets.top} />
+      <Header
+        onMenuPress={() => setSidebarOpen((open) => !open)}
+        topInset={insets.top}
+      />
       <View style={styles.content}>
         <ScreenForRoute route={activeRoute} />
       </View>
-      <BottomTabs activeRoute={activeRoute} bottomInset={insets.bottom} onSelect={selectTab} />
+      <BottomTabs
+        activeRoute={activeRoute}
+        bottomInset={insets.bottom}
+        onSelect={selectTab}
+      />
       <Sidebar
         activeRoute={activeRoute}
         bottomInset={insets.bottom}

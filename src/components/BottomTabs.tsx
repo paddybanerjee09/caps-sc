@@ -1,6 +1,6 @@
-import type { ComponentProps } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import type { ComponentProps } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { tabs, type RouteKey, type TabRoute } from "../navigation/routes";
@@ -13,11 +13,12 @@ type TabIconName = ComponentProps<typeof Ionicons>["name"];
 const tokens = themes.dark;
 
 const tabIcons: Record<
-  Exclude<TabRoute, "sportTraining" | "strength" | "conditioning">,
+  Exclude<TabRoute, "sport" | "conditioning">,
   TabIconName
 > = {
   nutrition: "restaurant-outline",
   home: "home-outline",
+  strength: "barbell-outline",
 };
 
 type BottomTabsProps = {
@@ -26,7 +27,11 @@ type BottomTabsProps = {
   onSelect: (route: TabRoute) => void;
 };
 
-export function BottomTabs({ activeRoute, bottomInset, onSelect }: BottomTabsProps) {
+export function BottomTabs({
+  activeRoute,
+  bottomInset,
+  onSelect,
+}: BottomTabsProps) {
   const { theme } = useAppTheme();
 
   return (
@@ -55,7 +60,11 @@ export function BottomTabs({ activeRoute, bottomInset, onSelect }: BottomTabsPro
             <View
               style={[
                 styles.activeLine,
-                { backgroundColor: isActive ? theme.colors.tertiary : "transparent" },
+                {
+                  backgroundColor: isActive
+                    ? theme.colors.tertiary
+                    : "transparent",
+                },
               ]}
             />
             <TabIcon color={color} route={tab.key} />
@@ -72,16 +81,14 @@ export function BottomTabs({ activeRoute, bottomInset, onSelect }: BottomTabsPro
 }
 
 function TabIcon({ color, route }: { color: string; route: TabRoute }) {
-  if (route === "sportTraining") {
-    return <MaterialCommunityIcons color={color} name="boxing-glove" size={22} />;
-  }
-
-  if (route === "strength") {
-    return <MaterialCommunityIcons color={color} name="dumbbell" size={23} />;
+  if (route === "sport") {
+    return (
+      <MaterialCommunityIcons color={color} name="boxing-glove" size={22} />
+    );
   }
 
   if (route === "conditioning") {
-    return <MaterialCommunityIcons color={color} name="run" size={22} />;
+    return <MaterialCommunityIcons color={color} name="run-fast" size={22} />;
   }
 
   return <Ionicons color={color} name={tabIcons[route]} size={22} />;
