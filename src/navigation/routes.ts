@@ -2,14 +2,14 @@ export const tabs = [
   { key: "nutrition", title: "Nutrition" },
   { key: "sportTraining", title: "Sport" },
   { key: "home", title: "Home" },
-  { key: "strengthConditioning", title: "S&C" },
-  { key: "progress", title: "Progress" },
+  { key: "strength", title: "Strength" },
+  { key: "conditioning", title: "Conditioning" },
 ] as const;
 
 export const sidebarItems = [
   { key: "settings", title: "Settings" },
-  { key: "accountInfo", title: "Account Info" },
-  { key: "athleteInfo", title: "Athlete Info" },
+  { key: "accountInfo", title: "Account Information" },
+  { key: "athleteInfo", title: "Athlete Information" },
 ] as const;
 
 export type TabRoute = (typeof tabs)[number]["key"];

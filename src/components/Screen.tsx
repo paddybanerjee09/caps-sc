@@ -25,6 +25,9 @@ export function Screen({ children, title }: ScreenProps) {
       showsVerticalScrollIndicator={false}
     >
       <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
+      <View
+        style={[styles.titleLine, { backgroundColor: theme.colors.border }]}
+      />
       {children ? <View style={styles.content}>{children}</View> : null}
     </ScrollView>
   );
@@ -41,6 +44,10 @@ const styles = StyleSheet.create({
     fontSize: tokens.typography.title.fontSize,
     fontWeight: tokens.typography.title.fontWeight,
     lineHeight: tokens.typography.title.lineHeight,
+  },
+  titleLine: {
+    height: StyleSheet.hairlineWidth,
+    marginTop: tokens.spacing.md,
   },
   content: {
     marginTop: tokens.spacing.xl,
