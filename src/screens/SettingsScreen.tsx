@@ -5,7 +5,6 @@ import { StyleSheet, Text, View } from "react-native";
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
 import { SimpleSwitch } from "../components/SimpleSwitch";
-import { useAppState } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 
@@ -13,11 +12,16 @@ const tokens = themes.dark;
 
 export function SettingsScreen() {
   const { colorScheme, setColorScheme, theme } = useAppTheme();
-  const { setHeightUnit, setWeightUnit, unitSettings } = useAppState();
-  const [distanceInKilometers, setDistanceInKilometers] = useState(false);
+  const [weightInPounds, setWeightInPounds] = useState(false);
+  const [heightInInches, setHeightInInches] = useState(false);
+  const [distanceInMiles, setDistanceInMiles] = useState(false);
   const [weighInReminders, setWeighInReminders] = useState(false);
   const [trainingReminders, setTrainingReminders] = useState(false);
   const [hydrationReminders, setHydrationReminders] = useState(false);
+
+  const setThemeFromSwitch = (isLight: boolean) => {
+    setColorScheme(isLight ? "light" : "dark");
+  };
 
   return (
     <Screen title="Settings">
@@ -27,9 +31,7 @@ export function SettingsScreen() {
           control={
             <OptionSelector
               leftLabel="Dark"
-              onValueChange={(isLight) =>
-                setColorScheme(isLight ? "light" : "dark")
-              }
+              onValueChange={setThemeFromSwitch}
               rightLabel="Light"
               value={colorScheme === "light"}
             />
@@ -39,15 +41,24 @@ export function SettingsScreen() {
 
       <Section title="Units">
         <SettingRow
+          label="Distance"
+          control={
+            <OptionSelector
+              leftLabel="km"
+              onValueChange={setDistanceInMiles}
+              rightLabel="mi"
+              value={distanceInMiles}
+            />
+          }
+        />
+        <SettingRow
           label="Weight"
           control={
             <OptionSelector
               leftLabel="kg"
-              onValueChange={(isImperial) =>
-                setWeightUnit(isImperial ? "imperial" : "metric")
-              }
+              onValueChange={setWeightInPounds}
               rightLabel="lb"
-              value={unitSettings.weight === "imperial"}
+              value={weightInPounds}
             />
           }
         />
@@ -56,22 +67,9 @@ export function SettingsScreen() {
           control={
             <OptionSelector
               leftLabel="cm"
-              onValueChange={(isImperial) =>
-                setHeightUnit(isImperial ? "imperial" : "metric")
-              }
-              rightLabel="ft/in"
-              value={unitSettings.height === "imperial"}
-            />
-          }
-        />
-        <SettingRow
-          label="Distance"
-          control={
-            <OptionSelector
-              leftLabel="mi"
-              onValueChange={setDistanceInKilometers}
-              rightLabel="km"
-              value={distanceInKilometers}
+              onValueChange={setHeightInInches}
+              rightLabel="inches"
+              value={heightInInches}
             />
           }
         />
@@ -168,27 +166,26 @@ function OptionSelector({
     >
       {options.map((option) => {
         const isSelected = option.value === value;
-        const isRightOption = option.value;
 
         return (
           <PressOpacity
             accessibilityLabel={option.label}
+            accessibilityRole="tab"
             key={option.label}
             onPress={() => onValueChange(option.value)}
             style={[
               styles.option,
-              isRightOption && { borderLeftColor: theme.colors.border },
-              isRightOption && styles.rightOption,
+              option.value && {
+                borderLeftColor: theme.colors.borderStrong,
+                borderLeftWidth: StyleSheet.hairlineWidth,
+              },
               isSelected && { backgroundColor: theme.colors.tertiary },
             ]}
           >
             <Text
-              numberOfLines={1}
               style={[
                 styles.optionText,
-                {
-                  color: isSelected ? "#FFFFFF" : theme.colors.textMuted,
-                },
+                { color: isSelected ? "#FFFFFF" : theme.colors.textMuted },
               ]}
             >
               {option.label}
@@ -251,9 +248,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 34,
     paddingHorizontal: tokens.spacing.sm,
-  },
-  rightOption: {
-    borderLeftWidth: StyleSheet.hairlineWidth,
   },
   optionText: {
     fontSize: tokens.typography.label.fontSize,

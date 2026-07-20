@@ -1,4 +1,10 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 export type CombatSport =
   | "Muay Thai"
@@ -69,7 +75,11 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
     [athleteProfile, unitSettings],
   );
 
-  return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
+  return (
+    <AppStateContext.Provider value={value}>
+      {children}
+    </AppStateContext.Provider>
+  );
 }
 
 export function useAppState() {

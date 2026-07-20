@@ -1,5 +1,5 @@
 import { Screen } from "../components/Screen";
 
-export function ProgressScreen() {
+export function ConditioningScreen() {
   return <Screen title="Conditioning" />;
 }
