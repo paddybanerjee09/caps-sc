@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 import { useState } from "react";
 import { StatusBar, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,6 +22,10 @@ export function AppNavigator() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const selectTab = (route: TabRoute) => {
+    if (route !== activeRoute) {
+      void Haptics.selectionAsync();
+    }
+
     setActiveRoute(route);
     setSidebarOpen(false);
   };

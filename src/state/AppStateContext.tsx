@@ -10,10 +10,12 @@ export type CombatSport =
   | "Muay Thai"
   | "Kickboxing"
   | "Boxing"
+  | "MMA"
   | "BJJ (Gi)"
   | "BJJ (No-Gi)"
   | "Judo"
   | "Wrestling"
+  | "Jiu-Jitsu"
   | "Karate";
 
 export type AthleteProfile = {
@@ -35,6 +37,8 @@ type UnitSettings = {
 type AppStateContextValue = {
   athleteProfile: AthleteProfile;
   setAthleteProfile: (profile: AthleteProfile) => void;
+  username: string;
+  setUsername: (username: string) => void;
   unitSettings: UnitSettings;
   setHeightUnit: (unit: UnitSystem) => void;
   setWeightUnit: (unit: UnitSystem) => void;
@@ -57,6 +61,7 @@ type AppStateProviderProps = {
 
 export function AppStateProvider({ children }: AppStateProviderProps) {
   const [athleteProfile, setAthleteProfile] = useState(defaultAthleteProfile);
+  const [username, setUsername] = useState("");
   const [unitSettings, setUnitSettings] = useState<UnitSettings>({
     height: "metric",
     weight: "metric",
@@ -66,13 +71,15 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
     () => ({
       athleteProfile,
       setAthleteProfile,
+      username,
+      setUsername,
       unitSettings,
       setHeightUnit: (unit: UnitSystem) =>
         setUnitSettings((current) => ({ ...current, height: unit })),
       setWeightUnit: (unit: UnitSystem) =>
         setUnitSettings((current) => ({ ...current, weight: unit })),
     }),
-    [athleteProfile, unitSettings],
+    [athleteProfile, unitSettings, username],
   );
 
   return (

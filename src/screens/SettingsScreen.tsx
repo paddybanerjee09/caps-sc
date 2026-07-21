@@ -13,8 +13,7 @@ const tokens = themes.dark;
 
 export function SettingsScreen() {
   const { colorScheme, setColorScheme, theme } = useAppTheme();
-  const { setHeightUnit, unitSettings } = useAppState();
-  const [weightInPounds, setWeightInPounds] = useState(false);
+  const { setHeightUnit, setWeightUnit, unitSettings } = useAppState();
   const [distanceInMiles, setDistanceInMiles] = useState(false);
   const [weighInReminders, setWeighInReminders] = useState(false);
   const [trainingReminders, setTrainingReminders] = useState(false);
@@ -57,9 +56,11 @@ export function SettingsScreen() {
           control={
             <OptionSelector
               leftLabel="kg"
-              onValueChange={setWeightInPounds}
+              onValueChange={(isImperial) =>
+                setWeightUnit(isImperial ? "imperial" : "metric")
+              }
               rightLabel="lb"
-              value={weightInPounds}
+              value={unitSettings.weight === "imperial"}
             />
           }
         />

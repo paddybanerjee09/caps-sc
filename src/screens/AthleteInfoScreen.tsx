@@ -10,7 +10,11 @@ import {
 
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
-import { useAppState, type UnitSystem } from "../state/AppStateContext";
+import {
+  useAppState,
+  type CombatSport,
+  type UnitSystem,
+} from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 
@@ -21,18 +25,8 @@ const tokens = themes.dark;
 const centimetersPerInch = 2.54;
 type Sex = "Male" | "Female";
 const sexOptions: Sex[] = ["Male", "Female"];
-type Sport =
-  | "Muay Thai"
-  | "Kickboxing"
-  | "Boxing"
-  | "MMA"
-  | "BJJ (Gi)"
-  | "BJJ (No-Gi)"
-  | "Wrestling"
-  | "Judo"
-  | "Jiu-Jitsu"
-  | "Karate";
-const sportOptions: Sport[] = [
+
+const sportOptions: CombatSport[] = [
   "Muay Thai",
   "Kickboxing",
   "Boxing",
@@ -61,7 +55,6 @@ export function AthleteInfoScreen() {
   const [draftFeet, setDraftFeet] = useState("");
   const [draftInches, setDraftInches] = useState("");
 
-  const [athleteSports, setAthleteSports] = useState<Sport[]>([]);
   const [sportsPickerOpen, setSportsPickerOpen] = useState(false);
   const [sportSearch, setSportSearch] = useState("");
 
@@ -72,6 +65,10 @@ export function AthleteInfoScreen() {
 
   function saveDateOfBirth() {
     setDateOfBirth(draftDate);
+    setAthleteProfile({
+      ...athleteProfile,
+      age: calculateAge(draftDate),
+    });
     setDatePickerOpen(false);
   }
 
@@ -117,28 +114,26 @@ export function AthleteInfoScreen() {
     setSportsPickerOpen(true);
   }
 
-  function toggleSport(sport: Sport) {
-    setAthleteSports((currentSports) =>
-      currentSports.includes(sport)
-        ? currentSports.filter((currentSport) => currentSport !== sport)
-        : [...currentSports, sport],
-    );
+  function toggleSport(sport: CombatSport) {
+    const sports = athleteProfile.sports.includes(sport)
+      ? athleteProfile.sports.filter((currentSport) => currentSport !== sport)
+      : [...athleteProfile.sports, sport];
+
+    setAthleteProfile({ ...athleteProfile, sports });
   }
 
   const ageText =
-    dateOfBirth === null
+    athleteProfile.age === null
       ? "Not selected"
-      : `${calculateAge(dateOfBirth)} years`;
+      : `${athleteProfile.age} years old`;
   const heightText = formatHeight(athleteProfile.heightCm, unitSettings.height);
-  const sportsText = formatSports(athleteSports);
+  const sportsText = formatSports(athleteProfile.sports);
   const filteredSportOptions = sportOptions.filter((sport) =>
     sport.toLowerCase().includes(sportSearch.trim().toLowerCase()),
   );
 
   return (
     <Screen title="Athlete Information">
-      {/*Athlete Info Buttons*/}
-
       <InfoRow label="Age" value={ageText} onPress={openDatePicker} />
 
       <InfoRow
@@ -152,8 +147,6 @@ export function AthleteInfoScreen() {
       <InfoRow label="Height" value={heightText} onPress={openHeightPicker} />
 
       <InfoRow label="Sports" value={sportsText} onPress={openSportsPicker} />
-
-      {/*Date of Birth Picker Modal*/}
 
       <Modal
         animationType="fade"
@@ -411,7 +404,7 @@ export function AthleteInfoScreen() {
                 style={styles.sportsList}
               >
                 {filteredSportOptions.map((sport) => {
-                  const isSelected = athleteSports.includes(sport);
+                  const isSelected = athleteProfile.sports.includes(sport);
 
                   return (
                     <PressOpacity
@@ -543,7 +536,7 @@ function isWholeNumberAtMost(value: string, maximum: number) {
   return /^\d*$/.test(value) && (value === "" || Number(value) <= maximum);
 }
 
-function formatSports(athleteSports: Sport[]) {
+function formatSports(athleteSports: CombatSport[]) {
   if (athleteSports.length === 0) {
     return "Not selected";
   }
