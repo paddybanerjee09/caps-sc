@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
 import { SimpleSwitch } from "../components/SimpleSwitch";
+import { useAppState } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 
@@ -12,8 +13,8 @@ const tokens = themes.dark;
 
 export function SettingsScreen() {
   const { colorScheme, setColorScheme, theme } = useAppTheme();
+  const { setHeightUnit, unitSettings } = useAppState();
   const [weightInPounds, setWeightInPounds] = useState(false);
-  const [heightInInches, setHeightInInches] = useState(false);
   const [distanceInMiles, setDistanceInMiles] = useState(false);
   const [weighInReminders, setWeighInReminders] = useState(false);
   const [trainingReminders, setTrainingReminders] = useState(false);
@@ -67,9 +68,11 @@ export function SettingsScreen() {
           control={
             <OptionSelector
               leftLabel="cm"
-              onValueChange={setHeightInInches}
+              onValueChange={(isImperial) =>
+                setHeightUnit(isImperial ? "imperial" : "metric")
+              }
               rightLabel="inches"
-              value={heightInInches}
+              value={unitSettings.height === "imperial"}
             />
           }
         />

@@ -1,5 +1,5 @@
-import type { ComponentProps } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import type { ComponentProps } from "react";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -11,7 +11,11 @@ import {
   useWindowDimensions,
 } from "react-native";
 
-import { sidebarItems, type RouteKey, type SidebarRoute } from "../navigation/routes";
+import {
+  sidebarItems,
+  type RouteKey,
+  type SidebarRoute,
+} from "../navigation/routes";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 import { PressOpacity } from "./PressOpacity";
@@ -46,7 +50,7 @@ export function Sidebar({
   const { theme } = useAppTheme();
   const [mounted, setMounted] = useState(open);
   const progress = useRef(new Animated.Value(open ? 1 : 0)).current;
-  const panelWidth = Math.min(width * 0.78, 304);
+  const panelWidth = Math.min(width * 0.58, 240);
 
   useEffect(() => {
     if (open) {
@@ -89,7 +93,11 @@ export function Sidebar({
           },
         ]}
       >
-        <Pressable accessibilityLabel="Close sidebar" onPress={onClose} style={styles.scrimPress} />
+        <Pressable
+          accessibilityLabel="Close sidebar"
+          onPress={onClose}
+          style={styles.scrimPress}
+        />
       </Animated.View>
       <Animated.View
         style={[
@@ -122,18 +130,14 @@ export function Sidebar({
               <Text
                 style={[
                   styles.itemText,
-                  { color: isActive ? theme.colors.text : theme.colors.textMuted },
+                  {
+                    color: isActive
+                      ? theme.colors.text
+                      : theme.colors.textMuted,
+                  },
                 ]}
               >
                 {item.title}
-              </Text>
-              <Text
-                style={[
-                  styles.chevron,
-                  { color: isActive ? theme.colors.tertiary : theme.colors.textMuted },
-                ]}
-              >
-                {">"}
               </Text>
             </PressOpacity>
           );
@@ -172,10 +176,5 @@ const styles = StyleSheet.create({
     fontSize: tokens.typography.body.fontSize,
     fontWeight: tokens.typography.body.fontWeight,
     lineHeight: tokens.typography.body.lineHeight,
-  },
-  chevron: {
-    fontSize: 18,
-    fontWeight: "600",
-    lineHeight: 22,
   },
 });
