@@ -47,10 +47,10 @@ type AppStateContextValue = {
 const defaultAthleteProfile: AthleteProfile = {
   firstName: "",
   lastName: "",
-  age: null,
-  heightCm: null,
-  weightKg: null,
-  sports: [],
+  age: 17,
+  heightCm: 175,
+  weightKg: 75,
+  sports: ["Muay Thai"],
 };
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
@@ -61,7 +61,7 @@ type AppStateProviderProps = {
 
 export function AppStateProvider({ children }: AppStateProviderProps) {
   const [athleteProfile, setAthleteProfile] = useState(defaultAthleteProfile);
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState("Paddy");
   const [unitSettings, setUnitSettings] = useState<UnitSettings>({
     height: "metric",
     weight: "metric",

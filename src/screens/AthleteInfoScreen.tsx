@@ -23,6 +23,7 @@ import { useState } from "react";
 
 const tokens = themes.dark;
 const centimetersPerInch = 2.54;
+const defaultDateOfBirth = new Date(2009, 2, 4);
 type Sex = "Male" | "Female";
 const sexOptions: Sex[] = ["Male", "Female"];
 
@@ -43,8 +44,9 @@ export function AthleteInfoScreen() {
   const { theme } = useAppTheme();
   const { athleteProfile, setAthleteProfile, unitSettings } = useAppState();
 
-  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
-  const [draftDate, setDraftDate] = useState<Date>(new Date());
+  const [dateOfBirth, setDateOfBirth] =
+    useState<Date | null>(defaultDateOfBirth);
+  const [draftDate, setDraftDate] = useState<Date>(defaultDateOfBirth);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const [sex, setSex] = useState<Sex | null>(null);
