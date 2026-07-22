@@ -11,6 +11,14 @@ import { themes } from "../theme/theme";
 
 const tokens = themes.dark;
 
+type HomeSection = "today" | "recovery" | "progress";
+
+const homeSections: { key: HomeSection; label: string }[] = [
+  { key: "today", label: "Today" },
+  { key: "recovery", label: "Recovery" },
+  { key: "progress", label: "Progress" },
+];
+
 export function HomeScreen() {
   const { theme } = useAppTheme();
   const { athleteProfile, unitSettings, username } = useAppState();
@@ -25,8 +33,10 @@ export function HomeScreen() {
   const sportsText = formatSports(athleteProfile.sports);
 
   const [quickLogOpen, setQuickLogOpen] = useState(false);
-
   const quickLogAnimation = useRef(new Animated.Value(0)).current;
+
+  const [selectedHomeSection, setSelectedHomeSection] =
+    useState<HomeSection>("today");
 
   function toggleQuickLogMenu() {
     const willOpen = !quickLogOpen;
@@ -168,6 +178,76 @@ export function HomeScreen() {
           </View>
         </View>
       </Animated.View>
+
+      <View
+        style={[
+          styles.homeSelector,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        {homeSections.map((section) => {
+          const isSelected = selectedHomeSection === section.key;
+
+          return (
+            <PressOpacity
+              accessibilityLabel={`Show ${section.label}`}
+              accessibilityRole="tab"
+              key={section.key}
+              onPress={() => setSelectedHomeSection(section.key)}
+              style={[
+                styles.homeSelectorOption,
+                isSelected && {
+                  backgroundColor: theme.colors.surfaceMuted,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.homeSelectorText,
+                  {
+                    color: isSelected
+                      ? theme.colors.text
+                      : theme.colors.textMuted,
+                  },
+                ]}
+              >
+                {section.label}
+              </Text>
+            </PressOpacity>
+          );
+        })}
+      </View>
+
+      <View
+        style={[
+          styles.homeSectionContent,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        {selectedHomeSection === "today" && (
+          <Text style={[styles.homeSectionText, { color: theme.colors.text }]}>
+            Today’s timeline will go here
+          </Text>
+        )}
+
+        {selectedHomeSection === "recovery" && (
+          <Text style={[styles.homeSectionText, { color: theme.colors.text }]}>
+            Recovery information will go here
+          </Text>
+        )}
+
+        {selectedHomeSection === "progress" && (
+          <Text style={[styles.homeSectionText, { color: theme.colors.text }]}>
+            Progress charts will go here
+          </Text>
+        )}
+      </View>
     </Screen>
   );
 }
@@ -244,11 +324,7 @@ function QuickLogOption(props: QuickLogOptionProps) {
             size={28}
           />
         ) : (
-          <Ionicons
-            color={theme.colors.tertiary}
-            name={props.icon}
-            size={28}
-          />
+          <Ionicons color={theme.colors.tertiary} name={props.icon} size={28} />
         )}
       </View>
 
@@ -354,5 +430,35 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: tokens.spacing.sm,
     justifyContent: "space-between",
+  },
+  homeSelector: {
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginTop: tokens.spacing.sm,
+    overflow: "hidden",
+    width: "100%",
+  },
+  homeSelectorOption: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 25,
+  },
+  homeSelectorText: {
+    fontSize: tokens.typography.label.fontSize,
+    fontWeight: "700",
+    lineHeight: tokens.typography.label.lineHeight,
+  },
+  homeSectionContent: {
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    marginTop: tokens.spacing.sm,
+    minHeight: 160,
+    padding: tokens.spacing.lg,
+  },
+  homeSectionText: {
+    fontSize: tokens.typography.body.fontSize,
+    lineHeight: tokens.typography.body.lineHeight,
   },
 });
