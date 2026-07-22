@@ -1,12 +1,45 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  StyleSheet,
+  Text,
+  View,
+  type ImageSourcePropType,
+} from "react-native";
 
 import { useAppTheme } from "../theme/ThemeContext";
-import { themes } from "../theme/theme";
+import {
+  themes,
+  type ColorScheme,
+  type TertiaryColor,
+} from "../theme/theme";
 import { PressOpacity } from "./PressOpacity";
 
 const tokens = themes.dark;
-const darkModeIcon = require("../../assets/images/CAPS_Icon_Dark.png");
-const lightModeIcon = require("../../assets/images/CAPS_Icon_Light.png");
+const logos = {
+  dark: {
+    blue: require("../../assets/images/CAPS_Icon_Dark_Blue.png"),
+    green: require("../../assets/images/CAPS_Icon_Dark_Green.png"),
+    orange: require("../../assets/images/CAPS_Icon_Dark_Orange.png"),
+    pink: require("../../assets/images/CAPS_Icon_Dark_Pink.png"),
+    purple: require("../../assets/images/CAPS_Icon_Dark_Purple.png"),
+    red: require("../../assets/images/CAPS_Icon_Dark_Red.png"),
+    turquoise: require("../../assets/images/CAPS_Icon_Dark_Turquoise.png"),
+    yellow: require("../../assets/images/CAPS_Icon_Dark_Yellow.png"),
+  },
+  light: {
+    blue: require("../../assets/images/CAPS_Icon_Light_Blue.png"),
+    green: require("../../assets/images/CAPS_Icon_Light_Green.png"),
+    orange: require("../../assets/images/CAPS_Icon_Light_Orange.png"),
+    pink: require("../../assets/images/CAPS_Icon_Light_Pink.png"),
+    purple: require("../../assets/images/CAPS_Icon_Light_Purple.png"),
+    red: require("../../assets/images/CAPS_Icon_Light_Red.png"),
+    turquoise: require("../../assets/images/CAPS_Icon_Light_Turquoise.png"),
+    yellow: require("../../assets/images/CAPS_Icon_Light_Yellow.png"),
+  },
+} satisfies Record<
+  ColorScheme,
+  Record<TertiaryColor, ImageSourcePropType>
+>;
 
 type HeaderProps = {
   onMenuPress: () => void;
@@ -14,7 +47,7 @@ type HeaderProps = {
 };
 
 export function Header({ onMenuPress, topInset }: HeaderProps) {
-  const { colorScheme, theme } = useAppTheme();
+  const { colorScheme, tertiaryColor, theme } = useAppTheme();
 
   return (
     <View
@@ -41,7 +74,7 @@ export function Header({ onMenuPress, topInset }: HeaderProps) {
         accessibilityIgnoresInvertColors
         accessibilityLabel="CAPS"
         resizeMode="cover"
-        source={colorScheme === "dark" ? darkModeIcon : lightModeIcon}
+        source={logos[colorScheme][tertiaryColor]}
         style={[styles.logo, { top: topInset + theme.spacing.sm + 3 }]}
       />
 

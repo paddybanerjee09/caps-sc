@@ -7,11 +7,12 @@ import { themes } from "../theme/theme";
 const tokens = themes.dark;
 
 type ScreenProps = {
+  centerTitle?: boolean;
   children?: ReactNode;
   title: string;
 };
 
-export function Screen({ children, title }: ScreenProps) {
+export function Screen({ centerTitle, children, title }: ScreenProps) {
   const { theme } = useAppTheme();
 
   return (
@@ -24,7 +25,15 @@ export function Screen({ children, title }: ScreenProps) {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
+      <Text
+        style={[
+          styles.title,
+          centerTitle && styles.centerTitle,
+          { color: theme.colors.text },
+        ]}
+      >
+        {title}
+      </Text>
       <View
         style={[styles.titleLine, { backgroundColor: theme.colors.border }]}
       />
@@ -37,13 +46,16 @@ const styles = StyleSheet.create({
   screen: {
     flexGrow: 1,
     paddingBottom: tokens.spacing.xxl,
-    paddingHorizontal: tokens.spacing.xl,
+    paddingHorizontal: tokens.spacing.md,
     paddingTop: tokens.spacing.xxl,
   },
   title: {
     fontSize: tokens.typography.title.fontSize,
     fontWeight: tokens.typography.title.fontWeight,
     lineHeight: tokens.typography.title.lineHeight,
+  },
+  centerTitle: {
+    textAlign: "center",
   },
   titleLine: {
     height: StyleSheet.hairlineWidth,

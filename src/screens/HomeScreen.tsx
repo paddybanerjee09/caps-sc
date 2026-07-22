@@ -52,7 +52,7 @@ export function HomeScreen() {
   }
 
   return (
-    <Screen title="Home">
+    <Screen centerTitle title="Home">
       <View
         style={[
           styles.profile,
@@ -209,7 +209,7 @@ export function HomeScreen() {
                   styles.homeSelectorText,
                   {
                     color: isSelected
-                      ? theme.colors.text
+                      ? theme.colors.tertiary
                       : theme.colors.textMuted,
                   },
                 ]}

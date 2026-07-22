@@ -1,10 +1,17 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
-import { themes, type AppTheme, type ColorScheme } from "./theme";
+import {
+  createAppTheme,
+  type AppTheme,
+  type ColorScheme,
+  type TertiaryColor,
+} from "./theme";
 
 type AppThemeContextValue = {
   colorScheme: ColorScheme;
   setColorScheme: (colorScheme: ColorScheme) => void;
+  setTertiaryColor: (tertiaryColor: TertiaryColor) => void;
+  tertiaryColor: TertiaryColor;
   theme: AppTheme;
 };
 
@@ -16,14 +23,18 @@ type AppThemeProviderProps = {
 
 export function AppThemeProvider({ children }: AppThemeProviderProps) {
   const [colorScheme, setColorScheme] = useState<ColorScheme>("dark");
+  const [tertiaryColor, setTertiaryColor] =
+    useState<TertiaryColor>("red");
 
   const value = useMemo(
     () => ({
       colorScheme,
       setColorScheme,
-      theme: themes[colorScheme],
+      setTertiaryColor,
+      tertiaryColor,
+      theme: createAppTheme(colorScheme, tertiaryColor),
     }),
-    [colorScheme],
+    [colorScheme, tertiaryColor],
   );
 
   return <AppThemeContext.Provider value={value}>{children}</AppThemeContext.Provider>;

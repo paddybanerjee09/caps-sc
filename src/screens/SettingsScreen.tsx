@@ -1,23 +1,41 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
 import { SimpleSwitch } from "../components/SimpleSwitch";
 import { useAppState } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
-import { themes } from "../theme/theme";
+import {
+  tertiaryColorOptions,
+  themes,
+  type TertiaryColor,
+} from "../theme/theme";
 
 const tokens = themes.dark;
 
 export function SettingsScreen() {
-  const { colorScheme, setColorScheme, theme } = useAppTheme();
+  const {
+    colorScheme,
+    setColorScheme,
+    setTertiaryColor,
+    tertiaryColor,
+    theme,
+  } = useAppTheme();
   const { setHeightUnit, setWeightUnit, unitSettings } = useAppState();
   const [distanceInMiles, setDistanceInMiles] = useState(false);
   const [weighInReminders, setWeighInReminders] = useState(false);
   const [trainingReminders, setTrainingReminders] = useState(false);
   const [hydrationReminders, setHydrationReminders] = useState(false);
+  const [colorMenuOpen, setColorMenuOpen] = useState(false);
 
   const setThemeFromSwitch = (isLight: boolean) => {
     setColorScheme(isLight ? "light" : "dark");
@@ -25,7 +43,7 @@ export function SettingsScreen() {
 
   return (
     <Screen title="Settings">
-      <Section title="Appearance">
+      <Section style={styles.appearanceSection} title="Appearance">
         <SettingRow
           label="Theme"
           control={
@@ -37,6 +55,26 @@ export function SettingsScreen() {
             />
           }
         />
+        <View style={styles.colorMenu}>
+          <SettingRow
+            label="Colour"
+            control={
+              <ColorSelector
+                color={tertiaryColor}
+                onPress={() => setColorMenuOpen((isOpen) => !isOpen)}
+              />
+            }
+          />
+          {colorMenuOpen ? (
+            <ColorDropdown
+              selectedColor={tertiaryColor}
+              onSelect={(color) => {
+                setTertiaryColor(color);
+                setColorMenuOpen(false);
+              }}
+            />
+          ) : null}
+        </View>
       </Section>
 
       <Section title="Units">
@@ -115,11 +153,19 @@ export function SettingsScreen() {
   );
 }
 
-function Section({ children, title }: { children: ReactNode; title: string }) {
+function Section({
+  children,
+  style,
+  title,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  title: string;
+}) {
   const { theme } = useAppTheme();
 
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, style]}>
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
         {title}
       </Text>
@@ -201,6 +247,109 @@ function OptionSelector({
   );
 }
 
+function ColorSelector({
+  color,
+  onPress,
+}: {
+  color: TertiaryColor;
+  onPress: () => void;
+}) {
+  const { theme } = useAppTheme();
+  const selectedColor = tertiaryColorOptions.find(
+    (option) => option.key === color,
+  )!;
+
+  return (
+    <PressOpacity
+      accessibilityLabel={`Colour, ${selectedColor.label}`}
+      onPress={onPress}
+      style={[
+        styles.colorSelector,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.borderStrong,
+        },
+      ]}
+    >
+      <View
+        style={[styles.colorCircle, { backgroundColor: selectedColor.hex }]}
+      />
+      <Text
+        style={[styles.colorSelectorText, { color: theme.colors.text }]}
+      >
+        {selectedColor.label}
+      </Text>
+      <Ionicons
+        color={theme.colors.textMuted}
+        name="chevron-down"
+        size={16}
+      />
+    </PressOpacity>
+  );
+}
+
+function ColorDropdown({
+  onSelect,
+  selectedColor,
+}: {
+  onSelect: (color: TertiaryColor) => void;
+  selectedColor: TertiaryColor;
+}) {
+  const { theme } = useAppTheme();
+
+  return (
+    <View
+      style={[
+        styles.colorDropdown,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.borderStrong,
+        },
+      ]}
+    >
+      {tertiaryColorOptions.map((option, index) => {
+        const isSelected = option.key === selectedColor;
+
+        return (
+          <PressOpacity
+            accessibilityLabel={`Use ${option.label}`}
+            key={option.key}
+            onPress={() => onSelect(option.key)}
+            style={[
+              styles.colorOption,
+              index > 0 && {
+                borderTopColor: theme.colors.border,
+                borderTopWidth: StyleSheet.hairlineWidth,
+              },
+            ]}
+          >
+            <View style={styles.colorOptionLabel}>
+              <View
+                style={[styles.colorCircle, { backgroundColor: option.hex }]}
+              />
+              <Text
+                style={[styles.colorOptionText, { color: theme.colors.text }]}
+              >
+                {option.label}
+              </Text>
+            </View>
+
+            {isSelected ? (
+              <Ionicons
+                color={theme.colors.tertiary}
+                name="checkmark"
+                size={20}
+              />
+            ) : (
+              <View style={styles.checkmarkSpace} />
+            )}
+          </PressOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 function ThemedSwitch({
   onValueChange,
   value,
@@ -214,6 +363,9 @@ function ThemedSwitch({
 const styles = StyleSheet.create({
   section: {
     marginBottom: tokens.spacing.xxl,
+  },
+  appearanceSection: {
+    zIndex: 1,
   },
   sectionTitle: {
     fontSize: tokens.typography.sectionTitle.fontSize,
@@ -258,6 +410,61 @@ const styles = StyleSheet.create({
     fontWeight: tokens.typography.label.fontWeight,
     lineHeight: tokens.typography.label.lineHeight,
     textAlign: "center",
+  },
+  colorSelector: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    minHeight: 34,
+    minWidth: 132,
+    paddingHorizontal: tokens.spacing.md,
+  },
+  colorCircle: {
+    borderRadius: tokens.radius.pill,
+    height: 14,
+    width: 14,
+  },
+  colorSelectorText: {
+    flex: 1,
+    fontSize: tokens.typography.label.fontSize,
+    fontWeight: tokens.typography.label.fontWeight,
+    lineHeight: tokens.typography.label.lineHeight,
+  },
+  colorMenu: {
+    position: "relative",
+  },
+  colorDropdown: {
+    alignSelf: "flex-end",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    elevation: 4,
+    overflow: "hidden",
+    position: "absolute",
+    right: 0,
+    top: "100%",
+    width: 166,
+    zIndex: 1,
+  },
+  colorOption: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 42,
+    paddingHorizontal: tokens.spacing.md,
+  },
+  colorOptionLabel: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+  },
+  colorOptionText: {
+    fontSize: tokens.typography.body.fontSize,
+    lineHeight: tokens.typography.body.lineHeight,
+  },
+  checkmarkSpace: {
+    width: 20,
   },
   bottomLine: {
     height: StyleSheet.hairlineWidth,

@@ -1,5 +1,18 @@
 export type ColorScheme = "dark" | "light";
 
+export const tertiaryColorOptions = [
+  { hex: "#D31516", key: "red", label: "Red" },
+  { hex: "#1545D3", key: "blue", label: "Blue" },
+  { hex: "#2DC020", key: "green", label: "Green" },
+  { hex: "#9620C0", key: "purple", label: "Purple" },
+  { hex: "#20C0B2", key: "turquoise", label: "Turquoise" },
+  { hex: "#D3C615", key: "yellow", label: "Yellow" },
+  { hex: "#D35915", key: "orange", label: "Orange" },
+  { hex: "#C868BF", key: "pink", label: "Pink" },
+] as const;
+
+export type TertiaryColor = (typeof tertiaryColorOptions)[number]["key"];
+
 const shared = {
   spacing: {
     xs: 4,
@@ -57,9 +70,9 @@ export const themes = {
       borderStrong: "rgba(244, 244, 245, 0.28)",
       accent: "#F4F4F5",
       accentMuted: "rgba(244, 244, 245, 0.14)",
-      tertiary: "#ca1415",
+      tertiary: "#D31516",
       switchTrackOff: "#2A2B2F",
-      switchTrackOn: "#ca1415",
+      switchTrackOn: "#D31516",
       switchThumb: "#FFFFFF",
       overlay: "rgba(0, 0, 0, 0.58)",
     },
@@ -76,13 +89,32 @@ export const themes = {
       borderStrong: "rgba(17, 18, 20, 0.26)",
       accent: "#111214",
       accentMuted: "rgba(17, 18, 20, 0.1)",
-      tertiary: "#ca1415",
+      tertiary: "#D31516",
       switchTrackOff: "#D7D9DB",
-      switchTrackOn: "#ca1415",
+      switchTrackOn: "#D31516",
       switchThumb: "#FFFFFF",
       overlay: "rgba(17, 18, 20, 0.34)",
     },
   },
 } as const;
 
-export type AppTheme = (typeof themes)[ColorScheme];
+export function createAppTheme(
+  colorScheme: ColorScheme,
+  tertiaryColor: TertiaryColor,
+) {
+  const baseTheme = themes[colorScheme];
+  const selectedColor = tertiaryColorOptions.find(
+    (option) => option.key === tertiaryColor,
+  )!;
+
+  return {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      switchTrackOn: selectedColor.hex,
+      tertiary: selectedColor.hex,
+    },
+  };
+}
+
+export type AppTheme = ReturnType<typeof createAppTheme>;
