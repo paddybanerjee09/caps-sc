@@ -132,7 +132,7 @@ export function HomeScreen() {
           {
             height: quickLogAnimation.interpolate({
               inputRange: [0, 1],
-              outputRange: [0, 320],
+              outputRange: [0, 188],
             }),
             opacity: quickLogAnimation,
             transform: [
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: tokens.radius.md,
     justifyContent: "center",
-    marginTop: tokens.spacing.sm,
+    marginTop: tokens.spacing.lg,
     minHeight: 25,
     width: "100%",
   },
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.md,
     borderWidth: 1,
     flexDirection: "row",
-    marginTop: tokens.spacing.sm,
+    marginTop: tokens.spacing.lg,
     overflow: "hidden",
     width: "100%",
   },
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   homeSectionContent: {
     borderRadius: tokens.radius.md,
     borderWidth: 1,
-    marginTop: tokens.spacing.sm,
+    marginTop: tokens.spacing.lg,
     minHeight: 160,
     padding: tokens.spacing.lg,
   },
