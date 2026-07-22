@@ -55,26 +55,26 @@ export function SettingsScreen() {
             />
           }
         />
-        <View style={styles.colorMenu}>
-          <SettingRow
-            label="Colour"
-            control={
+        <SettingRow
+          label="Colour"
+          control={
+            <View style={styles.colorMenu}>
               <ColorSelector
                 color={tertiaryColor}
                 onPress={() => setColorMenuOpen((isOpen) => !isOpen)}
               />
-            }
-          />
-          {colorMenuOpen ? (
-            <ColorDropdown
-              selectedColor={tertiaryColor}
-              onSelect={(color) => {
-                setTertiaryColor(color);
-                setColorMenuOpen(false);
-              }}
-            />
-          ) : null}
-        </View>
+              {colorMenuOpen ? (
+                <ColorDropdown
+                  selectedColor={tertiaryColor}
+                  onSelect={(color) => {
+                    setTertiaryColor(color);
+                    setColorMenuOpen(false);
+                  }}
+                />
+              ) : null}
+            </View>
+          }
+        />
       </Section>
 
       <Section title="Units">
@@ -418,8 +418,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: tokens.spacing.sm,
     minHeight: 34,
-    minWidth: 132,
     paddingHorizontal: tokens.spacing.md,
+    width: "100%",
   },
   colorCircle: {
     borderRadius: tokens.radius.pill,
@@ -434,9 +434,9 @@ const styles = StyleSheet.create({
   },
   colorMenu: {
     position: "relative",
+    width: 166,
   },
   colorDropdown: {
-    alignSelf: "flex-end",
     borderRadius: tokens.radius.sm,
     borderWidth: 1,
     elevation: 4,
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 0,
     top: "100%",
-    width: 166,
+    width: "100%",
     zIndex: 1,
   },
   colorOption: {
