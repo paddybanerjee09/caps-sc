@@ -13,7 +13,7 @@ type TabIconName = ComponentProps<typeof Ionicons>["name"];
 const tokens = themes.dark;
 
 const tabIcons: Record<
-  Exclude<TabRoute, "sport" | "conditioning">,
+  Exclude<TabRoute, "skill" | "conditioning">,
   TabIconName
 > = {
   nutrition: "restaurant-outline",
@@ -81,7 +81,7 @@ export function BottomTabs({
 }
 
 function TabIcon({ color, route }: { color: string; route: TabRoute }) {
-  if (route === "sport") {
+  if (route === "skill") {
     return (
       <MaterialCommunityIcons color={color} name="boxing-glove" size={22} />
     );

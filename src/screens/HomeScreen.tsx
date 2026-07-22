@@ -156,7 +156,7 @@ export function HomeScreen() {
           ]}
         >
           <View style={styles.quickLogGrid}>
-            <QuickLogOption icon="barbell-outline" label="Strength Workout" />
+            <QuickLogOption icon="barbell-outline" label="Strength Training" />
 
             <QuickLogOption
               icon="run-fast"

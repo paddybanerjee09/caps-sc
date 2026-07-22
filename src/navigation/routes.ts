@@ -1,6 +1,6 @@
 export const tabs = [
   { key: "nutrition", title: "Nutrition" },
-  { key: "sport", title: "Sport" },
+  { key: "skill", title: "Skills Training" },
   { key: "home", title: "Home" },
   { key: "strength", title: "Strength" },
   { key: "conditioning", title: "Conditioning" },
