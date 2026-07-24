@@ -1,10 +1,18 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { useRef, useState, type ComponentProps } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react"; // React imports
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+
+import Ionicons from "@expo/vector-icons/Ionicons"; // Style Imports
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { PressOpacity } from "../components/PressOpacity";
 
-import { Screen } from "../components/Screen";
+import { useSQLiteContext } from "expo-sqlite"; // Database imports
+
+import {
+  getTimelineEntriesForDay,
+  type TimelineEntry
+} from "../data/timelineRepository";
+
+import { Screen } from "../components/Screen"; // File imports
 import { useAppState, type UnitSystem } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
@@ -50,6 +58,21 @@ export function HomeScreen() {
       useNativeDriver: false,
     }).start();
   }
+
+  const db = useSQLiteContext();
+
+  const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([]);
+
+  useEffect(() => {
+    async function loadTodayEntries() {
+      const { dayStart, dayEnd } = getTodayBounds();
+
+      const entries = await getTimelineEntriesForDay(db, dayStart, dayEnd);
+
+      setTimelineEntries(entries);
+    }
+    void loadTodayEntries();
+  }, [db]);
 
   return (
     <Screen centerTitle title="Home">
@@ -250,6 +273,19 @@ export function HomeScreen() {
       </View>
     </Screen>
   );
+
+  function getTodayBounds() {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    return {
+      dayStart: start.getTime(),
+      dayEnd: end.getTime(),
+    };
+  }
 }
 
 function formatHeight(heightCm: number | null, unit: UnitSystem) {
