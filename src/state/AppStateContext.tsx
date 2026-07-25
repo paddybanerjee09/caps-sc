@@ -1,10 +1,18 @@
 import {
+  useCallback,
   createContext,
+  useEffect,
   useContext,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
+import { useSQLiteContext } from "expo-sqlite";
+
+import {
+  addWeightLog,
+  getLatestWeightKg,
+} from "../data/timelineRepository";
 
 export type CombatSport =
   | "Muay Thai"
@@ -36,6 +44,7 @@ type UnitSettings = {
 
 type AppStateContextValue = {
   athleteProfile: AthleteProfile;
+  logWeight: (weightKg: number) => Promise<void>;
   setAthleteProfile: (profile: AthleteProfile) => void;
   username: string;
   setUsername: (username: string) => void;
@@ -60,6 +69,7 @@ type AppStateProviderProps = {
 };
 
 export function AppStateProvider({ children }: AppStateProviderProps) {
+  const db = useSQLiteContext();
   const [athleteProfile, setAthleteProfile] = useState(defaultAthleteProfile);
   const [username, setUsername] = useState("Paddy");
   const [unitSettings, setUnitSettings] = useState<UnitSettings>({
@@ -67,9 +77,33 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
     weight: "metric",
   });
 
+  useEffect(() => {
+    async function loadLatestWeight() {
+      const latestWeightKg = await getLatestWeightKg(db);
+
+      if (latestWeightKg !== null) {
+        setAthleteProfile((current) => ({
+          ...current,
+          weightKg: latestWeightKg,
+        }));
+      }
+    }
+
+    void loadLatestWeight();
+  }, [db]);
+
+  const logWeight = useCallback(
+    async (weightKg: number) => {
+      await addWeightLog(db, weightKg);
+      setAthleteProfile((current) => ({ ...current, weightKg }));
+    },
+    [db],
+  );
+
   const value = useMemo(
     () => ({
       athleteProfile,
+      logWeight,
       setAthleteProfile,
       username,
       setUsername,
@@ -79,7 +113,7 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
       setWeightUnit: (unit: UnitSystem) =>
         setUnitSettings((current) => ({ ...current, weight: unit })),
     }),
-    [athleteProfile, unitSettings, username],
+    [athleteProfile, logWeight, unitSettings, username],
   );
 
   return (

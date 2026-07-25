@@ -10,6 +10,7 @@ import {
 
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
+import { WeightLogModal } from "../components/WeightLogModal";
 import {
   useAppState,
   type CombatSport,
@@ -17,6 +18,7 @@ import {
 } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
+import { formatWeight } from "../utils/weight";
 
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState } from "react";
@@ -41,7 +43,7 @@ const sportOptions: CombatSport[] = [
 ];
 
 export function AthleteInfoScreen() {
-  const { theme } = useAppTheme();
+  const { colorScheme, theme } = useAppTheme();
   const { athleteProfile, setAthleteProfile, unitSettings } = useAppState();
 
   const [dateOfBirth, setDateOfBirth] =
@@ -59,6 +61,7 @@ export function AthleteInfoScreen() {
 
   const [sportsPickerOpen, setSportsPickerOpen] = useState(false);
   const [sportSearch, setSportSearch] = useState("");
+  const [weightModalOpen, setWeightModalOpen] = useState(false);
 
   function openDatePicker() {
     setDraftDate(dateOfBirth ?? new Date());
@@ -128,6 +131,10 @@ export function AthleteInfoScreen() {
     athleteProfile.age === null
       ? "Not selected"
       : `${athleteProfile.age} years old`;
+  const weightText = formatWeight(
+    athleteProfile.weightKg,
+    unitSettings.weight,
+  );
   const heightText = formatHeight(athleteProfile.heightCm, unitSettings.height);
   const sportsText = formatSports(athleteProfile.sports);
   const filteredSportOptions = sportOptions.filter((sport) =>
@@ -144,7 +151,11 @@ export function AthleteInfoScreen() {
         onPress={() => setSexPickerOpen(true)}
       />
 
-      <InfoRow label="Weight" value="75kg" onPress={() => undefined} />
+      <InfoRow
+        label="Weight"
+        value={weightText}
+        onPress={() => setWeightModalOpen(true)}
+      />
 
       <InfoRow label="Height" value={heightText} onPress={openHeightPicker} />
 
@@ -174,6 +185,8 @@ export function AthleteInfoScreen() {
                   }
                 }}
                 style={styles.datePicker}
+                textColor={theme.colors.text}
+                themeVariant={colorScheme}
                 value={draftDate}
               />
             </View>
@@ -460,6 +473,11 @@ export function AthleteInfoScreen() {
           </View>
         </View>
       </Modal>
+
+      <WeightLogModal
+        onClose={() => setWeightModalOpen(false)}
+        visible={weightModalOpen}
+      />
     </Screen>
   );
 }

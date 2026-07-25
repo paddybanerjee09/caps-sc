@@ -47,6 +47,10 @@ type TimelineEntryRow = {
   weight_kg: number | null;
 };
 
+type LatestWeightRow = {
+  weight_kg: number;
+};
+
 export async function addTimelineEntry(
   db: SQLiteDatabase,
   entry: NewTimelineEntry,
@@ -133,6 +137,19 @@ export async function getTimelineEntriesForDay(
   );
 
   return rows.map(convertTimelineEntryRow);
+}
+
+export async function getLatestWeightKg(db: SQLiteDatabase) {
+  const row = await db.getFirstAsync<LatestWeightRow>(
+    `SELECT weight_logs.weight_kg
+     FROM weight_logs
+     INNER JOIN timeline_entries
+       ON timeline_entries.id = weight_logs.timeline_entry_id
+     ORDER BY timeline_entries.start_at DESC, timeline_entries.id DESC
+     LIMIT 1`,
+  );
+
+  return row?.weight_kg ?? null;
 }
 
 function convertTimelineEntryRow(row: TimelineEntryRow): TimelineEntry {

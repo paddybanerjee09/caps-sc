@@ -8,21 +8,19 @@ import {
 import {
   Animated,
   Easing,
-  Modal,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons"; // Style Imports
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { PressOpacity } from "../components/PressOpacity";
+import { WeightLogModal } from "../components/WeightLogModal";
 
 import { useSQLiteContext } from "expo-sqlite"; // Database imports
 
 import {
-  addWeightLog,
   getTimelineEntriesForDay,
   type TimelineEntry,
 } from "../data/timelineRepository";
@@ -31,6 +29,7 @@ import { Screen } from "../components/Screen"; // File imports
 import { useAppState, type UnitSystem } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
+import { formatWeight } from "../utils/weight";
 
 const tokens = themes.dark;
 
@@ -78,7 +77,6 @@ export function HomeScreen() {
 
   const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([]);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
-  const [draftWeight, setDraftWeight] = useState("");
 
   const loadTodayEntries = useCallback(async () => {
     const { dayStart, dayEnd } = getTodayBounds();
@@ -91,30 +89,6 @@ export function HomeScreen() {
   useEffect(() => {
     void loadTodayEntries();
   }, [loadTodayEntries]);
-
-  function openWeightLog() {
-    setDraftWeight("");
-    setWeightModalOpen(true);
-  }
-
-  async function saveWeightLog() {
-    const enteredWeight = Number(draftWeight);
-
-    if (!Number.isFinite(enteredWeight) || enteredWeight <= 0) {
-      return;
-    }
-
-    const weightKg =
-      unitSettings.weight === "metric"
-        ? enteredWeight
-        : enteredWeight / 2.20462;
-
-    await addWeightLog(db, weightKg);
-    await loadTodayEntries();
-
-    setWeightModalOpen(false);
-    setDraftWeight("");
-  }
 
   return (
     <Screen centerTitle title="Home">
@@ -240,7 +214,7 @@ export function HomeScreen() {
             <QuickLogOption
               icon="scale-outline"
               label="Weight"
-              onPress={openWeightLog}
+              onPress={() => setWeightModalOpen(true)}
             />
 
             <QuickLogOption icon="moon-outline" label="Sleep" />
@@ -335,61 +309,11 @@ export function HomeScreen() {
         )}
       </View>
 
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setWeightModalOpen(false)}
-        transparent
+      <WeightLogModal
+        onClose={() => setWeightModalOpen(false)}
+        onSaved={loadTodayEntries}
         visible={weightModalOpen}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[styles.modal, { backgroundColor: theme.colors.surface }]}
-          >
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-              Weight
-            </Text>
-
-            <View style={styles.weightInputRow}>
-              <TextInput
-                accessibilityLabel={`Weight in ${
-                  unitSettings.weight === "metric" ? "kilograms" : "pounds"
-                }`}
-                keyboardType="decimal-pad"
-                onChangeText={(value) => {
-                  if (/^\d*\.?\d*$/.test(value)) {
-                    setDraftWeight(value);
-                  }
-                }}
-                placeholder="0.0"
-                placeholderTextColor={theme.colors.textMuted}
-                selectionColor={theme.colors.tertiary}
-                style={[
-                  styles.weightInput,
-                  {
-                    borderColor: theme.colors.borderStrong,
-                    color: theme.colors.text,
-                  },
-                ]}
-                value={draftWeight}
-              />
-
-              <Text style={[styles.weightUnit, { color: theme.colors.text }]}>
-                {unitSettings.weight === "metric" ? "kg" : "lbs"}
-              </Text>
-            </View>
-
-            <View style={styles.modalActions}>
-              <PressOpacity onPress={() => setWeightModalOpen(false)}>
-                <Text style={{ color: theme.colors.textMuted }}>Cancel</Text>
-              </PressOpacity>
-
-              <PressOpacity onPress={saveWeightLog}>
-                <Text style={{ color: theme.colors.tertiary }}>Save</Text>
-              </PressOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      />
     </Screen>
   );
 }
@@ -427,16 +351,6 @@ function formatHeight(heightCm: number | null, unit: UnitSystem) {
   const feet = Math.floor(totalInches / 12);
   const inches = totalInches % 12;
   return `${feet}'${inches}\"`;
-}
-
-function formatWeight(weightKg: number | null, unit: UnitSystem) {
-  if (weightKg === null) {
-    return "Not selected";
-  }
-
-  return unit === "metric"
-    ? `${weightKg.toFixed(1)}kg`
-    : `${(weightKg * 2.20462).toFixed(1)}lbs`;
 }
 
 function formatSports(sports: string[]) {
@@ -501,49 +415,6 @@ function QuickLogOption(props: QuickLogOptionProps) {
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.58)",
-    flex: 1,
-    justifyContent: "center",
-    padding: tokens.spacing.xl,
-  },
-  modal: {
-    borderRadius: tokens.radius.lg,
-    padding: tokens.spacing.xl,
-    width: "100%",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  weightInputRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-    justifyContent: "center",
-    paddingTop: tokens.spacing.xl,
-  },
-  weightInput: {
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    fontSize: tokens.typography.body.fontSize,
-    minHeight: 44,
-    paddingHorizontal: tokens.spacing.md,
-    textAlign: "center",
-    width: 100,
-  },
-  weightUnit: {
-    fontSize: tokens.typography.body.fontSize,
-    lineHeight: tokens.typography.body.lineHeight,
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: tokens.spacing.xl,
-    justifyContent: "flex-end",
-    paddingTop: tokens.spacing.lg,
-  },
   profile: {
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
