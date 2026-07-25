@@ -1,5 +1,19 @@
-import { useEffect, useRef, useState, type ComponentProps } from "react"; // React imports
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react"; // React imports
+import {
+  Animated,
+  Easing,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons"; // Style Imports
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -8,8 +22,9 @@ import { PressOpacity } from "../components/PressOpacity";
 import { useSQLiteContext } from "expo-sqlite"; // Database imports
 
 import {
+  addWeightLog,
   getTimelineEntriesForDay,
-  type TimelineEntry
+  type TimelineEntry,
 } from "../data/timelineRepository";
 
 import { Screen } from "../components/Screen"; // File imports
@@ -62,17 +77,44 @@ export function HomeScreen() {
   const db = useSQLiteContext();
 
   const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([]);
+  const [weightModalOpen, setWeightModalOpen] = useState(false);
+  const [draftWeight, setDraftWeight] = useState("");
+
+  const loadTodayEntries = useCallback(async () => {
+    const { dayStart, dayEnd } = getTodayBounds();
+
+    const entries = await getTimelineEntriesForDay(db, dayStart, dayEnd);
+
+    setTimelineEntries(entries);
+  }, [db]);
 
   useEffect(() => {
-    async function loadTodayEntries() {
-      const { dayStart, dayEnd } = getTodayBounds();
-
-      const entries = await getTimelineEntriesForDay(db, dayStart, dayEnd);
-
-      setTimelineEntries(entries);
-    }
     void loadTodayEntries();
-  }, [db]);
+  }, [loadTodayEntries]);
+
+  function openWeightLog() {
+    setDraftWeight("");
+    setWeightModalOpen(true);
+  }
+
+  async function saveWeightLog() {
+    const enteredWeight = Number(draftWeight);
+
+    if (!Number.isFinite(enteredWeight) || enteredWeight <= 0) {
+      return;
+    }
+
+    const weightKg =
+      unitSettings.weight === "metric"
+        ? enteredWeight
+        : enteredWeight / 2.20462;
+
+    await addWeightLog(db, weightKg);
+    await loadTodayEntries();
+
+    setWeightModalOpen(false);
+    setDraftWeight("");
+  }
 
   return (
     <Screen centerTitle title="Home">
@@ -195,7 +237,11 @@ export function HomeScreen() {
 
             <QuickLogOption icon="restaurant-outline" label="Meal" />
 
-            <QuickLogOption icon="scale-outline" label="Weight" />
+            <QuickLogOption
+              icon="scale-outline"
+              label="Weight"
+              onPress={openWeightLog}
+            />
 
             <QuickLogOption icon="moon-outline" label="Sleep" />
           </View>
@@ -253,11 +299,28 @@ export function HomeScreen() {
           },
         ]}
       >
-        {selectedHomeSection === "today" && (
-          <Text style={[styles.homeSectionText, { color: theme.colors.text }]}>
-            Today’s timeline will go here
-          </Text>
-        )}
+        {selectedHomeSection === "today" &&
+          (timelineEntries.length === 0 ? (
+            <Text
+              style={[styles.homeSectionText, { color: theme.colors.text }]}
+            >
+              No entries today
+            </Text>
+          ) : (
+            <View>
+              {timelineEntries.map((entry) => (
+                <Text
+                  key={entry.id}
+                  style={[styles.homeSectionText, { color: theme.colors.text }]}
+                >
+                  {formatTime(entry.startAt)} —{" "}
+                  {entry.kind === "weight" && entry.weightKg !== null
+                    ? formatWeight(entry.weightKg, unitSettings.weight)
+                    : entry.title}
+                </Text>
+              ))}
+            </View>
+          ))}
 
         {selectedHomeSection === "recovery" && (
           <Text style={[styles.homeSectionText, { color: theme.colors.text }]}>
@@ -271,21 +334,84 @@ export function HomeScreen() {
           </Text>
         )}
       </View>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setWeightModalOpen(false)}
+        transparent
+        visible={weightModalOpen}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.modal, { backgroundColor: theme.colors.surface }]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Weight
+            </Text>
+
+            <View style={styles.weightInputRow}>
+              <TextInput
+                accessibilityLabel={`Weight in ${
+                  unitSettings.weight === "metric" ? "kilograms" : "pounds"
+                }`}
+                keyboardType="decimal-pad"
+                onChangeText={(value) => {
+                  if (/^\d*\.?\d*$/.test(value)) {
+                    setDraftWeight(value);
+                  }
+                }}
+                placeholder="0.0"
+                placeholderTextColor={theme.colors.textMuted}
+                selectionColor={theme.colors.tertiary}
+                style={[
+                  styles.weightInput,
+                  {
+                    borderColor: theme.colors.borderStrong,
+                    color: theme.colors.text,
+                  },
+                ]}
+                value={draftWeight}
+              />
+
+              <Text style={[styles.weightUnit, { color: theme.colors.text }]}>
+                {unitSettings.weight === "metric" ? "kg" : "lbs"}
+              </Text>
+            </View>
+
+            <View style={styles.modalActions}>
+              <PressOpacity onPress={() => setWeightModalOpen(false)}>
+                <Text style={{ color: theme.colors.textMuted }}>Cancel</Text>
+              </PressOpacity>
+
+              <PressOpacity onPress={saveWeightLog}>
+                <Text style={{ color: theme.colors.tertiary }}>Save</Text>
+              </PressOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
+}
 
-  function getTodayBounds() {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+function getTodayBounds() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
 
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
 
-    return {
-      dayStart: start.getTime(),
-      dayEnd: end.getTime(),
-    };
-  }
+  return {
+    dayStart: start.getTime(),
+    dayEnd: end.getTime(),
+  };
+}
+
+function formatTime(timestamp: number) {
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function formatHeight(heightCm: number | null, unit: UnitSystem) {
@@ -375,6 +501,49 @@ function QuickLogOption(props: QuickLogOptionProps) {
 }
 
 const styles = StyleSheet.create({
+  modalOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.58)",
+    flex: 1,
+    justifyContent: "center",
+    padding: tokens.spacing.xl,
+  },
+  modal: {
+    borderRadius: tokens.radius.lg,
+    padding: tokens.spacing.xl,
+    width: "100%",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  weightInputRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    justifyContent: "center",
+    paddingTop: tokens.spacing.xl,
+  },
+  weightInput: {
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    fontSize: tokens.typography.body.fontSize,
+    minHeight: 44,
+    paddingHorizontal: tokens.spacing.md,
+    textAlign: "center",
+    width: 100,
+  },
+  weightUnit: {
+    fontSize: tokens.typography.body.fontSize,
+    lineHeight: tokens.typography.body.lineHeight,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: tokens.spacing.xl,
+    justifyContent: "flex-end",
+    paddingTop: tokens.spacing.lg,
+  },
   profile: {
     borderRadius: tokens.radius.lg,
     borderWidth: 1,

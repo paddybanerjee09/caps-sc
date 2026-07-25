@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -18,7 +18,7 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     return;
   }
 
-  if (currentVersion === 0) {
+  if (currentVersion < 1) {
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS timeline_entries (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,6 +34,18 @@ export async function migrateDatabase(db: SQLiteDatabase) {
 
       CREATE INDEX IF NOT EXISTS timeline_entries_start_at
       ON timeline_entries (start_at);
+    `);
+  }
+
+  if (currentVersion < 2) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS weight_logs (
+        timeline_entry_id INTEGER PRIMARY KEY NOT NULL,
+        weight_kg REAL NOT NULL CHECK (weight_kg > 0),
+        FOREIGN KEY (timeline_entry_id)
+          REFERENCES timeline_entries (id)
+          ON DELETE CASCADE
+      );
     `);
   }
 

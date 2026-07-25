@@ -29,6 +29,8 @@ export type TimelineEntry = {
   notes: string | null;
   createdAt: number;
   updatedAt: number;
+
+  weightKg: number | null;
 };
 
 type TimelineEntryRow = {
@@ -41,6 +43,8 @@ type TimelineEntryRow = {
   notes: string | null;
   created_at: number;
   updated_at: number;
+
+  weight_kg: number | null;
 };
 
 export async function addTimelineEntry(
@@ -71,8 +75,34 @@ export async function addTimelineEntry(
       now,
     ],
   );
-
   return result.lastInsertRowId;
+}
+
+export async function addWeightLog(
+  db: SQLiteDatabase,
+  weightKg: number,
+  loggedAt = Date.now(),
+) {
+  if (!Number.isFinite(weightKg) || weightKg <= 0) {
+    throw new Error("Weight must be greater than zero");
+  }
+
+  await db.withTransactionAsync(async () => {
+    const timelineEntryId = await addTimelineEntry(db, {
+      kind: "weight",
+      title: "Weight",
+      startAt: loggedAt,
+      status: "completed",
+    });
+
+    await db.runAsync(
+      `INSERT INTO weight_logs (
+          timeline_entry_id,
+          weight_kg
+        ) VALUES (?, ?)`,
+      [timelineEntryId, weightKg],
+    );
+  });
 }
 
 export async function getTimelineEntriesForDay(
@@ -81,14 +111,21 @@ export async function getTimelineEntriesForDay(
   dayEnd: number,
 ) {
   const rows = await db.getAllAsync<TimelineEntryRow>(
-    `SELECT *
-     FROM timeline_entries
-     WHERE start_at < $dayEnd
-       AND (
-         (end_at IS NULL AND start_at >= $dayStart)
-         OR end_at > $dayStart
-       )
-     ORDER BY start_at ASC`,
+    `SELECT
+           timeline_entries.*,
+           weight_logs.weight_kg
+         FROM timeline_entries
+         LEFT JOIN weight_logs
+           ON weight_logs.timeline_entry_id = timeline_entries.id
+         WHERE timeline_entries.start_at < $dayEnd
+           AND (
+             (
+               timeline_entries.end_at IS NULL
+               AND timeline_entries.start_at >= $dayStart
+             )
+             OR timeline_entries.end_at > $dayStart
+           )
+         ORDER BY timeline_entries.start_at ASC`,
     {
       $dayStart: dayStart,
       $dayEnd: dayEnd,
@@ -109,5 +146,6 @@ function convertTimelineEntryRow(row: TimelineEntryRow): TimelineEntry {
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    weightKg: row.weight_kg,
   };
 }
