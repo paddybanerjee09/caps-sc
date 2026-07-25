@@ -1,9 +1,9 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
-  type ComponentProps,
 } from "react"; // React imports
 import {
   Animated,
@@ -15,6 +15,7 @@ import {
 
 import Ionicons from "@expo/vector-icons/Ionicons"; // Style Imports
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { DayTimeline } from "../components/DayTimeline";
 import { PressOpacity } from "../components/PressOpacity";
 import { WeightLogModal } from "../components/WeightLogModal";
 
@@ -23,9 +24,11 @@ import { useSQLiteContext } from "expo-sqlite"; // Database imports
 import {
   getTimelineEntriesForDay,
   type TimelineEntry,
+  type TimelineKind,
 } from "../data/timelineRepository";
 
 import { Screen } from "../components/Screen"; // File imports
+import { timelineCategories } from "../constants/timelineCategories";
 import { useAppState, type UnitSystem } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
@@ -39,6 +42,15 @@ const homeSections: { key: HomeSection; label: string }[] = [
   { key: "today", label: "Today" },
   { key: "recovery", label: "Recovery" },
   { key: "progress", label: "Progress" },
+];
+
+const quickLogKinds: TimelineKind[] = [
+  "strength",
+  "conditioning",
+  "skill",
+  "meal",
+  "weight",
+  "sleep",
 ];
 
 export function HomeScreen() {
@@ -75,20 +87,67 @@ export function HomeScreen() {
 
   const db = useSQLiteContext();
 
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(true);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
+  const timelineRequestId = useRef(0);
 
-  const loadTodayEntries = useCallback(async () => {
-    const { dayStart, dayEnd } = getTodayBounds();
+  const { dayStart, dayEnd } = useMemo(
+    () => getLocalDayBounds(selectedDate),
+    [selectedDate],
+  );
 
-    const entries = await getTimelineEntriesForDay(db, dayStart, dayEnd);
+  const loadSelectedDateEntries = useCallback(async () => {
+    const requestId = timelineRequestId.current + 1;
+    timelineRequestId.current = requestId;
 
-    setTimelineEntries(entries);
-  }, [db]);
+    setTimelineLoading(true);
+    setTimelineError(null);
+
+    try {
+      const entries = await getTimelineEntriesForDay(
+        db,
+        dayStart.getTime(),
+        dayEnd.getTime(),
+      );
+
+      if (requestId === timelineRequestId.current) {
+        setTimelineEntries(entries);
+      }
+    } catch {
+      if (requestId === timelineRequestId.current) {
+        setTimelineError("Couldn’t load this day");
+      }
+    } finally {
+      if (requestId === timelineRequestId.current) {
+        setTimelineLoading(false);
+      }
+    }
+  }, [dayEnd, dayStart, db]);
 
   useEffect(() => {
-    void loadTodayEntries();
-  }, [loadTodayEntries]);
+    void loadSelectedDateEntries();
+
+    return () => {
+      timelineRequestId.current += 1;
+    };
+  }, [loadSelectedDateEntries]);
+
+  const previousDate = shiftLocalDate(selectedDate, -1);
+  const nextDate = shiftLocalDate(selectedDate, 1);
+
+  async function handleWeightSaved() {
+    const today = new Date();
+
+    if (isSameLocalDay(selectedDate, today)) {
+      await loadSelectedDateEntries();
+      return;
+    }
+
+    setSelectedDate(today);
+  }
 
   return (
     <Screen centerTitle title="Home">
@@ -195,29 +254,17 @@ export function HomeScreen() {
           ]}
         >
           <View style={styles.quickLogGrid}>
-            <QuickLogOption icon="barbell-outline" label="Strength Training" />
-
-            <QuickLogOption
-              icon="run-fast"
-              iconSet="materialCommunity"
-              label="Conditioning"
-            />
-
-            <QuickLogOption
-              icon="boxing-glove"
-              iconSet="materialCommunity"
-              label="Skills Training"
-            />
-
-            <QuickLogOption icon="restaurant-outline" label="Meal" />
-
-            <QuickLogOption
-              icon="scale-outline"
-              label="Weight"
-              onPress={() => setWeightModalOpen(true)}
-            />
-
-            <QuickLogOption icon="moon-outline" label="Sleep" />
+            {quickLogKinds.map((kind) => (
+              <QuickLogOption
+                key={kind}
+                kind={kind}
+                onPress={
+                  kind === "weight"
+                    ? () => setWeightModalOpen(true)
+                    : undefined
+                }
+              />
+            ))}
           </View>
         </View>
       </Animated.View>
@@ -273,28 +320,66 @@ export function HomeScreen() {
           },
         ]}
       >
-        {selectedHomeSection === "today" &&
-          (timelineEntries.length === 0 ? (
-            <Text
-              style={[styles.homeSectionText, { color: theme.colors.text }]}
-            >
-              No entries today
-            </Text>
-          ) : (
-            <View>
-              {timelineEntries.map((entry) => (
-                <Text
-                  key={entry.id}
-                  style={[styles.homeSectionText, { color: theme.colors.text }]}
-                >
-                  {formatTime(entry.startAt)} —{" "}
-                  {entry.kind === "weight" && entry.weightKg !== null
-                    ? formatWeight(entry.weightKg, unitSettings.weight)
-                    : entry.title}
-                </Text>
-              ))}
+        {selectedHomeSection === "today" && (
+          <>
+            <View style={styles.dateNavigator}>
+              <PressOpacity
+                accessibilityLabel={`Show previous day, ${formatFullDate(
+                  previousDate,
+                )}`}
+                onPress={() =>
+                  setSelectedDate((currentDate) =>
+                    shiftLocalDate(currentDate, -1),
+                  )
+                }
+                style={styles.dateArrow}
+              >
+                <Ionicons
+                  color={theme.colors.text}
+                  name="chevron-back"
+                  size={22}
+                />
+              </PressOpacity>
+
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.selectedDateText,
+                  { color: theme.colors.text },
+                ]}
+              >
+                {formatSelectedDate(selectedDate)}
+              </Text>
+
+              <PressOpacity
+                accessibilityLabel={`Show next day, ${formatFullDate(
+                  nextDate,
+                )}`}
+                onPress={() =>
+                  setSelectedDate((currentDate) =>
+                    shiftLocalDate(currentDate, 1),
+                  )
+                }
+                style={styles.dateArrow}
+              >
+                <Ionicons
+                  color={theme.colors.text}
+                  name="chevron-forward"
+                  size={22}
+                />
+              </PressOpacity>
             </View>
-          ))}
+
+            <DayTimeline
+              dayEnd={dayEnd}
+              dayStart={dayStart}
+              entries={timelineEntries}
+              error={timelineError}
+              loading={timelineLoading}
+              onRetry={loadSelectedDateEntries}
+            />
+          </>
+        )}
 
         {selectedHomeSection === "recovery" && (
           <Text style={[styles.homeSectionText, { color: theme.colors.text }]}>
@@ -311,30 +396,65 @@ export function HomeScreen() {
 
       <WeightLogModal
         onClose={() => setWeightModalOpen(false)}
-        onSaved={loadTodayEntries}
+        onSaved={handleWeightSaved}
         visible={weightModalOpen}
       />
     </Screen>
   );
 }
 
-function getTodayBounds() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
+function getLocalDayBounds(date: Date) {
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
 
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
 
   return {
-    dayStart: start.getTime(),
-    dayEnd: end.getTime(),
+    dayStart,
+    dayEnd,
   };
 }
 
-function formatTime(timestamp: number) {
-  return new Date(timestamp).toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
+function shiftLocalDate(date: Date, amount: number) {
+  const shiftedDate = new Date(date);
+  shiftedDate.setDate(shiftedDate.getDate() + amount);
+  return shiftedDate;
+}
+
+function isSameLocalDay(firstDate: Date, secondDate: Date) {
+  return (
+    firstDate.getFullYear() === secondDate.getFullYear() &&
+    firstDate.getMonth() === secondDate.getMonth() &&
+    firstDate.getDate() === secondDate.getDate()
+  );
+}
+
+function formatSelectedDate(date: Date) {
+  const today = new Date();
+
+  if (isSameLocalDay(date, today)) {
+    return `Today, ${date.toLocaleDateString([], {
+      month: "long",
+      day: "numeric",
+    })}`;
+  }
+
+  return date.toLocaleDateString([], {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year:
+      date.getFullYear() === today.getFullYear() ? undefined : "numeric",
+  });
+}
+
+function formatFullDate(date: Date) {
+  return date.toLocaleDateString([], {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
   });
 }
 
@@ -363,26 +483,17 @@ function formatSports(sports: string[]) {
 }
 
 type QuickLogOptionProps = {
-  label: string;
+  kind: TimelineKind;
   onPress?: () => void;
-} & (
-  | {
-      icon: ComponentProps<typeof Ionicons>["name"];
-      iconSet?: "ionicons";
-    }
-  | {
-      icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
-      iconSet: "materialCommunity";
-    }
-);
+};
 
-function QuickLogOption(props: QuickLogOptionProps) {
+function QuickLogOption({ kind, onPress }: QuickLogOptionProps) {
   const { theme } = useAppTheme();
-  const { label, onPress } = props;
+  const presentation = timelineCategories[kind];
 
   return (
     <PressOpacity
-      accessibilityLabel={label}
+      accessibilityLabel={presentation.label}
       onPress={onPress}
       style={[
         styles.quickLogOption,
@@ -393,22 +504,33 @@ function QuickLogOption(props: QuickLogOptionProps) {
       ]}
     >
       <View style={styles.quickLogOptionIcon}>
-        {props.iconSet === "materialCommunity" ? (
-          <MaterialCommunityIcons
-            color={theme.colors.tertiary}
-            name={props.icon}
-            size={28}
-          />
-        ) : (
-          <Ionicons color={theme.colors.tertiary} name={props.icon} size={28} />
-        )}
+        <View
+          style={[
+            styles.quickLogOptionIconBadge,
+            { backgroundColor: presentation.contentColor },
+          ]}
+        >
+          {presentation.iconSet === "materialCommunity" ? (
+            <MaterialCommunityIcons
+              color={presentation.color}
+              name={presentation.icon}
+              size={24}
+            />
+          ) : (
+            <Ionicons
+              color={presentation.color}
+              name={presentation.icon}
+              size={24}
+            />
+          )}
+        </View>
       </View>
 
       <Text
         numberOfLines={2}
         style={[styles.quickLogOptionText, { color: theme.colors.text }]}
       >
-        {label}
+        {presentation.label}
       </Text>
     </PressOpacity>
   );
@@ -494,6 +616,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
   },
+  quickLogOptionIconBadge: {
+    alignItems: "center",
+    borderRadius: tokens.radius.pill,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
   quickLogOptionText: {
     fontSize: 8,
     fontWeight: "700",
@@ -532,6 +661,24 @@ const styles = StyleSheet.create({
     marginTop: tokens.spacing.lg,
     minHeight: 160,
     padding: tokens.spacing.lg,
+  },
+  dateNavigator: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginBottom: tokens.spacing.md,
+  },
+  dateArrow: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+    minWidth: 44,
+  },
+  selectedDateText: {
+    flex: 1,
+    fontSize: tokens.typography.body.fontSize,
+    fontWeight: "700",
+    lineHeight: tokens.typography.body.lineHeight,
+    textAlign: "center",
   },
   homeSectionText: {
     fontSize: tokens.typography.body.fontSize,

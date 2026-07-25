@@ -1,14 +1,29 @@
 export type ColorScheme = "dark" | "light";
 
+export const appColorPalette = {
+  red: "#D31516",
+  blue: "#1545D3",
+  green: "#2DC020",
+  purple: "#9620C0",
+  turquoise: "#20C0B2",
+  yellow: "#D3C615",
+  orange: "#D35915",
+  pink: "#C868BF",
+} as const;
+
 export const tertiaryColorOptions = [
-  { hex: "#D31516", key: "red", label: "Red" },
-  { hex: "#1545D3", key: "blue", label: "Blue" },
-  { hex: "#2DC020", key: "green", label: "Green" },
-  { hex: "#9620C0", key: "purple", label: "Purple" },
-  { hex: "#20C0B2", key: "turquoise", label: "Turquoise" },
-  { hex: "#D3C615", key: "yellow", label: "Yellow" },
-  { hex: "#D35915", key: "orange", label: "Orange" },
-  { hex: "#C868BF", key: "pink", label: "Pink" },
+  { hex: appColorPalette.red, key: "red", label: "Red" },
+  { hex: appColorPalette.blue, key: "blue", label: "Blue" },
+  { hex: appColorPalette.green, key: "green", label: "Green" },
+  { hex: appColorPalette.purple, key: "purple", label: "Purple" },
+  {
+    hex: appColorPalette.turquoise,
+    key: "turquoise",
+    label: "Turquoise",
+  },
+  { hex: appColorPalette.yellow, key: "yellow", label: "Yellow" },
+  { hex: appColorPalette.orange, key: "orange", label: "Orange" },
+  { hex: appColorPalette.pink, key: "pink", label: "Pink" },
 ] as const;
 
 export type TertiaryColor = (typeof tertiaryColorOptions)[number]["key"];
@@ -70,9 +85,9 @@ export const themes = {
       borderStrong: "rgba(244, 244, 245, 0.28)",
       accent: "#F4F4F5",
       accentMuted: "rgba(244, 244, 245, 0.14)",
-      tertiary: "#D31516",
+      tertiary: appColorPalette.red,
       switchTrackOff: "#2A2B2F",
-      switchTrackOn: "#D31516",
+      switchTrackOn: appColorPalette.red,
       switchThumb: "#FFFFFF",
       overlay: "rgba(0, 0, 0, 0.58)",
     },
@@ -89,9 +104,9 @@ export const themes = {
       borderStrong: "rgba(17, 18, 20, 0.26)",
       accent: "#111214",
       accentMuted: "rgba(17, 18, 20, 0.1)",
-      tertiary: "#D31516",
+      tertiary: appColorPalette.red,
       switchTrackOff: "#D7D9DB",
-      switchTrackOn: "#D31516",
+      switchTrackOn: appColorPalette.red,
       switchThumb: "#FFFFFF",
       overlay: "rgba(17, 18, 20, 0.34)",
     },
