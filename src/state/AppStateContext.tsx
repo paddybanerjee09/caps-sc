@@ -11,7 +11,9 @@ import { useSQLiteContext } from "expo-sqlite";
 
 import {
   addWeightLog,
+  deleteWeightLog as deleteStoredWeightLog,
   getLatestWeightKg,
+  updateWeightLog as updateStoredWeightLog,
 } from "../data/timelineRepository";
 
 export type CombatSport =
@@ -44,6 +46,7 @@ type UnitSettings = {
 
 type AppStateContextValue = {
   athleteProfile: AthleteProfile;
+  deleteWeightLog: (timelineEntryId: number) => Promise<void>;
   logWeight: (weightKg: number, loggedAt?: number) => Promise<void>;
   setAthleteProfile: (profile: AthleteProfile) => void;
   username: string;
@@ -51,6 +54,11 @@ type AppStateContextValue = {
   unitSettings: UnitSettings;
   setHeightUnit: (unit: UnitSystem) => void;
   setWeightUnit: (unit: UnitSystem) => void;
+  updateWeightLog: (
+    timelineEntryId: number,
+    weightKg: number,
+    loggedAt: number,
+  ) => Promise<void>;
 };
 
 const defaultAthleteProfile: AthleteProfile = {
@@ -58,7 +66,7 @@ const defaultAthleteProfile: AthleteProfile = {
   lastName: "",
   age: 17,
   heightCm: 175,
-  weightKg: 75,
+  weightKg: null,
   sports: ["Muay Thai"],
 };
 
@@ -77,40 +85,47 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
     weight: "metric",
   });
 
-  useEffect(() => {
-    async function loadLatestWeight() {
-      const latestWeightKg = await getLatestWeightKg(db);
+  const refreshLatestWeight = useCallback(async () => {
+    const latestWeightKg = await getLatestWeightKg(db);
 
-      if (latestWeightKg !== null) {
-        setAthleteProfile((current) => ({
-          ...current,
-          weightKg: latestWeightKg,
-        }));
-      }
-    }
-
-    void loadLatestWeight();
+    setAthleteProfile((current) => ({
+      ...current,
+      weightKg: latestWeightKg,
+    }));
   }, [db]);
+
+  useEffect(() => {
+    void refreshLatestWeight();
+  }, [refreshLatestWeight]);
 
   const logWeight = useCallback(
     async (weightKg: number, loggedAt = Date.now()) => {
       await addWeightLog(db, weightKg, loggedAt);
-
-      const latestWeightKg = await getLatestWeightKg(db);
-
-      if (latestWeightKg !== null) {
-        setAthleteProfile((current) => ({
-          ...current,
-          weightKg: latestWeightKg,
-        }));
-      }
+      await refreshLatestWeight();
     },
-    [db],
+    [db, refreshLatestWeight],
+  );
+
+  const updateWeightLog = useCallback(
+    async (timelineEntryId: number, weightKg: number, loggedAt: number) => {
+      await updateStoredWeightLog(db, timelineEntryId, weightKg, loggedAt);
+      await refreshLatestWeight();
+    },
+    [db, refreshLatestWeight],
+  );
+
+  const deleteWeightLog = useCallback(
+    async (timelineEntryId: number) => {
+      await deleteStoredWeightLog(db, timelineEntryId);
+      await refreshLatestWeight();
+    },
+    [db, refreshLatestWeight],
   );
 
   const value = useMemo(
     () => ({
       athleteProfile,
+      deleteWeightLog,
       logWeight,
       setAthleteProfile,
       username,
@@ -120,8 +135,16 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
         setUnitSettings((current) => ({ ...current, height: unit })),
       setWeightUnit: (unit: UnitSystem) =>
         setUnitSettings((current) => ({ ...current, weight: unit })),
+      updateWeightLog,
     }),
-    [athleteProfile, logWeight, unitSettings, username],
+    [
+      athleteProfile,
+      deleteWeightLog,
+      logWeight,
+      unitSettings,
+      updateWeightLog,
+      username,
+    ],
   );
 
   return (

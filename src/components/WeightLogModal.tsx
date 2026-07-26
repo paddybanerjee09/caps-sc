@@ -1,129 +1,63 @@
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
-import { useEffect, useRef, useState } from "react";
-import {
-  Keyboard,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { useEffect, useState } from "react";
+import { Alert, Modal, StyleSheet, Text, TextInput, View } from "react-native";
 
+import type { TimelineEntry } from "../data/timelineRepository";
 import { useAppState } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
-import { themes } from "../theme/theme";
-import { convertWeightToKilograms } from "../utils/weight";
+import { appColorPalette, themes } from "../theme/theme";
+import {
+  convertKilogramsToWeight,
+  convertWeightToKilograms,
+} from "../utils/weight";
+import { LogTimeChanger } from "./LogTimeChanger";
 import { PressOpacity } from "./PressOpacity";
 
 const tokens = themes.dark;
 
 type WeightLogModalProps = {
+  entryToEdit?: TimelineEntry;
   onClose: () => void;
+  onDeleted?: () => Promise<void> | void;
   onSaved?: (loggedAt: number) => Promise<void> | void;
   visible: boolean;
 };
 
-type PickerMode = "date" | "time" | "datetime";
-
 export function WeightLogModal({
+  entryToEdit,
   onClose,
+  onDeleted,
   onSaved,
   visible,
 }: WeightLogModalProps) {
-  const { colorScheme, theme } = useAppTheme();
-  const { logWeight, unitSettings } = useAppState();
+  const { theme } = useAppTheme();
+  const { deleteWeightLog, logWeight, unitSettings, updateWeightLog } =
+    useAppState();
   const [draftWeight, setDraftWeight] = useState("");
   const [draftLoggedAt, setDraftLoggedAt] = useState(() => new Date());
-  const [pickerMode, setPickerMode] = useState<PickerMode | null>(null);
-  const androidPickerStartValue = useRef<Date | null>(null);
 
   useEffect(() => {
-    if (visible) {
-      setDraftLoggedAt(new Date());
-      setPickerMode(null);
-      androidPickerStartValue.current = null;
+    if (!visible) {
+      return;
     }
-  }, [visible]);
+
+    if (entryToEdit?.kind === "weight" && entryToEdit.weightKg !== null) {
+      setDraftWeight(
+        convertKilogramsToWeight(
+          entryToEdit.weightKg,
+          unitSettings.weight,
+        ).toFixed(1),
+      );
+      setDraftLoggedAt(new Date(entryToEdit.startAt));
+      return;
+    }
+
+    setDraftWeight("");
+    setDraftLoggedAt(new Date());
+  }, [entryToEdit, unitSettings.weight, visible]);
 
   function closeModal() {
     setDraftWeight("");
-    setPickerMode(null);
-    androidPickerStartValue.current = null;
     onClose();
-  }
-
-  function toggleLoggedAtPicker() {
-    if (pickerMode !== null) {
-      setPickerMode(null);
-      return;
-    }
-
-    Keyboard.dismiss();
-
-    if (Platform.OS === "android") {
-      androidPickerStartValue.current = new Date(draftLoggedAt);
-    }
-
-    setPickerMode(Platform.OS === "ios" ? "datetime" : "date");
-  }
-
-  function changeLoggedAt(
-    event: DateTimePickerEvent,
-    selectedDate?: Date,
-  ) {
-    if (event.type === "dismissed" || !selectedDate) {
-      if (
-        Platform.OS === "android" &&
-        pickerMode === "time" &&
-        androidPickerStartValue.current
-      ) {
-        setDraftLoggedAt(androidPickerStartValue.current);
-      }
-
-      androidPickerStartValue.current = null;
-      setPickerMode(null);
-      return;
-    }
-
-    if (Platform.OS === "android" && pickerMode === "date") {
-      const updatedDate = new Date(draftLoggedAt);
-      updatedDate.setFullYear(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-      );
-
-      setDraftLoggedAt(updatedDate);
-      setPickerMode("time");
-      return;
-    }
-
-    if (Platform.OS === "android" && pickerMode === "time") {
-      const updatedDate = new Date(draftLoggedAt);
-      updatedDate.setHours(
-        selectedDate.getHours(),
-        selectedDate.getMinutes(),
-        0,
-        0,
-      );
-
-      if (updatedDate.getTime() > Date.now()) {
-        if (androidPickerStartValue.current) {
-          setDraftLoggedAt(androidPickerStartValue.current);
-        }
-      } else {
-        setDraftLoggedAt(updatedDate);
-      }
-
-      androidPickerStartValue.current = null;
-      setPickerMode(null);
-      return;
-    }
-
-    setDraftLoggedAt(selectedDate);
   }
 
   async function saveWeight() {
@@ -139,15 +73,63 @@ export function WeightLogModal({
       return;
     }
 
-    const weightKg = convertWeightToKilograms(
-      enteredWeight,
-      unitSettings.weight,
-    );
+    let weightKg = convertWeightToKilograms(enteredWeight, unitSettings.weight);
 
-    await logWeight(weightKg, loggedAt);
-    await onSaved?.(loggedAt);
-    closeModal();
+    try {
+      if (entryToEdit?.kind === "weight" && entryToEdit.weightKg !== null) {
+        const originalDisplayedWeight = convertKilogramsToWeight(
+          entryToEdit.weightKg,
+          unitSettings.weight,
+        ).toFixed(1);
+
+        if (draftWeight === originalDisplayedWeight) {
+          weightKg = entryToEdit.weightKg;
+        }
+
+        await updateWeightLog(entryToEdit.id, weightKg, loggedAt);
+      } else {
+        await logWeight(weightKg, loggedAt);
+      }
+
+      await onSaved?.(loggedAt);
+      closeModal();
+    } catch {
+      Alert.alert("Couldn't save weight log", "Please try again.");
+    }
   }
+
+  async function deleteExistingWeightLog() {
+    if (entryToEdit?.kind !== "weight" || entryToEdit.weightKg === null) {
+      return;
+    }
+
+    try {
+      await deleteWeightLog(entryToEdit.id);
+      await onDeleted?.();
+      closeModal();
+    } catch {
+      Alert.alert("Couldn't delete weight log", "Please try again.");
+    }
+  }
+
+  function confirmDeleteWeightLog() {
+    Alert.alert("Delete weight log?", "This cannot be undone.", [
+      {
+        style: "cancel",
+        text: "Cancel",
+      },
+      {
+        onPress: () => {
+          void deleteExistingWeightLog();
+        },
+        style: "destructive",
+        text: "Delete",
+      },
+    ]);
+  }
+
+  const editingExistingWeight =
+    entryToEdit?.kind === "weight" && entryToEdit.weightKg !== null;
 
   return (
     <Modal
@@ -160,9 +142,35 @@ export function WeightLogModal({
         style={[styles.modalOverlay, { backgroundColor: theme.colors.overlay }]}
       >
         <View style={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-            Weight
-          </Text>
+          <View style={styles.modalHeader}>
+            {editingExistingWeight ? (
+              <PressOpacity
+                accessibilityLabel="Delete weight log"
+                onPress={confirmDeleteWeightLog}
+                style={styles.deleteButton}
+              >
+                <View
+                  style={[
+                    styles.deleteButtonPill,
+                    { borderColor: appColorPalette.red },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.deleteButtonText,
+                      { color: appColorPalette.red },
+                    ]}
+                  >
+                    Delete log
+                  </Text>
+                </View>
+              </PressOpacity>
+            ) : null}
+
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Weight
+            </Text>
+          </View>
 
           <View style={styles.weightInputRow}>
             <TextInput
@@ -193,48 +201,9 @@ export function WeightLogModal({
             </Text>
           </View>
 
-          <PressOpacity
-            accessibilityLabel={`Change log time. Currently ${formatLoggedAt(
-              draftLoggedAt,
-            )}`}
-            onPress={toggleLoggedAtPicker}
-            style={[
-              styles.loggedAtButton,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
-            <Text
-              style={[styles.loggedAtLabel, { color: theme.colors.text }]}
-            >
-              Time
-            </Text>
-
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.loggedAtValue,
-                { color: theme.colors.textMuted },
-              ]}
-            >
-              {formatLoggedAt(draftLoggedAt)}
-            </Text>
-          </PressOpacity>
-
-          {pickerMode !== null && (
-            <DateTimePicker
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              maximumDate={new Date()}
-              mode={pickerMode}
-              onChange={changeLoggedAt}
-              style={styles.loggedAtPicker}
-              textColor={theme.colors.text}
-              themeVariant={colorScheme}
-              value={draftLoggedAt}
-            />
-          )}
+          {visible ? (
+            <LogTimeChanger onChange={setDraftLoggedAt} value={draftLoggedAt} />
+          ) : null}
 
           <View style={styles.modalActions}>
             <PressOpacity onPress={closeModal}>
@@ -251,16 +220,6 @@ export function WeightLogModal({
   );
 }
 
-function formatLoggedAt(date: Date) {
-  return date.toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 const styles = StyleSheet.create({
   modalOverlay: {
     alignItems: "center",
@@ -269,8 +228,14 @@ const styles = StyleSheet.create({
     padding: tokens.spacing.xl,
   },
   modal: {
+    alignSelf: "center",
     borderRadius: tokens.radius.lg,
-    padding: tokens.spacing.xl,
+    maxWidth: 280,
+    padding: tokens.spacing.lg,
+    width: "100%",
+  },
+  modalHeader: {
+    alignItems: "center",
     width: "100%",
   },
   modalTitle: {
@@ -278,12 +243,32 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
+  deleteButton: {
+    alignItems: "center",
+    alignSelf: "flex-end",
+    justifyContent: "center",
+    minHeight: 44,
+    transform: [{ translateY: -8 }],
+  },
+  deleteButtonPill: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    height: 26,
+    justifyContent: "center",
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  deleteButtonText: {
+    fontSize: 10,
+    fontWeight: tokens.typography.label.fontWeight,
+    lineHeight: 14,
+  },
   weightInputRow: {
     alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
     justifyContent: "center",
-    paddingTop: tokens.spacing.xl,
+    paddingTop: tokens.spacing.lg,
+    position: "relative",
+    width: "100%",
   },
   weightInput: {
     borderRadius: tokens.radius.sm,
@@ -295,38 +280,17 @@ const styles = StyleSheet.create({
     width: 100,
   },
   weightUnit: {
+    bottom: 11,
     fontSize: tokens.typography.body.fontSize,
+    left: "50%",
     lineHeight: tokens.typography.body.lineHeight,
-  },
-  loggedAtButton: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: tokens.spacing.lg,
-    minHeight: 44,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  loggedAtLabel: {
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
-  },
-  loggedAtValue: {
-    flexShrink: 1,
-    fontSize: tokens.typography.label.fontSize,
-    marginLeft: tokens.spacing.md,
-    textAlign: "right",
-  },
-  loggedAtPicker: {
-    alignSelf: "center",
-    maxWidth: 320,
-    width: "100%",
+    marginLeft: 58,
+    position: "absolute",
   },
   modalActions: {
     flexDirection: "row",
     gap: tokens.spacing.xl,
     justifyContent: "flex-end",
-    paddingTop: tokens.spacing.lg,
+    paddingTop: tokens.spacing.md,
   },
 });

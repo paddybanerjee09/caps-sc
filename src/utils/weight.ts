@@ -9,6 +9,13 @@ export function convertWeightToKilograms(
   return unit === "metric" ? weight : weight / poundsPerKilogram;
 }
 
+export function convertKilogramsToWeight(
+  weightKg: number,
+  unit: UnitSystem,
+) {
+  return unit === "metric" ? weightKg : weightKg * poundsPerKilogram;
+}
+
 export function formatWeight(weightKg: number | null, unit: UnitSystem) {
   if (weightKg === null) {
     return "Not selected";

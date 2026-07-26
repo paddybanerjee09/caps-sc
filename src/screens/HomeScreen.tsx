@@ -80,6 +80,8 @@ export function HomeScreen() {
   const [timelineLoading, setTimelineLoading] = useState(true);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
+  const [selectedWeightEntry, setSelectedWeightEntry] =
+    useState<TimelineEntry | null>(null);
   const timelineRequestId = useRef(0);
 
   const { dayStart, dayEnd } = useMemo(
@@ -135,6 +137,29 @@ export function HomeScreen() {
     }
 
     setSelectedDate(loggedDate);
+  }
+
+  async function handleWeightDeleted() {
+    await loadSelectedDateEntries();
+  }
+
+  function openNewWeightLog() {
+    setSelectedWeightEntry(null);
+    setWeightModalOpen(true);
+  }
+
+  function openWeightLog(entry: TimelineEntry) {
+    if (entry.kind !== "weight" || entry.weightKg === null) {
+      return;
+    }
+
+    setSelectedWeightEntry(entry);
+    setWeightModalOpen(true);
+  }
+
+  function closeWeightModal() {
+    setWeightModalOpen(false);
+    setSelectedWeightEntry(null);
   }
 
   return (
@@ -247,7 +272,7 @@ export function HomeScreen() {
                 key={kind}
                 kind={kind}
                 onPress={
-                  kind === "weight" ? () => setWeightModalOpen(true) : undefined
+                  kind === "weight" ? openNewWeightLog : undefined
                 }
               />
             ))}
@@ -359,6 +384,7 @@ export function HomeScreen() {
               entries={timelineEntries}
               error={timelineError}
               loading={timelineLoading}
+              onWeightEntryPress={openWeightLog}
               onRetry={loadSelectedDateEntries}
             />
           </>
@@ -378,7 +404,9 @@ export function HomeScreen() {
       </View>
 
       <WeightLogModal
-        onClose={() => setWeightModalOpen(false)}
+        entryToEdit={selectedWeightEntry ?? undefined}
+        onClose={closeWeightModal}
+        onDeleted={handleWeightDeleted}
         onSaved={handleWeightSaved}
         visible={weightModalOpen}
       />

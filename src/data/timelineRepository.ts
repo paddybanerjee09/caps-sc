@@ -109,6 +109,70 @@ export async function addWeightLog(
   });
 }
 
+export async function updateWeightLog(
+  db: SQLiteDatabase,
+  timelineEntryId: number,
+  weightKg: number,
+  loggedAt: number,
+) {
+  validateWeightLogValues(timelineEntryId, weightKg, loggedAt);
+
+  await db.withTransactionAsync(async () => {
+    const existingLog = await db.getFirstAsync<{ id: number }>(
+      `SELECT timeline_entries.id
+       FROM timeline_entries
+       INNER JOIN weight_logs
+         ON weight_logs.timeline_entry_id = timeline_entries.id
+       WHERE timeline_entries.id = ?
+         AND timeline_entries.kind = 'weight'`,
+      [timelineEntryId],
+    );
+
+    if (!existingLog) {
+      throw new Error("Weight log not found");
+    }
+
+    await db.runAsync(
+      `UPDATE timeline_entries
+       SET start_at = ?, updated_at = ?
+       WHERE id = ?`,
+      [loggedAt, Date.now(), timelineEntryId],
+    );
+
+    await db.runAsync(
+      `UPDATE weight_logs
+       SET weight_kg = ?
+       WHERE timeline_entry_id = ?`,
+      [weightKg, timelineEntryId],
+    );
+  });
+}
+
+export async function deleteWeightLog(
+  db: SQLiteDatabase,
+  timelineEntryId: number,
+) {
+  if (!Number.isInteger(timelineEntryId) || timelineEntryId <= 0) {
+    throw new Error("Invalid weight log");
+  }
+
+  const result = await db.runAsync(
+    `DELETE FROM timeline_entries
+     WHERE id = ?
+       AND kind = 'weight'
+       AND EXISTS (
+         SELECT 1
+         FROM weight_logs
+         WHERE weight_logs.timeline_entry_id = timeline_entries.id
+       )`,
+    [timelineEntryId],
+  );
+
+  if (result.changes !== 1) {
+    throw new Error("Weight log not found");
+  }
+}
+
 export async function getTimelineEntriesForDay(
   db: SQLiteDatabase,
   dayStart: number,
@@ -165,4 +229,26 @@ function convertTimelineEntryRow(row: TimelineEntryRow): TimelineEntry {
     updatedAt: row.updated_at,
     weightKg: row.weight_kg,
   };
+}
+
+function validateWeightLogValues(
+  timelineEntryId: number,
+  weightKg: number,
+  loggedAt: number,
+) {
+  if (!Number.isInteger(timelineEntryId) || timelineEntryId <= 0) {
+    throw new Error("Invalid weight log");
+  }
+
+  if (!Number.isFinite(weightKg) || weightKg <= 0) {
+    throw new Error("Weight must be greater than zero");
+  }
+
+  if (!Number.isFinite(loggedAt)) {
+    throw new Error("Invalid log time");
+  }
+
+  if (loggedAt > Date.now()) {
+    throw new Error("Log time cannot be in the future");
+  }
 }

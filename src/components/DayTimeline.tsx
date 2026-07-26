@@ -53,6 +53,7 @@ type DayTimelineProps = {
   loading: boolean;
   error: string | null;
   onRetry: () => void;
+  onWeightEntryPress?: (entry: TimelineEntry) => void;
 };
 
 type TimelineLayoutEvent = {
@@ -72,6 +73,7 @@ export function DayTimeline({
   loading,
   error,
   onRetry,
+  onWeightEntryPress,
 }: DayTimelineProps) {
   const { theme } = useAppTheme();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -251,6 +253,7 @@ export function DayTimeline({
               <TimelineEventBar
                 event={layoutEvent}
                 key={layoutEvent.entry.id}
+                onWeightEntryPress={onWeightEntryPress}
               />
             ))}
         </View>
@@ -313,13 +316,64 @@ export function DayTimeline({
   );
 }
 
-function TimelineEventBar({ event }: { event: TimelineLayoutEvent }) {
+type TimelineEventBarProps = {
+  event: TimelineLayoutEvent;
+  onWeightEntryPress?: (entry: TimelineEntry) => void;
+};
+
+function TimelineEventBar({
+  event,
+  onWeightEntryPress,
+}: TimelineEventBarProps) {
   const category = timelineCategories[event.entry.kind];
   const top =
     HOUR_HEADER_HEIGHT +
     LANE_VERTICAL_PADDING +
     event.track *
       (EVENT_HEIGHT + EVENT_FOOTPRINT_HEIGHT + EVENT_TRACK_GAP);
+  const handlePress =
+    event.entry.kind === "weight" &&
+    event.entry.weightKg !== null &&
+    onWeightEntryPress
+      ? () => onWeightEntryPress(event.entry)
+      : undefined;
+  const badgeStyle = [
+    styles.eventBadge,
+    {
+      backgroundColor: category.color,
+      left: event.badgeLeft,
+      top,
+      width: event.badgeWidth,
+    },
+  ];
+  const badgeContent = (
+    <>
+      {category.iconSet === "materialCommunity" ? (
+        <MaterialCommunityIcons
+          color={category.contentColor}
+          name={
+            category.icon as ComponentProps<
+              typeof MaterialCommunityIcons
+            >["name"]
+          }
+          size={15}
+        />
+      ) : (
+        <Ionicons
+          color={category.contentColor}
+          name={category.icon as ComponentProps<typeof Ionicons>["name"]}
+          size={15}
+        />
+      )}
+
+      <Text
+        numberOfLines={2}
+        style={[styles.eventLabel, { color: category.contentColor }]}
+      >
+        {category.label}
+      </Text>
+    </>
+  );
 
   return (
     <>
@@ -336,44 +390,23 @@ function TimelineEventBar({ event }: { event: TimelineLayoutEvent }) {
         ]}
       />
 
-      <View
-        accessibilityLabel={event.accessibilityLabel}
-        accessible
-        style={[
-          styles.eventBadge,
-          {
-            backgroundColor: category.color,
-            left: event.badgeLeft,
-            top,
-            width: event.badgeWidth,
-          },
-        ]}
-      >
-        {category.iconSet === "materialCommunity" ? (
-          <MaterialCommunityIcons
-            color={category.contentColor}
-            name={
-              category.icon as ComponentProps<
-                typeof MaterialCommunityIcons
-              >["name"]
-            }
-            size={15}
-          />
-        ) : (
-          <Ionicons
-            color={category.contentColor}
-            name={category.icon as ComponentProps<typeof Ionicons>["name"]}
-            size={15}
-          />
-        )}
-
-        <Text
-          numberOfLines={2}
-          style={[styles.eventLabel, { color: category.contentColor }]}
+      {handlePress ? (
+        <PressOpacity
+          accessibilityLabel={`Open ${event.accessibilityLabel}`}
+          onPress={handlePress}
+          style={badgeStyle}
         >
-          {category.label}
-        </Text>
-      </View>
+          {badgeContent}
+        </PressOpacity>
+      ) : (
+        <View
+          accessibilityLabel={event.accessibilityLabel}
+          accessible
+          style={badgeStyle}
+        >
+          {badgeContent}
+        </View>
+      )}
 
       <View
         accessible={false}
