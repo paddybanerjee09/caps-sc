@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -45,6 +45,31 @@ export async function migrateDatabase(db: SQLiteDatabase) {
         FOREIGN KEY (timeline_entry_id)
           REFERENCES timeline_entries (id)
           ON DELETE CASCADE
+      );
+    `);
+  }
+
+  if (currentVersion < 3) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS sleep_schedules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        start_minute INTEGER NOT NULL CHECK (start_minute BETWEEN 0 AND 1439),
+        end_minute INTEGER NOT NULL CHECK (end_minute BETWEEN 0 AND 1439),
+        effective_from_wake_date TEXT NOT NULL,
+        effective_until_wake_date TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        CHECK (start_minute != end_minute),
+        CHECK (
+          effective_until_wake_date IS NULL
+          OR effective_until_wake_date > effective_from_wake_date
+        )
+      );
+
+      CREATE INDEX IF NOT EXISTS sleep_schedules_wake_dates
+      ON sleep_schedules (
+        effective_from_wake_date,
+        effective_until_wake_date
       );
     `);
   }

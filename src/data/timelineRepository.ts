@@ -51,6 +51,26 @@ type LatestWeightRow = {
   weight_kg: number;
 };
 
+export type SleepSchedule = {
+  id: number;
+  startMinute: number;
+  endMinute: number;
+  effectiveFromWakeDate: string;
+  effectiveUntilWakeDate: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+type SleepScheduleRow = {
+  id: number;
+  start_minute: number;
+  end_minute: number;
+  effective_from_wake_date: string;
+  effective_until_wake_date: string | null;
+  created_at: number;
+  updated_at: number;
+};
+
 export async function addTimelineEntry(
   db: SQLiteDatabase,
   entry: NewTimelineEntry,
@@ -173,6 +193,120 @@ export async function deleteWeightLog(
   }
 }
 
+export async function addSleepLog(
+  db: SQLiteDatabase,
+  startAt: number,
+  endAt: number,
+) {
+  if (
+    !Number.isFinite(startAt) ||
+    !Number.isFinite(endAt) ||
+    endAt <= startAt ||
+    endAt - startAt >= 24 * 60 * 60 * 1000
+  ) {
+    throw new Error("Invalid sleep period");
+  }
+
+  return addTimelineEntry(db, {
+    kind: "sleep",
+    title: "Sleep",
+    startAt,
+    endAt,
+    status: "planned",
+  });
+}
+
+export async function getSleepScheduleForWakeDate(
+  db: SQLiteDatabase,
+  wakeDate: Date,
+) {
+  const wakeDateKey = formatLocalDateKey(wakeDate);
+  const row = await db.getFirstAsync<SleepScheduleRow>(
+    `SELECT *
+     FROM sleep_schedules
+     WHERE effective_from_wake_date <= ?
+       AND (
+         effective_until_wake_date IS NULL
+         OR effective_until_wake_date > ?
+       )
+     ORDER BY effective_from_wake_date DESC, id DESC
+     LIMIT 1`,
+    [wakeDateKey, wakeDateKey],
+  );
+
+  return row ? convertSleepScheduleRow(row) : null;
+}
+
+export async function replaceSleepScheduleFromWakeDate(
+  db: SQLiteDatabase,
+  wakeDate: Date,
+  startMinute: number,
+  endMinute: number,
+) {
+  validateSleepScheduleMinutes(startMinute, endMinute);
+
+  const wakeDateKey = formatLocalDateKey(wakeDate);
+  const now = Date.now();
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `UPDATE sleep_schedules
+       SET effective_until_wake_date = ?, updated_at = ?
+       WHERE effective_from_wake_date < ?
+         AND (
+           effective_until_wake_date IS NULL
+           OR effective_until_wake_date > ?
+         )`,
+      [wakeDateKey, now, wakeDateKey, wakeDateKey],
+    );
+
+    await db.runAsync(
+      `DELETE FROM sleep_schedules
+       WHERE effective_from_wake_date >= ?`,
+      [wakeDateKey],
+    );
+
+    await db.runAsync(
+      `INSERT INTO sleep_schedules (
+        start_minute,
+        end_minute,
+        effective_from_wake_date,
+        effective_until_wake_date,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, NULL, ?, ?)`,
+      [startMinute, endMinute, wakeDateKey, now, now],
+    );
+  });
+}
+
+export async function disableSleepScheduleFromWakeDate(
+  db: SQLiteDatabase,
+  wakeDate: Date,
+) {
+  const wakeDateKey = formatLocalDateKey(wakeDate);
+  const now = Date.now();
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `UPDATE sleep_schedules
+       SET effective_until_wake_date = ?, updated_at = ?
+       WHERE effective_from_wake_date < ?
+         AND (
+           effective_until_wake_date IS NULL
+           OR effective_until_wake_date > ?
+         )`,
+      [wakeDateKey, now, wakeDateKey, wakeDateKey],
+    );
+
+    await db.runAsync(
+      `DELETE FROM sleep_schedules
+       WHERE effective_from_wake_date >= ?`,
+      [wakeDateKey],
+    );
+  });
+}
+
 export async function getTimelineEntriesForDay(
   db: SQLiteDatabase,
   dayStart: number,
@@ -200,7 +334,17 @@ export async function getTimelineEntriesForDay(
     },
   );
 
-  return rows.map(convertTimelineEntryRow);
+  const concreteEntries = rows.map(convertTimelineEntryRow);
+  const virtualEntries = await getVirtualSleepEntriesForDay(
+    db,
+    dayStart,
+    dayEnd,
+    concreteEntries,
+  );
+
+  return [...concreteEntries, ...virtualEntries].sort(
+    (first, second) => first.startAt - second.startAt || first.id - second.id,
+  );
 }
 
 export async function getLatestWeightKg(db: SQLiteDatabase) {
@@ -229,6 +373,132 @@ function convertTimelineEntryRow(row: TimelineEntryRow): TimelineEntry {
     updatedAt: row.updated_at,
     weightKg: row.weight_kg,
   };
+}
+
+function convertSleepScheduleRow(row: SleepScheduleRow): SleepSchedule {
+  return {
+    id: row.id,
+    startMinute: row.start_minute,
+    endMinute: row.end_minute,
+    effectiveFromWakeDate: row.effective_from_wake_date,
+    effectiveUntilWakeDate: row.effective_until_wake_date,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function getVirtualSleepEntriesForDay(
+  db: SQLiteDatabase,
+  dayStart: number,
+  dayEnd: number,
+  concreteEntries: TimelineEntry[],
+) {
+  const firstWakeDate = new Date(dayStart);
+  const secondWakeDate = new Date(firstWakeDate);
+  secondWakeDate.setDate(secondWakeDate.getDate() + 1);
+
+  const virtualEntries: TimelineEntry[] = [];
+
+  for (const wakeDate of [firstWakeDate, secondWakeDate]) {
+    const schedule = await getSleepScheduleForWakeDate(db, wakeDate);
+
+    if (!schedule) {
+      continue;
+    }
+
+    const { startAt, endAt } = getScheduledSleepBounds(
+      wakeDate,
+      schedule.startMinute,
+      schedule.endMinute,
+    );
+
+    if (startAt >= dayEnd || endAt <= dayStart) {
+      continue;
+    }
+
+    const overlapsConcreteSleep = concreteEntries.some(
+      (entry) =>
+        entry.kind === "sleep" &&
+        entry.endAt !== null &&
+        entry.startAt < endAt &&
+        entry.endAt > startAt,
+    );
+
+    if (overlapsConcreteSleep) {
+      continue;
+    }
+
+    virtualEntries.push({
+      id: getVirtualSleepEntryId(schedule.id, wakeDate),
+      kind: "sleep",
+      title: "Sleep",
+      startAt,
+      endAt,
+      status: "planned",
+      notes: null,
+      createdAt: schedule.createdAt,
+      updatedAt: schedule.updatedAt,
+      weightKg: null,
+    });
+  }
+
+  return virtualEntries;
+}
+
+function getScheduledSleepBounds(
+  wakeDate: Date,
+  startMinute: number,
+  endMinute: number,
+) {
+  const endAt = dateAtMinute(wakeDate, endMinute).getTime();
+  const startDate = dateAtMinute(wakeDate, startMinute);
+
+  if (startMinute > endMinute) {
+    startDate.setDate(startDate.getDate() - 1);
+  }
+
+  return {
+    startAt: startDate.getTime(),
+    endAt,
+  };
+}
+
+function dateAtMinute(date: Date, minute: number) {
+  const result = new Date(date);
+  result.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
+  return result;
+}
+
+function formatLocalDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getVirtualSleepEntryId(scheduleId: number, wakeDate: Date) {
+  const dateNumber =
+    wakeDate.getFullYear() * 10000 +
+    (wakeDate.getMonth() + 1) * 100 +
+    wakeDate.getDate();
+  return -(scheduleId * 100000000 + dateNumber);
+}
+
+function validateSleepScheduleMinutes(
+  startMinute: number,
+  endMinute: number,
+) {
+  if (
+    !Number.isInteger(startMinute) ||
+    !Number.isInteger(endMinute) ||
+    startMinute < 0 ||
+    startMinute > 1439 ||
+    endMinute < 0 ||
+    endMinute > 1439 ||
+    startMinute === endMinute
+  ) {
+    throw new Error("Invalid sleep schedule");
+  }
 }
 
 function validateWeightLogValues(

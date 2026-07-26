@@ -24,7 +24,6 @@ export function LogTimeChanger({
 }: LogTimeChangerProps) {
   const { colorScheme, theme } = useAppTheme();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const latestAllowedDate = maximumDate ?? new Date();
 
   function togglePicker() {
     Keyboard.dismiss();
@@ -45,7 +44,10 @@ export function LogTimeChanger({
       0,
     );
 
-    if (updatedDate.getTime() <= latestAllowedDate.getTime()) {
+    if (
+      maximumDate === undefined ||
+      updatedDate.getTime() <= maximumDate.getTime()
+    ) {
       onChange(updatedDate);
     }
 

@@ -5,6 +5,7 @@ import Ionicons from "@expo/vector-icons/Ionicons"; // Style Imports
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { DayTimeline } from "../components/DayTimeline";
 import { PressOpacity } from "../components/PressOpacity";
+import { SleepLogModal } from "../components/SleepLogModal";
 import { WeightLogModal } from "../components/WeightLogModal";
 
 import { useSQLiteContext } from "expo-sqlite"; // Database imports
@@ -80,6 +81,7 @@ export function HomeScreen() {
   const [timelineLoading, setTimelineLoading] = useState(true);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
+  const [sleepModalOpen, setSleepModalOpen] = useState(false);
   const [selectedWeightEntry, setSelectedWeightEntry] =
     useState<TimelineEntry | null>(null);
   const timelineRequestId = useRef(0);
@@ -272,7 +274,11 @@ export function HomeScreen() {
                 key={kind}
                 kind={kind}
                 onPress={
-                  kind === "weight" ? openNewWeightLog : undefined
+                  kind === "weight"
+                    ? openNewWeightLog
+                    : kind === "sleep"
+                      ? () => setSleepModalOpen(true)
+                      : undefined
                 }
               />
             ))}
@@ -409,6 +415,13 @@ export function HomeScreen() {
         onDeleted={handleWeightDeleted}
         onSaved={handleWeightSaved}
         visible={weightModalOpen}
+      />
+
+      <SleepLogModal
+        onClose={() => setSleepModalOpen(false)}
+        onSaved={loadSelectedDateEntries}
+        visible={sleepModalOpen}
+        wakeDate={selectedDate}
       />
     </Screen>
   );

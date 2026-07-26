@@ -202,7 +202,11 @@ export function WeightLogModal({
           </View>
 
           {visible ? (
-            <LogTimeChanger onChange={setDraftLoggedAt} value={draftLoggedAt} />
+            <LogTimeChanger
+              maximumDate={new Date()}
+              onChange={setDraftLoggedAt}
+              value={draftLoggedAt}
+            />
           ) : null}
 
           <View style={styles.modalActions}>
