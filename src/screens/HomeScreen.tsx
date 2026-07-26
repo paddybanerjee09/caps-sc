@@ -1,17 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react"; // React imports
-import {
-  Animated,
-  Easing,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"; // React imports
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons"; // Style Imports
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -138,15 +126,15 @@ export function HomeScreen() {
   const previousDate = shiftLocalDate(selectedDate, -1);
   const nextDate = shiftLocalDate(selectedDate, 1);
 
-  async function handleWeightSaved() {
-    const today = new Date();
+  async function handleWeightSaved(loggedAt: number) {
+    const loggedDate = new Date(loggedAt);
 
-    if (isSameLocalDay(selectedDate, today)) {
+    if (isSameLocalDay(selectedDate, loggedDate)) {
       await loadSelectedDateEntries();
       return;
     }
 
-    setSelectedDate(today);
+    setSelectedDate(loggedDate);
   }
 
   return (
@@ -259,9 +247,7 @@ export function HomeScreen() {
                 key={kind}
                 kind={kind}
                 onPress={
-                  kind === "weight"
-                    ? () => setWeightModalOpen(true)
-                    : undefined
+                  kind === "weight" ? () => setWeightModalOpen(true) : undefined
                 }
               />
             ))}
@@ -343,10 +329,7 @@ export function HomeScreen() {
 
               <Text
                 numberOfLines={1}
-                style={[
-                  styles.selectedDateText,
-                  { color: theme.colors.text },
-                ]}
+                style={[styles.selectedDateText, { color: theme.colors.text }]}
               >
                 {formatSelectedDate(selectedDate)}
               </Text>
@@ -444,8 +427,7 @@ function formatSelectedDate(date: Date) {
     weekday: "long",
     month: "long",
     day: "numeric",
-    year:
-      date.getFullYear() === today.getFullYear() ? undefined : "numeric",
+    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
   });
 }
 
@@ -507,7 +489,7 @@ function QuickLogOption({ kind, onPress }: QuickLogOptionProps) {
         <View
           style={[
             styles.quickLogOptionIconBadge,
-            { backgroundColor: presentation.contentColor },
+            { backgroundColor: theme.colors.background },
           ]}
         >
           {presentation.iconSet === "materialCommunity" ? (
@@ -619,9 +601,9 @@ const styles = StyleSheet.create({
   quickLogOptionIconBadge: {
     alignItems: "center",
     borderRadius: tokens.radius.pill,
-    height: 34,
+    height: 40,
     justifyContent: "center",
-    width: 34,
+    width: 40,
   },
   quickLogOptionText: {
     fontSize: 8,

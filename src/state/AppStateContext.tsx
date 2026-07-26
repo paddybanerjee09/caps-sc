@@ -44,7 +44,7 @@ type UnitSettings = {
 
 type AppStateContextValue = {
   athleteProfile: AthleteProfile;
-  logWeight: (weightKg: number) => Promise<void>;
+  logWeight: (weightKg: number, loggedAt?: number) => Promise<void>;
   setAthleteProfile: (profile: AthleteProfile) => void;
   username: string;
   setUsername: (username: string) => void;
@@ -93,9 +93,17 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
   }, [db]);
 
   const logWeight = useCallback(
-    async (weightKg: number) => {
-      await addWeightLog(db, weightKg);
-      setAthleteProfile((current) => ({ ...current, weightKg }));
+    async (weightKg: number, loggedAt = Date.now()) => {
+      await addWeightLog(db, weightKg, loggedAt);
+
+      const latestWeightKg = await getLatestWeightKg(db);
+
+      if (latestWeightKg !== null) {
+        setAthleteProfile((current) => ({
+          ...current,
+          weightKg: latestWeightKg,
+        }));
+      }
     },
     [db],
   );
