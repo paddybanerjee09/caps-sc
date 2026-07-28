@@ -326,6 +326,7 @@ function TimelineEventBar({
   onWeightEntryPress,
 }: TimelineEventBarProps) {
   const category = timelineCategories[event.entry.kind];
+  const eventLabel = getTimelineEntryLabel(event.entry);
   const top =
     HOUR_HEADER_HEIGHT +
     LANE_VERTICAL_PADDING +
@@ -370,7 +371,7 @@ function TimelineEventBar({
         numberOfLines={2}
         style={[styles.eventLabel, { color: category.contentColor }]}
       >
-        {category.label}
+        {eventLabel}
       </Text>
     </>
   );
@@ -543,13 +544,24 @@ function getWallMinutes(timestamp: number, dayStart: number, dayEnd: number) {
 
 function formatAccessibilityLabel(entry: TimelineEntry) {
   const category = timelineCategories[entry.kind];
+  const entryLabel = getTimelineEntryLabel(entry);
+  const accessibleLabel =
+    entry.kind === "meal"
+      ? `${category.label}, ${entryLabel}`
+      : category.label;
   const startTime = formatTime(entry.startAt);
 
   if (entry.endAt === null) {
-    return `${category.label}, logged at ${startTime}.`;
+    return `${accessibleLabel}, logged at ${startTime}.`;
   }
 
-  return `${category.label}, ${startTime} to ${formatTime(entry.endAt)}.`;
+  return `${accessibleLabel}, ${startTime} to ${formatTime(entry.endAt)}.`;
+}
+
+function getTimelineEntryLabel(entry: TimelineEntry) {
+  return entry.kind === "meal"
+    ? entry.title
+    : timelineCategories[entry.kind].label;
 }
 
 function formatTime(timestamp: number) {

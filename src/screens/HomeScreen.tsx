@@ -4,6 +4,7 @@ import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons"; // Style Imports
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { DayTimeline } from "../components/DayTimeline";
+import { MealLogModal } from "../components/MealLogModal";
 import { PressOpacity } from "../components/PressOpacity";
 import { SleepLogModal } from "../components/SleepLogModal";
 import { WeightLogModal } from "../components/WeightLogModal";
@@ -80,6 +81,7 @@ export function HomeScreen() {
   const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(true);
   const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [mealModalOpen, setMealModalOpen] = useState(false);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
   const [selectedWeightEntry, setSelectedWeightEntry] =
@@ -130,7 +132,7 @@ export function HomeScreen() {
   const previousDate = shiftLocalDate(selectedDate, -1);
   const nextDate = shiftLocalDate(selectedDate, 1);
 
-  async function handleWeightSaved(loggedAt: number) {
+  async function handleLoggedEntrySaved(loggedAt: number) {
     const loggedDate = new Date(loggedAt);
 
     if (isSameLocalDay(selectedDate, loggedDate)) {
@@ -276,6 +278,8 @@ export function HomeScreen() {
                 onPress={
                   kind === "weight"
                     ? openNewWeightLog
+                    : kind === "meal"
+                      ? () => setMealModalOpen(true)
                     : kind === "sleep"
                       ? () => setSleepModalOpen(true)
                       : undefined
@@ -413,8 +417,14 @@ export function HomeScreen() {
         entryToEdit={selectedWeightEntry ?? undefined}
         onClose={closeWeightModal}
         onDeleted={handleWeightDeleted}
-        onSaved={handleWeightSaved}
+        onSaved={handleLoggedEntrySaved}
         visible={weightModalOpen}
+      />
+
+      <MealLogModal
+        onClose={() => setMealModalOpen(false)}
+        onSaved={handleLoggedEntrySaved}
+        visible={mealModalOpen}
       />
 
       <SleepLogModal
