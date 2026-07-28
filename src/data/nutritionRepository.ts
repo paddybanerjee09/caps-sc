@@ -139,10 +139,7 @@ export async function getMealCountForDay(
   return row?.count ?? 0;
 }
 
-export async function createMealLog(
-  db: SQLiteDatabase,
-  meal: NewMealLog,
-) {
+export async function createMealLog(db: SQLiteDatabase, meal: NewMealLog) {
   const validatedMeal = validateMealLog(meal);
   const now = Date.now();
   let timelineEntryId: number | null = null;
@@ -233,16 +230,12 @@ export async function updateMealLog(
 }
 
 export function calculateNutrientTotals(
-  items: readonly Pick<
-    NewMealItem,
-    "quantity" | "nutrientsPerServing"
-  >[],
+  items: readonly Pick<NewMealItem, "quantity" | "nutrientsPerServing">[],
 ): NutrientTotals {
   const totals = emptyNutrientTotals();
 
   for (const item of items) {
-    const quantityIsValid =
-      Number.isFinite(item.quantity) && item.quantity > 0;
+    const quantityIsValid = Number.isFinite(item.quantity) && item.quantity > 0;
 
     for (const nutrientKey of NUTRIENT_KEYS) {
       const nutrient = item.nutrientsPerServing[nutrientKey];

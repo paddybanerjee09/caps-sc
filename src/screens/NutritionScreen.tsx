@@ -125,7 +125,10 @@ export function NutritionScreen() {
       1000,
       dayEnd.getTime() - Date.now() + 250,
     );
-    const timer = setTimeout(() => setCurrentDay(new Date()), millisecondsUntilTomorrow);
+    const timer = setTimeout(
+      () => setCurrentDay(new Date()),
+      millisecondsUntilTomorrow,
+    );
 
     return () => clearTimeout(timer);
   }, [dayEnd]);
@@ -204,7 +207,9 @@ export function NutritionScreen() {
                 name="restaurant-outline"
                 size={28}
               />
-              <Text style={[styles.stateText, { color: theme.colors.textMuted }]}>
+              <Text
+                style={[styles.stateText, { color: theme.colors.textMuted }]}
+              >
                 No meals logged today
               </Text>
             </View>
@@ -228,10 +233,7 @@ export function NutritionScreen() {
         <PressOpacity
           accessibilityLabel="Log meal"
           onPress={openNewMeal}
-          style={[
-            styles.addButton,
-            { backgroundColor: theme.colors.tertiary },
-          ]}
+          style={[styles.addButton, { backgroundColor: theme.colors.tertiary }]}
         >
           <Ionicons color={theme.colors.background} name="add" size={28} />
         </PressOpacity>
@@ -378,8 +380,8 @@ function StoredFoodRow({ item }: { item: StoredMealItem }) {
       <Text style={[styles.foodNutrients, { color: theme.colors.textMuted }]}>
         {formatNullableContribution(nutrients.energyKcal, item.quantity)} kcal ·
         P {formatNullableContribution(nutrients.proteinG, item.quantity)} g · C{" "}
-        {formatNullableContribution(nutrients.carbohydratesG, item.quantity)} g ·
-        F {formatNullableContribution(nutrients.fatG, item.quantity)} g
+        {formatNullableContribution(nutrients.carbohydratesG, item.quantity)} g
+        · F {formatNullableContribution(nutrients.fatG, item.quantity)} g
       </Text>
     </View>
   );
@@ -415,12 +417,7 @@ function NutrientProgressRow({
         <Text style={[styles.progressLabel, { color: theme.colors.text }]}>
           {label}
         </Text>
-        <Text
-          style={[
-            styles.progressValue,
-            { color: theme.colors.textMuted },
-          ]}
-        >
+        <Text style={[styles.progressValue, { color: theme.colors.textMuted }]}>
           {displayedTotal}
           {incomplete ? "+" : ""} / {target} {unit}
         </Text>

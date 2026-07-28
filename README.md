@@ -1,77 +1,99 @@
-# CAPS S&C
-
-Combat Athlete Performance System.
-
-# CAPS S&C
-
-## The Combat Athlete Performance System
+# CAPS: The Combat Athlete Performance System
 
 ## Purpose
 
-The purpose of CAPS S&C is to serve as a tool for aiding a combat sport athlete's strength and conditioning protocol through a variety of means.
+The purpose of CAPS is to serve as a performance platform for combat sport athletes, unifying sport training, strength & conditioning, nutrition, and recovery data. The central design purpose is that sport training should remain an athlete’s primary focus, while strength and & conditioning work should be organized around it.
 
-The app includes the following core features:
+## Abbreviations
 
-### 🥗 Tracking Nutrition
+- RHR: Resting heart rate
+- RIR: Repetitions in reserve
+- HRV: Heart rate variability
+- RPE: Rate of perceived exertion
+- S&C: Strength and Conditioning
 
-- Cronometer-like nutrition logging.
-- Displays micro- and macronutrient counts.
-- Places specific emphasis on meal timing relative to training sessions.
+## Technical Architecture
 
-### 🥊 Tracking Skill Work
+- TypeScript
+- React Native and Expo SDK 54 for cross-platform mobile development
+- Expo SQLite
+- REST API integrations using JSON
+- Strava API v3 for conditioning activity synchronization
+- OAuth 2.0 authorization for Strava
+- USDA FoodData Central API for nutritional data
 
-- Tracks different kinds of combat sports skill work, including:
-  - Shadowboxing
-  - Padwork
-  - Bagwork
-  - Light sparring
-  - Hard sparring
+## SQLite database
 
-- Estimates fatigue and recovery needs.
-- Helps determine how to organize strength and conditioning around skill work while keeping the combat sport as the primary priority.
+- Uses Expo SQLite for local storage
+- Uses a normalized relational schema where timeline entries link to category-specific records for nutrition, strength, sport, conditioning, weight, or sleep entries
+- Maintains data integrity through foreign keys, indexes, transactions, and versioned schema migrations
+- Uses indexed timestamp queries and SQL joins to load and combine records for the daily timeline and progress visualizations
 
-### 🏋️ Tracking Strength Work
+## Nutrition Tracking
 
-- Assists in periodizing strength training according to the athlete's primary needs, including:
+- Integrates with the USDA FoodData Central REST API for food search/nutrient data
+- Calculates daily micro/macronutrient totals using nutrient data and SQL aggregation
+- Compares meal timestamps and nutrient data with nearby training blocks to calculate pre/post-training nutrition intervals
+- Supports reusable custom meals composed of food/serving records
+
+## Custom Skill Work
+
+- Allows user to create custom training sessions that often vary depending on the athlete, their gym, and their sport
+- Ex: A striking session can contain independently configured activities such as 2x3min rounds of shadowboxing, 3x3min rounds of padwork, 2x5min bag rounds, etc
+- Fatigue, nutrition, and recovery needs are estimated depending on session length and RPE
+- Aids in organizing S&C around the skill work while keeping it as the main priority
+
+## Tracking Strength Training
+
+- Assists in periodizing strength training according to the athlete’s goals, competition dates, and recorded workload
+- Exercises, sets, repetitions, load, rest periods, RPE, and RIR are logged through a normalized workout schema
+- Aids in:
+  - Rate of force development
+  - Relative strength gain
   - Lean mass gain
-  - Maximal strength
-  - Power development
 
-- Advises basic stretching and mobility work (more detail on this later).
+## Tracking Conditioning Sessions
 
-### 🏃 Tracking Conditioning
+- Imports athlete activities through the Strava API V3 using OAuth 2.0, scoped access tokens, and activity identifiers for synchronization and deduplication.
+- Records runs in-app through device location services
+- Derives route length, elapsed time, and pace
+- Built-in interval timer for anaerobic work with the ability to create custom circuits
+- Reads heart-rate and workout data from Apple HealthKit and Android Health Connect to supplement RPE-based exertion records
 
-- Offers a Strava-like system for tracking and logging conditioning sessions.
-- Supports both long-distance aerobic work and sprint interval training.
-- Accesses biometric data to gauge the fighter's exertion level.
-- Includes timers and interval clocks for various conditioning routines and circuits.
+## Weight Tracking
 
-### ⚖️ Tracking Weight
+- Stores timestamped weight measurements
+- Compares rolling averages against athlete goals, weight class limits, and competition dates
+- Assists during fat-loss and muscle-building phases
+- Helps track water and sodium intake during fight week to promote safe water cutting practices
 
-- Helps fighters stay on weight year-round according to their weight class.
-- Assists during fat-loss and muscle-gain phases.
-- Tracks water intake throughout fight week to promote safe water-cutting practices.
-- Advises on proper weight-cutting protocols.
+## Sleep Tracking
 
-### 🤖 AI Advisory
+- Offers the option to log sleep yourself
+- Imports sleep session data from Apple HealthKit or Android Health Connect
+- Possible future Fitbit, Garmin, or Oura REST API integration
+- Incorporates sleep duration, consistency, quality, and training load into a recovery index
 
-- Utilizes an OpenAI LLM trained on specific, up-to-date, and scientifically accurate fighter strength and conditioning data.
-- Answers basic questions.
-- Advises on periodization.
-- Explains app features.
-- **Note:** Intended for minimal use and basic advisory only, avoiding the "AI-Slop" theme of certain conditioning apps.
+## Progress visualization
 
-### 👥 Social Features
+- Aggregates data from the normalized SQLite schema using date range queries, joins, and daily/weekly/monthly grouping
+- Visualizes body weight, nutritional intake, training duration, session load, sleep, recovery, and performance benchmarks across date ranges
 
-- Includes a social-media-like system where users can:
-  - Create posts
-  - Message other users
-  - Add friends
-  - Like and comment on posts
+## Recovery Dashboard
 
-- Features a Gym / Coach / Student system for teams.
-- **Note:** This will be developed after the core features are completed.
+- Combines training load, nutrition, sleep, subjective exertion levels, and biometric records into a recovery model
+- Imports HRV and RHR samples through Apple HealthKit and Android HealthConnect queries, comparing them to athlete baselines
+- Displays recovery score and a summary of biometric trends
 
-## Design Philosophy
+## Daily Timeline
 
-The app is intended to be used as minimally or as maximally as the user prefers, with the goal that any fighter can find value in specific features without feeling obligated to use every aspect of the platform or feeling like they are missing out.
+- Displays all logged events (Sleep, S&C, Training, Nutrition, Weight logs, etc) on a horizontal React Native ScrollView timetable throughout the day
+- Handles instantaneous measurements, overlapping events, overnight sessions, and calendar boundaries
+- Shows relationships between various events throughout the day (Ex: How a meal eaten 3 hours pre-training will affect athletic output)
+- Helps athlete maintain a dedicated schedule
+
+## Future Direction
+
+- Develop a RAG advisor grounded in current combat sport S&C research to provide evidence-backed guidance based on individual athlete information
+- Add coach-athlete relationships, permission-based data sharing, assignable training sessions, and direct messaging
+- Introduce light social features
