@@ -1,77 +1,49 @@
-# CAPS S&C
-
-Combat Athlete Performance System.
-
-# CAPS S&C
-
-## The Combat Athlete Performance System
+# CAPS: The Combat Athlete Performance System
 
 ## Purpose
 
-The purpose of CAPS S&C is to serve as a tool for aiding a combat sport athlete's strength and conditioning protocol through a variety of means.
+The purpose of CAPS is to serve as a performance platform for combat sport athletes, unifying sport training, strength & conditioning, nutrition, and recovery data. The central design purpose is that sport training should remain an athlete’s primary focus, while strength and & conditioning work should be organized around it.
 
-The app includes the following core features:
+## Abbreviations
 
-### 🥗 Tracking Nutrition
+- RHR: Resting heart rate
+- RIR: Repetitions in reserve
+- HRV: Heart rate variability
+- RPE: Rate of perceived exertion
+- S&C: Strength and Conditioning
 
-- Cronometer-like nutrition logging.
-- Displays micro- and macronutrient counts.
-- Places specific emphasis on meal timing relative to training sessions.
+## Technical Architecture
 
-### 🥊 Tracking Skill Work
+- TypeScript
+- React Native and Expo SDK 54 for cross-platform mobile development
+- Expo SQLite
+- REST API integrations using JSON
+- Strava API v3 for conditioning activity synchronization
+- OAuth 2.0 authorization for Strava
+- USDA FoodData Central API for nutritional data
 
-- Tracks different kinds of combat sports skill work, including:
-  - Shadowboxing
-  - Padwork
-  - Bagwork
-  - Light sparring
-  - Hard sparring
+## SQLite database
 
-- Estimates fatigue and recovery needs.
-- Helps determine how to organize strength and conditioning around skill work while keeping the combat sport as the primary priority.
+- Uses Expo SQLite for local storage
+- Uses a normalized relational schema where timeline entries link to category-specific records for nutrition, strength, sport, conditioning, weight, or sleep entries
+- Maintains data integrity through foreign keys, indexes, transactions, and versioned schema migrations
+- Uses indexed timestamp queries and SQL joins to load and combine records for the daily timeline and progress visualizations
 
-### 🏋️ Tracking Strength Work
+## Nutrition Tracking
 
-- Assists in periodizing strength training according to the athlete's primary needs, including:
-  - Lean mass gain
-  - Maximal strength
-  - Power development
+- Integrates with the USDA FoodData Central REST API for food search/nutrient data
+- Calculates daily micro/macronutrient totals using nutrient data and SQL aggregation
+- Compares meal timestamps and nutrient data with nearby training blocks to calculate pre/post-training nutrition intervals
+- Supports reusable custom meals composed of food/serving records
 
-- Advises basic stretching and mobility work (more detail on this later).
+## Custom Skill Work
 
-### 🏃 Tracking Conditioning
+- Allows user to create custom training sessions that often vary depending on the athlete, their gym, and their sport
+- Ex: A striking session can contain independently configured activities such as 2x3min rounds of shadowboxing, 3x3min rounds of padwork, 2x5min bag rounds, etc
+- Fatigue, nutrition, and recovery needs are estimated depending on session length and RPE
+- Aids in organizing S&C around the skill work while keeping it as the main priority
 
-- Offers a Strava-like system for tracking and logging conditioning sessions.
-- Supports both long-distance aerobic work and sprint interval training.
-- Accesses biometric data to gauge the fighter's exertion level.
-- Includes timers and interval clocks for various conditioning routines and circuits.
+## Tracking Strength Training
 
-### ⚖️ Tracking Weight
-
-- Helps fighters stay on weight year-round according to their weight class.
-- Assists during fat-loss and muscle-gain phases.
-- Tracks water intake throughout fight week to promote safe water-cutting practices.
-- Advises on proper weight-cutting protocols.
-
-### 🤖 AI Advisory
-
-- Utilizes an OpenAI LLM trained on specific, up-to-date, and scientifically accurate fighter strength and conditioning data.
-- Answers basic questions.
-- Advises on periodization.
-- Explains app features.
-- **Note:** Intended for minimal use and basic advisory only, avoiding the "AI-Slop" theme of certain conditioning apps.
-
-### 👥 Social Features
-
-- Includes a social-media-like system where users can:
-  - Create posts
-  - Message other users
-  - Add friends
-  - Like and comment on posts
-
-- Features a Gym / Coach / Student system for teams.
-- **Note:** This will be developed after the core features are completed.
-
-## Design Philosophy
-
-The app is intended to be used as minimally or as maximally as the user prefers, with the goal that any fighter can find value in specific features without feeling obligated to use every aspect of the platform or feeling like they are missing out.
+- Assists in periodizing strength training according to the athlete’s goals, competition dates, and recorded workload
+- Exercises, 
