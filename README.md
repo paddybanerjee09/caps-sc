@@ -1,3 +1,5 @@
+# CAPS: The Combat Athlete Performance System
+
 ## Purpose
 
 The purpose of CAPS is to serve as a performance platform for combat sport athletes, unifying sport training, strength & conditioning, nutrition, and recovery data. The central design purpose is that sport training should remain an athlete’s primary focus, while strength and & conditioning work should be organized around it.
