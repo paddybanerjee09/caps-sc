@@ -3,7 +3,14 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { useState } from "react";
-import { Keyboard, Platform, StyleSheet, Text, View } from "react-native";
+import {
+  Keyboard,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
@@ -24,15 +31,21 @@ export function LogTimeChanger({
 }: LogTimeChangerProps) {
   const { colorScheme, theme } = useAppTheme();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [draftTime, setDraftTime] = useState(() => new Date(value));
 
-  function togglePicker() {
+  function openPicker() {
     Keyboard.dismiss();
-    setPickerOpen((current) => !current);
+    setDraftTime(new Date(value));
+    setPickerOpen(true);
+  }
+
+  function closePicker() {
+    setPickerOpen(false);
   }
 
   function changeTime(event: DateTimePickerEvent, selectedDate?: Date) {
     if (event.type === "dismissed" || !selectedDate) {
-      setPickerOpen(false);
+      closePicker();
       return;
     }
 
@@ -48,12 +61,21 @@ export function LogTimeChanger({
       maximumDate === undefined ||
       updatedDate.getTime() <= maximumDate.getTime()
     ) {
-      onChange(updatedDate);
+      if (Platform.OS === "android") {
+        onChange(updatedDate);
+      } else {
+        setDraftTime(updatedDate);
+      }
     }
 
     if (Platform.OS === "android") {
-      setPickerOpen(false);
+      closePicker();
     }
+  }
+
+  function saveTime() {
+    onChange(draftTime);
+    closePicker();
   }
 
   return (
@@ -62,7 +84,7 @@ export function LogTimeChanger({
         accessibilityLabel={`Change log time. Currently ${formatFullDateTime(
           value,
         )}`}
-        onPress={togglePicker}
+        onPress={openPicker}
         style={styles.button}
       >
         <View
@@ -86,19 +108,75 @@ export function LogTimeChanger({
         </View>
       </PressOpacity>
 
-      {pickerOpen && (
-        <View style={Platform.OS === "ios" ? styles.pickerFrame : undefined}>
-          <DateTimePicker
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            mode="time"
-            onChange={changeTime}
-            style={Platform.OS === "ios" ? styles.picker : undefined}
-            textColor={theme.colors.text}
-            themeVariant={colorScheme}
-            value={value}
-          />
+      <Modal
+        animationType="fade"
+        onRequestClose={closePicker}
+        presentationStyle="overFullScreen"
+        transparent
+        visible={pickerOpen}
+      >
+        <View
+          style={[
+            styles.modalOverlay,
+            { backgroundColor: theme.colors.overlay },
+          ]}
+        >
+          {Platform.OS === "ios" ? (
+            <View
+              accessibilityViewIsModal
+              style={[
+                styles.pickerModal,
+                { backgroundColor: theme.colors.surface },
+              ]}
+            >
+              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                Log time
+              </Text>
+
+              <View style={styles.pickerFrame}>
+                {pickerOpen ? (
+                  <DateTimePicker
+                    display="spinner"
+                    mode="time"
+                    onChange={changeTime}
+                    style={styles.picker}
+                    textColor={theme.colors.text}
+                    themeVariant={colorScheme}
+                    value={draftTime}
+                  />
+                ) : null}
+              </View>
+
+              <View style={styles.modalActions}>
+                <PressOpacity
+                  accessibilityLabel="Cancel changing log time"
+                  onPress={closePicker}
+                  style={styles.modalAction}
+                >
+                  <Text style={{ color: theme.colors.textMuted }}>Cancel</Text>
+                </PressOpacity>
+
+                <PressOpacity
+                  accessibilityLabel="Save log time"
+                  onPress={saveTime}
+                  style={styles.modalAction}
+                >
+                  <Text style={{ color: theme.colors.tertiary }}>Done</Text>
+                </PressOpacity>
+              </View>
+            </View>
+          ) : pickerOpen ? (
+            <DateTimePicker
+              display="default"
+              mode="time"
+              onChange={changeTime}
+              textColor={theme.colors.text}
+              themeVariant={colorScheme}
+              value={draftTime}
+            />
+          ) : null}
         </View>
-      )}
+      </Modal>
     </View>
   );
 }
@@ -146,6 +224,24 @@ const styles = StyleSheet.create({
     fontWeight: tokens.typography.label.fontWeight,
     lineHeight: 14,
   },
+  modalOverlay: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    padding: tokens.spacing.lg,
+  },
+  pickerModal: {
+    alignItems: "center",
+    borderRadius: tokens.radius.lg,
+    maxWidth: 300,
+    padding: tokens.spacing.lg,
+    width: "100%",
+  },
+  modalTitle: {
+    fontSize: tokens.typography.body.fontSize,
+    fontWeight: "700",
+    lineHeight: tokens.typography.body.lineHeight,
+  },
   picker: {
     height: 180,
     transform: [{ scale: 0.75 }],
@@ -157,5 +253,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
     width: 180,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: tokens.spacing.md,
+    justifyContent: "flex-end",
+    paddingTop: tokens.spacing.sm,
+    width: "100%",
+  },
+  modalAction: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+    minWidth: 72,
   },
 });

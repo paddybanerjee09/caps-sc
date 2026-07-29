@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
   summary: {
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
-    marginTop: 30,
+    marginTop: tokens.spacing.xxl,
     padding: tokens.spacing.lg,
   },
   progressList: {

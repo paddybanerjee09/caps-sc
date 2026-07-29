@@ -1,12 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -210,39 +204,42 @@ export function MealLogModal({
     visible,
   ]);
 
-  const runSearch = useCallback(async (query: string) => {
-    cancelSearchRequest();
+  const runSearch = useCallback(
+    async (query: string) => {
+      cancelSearchRequest();
 
-    const currentRequestId = searchRequestId.current + 1;
-    searchRequestId.current = currentRequestId;
-    const controller = new AbortController();
-    searchController.current = controller;
+      const currentRequestId = searchRequestId.current + 1;
+      searchRequestId.current = currentRequestId;
+      const controller = new AbortController();
+      searchController.current = controller;
 
-    setLastSubmittedQuery(query);
-    setSearchLoading(true);
-    setSearchError(null);
-    setSearchResults([]);
+      setLastSubmittedQuery(query);
+      setSearchLoading(true);
+      setSearchError(null);
+      setSearchResults([]);
 
-    try {
-      const results = await searchFoods(query, controller.signal);
+      try {
+        const results = await searchFoods(query, controller.signal);
 
-      if (searchRequestId.current === currentRequestId) {
-        setSearchResults(results);
+        if (searchRequestId.current === currentRequestId) {
+          setSearchResults(results);
+        }
+      } catch (error) {
+        if (
+          searchRequestId.current === currentRequestId &&
+          !isAbortError(error)
+        ) {
+          setSearchError(getFoodDataErrorMessage(error, "search"));
+        }
+      } finally {
+        if (searchRequestId.current === currentRequestId) {
+          setSearchLoading(false);
+          searchController.current = null;
+        }
       }
-    } catch (error) {
-      if (
-        searchRequestId.current === currentRequestId &&
-        !isAbortError(error)
-      ) {
-        setSearchError(getFoodDataErrorMessage(error, "search"));
-      }
-    } finally {
-      if (searchRequestId.current === currentRequestId) {
-        setSearchLoading(false);
-        searchController.current = null;
-      }
-    }
-  }, [cancelSearchRequest]);
+    },
+    [cancelSearchRequest],
+  );
 
   useEffect(() => {
     if (!visible) {
@@ -551,7 +548,9 @@ export function MealLogModal({
                 </View>
 
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                  <Text
+                    style={[styles.sectionTitle, { color: theme.colors.text }]}
+                  >
                     Foods
                   </Text>
                   <TextInput
@@ -589,10 +588,7 @@ export function MealLogModal({
                   ) : searchError ? (
                     <View style={styles.searchState}>
                       <Text
-                        style={[
-                          styles.stateText,
-                          { color: theme.colors.text },
-                        ]}
+                        style={[styles.stateText, { color: theme.colors.text }]}
                       >
                         {searchError}
                       </Text>
@@ -631,7 +627,7 @@ export function MealLogModal({
                       return (
                         <PressOpacity
                           accessibilityLabel={
-                           resultError?.retryable
+                            resultError?.retryable
                               ? `Retry adding ${result.description}`
                               : resultError
                                 ? `${result.description}. ${resultError.message}`
@@ -708,7 +704,9 @@ export function MealLogModal({
                 </View>
 
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                  <Text
+                    style={[styles.sectionTitle, { color: theme.colors.text }]}
+                  >
                     Selected foods
                   </Text>
 
@@ -846,9 +844,7 @@ export function MealLogModal({
             </PressOpacity>
 
             <PressOpacity
-              accessibilityLabel={
-                mealToEdit ? "Save meal changes" : "Log meal"
-              }
+              accessibilityLabel={mealToEdit ? "Save meal changes" : "Log meal"}
               disabled={
                 initializing ||
                 initializationError ||
@@ -926,10 +922,7 @@ function addOrIncrementDraftItem(
   ];
 }
 
-function incrementDraftItem(
-  currentItems: EditableMealItem[],
-  fdcId: number,
-) {
+function incrementDraftItem(currentItems: EditableMealItem[], fdcId: number) {
   return currentItems.map((item) => {
     if (item.fdcId !== fdcId) {
       return item;
@@ -1189,8 +1182,9 @@ const styles = StyleSheet.create({
   actions: {
     borderTopWidth: 1,
     flexDirection: "row",
-    gap: tokens.spacing.lg,
+    gap: tokens.spacing.sm,
     justifyContent: "flex-end",
+    marginTop: tokens.spacing.xs,
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.md,
   },
