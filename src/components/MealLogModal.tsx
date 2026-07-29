@@ -128,7 +128,7 @@ export function MealLogModal({
 
   const modalMaxHeight = Math.max(
     1,
-    Math.min(680, windowHeight - insets.top - insets.bottom - 32),
+    Math.min(620, windowHeight - insets.top - insets.bottom - 32),
   );
 
   const initializeCreateDraft = useCallback(async () => {
@@ -516,36 +516,37 @@ export function MealLogModal({
               </View>
             ) : (
               <>
-                <Text style={[styles.label, { color: theme.colors.text }]}>
-                  Title
-                </Text>
-                <TextInput
-                  accessibilityLabel="Meal title"
-                  maxLength={50}
-                  onChangeText={setTitle}
-                  placeholder="Meal title"
-                  placeholderTextColor={theme.colors.textMuted}
-                  selectionColor={theme.colors.tertiary}
-                  style={[
-                    styles.textInput,
-                    {
-                      borderColor: theme.colors.borderStrong,
-                      color: theme.colors.text,
-                    },
-                  ]}
-                  value={title}
-                />
-
-                <View style={styles.timeSection}>
-                  <Text style={[styles.label, { color: theme.colors.text }]}>
-                    Time
-                  </Text>
-                  {visible ? (
-                    <LogTimeChanger
-                      maximumDate={new Date()}
-                      onChange={setLoggedAt}
-                      value={loggedAt}
+                <View style={styles.titleTimeRow}>
+                  <View style={styles.titleField}>
+                    <Text style={[styles.label, { color: theme.colors.text }]}>
+                      Title
+                    </Text>
+                    <TextInput
+                      accessibilityLabel="Meal title"
+                      maxLength={50}
+                      onChangeText={setTitle}
+                      placeholder="Meal title"
+                      placeholderTextColor={theme.colors.textMuted}
+                      selectionColor={theme.colors.tertiary}
+                      style={[
+                        styles.textInput,
+                        {
+                          borderColor: theme.colors.borderStrong,
+                          color: theme.colors.text,
+                        },
+                      ]}
+                      value={title}
                     />
+                  </View>
+
+                  {visible ? (
+                    <View style={styles.timeField}>
+                      <LogTimeChanger
+                        maximumDate={new Date()}
+                        onChange={setLoggedAt}
+                        value={loggedAt}
+                      />
+                    </View>
                   ) : null}
                 </View>
 
@@ -1071,9 +1072,17 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: tokens.spacing.md,
   },
-  timeSection: {
-    alignItems: "center",
-    paddingTop: tokens.spacing.md,
+  titleTimeRow: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    gap: tokens.spacing.md,
+  },
+  titleField: {
+    flex: 1,
+    minWidth: 0,
+  },
+  timeField: {
+    width: 100,
   },
   section: {
     gap: tokens.spacing.sm,

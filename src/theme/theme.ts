@@ -44,7 +44,7 @@ const shared = {
       fontWeight: "700",
     },
     sectionTitle: {
-      fontSize: 13,
+      fontSize: 16,
       lineHeight: 18,
       fontWeight: "700",
     },
