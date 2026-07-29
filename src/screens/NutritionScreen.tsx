@@ -10,63 +10,20 @@ import {
   useWindowDimensions,
 } from "react-native";
 
+import { MacronutrientBreakdownCard } from "../components/MacronutrientBreakdownCard";
 import { MealLogModal } from "../components/MealLogModal";
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
+import { DAILY_NUTRIENT_TARGETS } from "../constants/nutrition";
 import {
   calculateNutrientTotals,
   getMealLogsForDay,
 } from "../data/nutritionRepository";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
-import type {
-  NutrientSnapshot,
-  StoredMealItem,
-  StoredMealLog,
-} from "../types/nutrition";
+import type { StoredMealItem, StoredMealLog } from "../types/nutrition";
 
 const tokens = themes.dark;
-
-const DAILY_NUTRIENT_TARGETS = {
-  energyKcal: 2500,
-  proteinG: 200,
-  carbohydratesG: 200,
-  fatG: 100,
-} as const;
-
-type NutrientKey = keyof NutrientSnapshot;
-
-const nutrientRows: {
-  key: NutrientKey;
-  label: string;
-  target: number;
-  unit: string;
-}[] = [
-  {
-    key: "energyKcal",
-    label: "Energy",
-    target: DAILY_NUTRIENT_TARGETS.energyKcal,
-    unit: "kcal",
-  },
-  {
-    key: "proteinG",
-    label: "Protein",
-    target: DAILY_NUTRIENT_TARGETS.proteinG,
-    unit: "g",
-  },
-  {
-    key: "carbohydratesG",
-    label: "Carbohydrates",
-    target: DAILY_NUTRIENT_TARGETS.carbohydratesG,
-    unit: "g",
-  },
-  {
-    key: "fatG",
-    label: "Fat",
-    target: DAILY_NUTRIENT_TARGETS.fatG,
-    unit: "g",
-  },
-];
 
 export function NutritionScreen() {
   const db = useSQLiteContext();
@@ -138,9 +95,6 @@ export function NutritionScreen() {
     [meals],
   );
   const catalogueHeight = clamp(height * 0.42, 240, 420);
-  const hasIncompleteTotals = Object.values(dailyTotals.incomplete).some(
-    Boolean,
-  );
 
   function openNewMeal() {
     setSelectedMeal(null);
@@ -239,64 +193,59 @@ export function NutritionScreen() {
         </PressOpacity>
       </View>
 
-      <View
-        style={[
-          styles.summary,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          Daily totals
-        </Text>
-
+      <View style={styles.summarySection}>
         {loading ? (
           <View
             accessibilityLabel="Loading daily nutrition totals"
-            style={styles.summaryState}
+            style={[
+              styles.summary,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
           >
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              Daily totals
+            </Text>
             <ActivityIndicator color={theme.colors.tertiary} />
           </View>
         ) : databaseError ? (
-          <View style={styles.summaryState}>
+          <View
+            style={[
+              styles.summary,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              Daily totals
+            </Text>
             <Text style={[styles.stateText, { color: theme.colors.textMuted }]}>
               Daily totals unavailable
             </Text>
           </View>
         ) : (
-          <>
-            <View style={styles.progressList}>
-              {nutrientRows.map((row) => (
-                <NutrientProgressRow
-                  incomplete={dailyTotals.incomplete[row.key]}
-                  key={row.key}
-                  label={row.label}
-                  target={row.target}
-                  total={dailyTotals[row.key]}
-                  unit={row.unit}
-                />
-              ))}
-            </View>
-
-            {hasIncompleteTotals ? (
-              <Text
-                style={[
-                  styles.incompleteNote,
-                  { color: theme.colors.textMuted },
-                ]}
-              >
-                + Some USDA nutrient values are unavailable.
-              </Text>
-            ) : null}
-          </>
+          <MacronutrientBreakdownCard
+            incomplete={dailyTotals.incomplete}
+            targets={DAILY_NUTRIENT_TARGETS}
+            title="Daily totals"
+            values={{
+              carbohydratesG: dailyTotals.carbohydratesG,
+              energyKcal: dailyTotals.energyKcal,
+              fatG: dailyTotals.fatG,
+              proteinG: dailyTotals.proteinG,
+            }}
+          />
         )}
       </View>
 
       <MealLogModal
         mealToEdit={selectedMeal ?? undefined}
         onClose={closeMealModal}
+        onDeleted={handleMealSaved}
         onSaved={handleMealSaved}
         visible={mealModalOpen}
       />
@@ -383,61 +332,6 @@ function StoredFoodRow({ item }: { item: StoredMealItem }) {
         {formatNullableContribution(nutrients.carbohydratesG, item.quantity)} g
         · F {formatNullableContribution(nutrients.fatG, item.quantity)} g
       </Text>
-    </View>
-  );
-}
-
-function NutrientProgressRow({
-  incomplete,
-  label,
-  target,
-  total,
-  unit,
-}: {
-  incomplete: boolean;
-  label: string;
-  target: number;
-  total: number;
-  unit: string;
-}) {
-  const { theme } = useAppTheme();
-  const safeTotal = Number.isFinite(total) && total >= 0 ? total : 0;
-  const ratio = target > 0 ? clamp(safeTotal / target, 0, 1) : 0;
-  const displayedTotal = formatNumber(safeTotal, unit === "kcal" ? 0 : 1);
-
-  return (
-    <View
-      accessibilityLabel={`${label}: ${
-        incomplete ? "at least " : ""
-      }${displayedTotal} out of ${target} ${unit}`}
-      accessible
-      style={styles.progressRow}
-    >
-      <View style={styles.progressLabels}>
-        <Text style={[styles.progressLabel, { color: theme.colors.text }]}>
-          {label}
-        </Text>
-        <Text style={[styles.progressValue, { color: theme.colors.textMuted }]}>
-          {displayedTotal}
-          {incomplete ? "+" : ""} / {target} {unit}
-        </Text>
-      </View>
-      <View
-        style={[
-          styles.progressTrack,
-          { backgroundColor: theme.colors.surfaceMuted },
-        ]}
-      >
-        <View
-          style={[
-            styles.progressFill,
-            {
-              backgroundColor: theme.colors.tertiary,
-              width: `${ratio * 100}%`,
-            },
-          ]}
-        />
-      </View>
     </View>
   );
 }
@@ -593,47 +487,12 @@ const styles = StyleSheet.create({
   summary: {
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
-    marginTop: tokens.spacing.xxl,
+    gap: tokens.spacing.lg,
+    minHeight: 144,
     padding: tokens.spacing.lg,
   },
-  progressList: {
-    gap: tokens.spacing.md,
-    paddingTop: tokens.spacing.md,
-  },
-  summaryState: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 144,
-  },
-  progressRow: {
-    gap: tokens.spacing.xs,
-  },
-  progressLabels: {
-    flexDirection: "row",
-    gap: tokens.spacing.md,
-    justifyContent: "space-between",
-  },
-  progressLabel: {
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
-  },
-  progressValue: {
-    fontSize: tokens.typography.label.fontSize,
-    fontVariant: ["tabular-nums"],
-  },
-  progressTrack: {
-    borderRadius: tokens.radius.pill,
-    height: 8,
-    overflow: "hidden",
-  },
-  progressFill: {
-    borderRadius: tokens.radius.pill,
-    height: "100%",
-  },
-  incompleteNote: {
-    fontSize: 10,
-    lineHeight: 14,
-    paddingTop: tokens.spacing.md,
+  summarySection: {
+    marginTop: tokens.spacing.xxl,
   },
   addButton: {
     alignItems: "center",

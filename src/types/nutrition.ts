@@ -19,23 +19,53 @@ export type UsdaDataType =
   | "Survey (FNDDS)"
   | "SR Legacy";
 
+export type ServingUnit = "g" | "ml";
+
+export type ServingOptionSource =
+  | "branded"
+  | "usda-portion"
+  | "derived-mass"
+  | "fallback"
+  | "stored";
+
+export type ServingOption = {
+  id: string;
+  label: string;
+  amount: number;
+  unit: ServingUnit;
+  source: ServingOptionSource;
+};
+
+export type NutrientBasis = {
+  amount: 100;
+  unit: ServingUnit;
+  nutrients: NutrientSnapshot;
+};
+
+export type FoodSearchPreview = {
+  basisLabel: string;
+  nutrients: NutrientSnapshot;
+};
+
+export type NutrientTargets = {
+  energyKcal: number;
+  proteinG: number;
+  carbohydratesG: number;
+  fatG: number;
+};
+
 export type NormalizedFoodSearchResult = {
   fdcId: number;
   description: string;
   brandName: string | null;
   dataType: UsdaDataType;
-  nutrientsPer100Units: NutrientSnapshot;
+  preview: FoodSearchPreview;
 };
 
 export type NormalizedFoodDetails = NormalizedFoodSearchResult & {
-  servingAmount: number;
-  servingUnit: "g" | "ml";
-  servingDescription: string;
-  nutrientsPerServing: NutrientSnapshot;
-};
-
-export type DraftMealItem = NormalizedFoodDetails & {
-  quantityInput: string;
+  nutrientBasis: NutrientBasis;
+  servingOptions: ServingOption[];
+  defaultServingOptionId: string;
 };
 
 export type NewMealItem = {
@@ -44,9 +74,15 @@ export type NewMealItem = {
   brandName: string | null;
   quantity: number;
   servingAmount: number;
-  servingUnit: "g" | "ml";
+  servingUnit: ServingUnit;
   servingDescription: string;
   nutrientsPerServing: NutrientSnapshot;
+};
+
+export type DraftMealItem = Omit<NewMealItem, "quantity"> & {
+  quantityInput: string;
+  nutrientBasis?: NutrientBasis;
+  servingOptions?: ServingOption[];
 };
 
 export type StoredMealItem = NewMealItem & {

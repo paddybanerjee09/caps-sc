@@ -229,6 +229,31 @@ export async function updateMealLog(
   });
 }
 
+export async function deleteMealLog(
+  db: SQLiteDatabase,
+  timelineEntryId: number,
+): Promise<void> {
+  if (!Number.isInteger(timelineEntryId) || timelineEntryId <= 0) {
+    throw new Error("Invalid meal log");
+  }
+
+  const result = await db.runAsync(
+    `DELETE FROM timeline_entries
+     WHERE id = ?
+       AND kind = 'meal'
+       AND EXISTS (
+         SELECT 1
+         FROM meal_logs
+         WHERE meal_logs.timeline_entry_id = timeline_entries.id
+       )`,
+    [timelineEntryId],
+  );
+
+  if (result.changes !== 1) {
+    throw new Error("Meal log not found");
+  }
+}
+
 export function calculateNutrientTotals(
   items: readonly Pick<NewMealItem, "quantity" | "nutrientsPerServing">[],
 ): NutrientTotals {

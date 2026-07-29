@@ -1,12 +1,17 @@
 import type {
+  NutrientBasis,
   NormalizedFoodDetails,
   NormalizedFoodSearchResult,
   NutrientSnapshot,
+  ServingOption,
+  ServingUnit,
   UsdaDataType,
 } from "../types/nutrition";
 
 const FOOD_DATA_CENTRAL_URL = "https://api.nal.usda.gov/fdc/v1";
 const SEARCH_PAGE_SIZE = 20;
+const OUNCE_IN_GRAMS = 28.3495;
+const SERVING_AMOUNT_TOLERANCE = 0.001;
 const SUPPORTED_DATA_TYPES: UsdaDataType[] = [
   "Branded",
   "Foundation",
@@ -24,10 +29,9 @@ type NutrientCandidate = {
   amount: number;
 };
 
-type Serving = {
+type SearchMeasure = {
   amount: number;
-  unit: "g" | "ml";
-  description: string;
+  label: string;
 };
 
 export type FoodDataCentralErrorCode =
@@ -255,22 +259,26 @@ function scaleNutrients(
   nutrients: NutrientSnapshot,
   multiplier: number,
 ): NutrientSnapshot {
+  function scaleValue(value: number | null): number | null {
+    if (value === null) {
+      return null;
+    }
+
+    const scaledValue = value * multiplier;
+    return Number.isFinite(scaledValue) && scaledValue >= 0
+      ? scaledValue
+      : null;
+  }
+
   return {
-    energyKcal:
-      nutrients.energyKcal === null
-        ? null
-        : nutrients.energyKcal * multiplier,
-    proteinG:
-      nutrients.proteinG === null ? null : nutrients.proteinG * multiplier,
-    carbohydratesG:
-      nutrients.carbohydratesG === null
-        ? null
-        : nutrients.carbohydratesG * multiplier,
-    fatG: nutrients.fatG === null ? null : nutrients.fatG * multiplier,
+    energyKcal: scaleValue(nutrients.energyKcal),
+    proteinG: scaleValue(nutrients.proteinG),
+    carbohydratesG: scaleValue(nutrients.carbohydratesG),
+    fatG: scaleValue(nutrients.fatG),
   };
 }
 
-function normalizeServingUnit(value: string | null): "g" | "ml" | null {
+function normalizeServingUnit(value: string | null): ServingUnit | null {
   const unit = value?.trim().toLowerCase().replace(/[.\s]/g, "");
 
   if (unit === "g" || unit === "gram" || unit === "grams" || unit === "grm") {
@@ -297,13 +305,37 @@ function formatAmount(value: number): string {
 function appendPhysicalBasis(
   description: string | null,
   amount: number,
-  unit: "g" | "ml",
+  unit: ServingUnit,
 ): string {
   const basis = `${formatAmount(amount)} ${unit}`;
-  return description ? `${description} (${basis})` : basis;
+
+  if (!description) {
+    return basis;
+  }
+
+  const physicalValuePattern =
+    /(\d+(?:\.\d+)?)\s*(milliliters?|millilitres?|grams?|ml|g)\b/gi;
+
+  for (const match of description.matchAll(physicalValuePattern)) {
+    const describedAmount = Number(match[1]);
+    const describedUnit = normalizeServingUnit(match[2] ?? null);
+    const tolerance = Math.max(0.01, amount * 0.000001);
+
+    if (
+      Number.isFinite(describedAmount) &&
+      describedUnit === unit &&
+      Math.abs(describedAmount - amount) <= tolerance
+    ) {
+      return description;
+    }
+  }
+
+  return `${description} (${basis})`;
 }
 
-function getBrandedServing(record: UnknownRecord): Serving | null {
+function getBrandedServingOption(
+  record: UnknownRecord,
+): ServingOption | null {
   const amount = getPositiveNumber(record, "servingSize");
   const unit = normalizeServingUnit(getString(record, "servingSizeUnit"));
 
@@ -312,69 +344,405 @@ function getBrandedServing(record: UnknownRecord): Serving | null {
   }
 
   return {
+    id: "branded",
     amount,
     unit,
-    description: appendPhysicalBasis(
+    label: appendPhysicalBasis(
       getString(record, "householdServingFullText"),
       amount,
       unit,
     ),
+    source: "branded",
   };
+}
+
+function getMeaningfulText(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (
+    normalized === "undetermined" ||
+    normalized === "unknown" ||
+    normalized === "none" ||
+    normalized === "n/a" ||
+    normalized === "not specified"
+  ) {
+    return null;
+  }
+
+  return value.trim();
+}
+
+function getMeasureName(record: UnknownRecord): string | null {
+  const measureUnit = asRecord(record.measureUnit);
+  const nestedName = measureUnit
+    ? getMeaningfulText(getString(measureUnit, "name"))
+    : null;
+  const nestedAbbreviation = measureUnit
+    ? getMeaningfulText(getString(measureUnit, "abbreviation"))
+    : null;
+
+  return (
+    nestedName ??
+    nestedAbbreviation ??
+    getMeaningfulText(getString(record, "measureUnitName")) ??
+    getMeaningfulText(getString(record, "measureUnitAbbreviation"))
+  );
+}
+
+function joinMeasureDescription(
+  amount: number | null,
+  measureName: string | null,
+  modifier: string | null,
+): string | null {
+  let description =
+    amount !== null && measureName
+      ? `${formatAmount(amount)} ${measureName}`
+      : null;
+
+  if (modifier) {
+    if (!description) {
+      description = modifier;
+    } else if (
+      !description.toLowerCase().includes(modifier.toLowerCase())
+    ) {
+      description = `${description} ${modifier}`;
+    }
+  }
+
+  return description;
 }
 
 function getPortionDescription(
   portion: UnknownRecord,
   gramWeight: number,
 ): string {
-  const providedDescription = getString(portion, "portionDescription");
+  const providedDescription = getMeaningfulText(
+    getString(portion, "portionDescription"),
+  );
 
   if (providedDescription) {
     return appendPhysicalBasis(providedDescription, gramWeight, "g");
   }
 
   const amount = getPositiveNumber(portion, "amount");
-  const measureUnit = asRecord(portion.measureUnit);
-  const measureName = measureUnit
-    ? getString(measureUnit, "name", "abbreviation")
-    : null;
-  const generatedDescription =
-    amount !== null && measureName
-      ? `${formatAmount(amount)} ${measureName}`
-      : null;
+  const measureName = getMeasureName(portion);
+  const modifier = getMeaningfulText(getString(portion, "modifier"));
+  const generatedDescription = joinMeasureDescription(
+    amount,
+    measureName,
+    modifier,
+  );
 
   return appendPhysicalBasis(generatedDescription, gramWeight, "g");
 }
 
-function getNonBrandedServing(record: UnknownRecord): Serving {
-  const portions = Array.isArray(record.foodPortions)
-    ? record.foodPortions
-        .map(asRecord)
-        .filter((portion): portion is UnknownRecord => portion !== null)
-        .sort((left, right) => {
-          const leftSequence =
-            getFiniteNumber(left, "sequenceNumber") ?? Number.MAX_SAFE_INTEGER;
-          const rightSequence =
-            getFiniteNumber(right, "sequenceNumber") ?? Number.MAX_SAFE_INTEGER;
-          return leftSequence - rightSequence;
-        })
-    : [];
+function getFoodPortionOptions(record: UnknownRecord): ServingOption[] {
+  if (!Array.isArray(record.foodPortions)) {
+    return [];
+  }
 
-  for (const portion of portions) {
-    const gramWeight = getPositiveNumber(portion, "gramWeight");
+  return record.foodPortions
+    .map((value, sourceIndex) => ({
+      portion: asRecord(value),
+      sourceIndex,
+    }))
+    .filter(
+      (
+        value,
+      ): value is {
+        portion: UnknownRecord;
+        sourceIndex: number;
+      } => value.portion !== null,
+    )
+    .sort((left, right) => {
+      const leftSequence =
+        getFiniteNumber(left.portion, "sequenceNumber") ??
+        Number.MAX_SAFE_INTEGER;
+      const rightSequence =
+        getFiniteNumber(right.portion, "sequenceNumber") ??
+        Number.MAX_SAFE_INTEGER;
 
-    if (gramWeight !== null) {
-      return {
-        amount: gramWeight,
-        unit: "g",
-        description: getPortionDescription(portion, gramWeight),
-      };
+      return (
+        leftSequence - rightSequence ||
+        left.sourceIndex - right.sourceIndex
+      );
+    })
+    .flatMap(({ portion, sourceIndex }) => {
+      const gramWeight = getPositiveNumber(portion, "gramWeight");
+
+      if (gramWeight === null) {
+        return [];
+      }
+
+      const portionId = getFiniteNumber(portion, "id");
+      const id =
+        portionId !== null &&
+        Number.isInteger(portionId) &&
+        portionId > 0
+          ? `portion:${portionId}`
+          : `portion-index:${sourceIndex}`;
+
+      return [
+        {
+          id,
+          label: getPortionDescription(portion, gramWeight),
+          amount: gramWeight,
+          unit: "g",
+          source: "usda-portion",
+        } satisfies ServingOption,
+      ];
+    });
+}
+
+function getSearchMeasure(record: UnknownRecord): SearchMeasure | null {
+  if (!Array.isArray(record.foodMeasures)) {
+    return null;
+  }
+
+  const measures = record.foodMeasures
+    .map((value, sourceIndex) => ({
+      measure: asRecord(value),
+      sourceIndex,
+    }))
+    .filter(
+      (
+        value,
+      ): value is {
+        measure: UnknownRecord;
+        sourceIndex: number;
+      } => value.measure !== null,
+    )
+    .sort((left, right) => {
+      const leftRank =
+        getFiniteNumber(left.measure, "rank") ?? Number.MAX_SAFE_INTEGER;
+      const rightRank =
+        getFiniteNumber(right.measure, "rank") ?? Number.MAX_SAFE_INTEGER;
+
+      return leftRank - rightRank || left.sourceIndex - right.sourceIndex;
+    });
+
+  for (const { measure } of measures) {
+    const gramWeight = getPositiveNumber(measure, "gramWeight");
+
+    if (gramWeight === null) {
+      continue;
+    }
+
+    const disseminationText = getMeaningfulText(
+      getString(measure, "disseminationText"),
+    );
+    const description =
+      disseminationText ??
+      joinMeasureDescription(
+        getPositiveNumber(measure, "amount"),
+        getMeasureName(measure),
+        getMeaningfulText(getString(measure, "modifier")),
+      );
+
+    return {
+      amount: gramWeight,
+      label: appendPhysicalBasis(description, gramWeight, "g"),
+    };
+  }
+
+  return null;
+}
+
+function amountsMatch(left: number, right: number): boolean {
+  return Math.abs(left - right) <= SERVING_AMOUNT_TOLERANCE;
+}
+
+function normalizeOptionLabel(label: string): string {
+  return label.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function deduplicateServingOptions(
+  options: readonly ServingOption[],
+): ServingOption[] {
+  const deduplicated: ServingOption[] = [];
+
+  for (const option of options) {
+    if (
+      !option.label.trim() ||
+      !Number.isFinite(option.amount) ||
+      option.amount <= 0
+    ) {
+      continue;
+    }
+
+    if (deduplicated.some((existing) => existing.id === option.id)) {
+      continue;
+    }
+
+    const exactDuplicate = deduplicated.some(
+      (existing) =>
+        existing.unit === option.unit &&
+        amountsMatch(existing.amount, option.amount) &&
+        normalizeOptionLabel(existing.label) ===
+          normalizeOptionLabel(option.label),
+    );
+
+    if (exactDuplicate) {
+      continue;
+    }
+
+    const isGenerated =
+      option.source === "derived-mass" || option.source === "fallback";
+    const duplicatesVerifiedAmount =
+      isGenerated &&
+      deduplicated.some(
+        (existing) =>
+          (existing.source === "branded" ||
+            existing.source === "usda-portion") &&
+          existing.unit === option.unit &&
+          amountsMatch(existing.amount, option.amount),
+      );
+
+    if (!duplicatesVerifiedAmount) {
+      deduplicated.push(option);
     }
   }
 
+  return deduplicated;
+}
+
+function getGeneratedServingOptions(
+  unit: ServingUnit,
+): ServingOption[] {
+  if (unit === "ml") {
+    return [
+      {
+        id: "volume:1ml",
+        label: "1 ml",
+        amount: 1,
+        unit,
+        source: "derived-mass",
+      },
+      {
+        id: "volume:100ml",
+        label: "100 ml",
+        amount: 100,
+        unit,
+        source: "fallback",
+      },
+    ];
+  }
+
+  return [
+    {
+      id: "mass:1g",
+      label: "1 g",
+      amount: 1,
+      unit,
+      source: "derived-mass",
+    },
+    {
+      id: "mass:100g",
+      label: "100 g",
+      amount: 100,
+      unit,
+      source: "fallback",
+    },
+    {
+      id: "mass:1oz",
+      label: "1 oz (28.35 g)",
+      amount: OUNCE_IN_GRAMS,
+      unit,
+      source: "derived-mass",
+    },
+  ];
+}
+
+function getServingOptions(
+  record: UnknownRecord,
+  dataType: UsdaDataType,
+  unit: ServingUnit,
+): ServingOption[] {
+  const verifiedOptions =
+    dataType === "Branded"
+      ? [getBrandedServingOption(record)].filter(
+          (option): option is ServingOption => option !== null,
+        )
+      : getFoodPortionOptions(record);
+
+  return deduplicateServingOptions([
+    ...verifiedOptions,
+    ...getGeneratedServingOptions(unit),
+  ]);
+}
+
+function getDefaultServingOptionId(
+  options: readonly ServingOption[],
+  dataType: UsdaDataType,
+  unit: ServingUnit,
+): string {
+  const declaredOption =
+    dataType === "Branded"
+      ? options.find((option) => option.source === "branded")
+      : options.find((option) => option.source === "usda-portion");
+  const fallbackId = unit === "g" ? "mass:100g" : "volume:100ml";
+  const defaultOption =
+    declaredOption ??
+    options.find((option) => option.id === fallbackId) ??
+    options[0];
+
+  if (!defaultOption) {
+    throw new FoodDataCentralError(
+      "unavailable-serving",
+      "This food does not have a usable gram or millilitre serving.",
+    );
+  }
+
+  return defaultOption.id;
+}
+
+function createSearchPreview(
+  record: UnknownRecord,
+  dataType: UsdaDataType,
+  nutrientsPer100Units: NutrientSnapshot,
+): NormalizedFoodSearchResult["preview"] {
+  if (dataType === "Branded") {
+    const serving = getBrandedServingOption(record);
+
+    if (serving) {
+      return {
+        basisLabel: serving.label,
+        nutrients: scaleNutrients(
+          nutrientsPer100Units,
+          serving.amount / 100,
+        ),
+      };
+    }
+
+    const unit = normalizeServingUnit(
+      getString(record, "servingSizeUnit"),
+    );
+
+    return {
+      basisLabel: unit ? `per 100 ${unit}` : "per 100 units",
+      nutrients: nutrientsPer100Units,
+    };
+  }
+
+  const searchMeasure = getSearchMeasure(record);
+
+  if (searchMeasure) {
+    return {
+      basisLabel: searchMeasure.label,
+      nutrients: scaleNutrients(
+        nutrientsPer100Units,
+        searchMeasure.amount / 100,
+      ),
+    };
+  }
+
   return {
-    amount: 100,
-    unit: "g",
-    description: "100 g",
+    basisLabel: "per 100 g",
+    nutrients: nutrientsPer100Units,
   };
 }
 
@@ -404,7 +772,11 @@ function parseSearchFood(value: unknown): NormalizedFoodSearchResult | null {
     description,
     brandName: parseBrandName(record),
     dataType,
-    nutrientsPer100Units: parseNutrients(record, dataType),
+    preview: createSearchPreview(
+      record,
+      dataType,
+      parseNutrients(record, dataType),
+    ),
   };
 }
 
@@ -427,33 +799,46 @@ function parseFoodDetails(value: unknown): NormalizedFoodDetails {
     );
   }
 
-  if (!hasAnyNutrient(searchFood.nutrientsPer100Units)) {
+  const nutrientsPer100Units = parseNutrients(record, searchFood.dataType);
+
+  if (!hasAnyNutrient(nutrientsPer100Units)) {
     throw new FoodDataCentralError(
       "unavailable-nutrients",
       "This food does not include calories or macronutrients.",
     );
   }
 
-  const serving =
+  const servingUnit =
     searchFood.dataType === "Branded"
-      ? getBrandedServing(record)
-      : getNonBrandedServing(record);
+      ? normalizeServingUnit(getString(record, "servingSizeUnit"))
+      : "g";
 
-  if (!serving) {
+  if (!servingUnit) {
     throw new FoodDataCentralError(
       "unavailable-serving",
       "This food does not have a usable gram or millilitre serving.",
     );
   }
 
+  const nutrientBasis: NutrientBasis = {
+    amount: 100,
+    unit: servingUnit,
+    nutrients: nutrientsPer100Units,
+  };
+  const servingOptions = getServingOptions(
+    record,
+    searchFood.dataType,
+    servingUnit,
+  );
+
   return {
     ...searchFood,
-    servingAmount: serving.amount,
-    servingUnit: serving.unit,
-    servingDescription: serving.description,
-    nutrientsPerServing: scaleNutrients(
-      searchFood.nutrientsPer100Units,
-      serving.amount / 100,
+    nutrientBasis,
+    servingOptions,
+    defaultServingOptionId: getDefaultServingOptionId(
+      servingOptions,
+      searchFood.dataType,
+      servingUnit,
     ),
   };
 }

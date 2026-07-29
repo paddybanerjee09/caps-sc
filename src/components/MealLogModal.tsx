@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   createMealLog,
+  deleteMealLog,
   getMealCountForDay,
   updateMealLog,
 } from "../data/nutritionRepository";
@@ -27,14 +28,15 @@ import {
   searchFoods,
 } from "../services/foodDataCentralApi";
 import { useAppTheme } from "../theme/ThemeContext";
-import { themes } from "../theme/theme";
+import { appColorPalette, themes } from "../theme/theme";
 import type {
+  DraftMealItem,
   NewMealItem,
   NormalizedFoodDetails,
   NormalizedFoodSearchResult,
-  NutrientSnapshot,
   StoredMealLog,
 } from "../types/nutrition";
+import { FoodServingEditor } from "./FoodServingEditor";
 import { LogTimeChanger } from "./LogTimeChanger";
 import { PressOpacity } from "./PressOpacity";
 
@@ -45,12 +47,20 @@ const MINIMUM_SEARCH_LENGTH = 2;
 type MealLogModalProps = {
   mealToEdit?: StoredMealLog;
   onClose: () => void;
+  onDeleted?: () => Promise<void> | void;
   onSaved?: (loggedAt: number) => Promise<void> | void;
   visible: boolean;
 };
 
-type EditableMealItem = Omit<NewMealItem, "quantity"> & {
-  quantityInput: string;
+type FoodIdentity = Pick<
+  NormalizedFoodSearchResult,
+  "brandName" | "description" | "fdcId"
+>;
+
+type ServingEditorState = {
+  details?: NormalizedFoodDetails;
+  food: FoodIdentity;
+  itemToEdit?: DraftMealItem;
 };
 
 type DetailsError = {
@@ -62,6 +72,7 @@ type DetailsError = {
 export function MealLogModal({
   mealToEdit,
   onClose,
+  onDeleted,
   onSaved,
   visible,
 }: MealLogModalProps) {
@@ -72,10 +83,13 @@ export function MealLogModal({
 
   const [title, setTitle] = useState("");
   const [loggedAt, setLoggedAt] = useState(() => new Date());
-  const [draftItems, setDraftItems] = useState<EditableMealItem[]>([]);
+  const [draftItems, setDraftItems] = useState<DraftMealItem[]>([]);
   const [initializing, setInitializing] = useState(false);
   const [initializationError, setInitializationError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [servingEditor, setServingEditor] =
+    useState<ServingEditorState | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<
@@ -95,6 +109,7 @@ export function MealLogModal({
   const searchController = useRef<AbortController | null>(null);
   const detailsController = useRef<AbortController | null>(null);
   const savingGuard = useRef(false);
+  const deletingGuard = useRef(false);
 
   const cancelSearchRequest = useCallback(() => {
     searchRequestId.current += 1;
@@ -166,7 +181,10 @@ export function MealLogModal({
 
     resetSearchDraft();
     setSaving(false);
+    setDeleting(false);
+    setServingEditor(null);
     savingGuard.current = false;
+    deletingGuard.current = false;
 
     if (mealToEdit) {
       initializationRequestId.current += 1;
@@ -277,7 +295,15 @@ export function MealLogModal({
   );
 
   function closeModal() {
-    if (savingGuard.current) {
+    if (savingGuard.current || deletingGuard.current) {
+      return;
+    }
+
+    if (servingEditor) {
+      cancelDetailsRequest();
+      setDetailsLoadingFdcId(null);
+      setDetailsError(null);
+      setServingEditor(null);
       return;
     }
 
@@ -288,20 +314,20 @@ export function MealLogModal({
     initializationRequestId.current += 1;
     resetSearchDraft();
     savingGuard.current = false;
+    deletingGuard.current = false;
     setSaving(false);
+    setDeleting(false);
+    setServingEditor(null);
     setTitle("");
     setDraftItems([]);
     onClose();
   }
 
-  async function addFood(result: NormalizedFoodSearchResult) {
-    if (draftItems.some((item) => item.fdcId === result.fdcId)) {
-      setDraftItems((currentItems) =>
-        incrementDraftItem(currentItems, result.fdcId),
-      );
-      return;
-    }
-
+  async function loadDetailsForEditor(
+    food: FoodIdentity,
+    itemToEdit?: DraftMealItem,
+    editorAlreadyOpen = false,
+  ) {
     cancelDetailsRequest();
 
     const currentRequestId = detailsRequestId.current + 1;
@@ -309,28 +335,26 @@ export function MealLogModal({
     const controller = new AbortController();
     detailsController.current = controller;
 
-    setDetailsLoadingFdcId(result.fdcId);
+    setDetailsLoadingFdcId(food.fdcId);
     setDetailsError(null);
 
     try {
-      const details = await getFoodDetails(result.fdcId, controller.signal);
+      const details = await getFoodDetails(food.fdcId, controller.signal);
 
       if (detailsRequestId.current !== currentRequestId) {
         return;
       }
 
-      if (!hasAnyNutrient(details.nutrientsPerServing)) {
-        setDetailsError({
-          fdcId: result.fdcId,
-          message: "Nutrition data is unavailable for this food.",
-          retryable: false,
-        });
-        return;
+      if (editorAlreadyOpen) {
+        setServingEditor((currentEditor) =>
+          currentEditor?.food.fdcId === food.fdcId
+            ? { ...currentEditor, details }
+            : currentEditor,
+        );
+      } else {
+        resetSearchDraft();
+        setServingEditor({ details, food, itemToEdit });
       }
-
-      setDraftItems((currentItems) =>
-        addOrIncrementDraftItem(currentItems, details),
-      );
     } catch (error) {
       if (
         detailsRequestId.current === currentRequestId &&
@@ -342,7 +366,7 @@ export function MealLogModal({
             error.code === "unavailable-nutrients");
 
         setDetailsError({
-          fdcId: result.fdcId,
+          fdcId: food.fdcId,
           message: getFoodDataErrorMessage(error, "details"),
           retryable: !unavailable,
         });
@@ -355,15 +379,59 @@ export function MealLogModal({
     }
   }
 
-  function changeQuantity(fdcId: number, value: string) {
-    if (!/^\d*\.?\d*$/.test(value)) {
+  function openFoodEditor(item: DraftMealItem) {
+    const food = {
+      brandName: item.brandName,
+      description: item.description,
+      fdcId: item.fdcId,
+    };
+
+    resetSearchDraft();
+    setServingEditor({ food, itemToEdit: item });
+
+    if (item.nutrientBasis && item.servingOptions?.length) {
       return;
     }
 
+    void loadDetailsForEditor(food, item, true);
+  }
+
+  function selectSearchResult(result: NormalizedFoodSearchResult) {
+    const existingItem = draftItems.find(
+      (item) => item.fdcId === result.fdcId,
+    );
+
+    if (existingItem) {
+      openFoodEditor(existingItem);
+      return;
+    }
+
+    void loadDetailsForEditor(result);
+  }
+
+  function confirmFood(item: DraftMealItem) {
     setDraftItems((currentItems) =>
-      currentItems.map((item) =>
-        item.fdcId === fdcId ? { ...item, quantityInput: value } : item,
-      ),
+      currentItems.some((currentItem) => currentItem.fdcId === item.fdcId)
+        ? currentItems.map((currentItem) =>
+            currentItem.fdcId === item.fdcId ? item : currentItem,
+          )
+        : [...currentItems, item],
+    );
+    cancelDetailsRequest();
+    setDetailsLoadingFdcId(null);
+    setDetailsError(null);
+    setServingEditor(null);
+  }
+
+  function retryEditorDetails() {
+    if (!servingEditor) {
+      return;
+    }
+
+    void loadDetailsForEditor(
+      servingEditor.food,
+      servingEditor.itemToEdit,
+      true,
     );
   }
 
@@ -374,7 +442,11 @@ export function MealLogModal({
   }
 
   async function saveMeal() {
-    if (savingGuard.current || detailsController.current !== null) {
+    if (
+      savingGuard.current ||
+      deletingGuard.current ||
+      detailsController.current !== null
+    ) {
       return;
     }
 
@@ -452,7 +524,52 @@ export function MealLogModal({
     }
   }
 
+  async function deleteExistingMeal() {
+    if (
+      !mealToEdit ||
+      deletingGuard.current ||
+      savingGuard.current
+    ) {
+      return;
+    }
+
+    deletingGuard.current = true;
+    setDeleting(true);
+
+    try {
+      await deleteMealLog(db, mealToEdit.timelineEntryId);
+      await onDeleted?.();
+      resetAndCloseModal();
+    } catch {
+      deletingGuard.current = false;
+      setDeleting(false);
+      Alert.alert("Couldn't delete meal", "Please try again.");
+    }
+  }
+
+  function confirmDeleteMeal() {
+    Alert.alert("Delete meal?", "This cannot be undone.", [
+      {
+        style: "cancel",
+        text: "Cancel",
+      },
+      {
+        onPress: () => {
+          void deleteExistingMeal();
+        },
+        style: "destructive",
+        text: "Delete",
+      },
+    ]);
+  }
+
   const searchText = searchQuery.trim();
+  const searchDropdownOpen =
+    searchText.length >= MINIMUM_SEARCH_LENGTH &&
+    (searchLoading ||
+      searchError !== null ||
+      lastSubmittedQuery.length > 0);
+  const busy = saving || deleting;
 
   return (
     <Modal
@@ -484,7 +601,11 @@ export function MealLogModal({
         >
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              {mealToEdit ? "Edit Meal" : "Log Meal"}
+              {servingEditor
+                ? "Configure Food"
+                : mealToEdit
+                  ? "Edit Meal"
+                  : "Log Meal"}
             </Text>
           </View>
 
@@ -494,7 +615,29 @@ export function MealLogModal({
             showsVerticalScrollIndicator={false}
             style={styles.bodyScroll}
           >
-            {initializing ? (
+            {servingEditor ? (
+              <FoodServingEditor
+                details={servingEditor.details}
+                detailsError={
+                  detailsError?.fdcId === servingEditor.food.fdcId
+                    ? detailsError.message
+                    : null
+                }
+                detailsLoading={
+                  detailsLoadingFdcId === servingEditor.food.fdcId
+                }
+                food={servingEditor.food}
+                itemToEdit={servingEditor.itemToEdit}
+                onCancel={closeModal}
+                onConfirm={confirmFood}
+                onRetryDetails={
+                  detailsError?.fdcId === servingEditor.food.fdcId &&
+                  detailsError.retryable
+                    ? retryEditorDetails
+                    : undefined
+                }
+              />
+            ) : initializing ? (
               <View style={styles.initializationState}>
                 <ActivityIndicator color={theme.colors.tertiary} />
               </View>
@@ -553,24 +696,208 @@ export function MealLogModal({
                   >
                     Foods
                   </Text>
-                  <TextInput
-                    accessibilityLabel="Search foods"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    onChangeText={setSearchQuery}
-                    placeholder="Search USDA foods"
-                    placeholderTextColor={theme.colors.textMuted}
-                    returnKeyType="search"
-                    selectionColor={theme.colors.tertiary}
+                  <View
                     style={[
-                      styles.textInput,
+                      styles.searchControl,
                       {
                         borderColor: theme.colors.borderStrong,
-                        color: theme.colors.text,
+                        backgroundColor: theme.colors.surfaceMuted,
                       },
                     ]}
-                    value={searchQuery}
-                  />
+                  >
+                    <TextInput
+                      accessibilityLabel="Search foods"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      onChangeText={setSearchQuery}
+                      placeholder="Search USDA foods"
+                      placeholderTextColor={theme.colors.textMuted}
+                      returnKeyType="search"
+                      selectionColor={theme.colors.tertiary}
+                      style={[
+                        styles.searchInput,
+                        { color: theme.colors.text },
+                      ]}
+                      value={searchQuery}
+                    />
+
+                    {searchDropdownOpen ? (
+                      <View
+                        style={[
+                          styles.searchDropdown,
+                          { borderTopColor: theme.colors.border },
+                        ]}
+                      >
+                        {searchLoading ? (
+                          <View style={styles.searchState}>
+                            <ActivityIndicator
+                              color={theme.colors.tertiary}
+                            />
+                          </View>
+                        ) : searchError ? (
+                          <View style={styles.searchState}>
+                            <Text
+                              style={[
+                                styles.stateText,
+                                { color: theme.colors.text },
+                              ]}
+                            >
+                              {searchError}
+                            </Text>
+                            <PressOpacity
+                              accessibilityLabel="Retry food search"
+                              onPress={() =>
+                                void runSearch(
+                                  lastSubmittedQuery || searchQuery.trim(),
+                                )
+                              }
+                              style={styles.retryButton}
+                            >
+                              <Text
+                                style={{ color: theme.colors.tertiary }}
+                              >
+                                Retry
+                              </Text>
+                            </PressOpacity>
+                          </View>
+                        ) : searchResults.length === 0 ? (
+                          <View style={styles.searchState}>
+                            <Text
+                              style={[
+                                styles.helpText,
+                                { color: theme.colors.textMuted },
+                              ]}
+                            >
+                              No foods found.
+                            </Text>
+                          </View>
+                        ) : (
+                          <ScrollView
+                            keyboardShouldPersistTaps="handled"
+                            nestedScrollEnabled
+                            showsVerticalScrollIndicator
+                            style={styles.searchResults}
+                          >
+                            {searchResults.map((result, index) => {
+                              const resultError =
+                                detailsError?.fdcId === result.fdcId
+                                  ? detailsError
+                                  : null;
+                              const loadingDetails =
+                                detailsLoadingFdcId === result.fdcId;
+
+                              return (
+                                <View
+                                  key={result.fdcId}
+                                  style={[
+                                    styles.searchResult,
+                                    index > 0
+                                      ? {
+                                          borderTopColor:
+                                            theme.colors.border,
+                                          borderTopWidth: 1,
+                                        }
+                                      : null,
+                                  ]}
+                                >
+                                  <View
+                                    accessibilityLabel={formatSearchResultAccessibility(
+                                      result,
+                                      resultError?.message,
+                                    )}
+                                    accessible
+                                    style={styles.resultText}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.resultTitle,
+                                        { color: theme.colors.text },
+                                      ]}
+                                    >
+                                      {result.description}
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.resultSubtitle,
+                                        {
+                                          color: resultError
+                                            ? appColorPalette.red
+                                            : theme.colors.textMuted,
+                                        },
+                                      ]}
+                                    >
+                                      {resultError?.message ??
+                                        result.brandName ??
+                                        result.dataType}
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.resultMeta,
+                                        { color: theme.colors.textMuted },
+                                      ]}
+                                    >
+                                      {result.preview.basisLabel}
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.resultNutrients,
+                                        { color: theme.colors.textMuted },
+                                      ]}
+                                    >
+                                      {formatSearchPreview(result)}
+                                    </Text>
+                                  </View>
+
+                                  <PressOpacity
+                                    accessibilityLabel={
+                                      resultError?.retryable
+                                        ? `Retry adding ${result.description}`
+                                        : resultError
+                                          ? `${result.description}. ${resultError.message}`
+                                          : `Configure ${result.description}`
+                                    }
+                                    disabled={
+                                      detailsLoadingFdcId !== null ||
+                                      (resultError !== null &&
+                                        !resultError.retryable)
+                                    }
+                                    onPress={() =>
+                                      selectSearchResult(result)
+                                    }
+                                    style={styles.resultActionButton}
+                                  >
+                                    {loadingDetails ? (
+                                      <ActivityIndicator
+                                        color={theme.colors.tertiary}
+                                        size="small"
+                                      />
+                                    ) : (
+                                      <Text
+                                        style={[
+                                          styles.resultAction,
+                                          {
+                                            color: resultError
+                                              ? theme.colors.textMuted
+                                              : theme.colors.tertiary,
+                                          },
+                                        ]}
+                                      >
+                                        {resultError?.retryable
+                                          ? "Retry"
+                                          : resultError
+                                            ? "Unavailable"
+                                            : "Add"}
+                                      </Text>
+                                    )}
+                                  </PressOpacity>
+                                </View>
+                              );
+                            })}
+                          </ScrollView>
+                        )}
+                      </View>
+                    ) : null}
+                  </View>
 
                   {searchText.length < MINIMUM_SEARCH_LENGTH ? (
                     <Text
@@ -581,126 +908,7 @@ export function MealLogModal({
                     >
                       Enter at least two characters.
                     </Text>
-                  ) : searchLoading ? (
-                    <View style={styles.searchState}>
-                      <ActivityIndicator color={theme.colors.tertiary} />
-                    </View>
-                  ) : searchError ? (
-                    <View style={styles.searchState}>
-                      <Text
-                        style={[styles.stateText, { color: theme.colors.text }]}
-                      >
-                        {searchError}
-                      </Text>
-                      <PressOpacity
-                        accessibilityLabel="Retry food search"
-                        onPress={() =>
-                          void runSearch(
-                            lastSubmittedQuery || searchQuery.trim(),
-                          )
-                        }
-                        style={styles.retryButton}
-                      >
-                        <Text style={{ color: theme.colors.tertiary }}>
-                          Retry
-                        </Text>
-                      </PressOpacity>
-                    </View>
-                  ) : lastSubmittedQuery && searchResults.length === 0 ? (
-                    <Text
-                      style={[
-                        styles.helpText,
-                        { color: theme.colors.textMuted },
-                      ]}
-                    >
-                      No foods found.
-                    </Text>
-                  ) : (
-                    searchResults.map((result) => {
-                      const resultError =
-                        detailsError?.fdcId === result.fdcId
-                          ? detailsError
-                          : null;
-                      const loadingDetails =
-                        detailsLoadingFdcId === result.fdcId;
-
-                      return (
-                        <PressOpacity
-                          accessibilityLabel={
-                            resultError?.retryable
-                              ? `Retry adding ${result.description}`
-                              : resultError
-                                ? `${result.description}. ${resultError.message}`
-                                : `Add ${result.description}`
-                          }
-                          disabled={
-                            detailsLoadingFdcId !== null ||
-                            (resultError !== null && !resultError.retryable)
-                          }
-                          key={result.fdcId}
-                          onPress={() => void addFood(result)}
-                          style={[
-                            styles.searchResult,
-                            {
-                              backgroundColor: theme.colors.surfaceMuted,
-                              borderColor: theme.colors.border,
-                            },
-                          ]}
-                        >
-                          <View style={styles.resultText}>
-                            <Text
-                              numberOfLines={2}
-                              style={[
-                                styles.resultTitle,
-                                { color: theme.colors.text },
-                              ]}
-                            >
-                              {result.description}
-                            </Text>
-                            <Text
-                              numberOfLines={1}
-                              style={[
-                                styles.resultSubtitle,
-                                {
-                                  color: resultError
-                                    ? theme.colors.tertiary
-                                    : theme.colors.textMuted,
-                                },
-                              ]}
-                            >
-                              {resultError?.message ??
-                                result.brandName ??
-                                result.dataType}
-                            </Text>
-                          </View>
-
-                          {loadingDetails ? (
-                            <ActivityIndicator
-                              color={theme.colors.tertiary}
-                              size="small"
-                            />
-                          ) : (
-                            <Text
-                              style={[
-                                styles.resultAction,
-                                {
-                                  color: resultError
-                                    ? theme.colors.textMuted
-                                    : theme.colors.tertiary,
-                                },
-                              ]}
-                            >
-                              {resultError?.retryable
-                                ? "Retry"
-                                : resultError
-                                  ? "Unavailable"
-                                  : "Add"}
-                            </Text>
-                          )}
-                        </PressOpacity>
-                      );
-                    })
-                  )}
+                  ) : null}
                 </View>
 
                 <View style={styles.section}>
@@ -732,9 +940,12 @@ export function MealLogModal({
                         ]}
                       >
                         <View style={styles.draftItemHeader}>
-                          <View style={styles.draftItemTitleGroup}>
+                          <PressOpacity
+                            accessibilityLabel={`Edit ${item.description}`}
+                            onPress={() => openFoodEditor(item)}
+                            style={styles.draftItemEdit}
+                          >
                             <Text
-                              numberOfLines={2}
                               style={[
                                 styles.resultTitle,
                                 { color: theme.colors.text },
@@ -753,7 +964,47 @@ export function MealLogModal({
                                 {item.brandName}
                               </Text>
                             ) : null}
-                          </View>
+                            <Text
+                              style={[
+                                styles.servingText,
+                                { color: theme.colors.textMuted },
+                              ]}
+                            >
+                              {item.quantityInput} {"\u00d7"}{" "}
+                              {item.servingDescription}
+                            </Text>
+
+                            <View style={styles.nutrientRow}>
+                              <NutrientValue
+                                label="kcal"
+                                quantityInput={item.quantityInput}
+                                value={
+                                  item.nutrientsPerServing.energyKcal
+                                }
+                              />
+                              <NutrientValue
+                                label="P"
+                                quantityInput={item.quantityInput}
+                                unit="g"
+                                value={item.nutrientsPerServing.proteinG}
+                              />
+                              <NutrientValue
+                                label="C"
+                                quantityInput={item.quantityInput}
+                                unit="g"
+                                value={
+                                  item.nutrientsPerServing
+                                    .carbohydratesG
+                                }
+                              />
+                              <NutrientValue
+                                label="F"
+                                quantityInput={item.quantityInput}
+                                unit="g"
+                                value={item.nutrientsPerServing.fatG}
+                              />
+                            </View>
+                          </PressOpacity>
 
                           <PressOpacity
                             accessibilityLabel={`Remove ${item.description}`}
@@ -767,62 +1018,6 @@ export function MealLogModal({
                             />
                           </PressOpacity>
                         </View>
-
-                        <View style={styles.quantityRow}>
-                          <TextInput
-                            accessibilityLabel={`Serving quantity for ${item.description}`}
-                            keyboardType="decimal-pad"
-                            onChangeText={(value) =>
-                              changeQuantity(item.fdcId, value)
-                            }
-                            placeholder="1"
-                            placeholderTextColor={theme.colors.textMuted}
-                            selectionColor={theme.colors.tertiary}
-                            style={[
-                              styles.quantityInput,
-                              {
-                                borderColor: theme.colors.borderStrong,
-                                color: theme.colors.text,
-                              },
-                            ]}
-                            value={item.quantityInput}
-                          />
-                          <Text
-                            numberOfLines={2}
-                            style={[
-                              styles.servingText,
-                              { color: theme.colors.textMuted },
-                            ]}
-                          >
-                            {"\u00d7"} {item.servingDescription}
-                          </Text>
-                        </View>
-
-                        <View style={styles.nutrientRow}>
-                          <NutrientValue
-                            label="kcal"
-                            quantityInput={item.quantityInput}
-                            value={item.nutrientsPerServing.energyKcal}
-                          />
-                          <NutrientValue
-                            label="P"
-                            quantityInput={item.quantityInput}
-                            unit="g"
-                            value={item.nutrientsPerServing.proteinG}
-                          />
-                          <NutrientValue
-                            label="C"
-                            quantityInput={item.quantityInput}
-                            unit="g"
-                            value={item.nutrientsPerServing.carbohydratesG}
-                          />
-                          <NutrientValue
-                            label="F"
-                            quantityInput={item.quantityInput}
-                            unit="g"
-                            value={item.nutrientsPerServing.fatG}
-                          />
-                        </View>
                       </View>
                     ))
                   )}
@@ -831,38 +1026,70 @@ export function MealLogModal({
             )}
           </ScrollView>
 
-          <View
-            style={[styles.actions, { borderTopColor: theme.colors.border }]}
-          >
-            <PressOpacity
-              accessibilityLabel="Cancel meal log"
-              disabled={saving}
-              onPress={closeModal}
-              style={styles.actionButton}
+          {!servingEditor ? (
+            <View
+              style={[
+                styles.actions,
+                { borderTopColor: theme.colors.border },
+              ]}
             >
-              <Text style={{ color: theme.colors.textMuted }}>Cancel</Text>
-            </PressOpacity>
+              {mealToEdit ? (
+                <PressOpacity
+                  accessibilityLabel="Delete meal"
+                  disabled={busy}
+                  onPress={confirmDeleteMeal}
+                  style={[styles.actionButton, styles.deleteAction]}
+                >
+                  {deleting ? (
+                    <ActivityIndicator
+                      color={appColorPalette.red}
+                      size="small"
+                    />
+                  ) : (
+                    <Text style={{ color: appColorPalette.red }}>
+                      Delete Entry
+                    </Text>
+                  )}
+                </PressOpacity>
+              ) : null}
 
-            <PressOpacity
-              accessibilityLabel={mealToEdit ? "Save meal changes" : "Log meal"}
-              disabled={
-                initializing ||
-                initializationError ||
-                saving ||
-                detailsLoadingFdcId !== null
-              }
-              onPress={() => void saveMeal()}
-              style={styles.actionButton}
-            >
-              {saving ? (
-                <ActivityIndicator color={theme.colors.tertiary} size="small" />
-              ) : (
-                <Text style={{ color: theme.colors.tertiary }}>
-                  {mealToEdit ? "Save Changes" : "Log Meal"}
+              <PressOpacity
+                accessibilityLabel="Cancel meal log"
+                disabled={busy}
+                onPress={closeModal}
+                style={styles.actionButton}
+              >
+                <Text style={{ color: theme.colors.textMuted }}>
+                  Cancel
                 </Text>
-              )}
-            </PressOpacity>
-          </View>
+              </PressOpacity>
+
+              <PressOpacity
+                accessibilityLabel={
+                  mealToEdit ? "Save meal changes" : "Log meal"
+                }
+                disabled={
+                  initializing ||
+                  initializationError ||
+                  busy ||
+                  detailsLoadingFdcId !== null
+                }
+                onPress={() => void saveMeal()}
+                style={styles.actionButton}
+              >
+                {saving ? (
+                  <ActivityIndicator
+                    color={theme.colors.tertiary}
+                    size="small"
+                  />
+                ) : (
+                  <Text style={{ color: theme.colors.tertiary }}>
+                    {mealToEdit ? "Save Changes" : "Log Meal"}
+                  </Text>
+                )}
+              </PressOpacity>
+            </View>
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -895,51 +1122,6 @@ function NutrientValue({
   );
 }
 
-function addOrIncrementDraftItem(
-  currentItems: EditableMealItem[],
-  details: NormalizedFoodDetails,
-) {
-  const existingItem = currentItems.find(
-    (item) => item.fdcId === details.fdcId,
-  );
-
-  if (existingItem) {
-    return incrementDraftItem(currentItems, details.fdcId);
-  }
-
-  return [
-    ...currentItems,
-    {
-      brandName: details.brandName,
-      description: details.description,
-      fdcId: details.fdcId,
-      nutrientsPerServing: { ...details.nutrientsPerServing },
-      quantityInput: "1",
-      servingAmount: details.servingAmount,
-      servingDescription: details.servingDescription,
-      servingUnit: details.servingUnit,
-    },
-  ];
-}
-
-function incrementDraftItem(currentItems: EditableMealItem[], fdcId: number) {
-  return currentItems.map((item) => {
-    if (item.fdcId !== fdcId) {
-      return item;
-    }
-
-    const currentQuantity = Number(item.quantityInput);
-    return {
-      ...item,
-      quantityInput: formatQuantityInput(
-        Number.isFinite(currentQuantity) && currentQuantity > 0
-          ? currentQuantity + 1
-          : 1,
-      ),
-    };
-  });
-}
-
 function getLocalDayBounds(date: Date) {
   const dayStart = new Date(date);
   dayStart.setHours(0, 0, 0, 0);
@@ -958,10 +1140,6 @@ function isSameLocalDay(first: Date, second: Date) {
   );
 }
 
-function hasAnyNutrient(nutrients: NutrientSnapshot) {
-  return Object.values(nutrients).some((value) => value !== null);
-}
-
 function formatQuantityInput(quantity: number) {
   return Number.isInteger(quantity)
     ? quantity.toFixed(0)
@@ -977,6 +1155,71 @@ function formatNutrient(value: number | null, wholeNumber: boolean) {
     maximumFractionDigits: wholeNumber ? 0 : 1,
     minimumFractionDigits: 0,
   });
+}
+
+function formatSearchPreview(result: NormalizedFoodSearchResult) {
+  const nutrients = result.preview.nutrients;
+
+  return [
+    `${formatNutrient(nutrients.energyKcal, true)} kcal`,
+    `P ${formatNutrient(nutrients.proteinG, false)} g`,
+    `C ${formatNutrient(nutrients.carbohydratesG, false)} g`,
+    `F ${formatNutrient(nutrients.fatG, false)} g`,
+  ].join(" \u00b7 ");
+}
+
+function formatSearchResultAccessibility(
+  result: NormalizedFoodSearchResult,
+  errorMessage?: string,
+) {
+  const nutrients = result.preview.nutrients;
+  const nutrientSummary = [
+    formatAccessibleNutrient(
+      "Energy",
+      nutrients.energyKcal,
+      "kilocalories",
+      true,
+    ),
+    formatAccessibleNutrient(
+      "Protein",
+      nutrients.proteinG,
+      "grams",
+      false,
+    ),
+    formatAccessibleNutrient(
+      "Carbohydrates",
+      nutrients.carbohydratesG,
+      "grams",
+      false,
+    ),
+    formatAccessibleNutrient(
+      "Fat",
+      nutrients.fatG,
+      "grams",
+      false,
+    ),
+  ].join(", ");
+
+  return [
+    result.description,
+    result.brandName ?? result.dataType,
+    result.preview.basisLabel,
+    nutrientSummary,
+    errorMessage,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(". ");
+}
+
+function formatAccessibleNutrient(
+  label: string,
+  value: number | null,
+  unit: string,
+  wholeNumber: boolean,
+) {
+  return value === null
+    ? `${label} unavailable`
+    : `${label} ${formatNutrient(value, wholeNumber)} ${unit}`;
 }
 
 function getFoodDataErrorMessage(
@@ -1090,6 +1333,22 @@ const styles = StyleSheet.create({
     fontSize: tokens.typography.label.fontSize,
     lineHeight: tokens.typography.label.lineHeight,
   },
+  searchControl: {
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  searchInput: {
+    fontSize: tokens.typography.body.fontSize,
+    minHeight: 44,
+    paddingHorizontal: tokens.spacing.md,
+  },
+  searchDropdown: {
+    borderTopWidth: 1,
+  },
+  searchResults: {
+    maxHeight: 272,
+  },
   searchState: {
     alignItems: "center",
     gap: tokens.spacing.sm,
@@ -1104,12 +1363,11 @@ const styles = StyleSheet.create({
   },
   searchResult: {
     alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
     flexDirection: "row",
-    gap: tokens.spacing.md,
+    gap: tokens.spacing.sm,
     minHeight: 56,
-    padding: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
   },
   resultText: {
     flex: 1,
@@ -1123,6 +1381,22 @@ const styles = StyleSheet.create({
   resultSubtitle: {
     fontSize: tokens.typography.label.fontSize,
     lineHeight: tokens.typography.label.lineHeight,
+  },
+  resultMeta: {
+    fontSize: 11,
+    lineHeight: 15,
+    paddingTop: 2,
+  },
+  resultNutrients: {
+    fontSize: 10,
+    fontVariant: ["tabular-nums"],
+    lineHeight: 14,
+  },
+  resultActionButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+    minWidth: 44,
   },
   resultAction: {
     fontSize: tokens.typography.label.fontSize,
@@ -1138,8 +1412,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     flexDirection: "row",
   },
-  draftItemTitleGroup: {
+  draftItemEdit: {
     flex: 1,
+    gap: tokens.spacing.xs,
     minWidth: 0,
   },
   removeButton: {
@@ -1150,22 +1425,7 @@ const styles = StyleSheet.create({
     marginRight: -tokens.spacing.sm,
     marginTop: -tokens.spacing.sm,
   },
-  quantityRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-  },
-  quantityInput: {
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    fontSize: tokens.typography.body.fontSize,
-    minHeight: 44,
-    paddingHorizontal: tokens.spacing.sm,
-    textAlign: "center",
-    width: 72,
-  },
   servingText: {
-    flex: 1,
     fontSize: tokens.typography.label.fontSize,
     lineHeight: tokens.typography.label.lineHeight,
   },
@@ -1193,5 +1453,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 44,
     minWidth: 72,
+  },
+  deleteAction: {
+    marginRight: "auto",
   },
 });
