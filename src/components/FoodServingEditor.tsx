@@ -26,12 +26,10 @@ import { PressOpacity } from "./PressOpacity";
 
 const tokens = themes.dark;
 const STORED_OPTION_ID = "stored";
+type NutritionInputMode = "amount" | "calories";
 
 export type FoodServingEditorProps = {
-  food: Pick<
-    NormalizedFoodSearchResult,
-    "fdcId" | "description" | "brandName"
-  >;
+  food: Pick<NormalizedFoodSearchResult, "fdcId" | "description" | "brandName">;
   details?: NormalizedFoodDetails;
   itemToEdit?: DraftMealItem;
   detailsLoading?: boolean;
@@ -55,13 +53,16 @@ export function FoodServingEditor({
   const [quantityInput, setQuantityInput] = useState(
     itemToEdit?.quantityInput ?? "1",
   );
+  const [calorieInput, setCalorieInput] = useState(() =>
+    getInitialCalorieInput(itemToEdit),
+  );
+  const [inputMode, setInputMode] = useState<NutritionInputMode>("amount");
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(
     itemToEdit ? STORED_OPTION_ID : null,
   );
   const [servingSelectorOpen, setServingSelectorOpen] = useState(false);
 
-  const matchingDetails =
-    details?.fdcId === food.fdcId ? details : undefined;
+  const matchingDetails = details?.fdcId === food.fdcId ? details : undefined;
   const servingOptions = useMemo(
     () => mergeServingOptions(itemToEdit, matchingDetails),
     [itemToEdit, matchingDetails],
@@ -69,6 +70,8 @@ export function FoodServingEditor({
 
   useEffect(() => {
     setQuantityInput(itemToEdit?.quantityInput ?? "1");
+    setCalorieInput(getInitialCalorieInput(itemToEdit));
+    setInputMode("amount");
     setSelectedOptionId(itemToEdit ? STORED_OPTION_ID : null);
     setServingSelectorOpen(false);
   }, [food.fdcId, itemToEdit]);
@@ -84,7 +87,7 @@ export function FoodServingEditor({
     setSelectedOptionId(
       defaultOptionExists
         ? matchingDetails.defaultServingOptionId
-        : matchingDetails.servingOptions[0]?.id ?? null,
+        : (matchingDetails.servingOptions[0]?.id ?? null),
     );
   }, [itemToEdit, matchingDetails, selectedOptionId]);
 
@@ -100,6 +103,7 @@ export function FoodServingEditor({
     selectedBasis,
     itemToEdit,
   );
+  const energyPerServing = nutrientsPerServing?.energyKcal ?? null;
   const quantity = Number(quantityInput);
   const quantityIsValid = Number.isFinite(quantity) && quantity > 0;
   const configuredNutrients =
@@ -116,10 +120,56 @@ export function FoodServingEditor({
     selectedOption.amount > 0 &&
     quantityIsValid &&
     hasUsableNutrition;
+  const caloriesCanDriveQuantity =
+    energyPerServing !== null &&
+    Number.isFinite(energyPerServing) &&
+    energyPerServing > 0;
+  const parsedCalories = Number(calorieInput);
+  const calorieInputIsValid =
+    Number.isFinite(parsedCalories) && parsedCalories > 0;
+
+  useEffect(() => {
+    if (inputMode !== "amount") {
+      return;
+    }
+
+    setCalorieInput(getCalorieInputValue(energyPerServing, quantityInput));
+  }, [energyPerServing, inputMode, quantityInput]);
+
+  useEffect(() => {
+    if (inputMode !== "calories") {
+      return;
+    }
+
+    if (
+      energyPerServing === null ||
+      !caloriesCanDriveQuantity ||
+      !calorieInputIsValid
+    ) {
+      setQuantityInput("");
+      return;
+    }
+
+    setQuantityInput(formatDerivedQuantity(parsedCalories / energyPerServing));
+  }, [
+    calorieInputIsValid,
+    caloriesCanDriveQuantity,
+    energyPerServing,
+    inputMode,
+    parsedCalories,
+  ]);
 
   function changeQuantity(value: string) {
     if (/^\d*\.?\d*$/.test(value)) {
+      setInputMode("amount");
       setQuantityInput(value);
+    }
+  }
+
+  function changeCalories(value: string) {
+    if (caloriesCanDriveQuantity && /^\d*\.?\d*$/.test(value)) {
+      setInputMode("calories");
+      setCalorieInput(value);
     }
   }
 
@@ -131,8 +181,7 @@ export function FoodServingEditor({
     const verifiedOptions = servingOptions.filter(
       (option) => option.source !== "stored",
     );
-    const draftNutrientBasis =
-      matchingDetails?.nutrientBasis ?? selectedBasis;
+    const draftNutrientBasis = matchingDetails?.nutrientBasis ?? selectedBasis;
 
     onConfirm({
       fdcId: food.fdcId,
@@ -143,9 +192,7 @@ export function FoodServingEditor({
       servingUnit: selectedOption.unit,
       servingDescription: selectedOption.label,
       nutrientsPerServing,
-      ...(draftNutrientBasis
-        ? { nutrientBasis: draftNutrientBasis }
-        : {}),
+      ...(draftNutrientBasis ? { nutrientBasis: draftNutrientBasis } : {}),
       ...(verifiedOptions.length > 0
         ? { servingOptions: verifiedOptions }
         : {}),
@@ -154,198 +201,234 @@ export function FoodServingEditor({
 
   return (
     <View style={styles.container}>
-      <View style={styles.foodHeading}>
-        <Text
-          numberOfLines={2}
-          style={[styles.foodName, { color: theme.colors.text }]}
-        >
-          {food.description}
-        </Text>
-        {food.brandName ? (
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        style={styles.contentScroll}
+      >
+        <View style={styles.foodHeading}>
           <Text
-            numberOfLines={1}
-            style={[styles.brandName, { color: theme.colors.textMuted }]}
+            numberOfLines={2}
+            style={[styles.foodName, { color: theme.colors.text }]}
           >
-            {food.brandName}
+            {food.description}
           </Text>
-        ) : null}
-      </View>
-
-      <View style={styles.field}>
-        <Text style={[styles.label, { color: theme.colors.text }]}>Amount</Text>
-        <View style={styles.amountRow}>
-          <TextInput
-            accessibilityLabel={`Amount of ${food.description}`}
-            keyboardType="decimal-pad"
-            onChangeText={changeQuantity}
-            placeholder="1"
-            placeholderTextColor={theme.colors.textMuted}
-            selectionColor={theme.colors.tertiary}
-            style={[
-              styles.amountInput,
-              {
-                borderColor: theme.colors.borderStrong,
-                color: theme.colors.text,
-              },
-            ]}
-            value={quantityInput}
-          />
-          <Text style={[styles.amountUnit, { color: theme.colors.textMuted }]}>
-            servings
-          </Text>
+          {food.brandName ? (
+            <Text
+              numberOfLines={1}
+              style={[styles.brandName, { color: theme.colors.textMuted }]}
+            >
+              {food.brandName}
+            </Text>
+          ) : null}
         </View>
-        {quantityInput.length > 0 && !quantityIsValid ? (
-          <Text style={[styles.validationText, { color: theme.colors.textMuted }]}>
-            Enter an amount greater than zero.
+
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>
+            Amount
           </Text>
-        ) : null}
-      </View>
+          <View style={styles.amountRow}>
+            <TextInput
+              accessibilityLabel={`Amount of ${food.description}`}
+              keyboardType="decimal-pad"
+              onChangeText={changeQuantity}
+              placeholder="1"
+              placeholderTextColor={theme.colors.textMuted}
+              selectionColor={theme.colors.tertiary}
+              style={[
+                styles.amountInput,
+                {
+                  borderColor: theme.colors.borderStrong,
+                  color: theme.colors.text,
+                },
+              ]}
+              value={quantityInput}
+            />
+            <Text
+              style={[styles.amountUnit, { color: theme.colors.textMuted }]}
+            >
+              servings
+            </Text>
+          </View>
+          {quantityInput.length > 0 && !quantityIsValid ? (
+            <Text
+              style={[styles.validationText, { color: theme.colors.textMuted }]}
+            >
+              Enter an amount greater than zero.
+            </Text>
+          ) : null}
+        </View>
 
-      <View style={styles.field}>
-        <Text style={[styles.label, { color: theme.colors.text }]}>Serving</Text>
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>
+            Serving
+          </Text>
 
-        {servingOptions.length > 0 ? (
-          <View
-            style={[
-              styles.servingSelector,
-              { borderColor: theme.colors.borderStrong },
-            ]}
-          >
-            <Pressable
-              accessibilityLabel={`Serving size, ${
-                selectedOption?.label ?? "not selected"
-              }`}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: servingSelectorOpen }}
-              onPress={() =>
-                setServingSelectorOpen((currentValue) => !currentValue)
-              }
-              style={({ pressed }) => [
-                styles.servingSelectorButton,
-                { backgroundColor: theme.colors.surfaceMuted },
-                pressed && { opacity: tokens.opacity.pressed },
+          {servingOptions.length > 0 ? (
+            <View
+              style={[
+                styles.servingSelector,
+                { borderColor: theme.colors.borderStrong },
               ]}
             >
-              <Text
-                numberOfLines={2}
-                style={[
-                  styles.servingLabel,
-                  { color: theme.colors.text },
+              <Pressable
+                accessibilityLabel={`Serving size, ${
+                  selectedOption?.label ?? "not selected"
+                }`}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: servingSelectorOpen }}
+                onPress={() =>
+                  setServingSelectorOpen((currentValue) => !currentValue)
+                }
+                style={({ pressed }) => [
+                  styles.servingSelectorButton,
+                  { backgroundColor: theme.colors.surfaceMuted },
+                  pressed && { opacity: tokens.opacity.pressed },
                 ]}
               >
-                {selectedOption?.label ?? "Choose a serving"}
-              </Text>
-              <Ionicons
-                color={theme.colors.textMuted}
-                name={servingSelectorOpen ? "chevron-up" : "chevron-down"}
-                size={20}
-              />
-            </Pressable>
+                <Text
+                  numberOfLines={2}
+                  style={[styles.servingLabel, { color: theme.colors.text }]}
+                >
+                  {selectedOption?.label ?? "Choose a serving"}
+                </Text>
+                <Ionicons
+                  color={theme.colors.textMuted}
+                  name={servingSelectorOpen ? "chevron-up" : "chevron-down"}
+                  size={20}
+                />
+              </Pressable>
 
-            {servingSelectorOpen ? (
-              <ScrollView
-                keyboardShouldPersistTaps="handled"
-                nestedScrollEnabled
-                showsVerticalScrollIndicator
-                style={[
-                  styles.servingOptions,
-                  { borderTopColor: theme.colors.border },
-                ]}
-              >
-                {servingOptions.map((option, index) => {
-                  const selected = option.id === selectedOptionId;
+              {servingSelectorOpen ? (
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                  style={[
+                    styles.servingOptions,
+                    { borderTopColor: theme.colors.border },
+                  ]}
+                >
+                  {servingOptions.map((option, index) => {
+                    const selected = option.id === selectedOptionId;
 
-                  return (
-                    <Pressable
-                      accessibilityLabel={`${option.label} serving`}
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: selected }}
-                      key={option.id}
-                      onPress={() => {
-                        setSelectedOptionId(option.id);
-                        setServingSelectorOpen(false);
-                      }}
-                      style={({ pressed }) => [
-                        styles.servingOption,
-                        index > 0 && {
-                          borderTopColor: theme.colors.border,
-                          borderTopWidth: 1,
-                        },
-                        pressed && {
-                          backgroundColor: theme.colors.surfaceMuted,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.servingLabel,
-                          {
-                            color: selected
-                              ? theme.colors.tertiary
-                              : theme.colors.text,
+                    return (
+                      <Pressable
+                        accessibilityLabel={`${option.label} serving`}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: selected }}
+                        key={option.id}
+                        onPress={() => {
+                          setSelectedOptionId(option.id);
+                          setServingSelectorOpen(false);
+                        }}
+                        style={({ pressed }) => [
+                          styles.servingOption,
+                          index > 0 && {
+                            borderTopColor: theme.colors.border,
+                            borderTopWidth: 1,
+                          },
+                          pressed && {
+                            backgroundColor: theme.colors.surfaceMuted,
                           },
                         ]}
                       >
-                        {option.label}
-                      </Text>
-                      {selected ? (
-                        <Ionicons
-                          color={theme.colors.tertiary}
-                          name="checkmark"
-                          size={20}
-                        />
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            ) : null}
-          </View>
-        ) : null}
+                        <Text
+                          style={[
+                            styles.servingLabel,
+                            {
+                              color: selected
+                                ? theme.colors.tertiary
+                                : theme.colors.text,
+                            },
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                        {selected ? (
+                          <Ionicons
+                            color={theme.colors.tertiary}
+                            name="checkmark"
+                            size={20}
+                          />
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              ) : null}
+            </View>
+          ) : null}
 
-        {detailsLoading ? (
-          <View style={styles.detailsState}>
-            <ActivityIndicator color={theme.colors.tertiary} size="small" />
-            <Text
-              style={[styles.detailsStateText, { color: theme.colors.textMuted }]}
-            >
-              Loading serving options…
-            </Text>
-          </View>
-        ) : detailsError ? (
-          <View style={styles.detailsError}>
-            <Text
-              style={[styles.detailsStateText, { color: theme.colors.textMuted }]}
-            >
-              {detailsError}
-            </Text>
-            {onRetryDetails ? (
-              <PressOpacity
-                accessibilityLabel="Retry loading serving options"
-                onPress={onRetryDetails}
-                style={styles.retryButton}
+          {detailsLoading ? (
+            <View style={styles.detailsState}>
+              <ActivityIndicator color={theme.colors.tertiary} size="small" />
+              <Text
+                style={[
+                  styles.detailsStateText,
+                  { color: theme.colors.textMuted },
+                ]}
               >
-                <Text style={{ color: theme.colors.tertiary }}>Retry</Text>
-              </PressOpacity>
-            ) : null}
-          </View>
-        ) : servingOptions.length === 0 ? (
-          <Text
-            style={[styles.detailsStateText, { color: theme.colors.textMuted }]}
-          >
-            No serving options are available.
-          </Text>
-        ) : null}
-      </View>
+                Loading serving options…
+              </Text>
+            </View>
+          ) : detailsError ? (
+            <View style={styles.detailsError}>
+              <Text
+                style={[
+                  styles.detailsStateText,
+                  { color: theme.colors.textMuted },
+                ]}
+              >
+                {detailsError}
+              </Text>
+              {onRetryDetails ? (
+                <PressOpacity
+                  accessibilityLabel="Retry loading serving options"
+                  onPress={onRetryDetails}
+                  style={styles.retryButton}
+                >
+                  <Text style={{ color: theme.colors.tertiary }}>Retry</Text>
+                </PressOpacity>
+              ) : null}
+            </View>
+          ) : servingOptions.length === 0 ? (
+            <Text
+              style={[
+                styles.detailsStateText,
+                { color: theme.colors.textMuted },
+              ]}
+            >
+              No serving options are available.
+            </Text>
+          ) : null}
+        </View>
 
-      <MacronutrientBreakdownCard
-        incomplete={incomplete}
-        targets={DAILY_NUTRIENT_TARGETS}
-        title="Nutrition for this amount"
-        values={configuredNutrients}
-      />
+        <MacronutrientBreakdownCard
+          energyInput={{
+            editable: caloriesCanDriveQuantity,
+            invalid: inputMode === "calories" && !calorieInputIsValid,
+            onChangeText: changeCalories,
+            value: calorieInput,
+          }}
+          incomplete={incomplete}
+          targets={DAILY_NUTRIENT_TARGETS}
+          title="Nutrition for this amount"
+          values={configuredNutrients}
+        />
+      </ScrollView>
 
-      <View style={[styles.actions, { borderTopColor: theme.colors.border }]}>
+      <View
+        style={[
+          styles.actions,
+          {
+            backgroundColor: theme.colors.surface,
+            borderTopColor: theme.colors.border,
+          },
+        ]}
+      >
         <PressOpacity
           accessibilityLabel="Back to meal"
           onPress={onCancel}
@@ -367,6 +450,46 @@ export function FoodServingEditor({
       </View>
     </View>
   );
+}
+
+function getInitialCalorieInput(item: DraftMealItem | undefined) {
+  return item
+    ? getCalorieInputValue(
+        item.nutrientsPerServing.energyKcal,
+        item.quantityInput,
+      )
+    : "";
+}
+
+function getCalorieInputValue(
+  energyPerServing: number | null,
+  quantityInput: string,
+) {
+  const quantity = Number(quantityInput);
+
+  if (
+    energyPerServing === null ||
+    !Number.isFinite(energyPerServing) ||
+    energyPerServing < 0 ||
+    !Number.isFinite(quantity) ||
+    quantity <= 0
+  ) {
+    return "";
+  }
+
+  return formatCalorieInput(energyPerServing * quantity);
+}
+
+function formatCalorieInput(value: number) {
+  return Number(value.toFixed(2)).toString();
+}
+
+function formatDerivedQuantity(value: number) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "";
+  }
+
+  return value.toFixed(8).replace(/\.?0+$/, "");
 }
 
 function mergeServingOptions(
@@ -466,9 +589,7 @@ function scaleNutrients(
 ): NutrientSnapshot {
   return {
     energyKcal:
-      nutrients.energyKcal === null
-        ? null
-        : nutrients.energyKcal * multiplier,
+      nutrients.energyKcal === null ? null : nutrients.energyKcal * multiplier,
     proteinG:
       nutrients.proteinG === null ? null : nutrients.proteinG * multiplier,
     carbohydratesG:
@@ -501,7 +622,17 @@ function getIncompleteNutrients(
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    minHeight: 0,
+    position: "relative",
+  },
+  contentScroll: {
+    flex: 1,
+  },
+  content: {
     gap: tokens.spacing.lg,
+    padding: tokens.spacing.lg,
+    paddingBottom: 85,
   },
   foodHeading: {
     gap: tokens.spacing.xs,
@@ -599,10 +730,17 @@ const styles = StyleSheet.create({
   },
   actions: {
     borderTopWidth: 1,
+    bottom: 0,
     flexDirection: "row",
     gap: tokens.spacing.sm,
     justifyContent: "space-between",
-    paddingTop: tokens.spacing.md,
+    left: 0,
+    minHeight: 69,
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.md,
+    position: "absolute",
+    right: 0,
+    zIndex: 2,
   },
   actionButton: {
     alignItems: "center",

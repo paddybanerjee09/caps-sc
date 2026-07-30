@@ -1,6 +1,13 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -593,6 +600,7 @@ export function MealLogModal({
           accessibilityViewIsModal
           style={[
             styles.modal,
+            servingEditor && styles.servingModal,
             {
               backgroundColor: theme.colors.surface,
               maxHeight: modalMaxHeight,
@@ -609,12 +617,7 @@ export function MealLogModal({
             </Text>
           </View>
 
-          <ScrollView
-            contentContainerStyle={styles.body}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            style={styles.bodyScroll}
-          >
+          <MealModalBody configuringFood={servingEditor !== null}>
             {servingEditor ? (
               <FoodServingEditor
                 details={servingEditor.details}
@@ -1024,7 +1027,7 @@ export function MealLogModal({
                 </View>
               </>
             )}
-          </ScrollView>
+          </MealModalBody>
 
           {!servingEditor ? (
             <View
@@ -1093,6 +1096,29 @@ export function MealLogModal({
         </View>
       </KeyboardAvoidingView>
     </Modal>
+  );
+}
+
+function MealModalBody({
+  children,
+  configuringFood,
+}: {
+  children: ReactNode;
+  configuringFood: boolean;
+}) {
+  if (configuringFood) {
+    return <View style={styles.servingBody}>{children}</View>;
+  }
+
+  return (
+    <ScrollView
+      contentContainerStyle={styles.body}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      style={styles.bodyScroll}
+    >
+      {children}
+    </ScrollView>
   );
 }
 
@@ -1268,6 +1294,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     width: "100%",
     maxWidth: 520,
+  },
+  servingModal: {
+    flex: 1,
+  },
+  servingBody: {
+    flex: 1,
+    minHeight: 0,
   },
   header: {
     paddingHorizontal: tokens.spacing.lg,

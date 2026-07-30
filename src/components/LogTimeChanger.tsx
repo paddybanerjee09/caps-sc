@@ -1,8 +1,9 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import DateTimePicker, {
+  DateTimePickerAndroid,
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Keyboard,
   Modal,
@@ -32,10 +33,23 @@ export function LogTimeChanger({
   const { colorScheme, theme } = useAppTheme();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftTime, setDraftTime] = useState(() => new Date(value));
+  const draftTimeRef = useRef(new Date(value));
 
   function openPicker() {
     Keyboard.dismiss();
-    setDraftTime(new Date(value));
+    const initialTime = new Date(value);
+    draftTimeRef.current = initialTime;
+    setDraftTime(initialTime);
+
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        mode: "time",
+        onChange: changeTime,
+        value: initialTime,
+      });
+      return;
+    }
+
     setPickerOpen(true);
   }
 
@@ -49,23 +63,24 @@ export function LogTimeChanger({
       return;
     }
 
-    const updatedDate = new Date(value);
+    const updatedDate = new Date(draftTimeRef.current);
     updatedDate.setHours(
       selectedDate.getHours(),
       selectedDate.getMinutes(),
       0,
       0,
     );
+    const acceptedDate =
+      maximumDate && updatedDate.getTime() > maximumDate.getTime()
+        ? new Date(maximumDate)
+        : updatedDate;
 
-    if (
-      maximumDate === undefined ||
-      updatedDate.getTime() <= maximumDate.getTime()
-    ) {
-      if (Platform.OS === "android") {
-        onChange(updatedDate);
-      } else {
-        setDraftTime(updatedDate);
-      }
+    draftTimeRef.current = acceptedDate;
+
+    if (Platform.OS === "android") {
+      onChange(new Date(acceptedDate));
+    } else {
+      setDraftTime(acceptedDate);
     }
 
     if (Platform.OS === "android") {
@@ -74,7 +89,7 @@ export function LogTimeChanger({
   }
 
   function saveTime() {
-    onChange(draftTime);
+    onChange(new Date(draftTimeRef.current));
     closePicker();
   }
 
@@ -108,20 +123,20 @@ export function LogTimeChanger({
         </View>
       </PressOpacity>
 
-      <Modal
-        animationType="fade"
-        onRequestClose={closePicker}
-        presentationStyle="overFullScreen"
-        transparent
-        visible={pickerOpen}
-      >
-        <View
-          style={[
-            styles.modalOverlay,
-            { backgroundColor: theme.colors.overlay },
-          ]}
+      {Platform.OS === "ios" ? (
+        <Modal
+          animationType="fade"
+          onRequestClose={closePicker}
+          presentationStyle="overFullScreen"
+          transparent
+          visible={pickerOpen}
         >
-          {Platform.OS === "ios" ? (
+          <View
+            style={[
+              styles.modalOverlay,
+              { backgroundColor: theme.colors.overlay },
+            ]}
+          >
             <View
               accessibilityViewIsModal
               style={[
@@ -137,6 +152,7 @@ export function LogTimeChanger({
                 {pickerOpen ? (
                   <DateTimePicker
                     display="spinner"
+                    maximumDate={maximumDate}
                     mode="time"
                     onChange={changeTime}
                     style={styles.picker}
@@ -165,18 +181,9 @@ export function LogTimeChanger({
                 </PressOpacity>
               </View>
             </View>
-          ) : pickerOpen ? (
-            <DateTimePicker
-              display="default"
-              mode="time"
-              onChange={changeTime}
-              textColor={theme.colors.text}
-              themeVariant={colorScheme}
-              value={draftTime}
-            />
-          ) : null}
-        </View>
-      </Modal>
+          </View>
+        </Modal>
+      ) : null}
     </View>
   );
 }

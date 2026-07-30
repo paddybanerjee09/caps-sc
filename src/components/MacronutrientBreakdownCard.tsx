@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   StyleSheet,
   Text,
+  TextInput,
   View,
   type LayoutChangeEvent,
 } from "react-native";
@@ -9,11 +10,8 @@ import Svg, { Circle } from "react-native-svg";
 
 import { NUTRITION_COLORS } from "../constants/nutrition";
 import { useAppTheme } from "../theme/ThemeContext";
-import { themes } from "../theme/theme";
-import type {
-  NutrientSnapshot,
-  NutrientTargets,
-} from "../types/nutrition";
+import { appColorPalette, themes } from "../theme/theme";
+import type { NutrientSnapshot, NutrientTargets } from "../types/nutrition";
 
 const tokens = themes.dark;
 const RING_SIZE = 132;
@@ -27,6 +25,12 @@ type NutrientKey = keyof NutrientSnapshot;
 type MacroKey = Exclude<NutrientKey, "energyKcal">;
 
 type MacronutrientBreakdownCardProps = {
+  energyInput?: {
+    editable: boolean;
+    invalid: boolean;
+    onChangeText: (value: string) => void;
+    value: string;
+  };
   values: NutrientSnapshot;
   incomplete: Record<NutrientKey, boolean>;
   targets: NutrientTargets;
@@ -94,6 +98,7 @@ const nutrientPresentations: {
 ];
 
 export function MacronutrientBreakdownCard({
+  energyInput,
   incomplete,
   targets,
   title,
@@ -134,20 +139,19 @@ export function MacronutrientBreakdownCard({
         </Text>
       ) : null}
 
-      <View
-        style={[
-          styles.breakdown,
-          isStacked && styles.breakdownStacked,
-        ]}
-      >
+      <View style={[styles.breakdown, isStacked && styles.breakdownStacked]}>
         <View
-          accessibilityLabel={buildRingAccessibilityLabel(
-            safeValues,
-            resolvedIncomplete,
-            macroSegments,
-          )}
-          accessibilityRole="image"
-          accessible
+          accessibilityLabel={
+            energyInput
+              ? undefined
+              : buildRingAccessibilityLabel(
+                  safeValues,
+                  resolvedIncomplete,
+                  macroSegments,
+                )
+          }
+          accessibilityRole={energyInput ? undefined : "image"}
+          accessible={!energyInput}
           style={styles.ring}
         >
           <Svg
@@ -189,17 +193,46 @@ export function MacronutrientBreakdownCard({
             )}
           </Svg>
 
-          <View pointerEvents="none" style={styles.ringLabel}>
-            <Text
-              selectable
-              style={[styles.energyValue, { color: theme.colors.text }]}
-            >
-              {formatNullableValue(
-                safeValues.energyKcal,
-                resolvedIncomplete.energyKcal,
-                0,
-              )}
-            </Text>
+          <View
+            pointerEvents={energyInput ? "box-none" : "none"}
+            style={styles.ringLabel}
+          >
+            {energyInput ? (
+              <TextInput
+                accessibilityLabel="Calories for configured food"
+                editable={energyInput.editable}
+                keyboardType="decimal-pad"
+                onChangeText={energyInput.onChangeText}
+                placeholder="\u2014"
+                placeholderTextColor={theme.colors.textMuted}
+                returnKeyType="done"
+                selectTextOnFocus
+                selectionColor={theme.colors.tertiary}
+                style={[
+                  styles.energyInput,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: energyInput.invalid
+                      ? appColorPalette.red
+                      : theme.colors.borderStrong,
+                    color: theme.colors.text,
+                  },
+                  !energyInput.editable && styles.energyInputDisabled,
+                ]}
+                value={energyInput.value}
+              />
+            ) : (
+              <Text
+                selectable
+                style={[styles.energyValue, { color: theme.colors.text }]}
+              >
+                {formatNullableValue(
+                  safeValues.energyKcal,
+                  resolvedIncomplete.energyKcal,
+                  0,
+                )}
+              </Text>
+            )}
             <Text
               selectable
               style={[styles.energyUnit, { color: theme.colors.textMuted }]}
@@ -212,18 +245,12 @@ export function MacronutrientBreakdownCard({
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[
-            styles.macroList,
-            isStacked && styles.macroListStacked,
-          ]}
+          style={[styles.macroList, isStacked && styles.macroListStacked]}
         >
           {macroSegments.map((segment) => (
             <View key={segment.key} style={styles.macroRow}>
               <View
-                style={[
-                  styles.colorDot,
-                  { backgroundColor: segment.color },
-                ]}
+                style={[styles.colorDot, { backgroundColor: segment.color }]}
               />
               <Text
                 selectable
@@ -311,21 +338,15 @@ function NutrientProgressRow({
   value: number | null;
 }) {
   const { theme } = useAppTheme();
-  const safeTarget =
-    Number.isFinite(target) && target > 0 ? target : 0;
+  const safeTarget = Number.isFinite(target) && target > 0 ? target : 0;
   const fill =
-    value !== null && safeTarget > 0
-      ? clamp(value / safeTarget, 0, 1)
-      : 0;
+    value !== null && safeTarget > 0 ? clamp(value / safeTarget, 0, 1) : 0;
   const valueText = formatNullableValue(
     value,
     incomplete,
     unit === "kcal" ? 0 : 1,
   );
-  const targetText = formatNumber(
-    safeTarget,
-    unit === "kcal" ? 0 : 1,
-  );
+  const targetText = formatNumber(safeTarget, unit === "kcal" ? 0 : 1);
 
   return (
     <View
@@ -340,7 +361,10 @@ function NutrientProgressRow({
       style={styles.progressRow}
     >
       <View style={styles.progressLabels}>
-        <Text selectable style={[styles.progressLabel, { color: theme.colors.text }]}>
+        <Text
+          selectable
+          style={[styles.progressLabel, { color: theme.colors.text }]}
+        >
           {label}
         </Text>
         <Text
@@ -383,9 +407,7 @@ function buildMacroSegments(values: NutrientSnapshot) {
     const value = values[macro.key];
     const calories = value === null ? 0 : value * macro.calorieFactor;
     const proportion =
-      knownMacroCalories > 0
-        ? clamp(calories / knownMacroCalories, 0, 1)
-        : 0;
+      knownMacroCalories > 0 ? clamp(calories / knownMacroCalories, 0, 1) : 0;
     const segment = {
       ...macro,
       proportion,
@@ -444,10 +466,7 @@ function buildProgressAccessibilityLabel(
   return `${label}: ${incomplete ? "at least " : ""}${formatNumber(
     value,
     unit === "kcal" ? 0 : 1,
-  )} out of ${formatNumber(
-    target,
-    unit === "kcal" ? 0 : 1,
-  )} ${spokenUnit}`;
+  )} out of ${formatNumber(target, unit === "kcal" ? 0 : 1)} ${spokenUnit}`;
 }
 
 function normalizeNutrients(values: NutrientSnapshot): NutrientSnapshot {
@@ -460,9 +479,7 @@ function normalizeNutrients(values: NutrientSnapshot): NutrientSnapshot {
 }
 
 function normalizeNutrient(value: number | null) {
-  return value !== null && Number.isFinite(value) && value >= 0
-    ? value
-    : null;
+  return value !== null && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function resolveIncomplete(
@@ -472,8 +489,7 @@ function resolveIncomplete(
   return {
     energyKcal: incomplete.energyKcal || values.energyKcal === null,
     proteinG: incomplete.proteinG || values.proteinG === null,
-    carbohydratesG:
-      incomplete.carbohydratesG || values.carbohydratesG === null,
+    carbohydratesG: incomplete.carbohydratesG || values.carbohydratesG === null,
     fatG: incomplete.fatG || values.fatG === null,
   };
 }
@@ -546,6 +562,21 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
     fontWeight: "700",
     lineHeight: 26,
+  },
+  energyInput: {
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    fontSize: 20,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
+    height: 38,
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: 0,
+    textAlign: "center",
+    width: 78,
+  },
+  energyInputDisabled: {
+    opacity: tokens.opacity.disabled,
   },
   energyUnit: {
     fontSize: tokens.typography.label.fontSize,
