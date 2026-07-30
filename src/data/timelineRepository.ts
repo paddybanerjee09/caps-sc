@@ -367,7 +367,10 @@ function convertTimelineEntryRow(row: TimelineEntryRow): TimelineEntry {
     title: row.title,
     startAt: row.start_at,
     endAt: row.end_at,
-    status: row.status,
+    status:
+      row.kind === "meal" && row.start_at <= Date.now()
+        ? "completed"
+        : row.status,
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

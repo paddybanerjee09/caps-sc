@@ -36,6 +36,7 @@ type CountRow = {
 type ValidatedMealLog = {
   title: string;
   loggedAt: number;
+  status: "planned" | "completed";
   items: NewMealItem[];
 };
 
@@ -97,6 +98,7 @@ export async function getMealLogsForDay(
         timelineEntryId: row.timeline_entry_id,
         title: row.title,
         loggedAt: row.logged_at,
+        status: getMealStatus(row.logged_at),
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         items: [],
@@ -155,8 +157,14 @@ export async function createMealLog(db: SQLiteDatabase, meal: NewMealLog) {
         notes,
         created_at,
         updated_at
-      ) VALUES ('meal', ?, ?, NULL, 'completed', NULL, ?, ?)`,
-      [validatedMeal.title, validatedMeal.loggedAt, now, now],
+      ) VALUES ('meal', ?, ?, NULL, ?, NULL, ?, ?)`,
+      [
+        validatedMeal.title,
+        validatedMeal.loggedAt,
+        validatedMeal.status,
+        now,
+        now,
+      ],
     );
 
     timelineEntryId = timelineResult.lastInsertRowId;
@@ -207,11 +215,12 @@ export async function updateMealLog(
 
     await db.runAsync(
       `UPDATE timeline_entries
-       SET title = ?, start_at = ?, updated_at = ?
+       SET title = ?, start_at = ?, status = ?, updated_at = ?
        WHERE id = ?`,
       [
         validatedMeal.title,
         validatedMeal.loggedAt,
+        validatedMeal.status,
         Date.now(),
         timelineEntryId,
       ],
@@ -326,7 +335,7 @@ function validateMealLog(meal: NewMealLog): ValidatedMealLog {
     throw new Error("Meal title is required");
   }
 
-  validateTodayLogTime(meal.loggedAt);
+  validateMealLogTime(meal.loggedAt);
 
   if (!Array.isArray(meal.items) || meal.items.length === 0) {
     throw new Error("Add at least one food");
@@ -335,6 +344,7 @@ function validateMealLog(meal: NewMealLog): ValidatedMealLog {
   return {
     title,
     loggedAt: meal.loggedAt,
+    status: getMealStatus(meal.loggedAt),
     items: meal.items.map(validateMealItem),
   };
 }
@@ -395,25 +405,14 @@ function validateMealItem(item: NewMealItem): NewMealItem {
   };
 }
 
-function validateTodayLogTime(loggedAt: number) {
-  const now = new Date();
-  const dayStart = new Date(now);
-  dayStart.setHours(0, 0, 0, 0);
-
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
-
-  if (
-    !Number.isFinite(loggedAt) ||
-    loggedAt < dayStart.getTime() ||
-    loggedAt >= dayEnd.getTime()
-  ) {
-    throw new Error("Meal must be logged for today");
+function validateMealLogTime(loggedAt: number) {
+  if (!Number.isFinite(loggedAt)) {
+    throw new Error("Invalid meal time");
   }
+}
 
-  if (loggedAt > now.getTime()) {
-    throw new Error("Meal time cannot be in the future");
-  }
+function getMealStatus(loggedAt: number): "planned" | "completed" {
+  return loggedAt > Date.now() ? "planned" : "completed";
 }
 
 function validateDayBounds(dayStart: number, dayEnd: number) {

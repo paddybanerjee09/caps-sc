@@ -100,6 +100,7 @@ export type StoredMealLog = {
   timelineEntryId: number;
   title: string;
   loggedAt: number;
+  status: "planned" | "completed";
   createdAt: number;
   updatedAt: number;
   items: StoredMealItem[];

@@ -459,22 +459,14 @@ export function MealLogModal({
 
     const trimmedTitle = title.trim();
     const loggedAtTime = loggedAt.getTime();
-    const now = new Date();
 
     if (!trimmedTitle) {
       Alert.alert("Meal title required", "Enter a title for this meal.");
       return;
     }
 
-    if (
-      !Number.isFinite(loggedAtTime) ||
-      loggedAtTime > now.getTime() ||
-      !isSameLocalDay(loggedAt, now)
-    ) {
-      Alert.alert(
-        "Invalid meal time",
-        "Meal logs must use a time from today that has already passed.",
-      );
+    if (!Number.isFinite(loggedAtTime)) {
+      Alert.alert("Invalid meal time", "Choose a valid date and time.");
       return;
     }
 
@@ -685,7 +677,7 @@ export function MealLogModal({
                   {visible ? (
                     <View style={styles.timeField}>
                       <LogTimeChanger
-                        maximumDate={new Date()}
+                        allowDateChange
                         onChange={setLoggedAt}
                         value={loggedAt}
                       />
@@ -1158,14 +1150,6 @@ function getLocalDayBounds(date: Date) {
   return { dayEnd, dayStart };
 }
 
-function isSameLocalDay(first: Date, second: Date) {
-  return (
-    first.getFullYear() === second.getFullYear() &&
-    first.getMonth() === second.getMonth() &&
-    first.getDate() === second.getDate()
-  );
-}
-
 function formatQuantityInput(quantity: number) {
   return Number.isInteger(quantity)
     ? quantity.toFixed(0)
@@ -1351,7 +1335,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   timeField: {
-    width: 100,
+    width: 120,
   },
   section: {
     gap: tokens.spacing.sm,

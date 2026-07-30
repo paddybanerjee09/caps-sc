@@ -60,7 +60,7 @@ export function NutritionScreen() {
       }
     } catch {
       if (currentRequestId === requestId.current) {
-        setDatabaseError("Couldn’t load today’s meals");
+        setDatabaseError("Couldn’t load meals for this date");
       }
     } finally {
       if (currentRequestId === requestId.current) {
@@ -78,23 +78,26 @@ export function NutritionScreen() {
   }, [loadMeals]);
 
   useEffect(() => {
-    const millisecondsUntilTomorrow = Math.max(
-      1000,
-      dayEnd.getTime() - Date.now() + 250,
-    );
-    const timer = setTimeout(
-      () => setCurrentDay(new Date()),
-      millisecondsUntilTomorrow,
-    );
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setHours(0, 0, 0, 0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const timer = setTimeout(() => {
+      setCurrentDay((selectedDate) =>
+        isSameLocalDay(selectedDate, today) ? new Date() : selectedDate,
+      );
+    }, tomorrow.getTime() - today.getTime() + 250);
 
     return () => clearTimeout(timer);
-  }, [dayEnd]);
+  }, [currentDay]);
 
   const dailyTotals = useMemo(
     () => calculateNutrientTotals(meals.flatMap((meal) => meal.items)),
     [meals],
   );
   const catalogueHeight = clamp(height * 0.42, 240, 420);
+  const previousDate = shiftLocalDate(currentDay, -1);
+  const nextDate = shiftLocalDate(currentDay, 1);
 
   function openNewMeal() {
     setSelectedMeal(null);
@@ -111,16 +114,60 @@ export function NutritionScreen() {
     setSelectedMeal(null);
   }
 
-  async function handleMealSaved() {
+  async function handleMealSaved(loggedAt: number) {
+    const loggedDate = new Date(loggedAt);
+
+    if (!isSameLocalDay(currentDay, loggedDate)) {
+      setCurrentDay(loggedDate);
+      return;
+    }
+
+    await loadMeals();
+  }
+
+  async function handleMealDeleted() {
     await loadMeals();
   }
 
   return (
     <Screen centerTitle title="Nutrition">
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          Today’s meals
+      <View style={styles.dateNavigator}>
+        <PressOpacity
+          accessibilityLabel={`Show previous day, ${formatFullDate(
+            previousDate,
+          )}`}
+          onPress={() =>
+            setCurrentDay((selectedDate) => shiftLocalDate(selectedDate, -1))
+          }
+          style={styles.dateArrow}
+        >
+          <Ionicons
+            color={theme.colors.text}
+            name="chevron-back"
+            size={22}
+          />
+        </PressOpacity>
+
+        <Text
+          numberOfLines={1}
+          style={[styles.selectedDateText, { color: theme.colors.text }]}
+        >
+          {formatSelectedDate(currentDay)}
         </Text>
+
+        <PressOpacity
+          accessibilityLabel={`Show next day, ${formatFullDate(nextDate)}`}
+          onPress={() =>
+            setCurrentDay((selectedDate) => shiftLocalDate(selectedDate, 1))
+          }
+          style={styles.dateArrow}
+        >
+          <Ionicons
+            color={theme.colors.text}
+            name="chevron-forward"
+            size={22}
+          />
+        </PressOpacity>
       </View>
 
       <View style={styles.catalogueContainer}>
@@ -164,7 +211,9 @@ export function NutritionScreen() {
               <Text
                 style={[styles.stateText, { color: theme.colors.textMuted }]}
               >
-                No meals logged today
+                {isSameLocalDay(currentDay, new Date())
+                  ? "No meals logged today"
+                  : "No meals for this date"}
               </Text>
             </View>
           ) : (
@@ -245,7 +294,7 @@ export function NutritionScreen() {
       <MealLogModal
         mealToEdit={selectedMeal ?? undefined}
         onClose={closeMealModal}
-        onDeleted={handleMealSaved}
+        onDeleted={handleMealDeleted}
         onSaved={handleMealSaved}
         visible={mealModalOpen}
       />
@@ -264,7 +313,7 @@ function MealCatalogueEntry({
 
   return (
     <PressOpacity
-      accessibilityLabel={`${meal.title}, logged at ${formatTime(
+      accessibilityLabel={`${meal.title}, ${meal.status}, at ${formatTime(
         meal.loggedAt,
       )}. ${formatMealTotalsForAccessibility(meal)}`}
       onPress={onPress}
@@ -283,9 +332,24 @@ function MealCatalogueEntry({
         >
           {meal.title}
         </Text>
-        <Text style={[styles.mealTime, { color: theme.colors.textMuted }]}>
-          {formatTime(meal.loggedAt)}
-        </Text>
+        <View style={styles.mealMeta}>
+          <Text
+            style={[
+              styles.mealStatus,
+              {
+                color:
+                  meal.status === "planned"
+                    ? theme.colors.tertiary
+                    : theme.colors.textMuted,
+              },
+            ]}
+          >
+            {meal.status === "planned" ? "Planned" : "Completed"}
+          </Text>
+          <Text style={[styles.mealTime, { color: theme.colors.textMuted }]}>
+            {formatTime(meal.loggedAt)}
+          </Text>
+        </View>
       </View>
 
       <Text style={[styles.mealTotals, { color: theme.colors.text }]}>
@@ -388,13 +452,69 @@ function getLocalDayBounds(date: Date) {
   return { dayEnd, dayStart };
 }
 
+function shiftLocalDate(date: Date, numberOfDays: number) {
+  const shiftedDate = new Date(date);
+  shiftedDate.setDate(shiftedDate.getDate() + numberOfDays);
+  return shiftedDate;
+}
+
+function isSameLocalDay(firstDate: Date, secondDate: Date) {
+  return (
+    firstDate.getFullYear() === secondDate.getFullYear() &&
+    firstDate.getMonth() === secondDate.getMonth() &&
+    firstDate.getDate() === secondDate.getDate()
+  );
+}
+
+function formatSelectedDate(date: Date) {
+  const today = new Date();
+
+  if (isSameLocalDay(date, today)) {
+    return `Today, ${date.toLocaleDateString([], {
+      month: "long",
+      day: "numeric",
+    })}`;
+  }
+
+  return date.toLocaleDateString([], {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
+  });
+}
+
+function formatFullDate(date: Date) {
+  return date.toLocaleDateString([], {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), maximum);
 }
 
 const styles = StyleSheet.create({
-  sectionHeader: {
+  dateNavigator: {
+    alignItems: "center",
+    flexDirection: "row",
     marginBottom: tokens.spacing.sm,
+  },
+  dateArrow: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+    minWidth: 44,
+  },
+  selectedDateText: {
+    flex: 1,
+    fontSize: tokens.typography.body.fontSize,
+    fontWeight: "700",
+    lineHeight: tokens.typography.body.lineHeight,
+    textAlign: "center",
   },
   sectionTitle: {
     fontSize: tokens.typography.sectionTitle.fontSize,
@@ -455,6 +575,15 @@ const styles = StyleSheet.create({
   mealTime: {
     fontSize: tokens.typography.label.fontSize,
     lineHeight: tokens.typography.label.lineHeight,
+  },
+  mealMeta: {
+    alignItems: "flex-end",
+    gap: 2,
+  },
+  mealStatus: {
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 12,
   },
   mealTotals: {
     fontSize: tokens.typography.label.fontSize,
