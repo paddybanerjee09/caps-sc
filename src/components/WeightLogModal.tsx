@@ -143,30 +143,6 @@ export function WeightLogModal({
       >
         <View style={[styles.modal, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.modalHeader}>
-            {editingExistingWeight ? (
-              <PressOpacity
-                accessibilityLabel="Delete weight log"
-                onPress={confirmDeleteWeightLog}
-                style={styles.deleteButton}
-              >
-                <View
-                  style={[
-                    styles.deleteButtonPill,
-                    { borderColor: appColorPalette.red },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.deleteButtonText,
-                      { color: appColorPalette.red },
-                    ]}
-                  >
-                    Delete log
-                  </Text>
-                </View>
-              </PressOpacity>
-            ) : null}
-
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               Weight
             </Text>
@@ -210,13 +186,25 @@ export function WeightLogModal({
           ) : null}
 
           <View style={styles.modalActions}>
-            <PressOpacity onPress={closeModal}>
-              <Text style={{ color: theme.colors.textMuted }}>Cancel</Text>
-            </PressOpacity>
+            {editingExistingWeight ? (
+              <PressOpacity
+                accessibilityLabel="Delete weight log"
+                onPress={confirmDeleteWeightLog}
+                style={[styles.actionButton, styles.deleteAction]}
+              >
+                <Text style={{ color: appColorPalette.red }}>Delete log</Text>
+              </PressOpacity>
+            ) : null}
 
-            <PressOpacity onPress={saveWeight}>
-              <Text style={{ color: theme.colors.tertiary }}>Save</Text>
-            </PressOpacity>
+            <View style={styles.confirmActions}>
+              <PressOpacity onPress={closeModal} style={styles.actionButton}>
+                <Text style={{ color: theme.colors.textMuted }}>Cancel</Text>
+              </PressOpacity>
+
+              <PressOpacity onPress={saveWeight} style={styles.actionButton}>
+                <Text style={{ color: theme.colors.tertiary }}>Save</Text>
+              </PressOpacity>
+            </View>
           </View>
         </View>
       </View>
@@ -247,26 +235,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
-  deleteButton: {
-    alignItems: "center",
-    alignSelf: "flex-end",
-    justifyContent: "center",
-    minHeight: 44,
-    transform: [{ translateY: -8 }],
-  },
-  deleteButtonPill: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    height: 26,
-    justifyContent: "center",
-    paddingHorizontal: tokens.spacing.sm,
-  },
-  deleteButtonText: {
-    fontSize: 10,
-    fontWeight: tokens.typography.label.fontWeight,
-    lineHeight: 14,
-  },
   weightInputRow: {
     alignItems: "center",
     justifyContent: "center",
@@ -292,9 +260,23 @@ const styles = StyleSheet.create({
     position: "absolute",
   },
   modalActions: {
+    alignItems: "center",
     flexDirection: "row",
-    gap: tokens.spacing.xl,
-    justifyContent: "flex-end",
     paddingTop: tokens.spacing.md,
+    transform: [{ translateY: 15 }],
+  },
+  confirmActions: {
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    marginLeft: "auto",
+  },
+  actionButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+    minWidth: 72,
+  },
+  deleteAction: {
+    marginRight: "auto",
   },
 });
