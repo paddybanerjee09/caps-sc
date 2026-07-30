@@ -56,6 +56,7 @@ type MealLogModalProps = {
   onClose: () => void;
   onDeleted?: () => Promise<void> | void;
   onSaved?: (loggedAt: number) => Promise<void> | void;
+  selectedDate: Date;
   visible: boolean;
 };
 
@@ -81,6 +82,7 @@ export function MealLogModal({
   onClose,
   onDeleted,
   onSaved,
+  selectedDate,
   visible,
 }: MealLogModalProps) {
   const db = useSQLiteContext();
@@ -150,7 +152,14 @@ export function MealLogModal({
   const initializeCreateDraft = useCallback(async () => {
     const currentRequestId = initializationRequestId.current + 1;
     initializationRequestId.current = currentRequestId;
-    const openedAt = new Date();
+    const currentTime = new Date();
+    const openedAt = new Date(selectedDate);
+    openedAt.setHours(
+      currentTime.getHours(),
+      currentTime.getMinutes(),
+      currentTime.getSeconds(),
+      currentTime.getMilliseconds(),
+    );
     const { dayStart, dayEnd } = getLocalDayBounds(openedAt);
 
     setInitializing(true);
@@ -178,7 +187,7 @@ export function MealLogModal({
         setInitializing(false);
       }
     }
-  }, [db]);
+  }, [db, selectedDate]);
 
   useEffect(() => {
     if (!visible) {
@@ -465,7 +474,14 @@ export function MealLogModal({
       return;
     }
 
-    if (!Number.isFinite(loggedAtTime)) {
+    const lockedDate = mealToEdit
+      ? new Date(mealToEdit.loggedAt)
+      : selectedDate;
+
+    if (
+      !Number.isFinite(loggedAtTime) ||
+      !isSameLocalDay(loggedAt, lockedDate)
+    ) {
       Alert.alert("Invalid meal time", "Choose a valid date and time.");
       return;
     }
@@ -677,7 +693,6 @@ export function MealLogModal({
                   {visible ? (
                     <View style={styles.timeField}>
                       <LogTimeChanger
-                        allowDateChange
                         onChange={setLoggedAt}
                         value={loggedAt}
                       />
@@ -1148,6 +1163,14 @@ function getLocalDayBounds(date: Date) {
   dayEnd.setDate(dayEnd.getDate() + 1);
 
   return { dayEnd, dayStart };
+}
+
+function isSameLocalDay(firstDate: Date, secondDate: Date) {
+  return (
+    firstDate.getFullYear() === secondDate.getFullYear() &&
+    firstDate.getMonth() === secondDate.getMonth() &&
+    firstDate.getDate() === secondDate.getDate()
+  );
 }
 
 function formatQuantityInput(quantity: number) {

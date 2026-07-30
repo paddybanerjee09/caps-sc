@@ -35,6 +35,7 @@ export function NutritionScreen() {
   const [databaseError, setDatabaseError] = useState<string | null>(null);
   const [mealModalOpen, setMealModalOpen] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<StoredMealLog | null>(null);
+  const [expandedMealId, setExpandedMealId] = useState<number | null>(null);
   const requestId = useRef(0);
 
   const { dayStart, dayEnd } = useMemo(
@@ -76,6 +77,10 @@ export function NutritionScreen() {
       requestId.current += 1;
     };
   }, [loadMeals]);
+
+  useEffect(() => {
+    setExpandedMealId(null);
+  }, [currentDay]);
 
   useEffect(() => {
     const today = new Date();
@@ -224,9 +229,17 @@ export function NutritionScreen() {
             >
               {meals.map((meal) => (
                 <MealCatalogueEntry
+                  expanded={expandedMealId === meal.timelineEntryId}
                   key={meal.timelineEntryId}
                   meal={meal}
-                  onPress={() => openMeal(meal)}
+                  onEdit={() => openMeal(meal)}
+                  onToggle={() =>
+                    setExpandedMealId((currentId) =>
+                      currentId === meal.timelineEntryId
+                        ? null
+                        : meal.timelineEntryId,
+                    )
+                  }
                 />
               ))}
             </ScrollView>
@@ -296,6 +309,7 @@ export function NutritionScreen() {
         onClose={closeMealModal}
         onDeleted={handleMealDeleted}
         onSaved={handleMealSaved}
+        selectedDate={currentDay}
         visible={mealModalOpen}
       />
     </Screen>
@@ -303,20 +317,21 @@ export function NutritionScreen() {
 }
 
 function MealCatalogueEntry({
+  expanded,
   meal,
-  onPress,
+  onEdit,
+  onToggle,
 }: {
+  expanded: boolean;
   meal: StoredMealLog;
-  onPress: () => void;
+  onEdit: () => void;
+  onToggle: () => void;
 }) {
   const { theme } = useAppTheme();
+  const nutritionSummary = formatMealTabNutrition(meal);
 
   return (
-    <PressOpacity
-      accessibilityLabel={`${meal.title}, ${meal.status}, at ${formatTime(
-        meal.loggedAt,
-      )}. ${formatMealTotalsForAccessibility(meal)}`}
-      onPress={onPress}
+    <View
       style={[
         styles.meal,
         {
@@ -325,51 +340,86 @@ function MealCatalogueEntry({
         },
       ]}
     >
-      <View style={styles.mealHeader}>
-        <Text
-          numberOfLines={1}
-          style={[styles.mealTitle, { color: theme.colors.text }]}
-        >
-          {meal.title}
-        </Text>
-        <View style={styles.mealMeta}>
+      <PressOpacity
+        accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${
+          meal.title
+        }, ${formatTime(meal.loggedAt)}. ${formatMealTotalsForAccessibility(
+          meal,
+        )}`}
+        onPress={onToggle}
+        style={styles.mealTab}
+      >
+        <View style={styles.mealTabMain}>
           <Text
-            style={[
-              styles.mealStatus,
-              {
-                color:
-                  meal.status === "planned"
-                    ? theme.colors.tertiary
-                    : theme.colors.textMuted,
-              },
-            ]}
+            numberOfLines={1}
+            style={[styles.mealTitle, { color: theme.colors.text }]}
           >
-            {meal.status === "planned" ? "Planned" : "Completed"}
+            {meal.title}
           </Text>
+          <Text
+            style={[styles.mealTabNutrition, { color: theme.colors.textMuted }]}
+          >
+            {nutritionSummary}
+          </Text>
+        </View>
+
+        <View style={styles.mealTabEnd}>
           <Text style={[styles.mealTime, { color: theme.colors.textMuted }]}>
             {formatTime(meal.loggedAt)}
           </Text>
+          <Ionicons
+            color={theme.colors.textMuted}
+            name={expanded ? "chevron-up" : "chevron-down"}
+            size={18}
+          />
         </View>
-      </View>
+      </PressOpacity>
 
-      <Text style={[styles.mealTotals, { color: theme.colors.text }]}>
-        {formatTotal(meal.totals.energyKcal, meal.totals.incomplete.energyKcal)}{" "}
-        kcal · P{" "}
-        {formatTotal(meal.totals.proteinG, meal.totals.incomplete.proteinG)} g ·
-        C{" "}
-        {formatTotal(
-          meal.totals.carbohydratesG,
-          meal.totals.incomplete.carbohydratesG,
-        )}{" "}
-        g · F {formatTotal(meal.totals.fatG, meal.totals.incomplete.fatG)} g
-      </Text>
+      {expanded ? (
+        <View
+          style={[
+            styles.mealContent,
+            { borderTopColor: theme.colors.border },
+          ]}
+        >
+          <View
+            accessibilityLabel={`${meal.title}, ${meal.status}, at ${formatTime(
+              meal.loggedAt,
+            )}. ${formatMealTotalsForAccessibility(meal)}`}
+            accessible
+            style={styles.mealDetails}
+          >
+            <Text
+              style={[
+                styles.mealStatus,
+                {
+                  color:
+                    meal.status === "planned"
+                      ? theme.colors.tertiary
+                      : theme.colors.textMuted,
+                },
+              ]}
+            >
+              {meal.status === "planned" ? "Planned" : "Completed"}
+            </Text>
 
-      <View style={styles.foodList}>
-        {meal.items.map((item) => (
-          <StoredFoodRow item={item} key={item.id} />
-        ))}
-      </View>
-    </PressOpacity>
+            <View style={styles.foodList}>
+              {meal.items.map((item) => (
+                <StoredFoodRow item={item} key={item.id} />
+              ))}
+            </View>
+          </View>
+
+          <PressOpacity
+            accessibilityLabel={`Edit ${meal.title}`}
+            onPress={onEdit}
+            style={styles.editMealButton}
+          >
+            <Text style={{ color: theme.colors.tertiary }}>Edit Meal</Text>
+          </PressOpacity>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -398,6 +448,22 @@ function StoredFoodRow({ item }: { item: StoredMealItem }) {
       </Text>
     </View>
   );
+}
+
+function formatMealTabNutrition(meal: StoredMealLog) {
+  return `${formatTotal(
+    meal.totals.energyKcal,
+    meal.totals.incomplete.energyKcal,
+  )} kcal · P ${formatTotal(
+    meal.totals.proteinG,
+    meal.totals.incomplete.proteinG,
+  )} g · C ${formatTotal(
+    meal.totals.carbohydratesG,
+    meal.totals.incomplete.carbohydratesG,
+  )} g · F ${formatTotal(
+    meal.totals.fatG,
+    meal.totals.incomplete.fatG,
+  )} g`;
 }
 
 function formatMealTotalsForAccessibility(meal: StoredMealLog) {
@@ -558,16 +624,41 @@ const styles = StyleSheet.create({
   meal: {
     borderRadius: tokens.radius.md,
     borderWidth: 1,
-    padding: tokens.spacing.md,
+    overflow: "hidden",
   },
-  mealHeader: {
+  mealTab: {
     alignItems: "center",
     flexDirection: "row",
     gap: tokens.spacing.md,
     justifyContent: "space-between",
+    minHeight: 44,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+  },
+  mealContent: {
+    borderTopWidth: 1,
+    gap: tokens.spacing.sm,
+    padding: tokens.spacing.md,
+  },
+  mealDetails: {
+    gap: tokens.spacing.sm,
+  },
+  mealTabMain: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  mealTabEnd: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+  },
+  mealTabNutrition: {
+    fontSize: 10,
+    fontVariant: ["tabular-nums"],
+    lineHeight: 14,
   },
   mealTitle: {
-    flex: 1,
     fontSize: tokens.typography.body.fontSize,
     fontWeight: "700",
     lineHeight: tokens.typography.body.lineHeight,
@@ -576,20 +667,10 @@ const styles = StyleSheet.create({
     fontSize: tokens.typography.label.fontSize,
     lineHeight: tokens.typography.label.lineHeight,
   },
-  mealMeta: {
-    alignItems: "flex-end",
-    gap: 2,
-  },
   mealStatus: {
     fontSize: 10,
     fontWeight: "700",
     lineHeight: 12,
-  },
-  mealTotals: {
-    fontSize: tokens.typography.label.fontSize,
-    fontVariant: ["tabular-nums"],
-    lineHeight: tokens.typography.label.lineHeight,
-    paddingTop: tokens.spacing.xs,
   },
   foodList: {
     gap: tokens.spacing.sm,
@@ -612,6 +693,13 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontVariant: ["tabular-nums"],
     lineHeight: 14,
+  },
+  editMealButton: {
+    alignItems: "center",
+    alignSelf: "flex-end",
+    justifyContent: "center",
+    minHeight: 44,
+    minWidth: 72,
   },
   summary: {
     borderRadius: tokens.radius.lg,

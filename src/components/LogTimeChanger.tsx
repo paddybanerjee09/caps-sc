@@ -20,14 +20,12 @@ import { PressOpacity } from "./PressOpacity";
 const tokens = themes.dark;
 
 type LogTimeChangerProps = {
-  allowDateChange?: boolean;
   maximumDate?: Date;
   onChange: (date: Date) => void;
   value: Date;
 };
 
 export function LogTimeChanger({
-  allowDateChange = false,
   maximumDate,
   onChange,
   value,
@@ -44,11 +42,7 @@ export function LogTimeChanger({
     setDraftTime(initialTime);
 
     if (Platform.OS === "android") {
-      if (allowDateChange) {
-        openAndroidDatePicker(initialTime);
-      } else {
-        openAndroidTimePicker(initialTime);
-      }
+      openAndroidTimePicker(initialTime);
       return;
     }
 
@@ -57,28 +51,6 @@ export function LogTimeChanger({
 
   function closePicker() {
     setPickerOpen(false);
-  }
-
-  function openAndroidDatePicker(initialDate: Date) {
-    DateTimePickerAndroid.open({
-      maximumDate,
-      mode: "date",
-      onChange: (event, selectedDate) => {
-        if (event.type === "dismissed" || !selectedDate) {
-          return;
-        }
-
-        const updatedDate = new Date(initialDate);
-        updatedDate.setFullYear(
-          selectedDate.getFullYear(),
-          selectedDate.getMonth(),
-          selectedDate.getDate(),
-        );
-        draftTimeRef.current = updatedDate;
-        openAndroidTimePicker(updatedDate);
-      },
-      value: initialDate,
-    });
   }
 
   function openAndroidTimePicker(initialDate: Date) {
@@ -96,13 +68,6 @@ export function LogTimeChanger({
     }
 
     const updatedDate = new Date(draftTimeRef.current);
-    if (allowDateChange && Platform.OS === "ios") {
-      updatedDate.setFullYear(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-      );
-    }
     updatedDate.setHours(
       selectedDate.getHours(),
       selectedDate.getMinutes(),
@@ -157,7 +122,7 @@ export function LogTimeChanger({
           />
 
           <Text style={[styles.time, { color: theme.colors.text }]}>
-            {allowDateChange ? formatDateTime(value) : formatTime(value)}
+            {formatTime(value)}
           </Text>
         </View>
       </PressOpacity>
@@ -184,7 +149,7 @@ export function LogTimeChanger({
               ]}
             >
               <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                {allowDateChange ? "Log date and time" : "Log time"}
+                Log time
               </Text>
 
               <View style={styles.pickerFrame}>
@@ -192,12 +157,9 @@ export function LogTimeChanger({
                   <DateTimePicker
                     display="spinner"
                     maximumDate={maximumDate}
-                    mode={allowDateChange ? "datetime" : "time"}
+                    mode="time"
                     onChange={changeTime}
-                    style={[
-                      styles.picker,
-                      allowDateChange && styles.dateTimePicker,
-                    ]}
+                    style={styles.picker}
                     textColor={theme.colors.text}
                     themeVariant={colorScheme}
                     value={draftTime}
@@ -232,15 +194,6 @@ export function LogTimeChanger({
 
 function formatTime(date: Date) {
   return date.toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function formatDateTime(date: Date) {
-  return date.toLocaleString([], {
-    month: "short",
-    day: "numeric",
     hour: "numeric",
     minute: "2-digit",
   });
@@ -305,15 +258,12 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.75 }],
     width: 240,
   },
-  dateTimePicker: {
-    width: 320,
-  },
   pickerFrame: {
     alignItems: "center",
     height: 135,
     justifyContent: "center",
     overflow: "hidden",
-    width: 240,
+    width: 180,
   },
   modalActions: {
     flexDirection: "row",

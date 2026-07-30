@@ -424,6 +424,7 @@ export function HomeScreen() {
       <MealLogModal
         onClose={() => setMealModalOpen(false)}
         onSaved={handleLoggedEntrySaved}
+        selectedDate={selectedDate}
         visible={mealModalOpen}
       />
 
