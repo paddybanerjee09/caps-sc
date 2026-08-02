@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useSQLiteContext } from "expo-sqlite";
 import {
   Modal,
   ScrollView,
@@ -8,9 +9,11 @@ import {
   View,
 } from "react-native";
 
+import { ConditioningBaselinesModal } from "../components/ConditioningBaselinesModal";
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
 import { WeightLogModal } from "../components/WeightLogModal";
+import { getAthleteConditioningBaselines } from "../data/conditioningRepository";
 import {
   useAppState,
   type CombatSport,
@@ -18,10 +21,11 @@ import {
 } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
+import type { AthleteConditioningBaselines } from "../types/conditioning";
 import { formatWeight } from "../utils/weight";
 
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const tokens = themes.dark;
 const centimetersPerInch = 2.54;
@@ -43,6 +47,7 @@ const sportOptions: CombatSport[] = [
 ];
 
 export function AthleteInfoScreen() {
+  const db = useSQLiteContext();
   const { colorScheme, theme } = useAppTheme();
   const { athleteProfile, setAthleteProfile, unitSettings } = useAppState();
 
@@ -62,6 +67,40 @@ export function AthleteInfoScreen() {
   const [sportsPickerOpen, setSportsPickerOpen] = useState(false);
   const [sportSearch, setSportSearch] = useState("");
   const [weightModalOpen, setWeightModalOpen] = useState(false);
+  const [conditioningBaselinesModalOpen, setConditioningBaselinesModalOpen] =
+    useState(false);
+  const [conditioningBaselines, setConditioningBaselines] =
+    useState<AthleteConditioningBaselines | null>(null);
+  const [conditioningBaselinesLoading, setConditioningBaselinesLoading] =
+    useState(true);
+
+  useEffect(() => {
+    let ignoreResult = false;
+
+    async function loadConditioningBaselines() {
+      try {
+        const savedBaselines = await getAthleteConditioningBaselines(db);
+
+        if (!ignoreResult) {
+          setConditioningBaselines(savedBaselines);
+        }
+      } catch {
+        if (!ignoreResult) {
+          setConditioningBaselines(null);
+        }
+      } finally {
+        if (!ignoreResult) {
+          setConditioningBaselinesLoading(false);
+        }
+      }
+    }
+
+    void loadConditioningBaselines();
+
+    return () => {
+      ignoreResult = true;
+    };
+  }, [db]);
 
   function openDatePicker() {
     setDraftDate(dateOfBirth ?? new Date());
@@ -137,6 +176,9 @@ export function AthleteInfoScreen() {
   );
   const heightText = formatHeight(athleteProfile.heightCm, unitSettings.height);
   const sportsText = formatSports(athleteProfile.sports);
+  const conditioningBaselinesText = conditioningBaselinesLoading
+    ? "Loading…"
+    : formatConditioningBaselines(conditioningBaselines);
   const filteredSportOptions = sportOptions.filter((sport) =>
     sport.toLowerCase().includes(sportSearch.trim().toLowerCase()),
   );
@@ -160,6 +202,12 @@ export function AthleteInfoScreen() {
       <InfoRow label="Height" value={heightText} onPress={openHeightPicker} />
 
       <InfoRow label="Sports" value={sportsText} onPress={openSportsPicker} />
+
+      <InfoRow
+        label="Conditioning baselines"
+        onPress={() => setConditioningBaselinesModalOpen(true)}
+        value={conditioningBaselinesText}
+      />
 
       <Modal
         animationType="fade"
@@ -478,6 +526,12 @@ export function AthleteInfoScreen() {
         onClose={() => setWeightModalOpen(false)}
         visible={weightModalOpen}
       />
+
+      <ConditioningBaselinesModal
+        onClose={() => setConditioningBaselinesModalOpen(false)}
+        onSaved={setConditioningBaselines}
+        visible={conditioningBaselinesModalOpen}
+      />
     </Screen>
   );
 }
@@ -563,6 +617,22 @@ function formatSports(athleteSports: CombatSport[]) {
 
   const displayedSports = athleteSports.slice(0, 3).join(", ");
   return athleteSports.length > 3 ? `${displayedSports}, ...` : displayedSports;
+}
+
+function formatConditioningBaselines(
+  baselines: AthleteConditioningBaselines | null,
+) {
+  if (baselines === null) {
+    return "Unavailable";
+  }
+
+  const selectedCount = [
+    baselines.maximumHeartRateBpm,
+    baselines.thresholdPaceSecondsPerKm,
+    baselines.maximumAerobicSpeedKph,
+  ].filter((value) => value !== null).length;
+
+  return selectedCount === 0 ? "Not selected" : `${selectedCount} of 3 set`;
 }
 
 const styles = StyleSheet.create({
