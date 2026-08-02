@@ -184,7 +184,7 @@ export type NewConditioningLog = Omit<
 > & {
   sourceTemplateId: number | null;
   startAt: number;
-  intensity: SnapshottedConditioningIntensity;
+  intensity: ConditioningIntensityInput;
 };
 
 export type ConditioningProtocolMetrics = {
@@ -243,4 +243,44 @@ export type ConditioningScoringInput = {
   activity: ConditioningActivity;
   protocol: ConditioningProtocol;
   intensity: SnapshottedConditioningIntensity;
+};
+
+export type ScoredConditioningResult = Extract<
+  ConditioningScoreResult,
+  { status: "scored" }
+>;
+
+export type LoggedConditioningSessionResult = {
+  timelineEntryId: number;
+  startAt: number;
+  endAt: number;
+  score: ScoredConditioningResult;
+};
+
+export type ConditioningCalendarRecord = {
+  timelineEntryId: number;
+  title: string;
+  startAt: number;
+  endAt: number;
+  activity: ConditioningActivity;
+  protocolType: ConditioningProtocolType;
+  primaryAdaptation: ConditioningAdaptationKey;
+  evidence: "full" | "limited";
+};
+
+export type StoredConditioningSession = {
+  timelineEntryId: number;
+  sourceTemplateId: number | null;
+  title: string;
+  startAt: number;
+  endAt: number;
+  status: "completed";
+  notes: string | null;
+  createdAt: number;
+  updatedAt: number;
+  activity: ConditioningActivity;
+  protocol: ConditioningProtocol;
+  intensity: SnapshottedConditioningIntensity;
+  metrics: ConditioningProtocolMetrics;
+  score: ScoredConditioningResult;
 };
