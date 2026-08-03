@@ -380,7 +380,7 @@ export async function getLatestWeightKg(db: SQLiteDatabase) {
 }
 
 function convertTimelineEntryRow(row: TimelineEntryRow): TimelineDisplayEntry {
-  const conditioning =
+  const conditioning: TimelineConditioningMetadata | null =
     row.kind === "conditioning" &&
     isConditioningAdaptationKey(row.conditioning_primary_adaptation) &&
     (row.conditioning_evidence_level === "full" ||
