@@ -1,5 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
+import type { ConditioningAdaptationKey } from "../types/conditioning";
+
 export type TimelineKind =
   | "skill"
   | "strength"
@@ -33,6 +35,15 @@ export type TimelineEntry = {
   weightKg: number | null;
 };
 
+export type TimelineConditioningMetadata = {
+  primaryAdaptation: ConditioningAdaptationKey;
+  evidence: "full" | "limited";
+};
+
+export type TimelineDisplayEntry = TimelineEntry & {
+  conditioning: TimelineConditioningMetadata | null;
+};
+
 type TimelineEntryRow = {
   id: number;
   kind: TimelineKind;
@@ -45,6 +56,8 @@ type TimelineEntryRow = {
   updated_at: number;
 
   weight_kg: number | null;
+  conditioning_primary_adaptation: string | null;
+  conditioning_evidence_level: string | null;
 };
 
 type LatestWeightRow = {
@@ -311,14 +324,20 @@ export async function getTimelineEntriesForDay(
   db: SQLiteDatabase,
   dayStart: number,
   dayEnd: number,
-) {
+): Promise<TimelineDisplayEntry[]> {
   const rows = await db.getAllAsync<TimelineEntryRow>(
     `SELECT
            timeline_entries.*,
-           weight_logs.weight_kg
+           weight_logs.weight_kg,
+           conditioning_adaptation_scores.primary_adaptation
+             AS conditioning_primary_adaptation,
+           conditioning_adaptation_scores.evidence_level
+             AS conditioning_evidence_level
          FROM timeline_entries
          LEFT JOIN weight_logs
            ON weight_logs.timeline_entry_id = timeline_entries.id
+         LEFT JOIN conditioning_adaptation_scores
+           ON conditioning_adaptation_scores.timeline_entry_id = timeline_entries.id
          WHERE timeline_entries.start_at < $dayEnd
            AND (
              (
@@ -360,7 +379,18 @@ export async function getLatestWeightKg(db: SQLiteDatabase) {
   return row?.weight_kg ?? null;
 }
 
-function convertTimelineEntryRow(row: TimelineEntryRow): TimelineEntry {
+function convertTimelineEntryRow(row: TimelineEntryRow): TimelineDisplayEntry {
+  const conditioning =
+    row.kind === "conditioning" &&
+    isConditioningAdaptationKey(row.conditioning_primary_adaptation) &&
+    (row.conditioning_evidence_level === "full" ||
+      row.conditioning_evidence_level === "limited")
+      ? {
+          evidence: row.conditioning_evidence_level,
+          primaryAdaptation: row.conditioning_primary_adaptation,
+        }
+      : null;
+
   return {
     id: row.id,
     kind: row.kind,
@@ -375,6 +405,7 @@ function convertTimelineEntryRow(row: TimelineEntryRow): TimelineEntry {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     weightKg: row.weight_kg,
+    conditioning,
   };
 }
 
@@ -394,13 +425,13 @@ async function getVirtualSleepEntriesForDay(
   db: SQLiteDatabase,
   dayStart: number,
   dayEnd: number,
-  concreteEntries: TimelineEntry[],
+  concreteEntries: TimelineDisplayEntry[],
 ) {
   const firstWakeDate = new Date(dayStart);
   const secondWakeDate = new Date(firstWakeDate);
   secondWakeDate.setDate(secondWakeDate.getDate() + 1);
 
-  const virtualEntries: TimelineEntry[] = [];
+  const virtualEntries: TimelineDisplayEntry[] = [];
 
   for (const wakeDate of [firstWakeDate, secondWakeDate]) {
     const schedule = await getSleepScheduleForWakeDate(db, wakeDate);
@@ -442,10 +473,25 @@ async function getVirtualSleepEntriesForDay(
       createdAt: schedule.createdAt,
       updatedAt: schedule.updatedAt,
       weightKg: null,
+      conditioning: null,
     });
   }
 
   return virtualEntries;
+}
+
+function isConditioningAdaptationKey(
+  value: string | null,
+): value is ConditioningAdaptationKey {
+  return (
+    value === "aerobic_base" ||
+    value === "aerobic_power" ||
+    value === "alactic_power" ||
+    value === "alactic_capacity" ||
+    value === "lactic_power" ||
+    value === "lactic_capacity" ||
+    value === "recovery"
+  );
 }
 
 function getScheduledSleepBounds(

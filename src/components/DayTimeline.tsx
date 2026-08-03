@@ -16,8 +16,9 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 
+import { conditioningAdaptations } from "../constants/conditioning";
 import { timelineCategories } from "../constants/timelineCategories";
-import type { TimelineEntry } from "../data/timelineRepository";
+import type { TimelineDisplayEntry } from "../data/timelineRepository";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 import { PressOpacity } from "./PressOpacity";
@@ -49,18 +50,19 @@ const labeledHours = Array.from(
 type DayTimelineProps = {
   dayStart: Date;
   dayEnd: Date;
-  entries: TimelineEntry[];
+  entries: TimelineDisplayEntry[];
   loading: boolean;
   error: string | null;
   onRetry: () => void;
-  onWeightEntryPress?: (entry: TimelineEntry) => void;
+  onEntryPress?: (entry: TimelineDisplayEntry) => void;
+  isEntryPressable?: (entry: TimelineDisplayEntry) => boolean;
 };
 
 type TimelineLayoutEvent = {
   accessibilityLabel: string;
   badgeLeft: number;
   badgeWidth: number;
-  entry: TimelineEntry;
+  entry: TimelineDisplayEntry;
   track: number;
   trueLeft: number;
   trueWidth: number;
@@ -73,7 +75,8 @@ export function DayTimeline({
   loading,
   error,
   onRetry,
-  onWeightEntryPress,
+  onEntryPress,
+  isEntryPressable,
 }: DayTimelineProps) {
   const { theme } = useAppTheme();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -252,8 +255,9 @@ export function DayTimeline({
             layoutEvents.map((layoutEvent) => (
               <TimelineEventBar
                 event={layoutEvent}
+                isEntryPressable={isEntryPressable}
                 key={layoutEvent.entry.id}
-                onWeightEntryPress={onWeightEntryPress}
+                onEntryPress={onEntryPress}
               />
             ))}
         </View>
@@ -318,14 +322,17 @@ export function DayTimeline({
 
 type TimelineEventBarProps = {
   event: TimelineLayoutEvent;
-  onWeightEntryPress?: (entry: TimelineEntry) => void;
+  isEntryPressable?: (entry: TimelineDisplayEntry) => boolean;
+  onEntryPress?: (entry: TimelineDisplayEntry) => void;
 };
 
 function TimelineEventBar({
   event,
-  onWeightEntryPress,
+  isEntryPressable,
+  onEntryPress,
 }: TimelineEventBarProps) {
   const category = timelineCategories[event.entry.kind];
+  const presentation = getTimelineEntryPresentation(event.entry);
   const eventLabel = getTimelineEntryLabel(event.entry);
   const top =
     HOUR_HEADER_HEIGHT +
@@ -333,15 +340,13 @@ function TimelineEventBar({
     event.track *
       (EVENT_HEIGHT + EVENT_FOOTPRINT_HEIGHT + EVENT_TRACK_GAP);
   const handlePress =
-    event.entry.kind === "weight" &&
-    event.entry.weightKg !== null &&
-    onWeightEntryPress
-      ? () => onWeightEntryPress(event.entry)
+    onEntryPress && (isEntryPressable?.(event.entry) ?? true)
+      ? () => onEntryPress(event.entry)
       : undefined;
   const badgeStyle = [
     styles.eventBadge,
     {
-      backgroundColor: category.color,
+      backgroundColor: presentation.color,
       left: event.badgeLeft,
       top,
       width: event.badgeWidth,
@@ -351,7 +356,7 @@ function TimelineEventBar({
     <>
       {category.iconSet === "materialCommunity" ? (
         <MaterialCommunityIcons
-          color={category.contentColor}
+          color={presentation.contentColor}
           name={
             category.icon as ComponentProps<
               typeof MaterialCommunityIcons
@@ -361,7 +366,7 @@ function TimelineEventBar({
         />
       ) : (
         <Ionicons
-          color={category.contentColor}
+          color={presentation.contentColor}
           name={category.icon as ComponentProps<typeof Ionicons>["name"]}
           size={15}
         />
@@ -369,7 +374,7 @@ function TimelineEventBar({
 
       <Text
         numberOfLines={2}
-        style={[styles.eventLabel, { color: category.contentColor }]}
+        style={[styles.eventLabel, { color: presentation.contentColor }]}
       >
         {eventLabel}
       </Text>
@@ -383,7 +388,7 @@ function TimelineEventBar({
         style={[
           styles.eventFootprint,
           {
-            backgroundColor: category.color,
+            backgroundColor: presentation.color,
             left: event.trueLeft,
             top: top + EVENT_HEIGHT,
             width: event.trueWidth,
@@ -414,7 +419,7 @@ function TimelineEventBar({
         style={[
           styles.eventStartPin,
           {
-            backgroundColor: category.contentColor,
+            backgroundColor: presentation.contentColor,
             left: event.trueLeft,
             top,
           },
@@ -425,7 +430,7 @@ function TimelineEventBar({
 }
 
 function createTimelineLayout(
-  entries: TimelineEntry[],
+  entries: TimelineDisplayEntry[],
   dayStart: number,
   dayEnd: number,
   hourWidth: number,
@@ -477,7 +482,7 @@ function createTimelineLayout(
 }
 
 function createLayoutEvent(
-  entry: TimelineEntry,
+  entry: TimelineDisplayEntry,
   dayStart: number,
   dayEnd: number,
   hourWidth: number,
@@ -542,26 +547,37 @@ function getWallMinutes(timestamp: number, dayStart: number, dayEnd: number) {
   );
 }
 
-function formatAccessibilityLabel(entry: TimelineEntry) {
+function formatAccessibilityLabel(entry: TimelineDisplayEntry) {
   const category = timelineCategories[entry.kind];
   const entryLabel = getTimelineEntryLabel(entry);
   const accessibleLabel =
-    entry.kind === "meal"
+    entry.kind === "meal" || entry.kind === "conditioning"
       ? `${category.label}, ${entryLabel}`
       : category.label;
+  const adaptationLabel = entry.conditioning
+    ? `, ${conditioningAdaptations[entry.conditioning.primaryAdaptation].label}`
+    : "";
   const startTime = formatTime(entry.startAt);
 
   if (entry.endAt === null) {
-    return `${accessibleLabel}, logged at ${startTime}.`;
+    return `${accessibleLabel}${adaptationLabel}, logged at ${startTime}.`;
   }
 
-  return `${accessibleLabel}, ${startTime} to ${formatTime(entry.endAt)}.`;
+  return `${accessibleLabel}${adaptationLabel}, ${startTime} to ${formatTime(entry.endAt)}.`;
 }
 
-function getTimelineEntryLabel(entry: TimelineEntry) {
-  return entry.kind === "meal"
+function getTimelineEntryLabel(entry: TimelineDisplayEntry) {
+  return entry.kind === "meal" || entry.kind === "conditioning"
     ? entry.title
     : timelineCategories[entry.kind].label;
+}
+
+function getTimelineEntryPresentation(entry: TimelineDisplayEntry) {
+  if (entry.conditioning !== null) {
+    return conditioningAdaptations[entry.conditioning.primaryAdaptation];
+  }
+
+  return timelineCategories[entry.kind];
 }
 
 function formatTime(timestamp: number) {

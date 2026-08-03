@@ -13,6 +13,7 @@ import { useSQLiteContext } from "expo-sqlite"; // Database imports
 
 import {
   getTimelineEntriesForDay,
+  type TimelineDisplayEntry,
   type TimelineEntry,
   type TimelineKind,
 } from "../data/timelineRepository";
@@ -78,7 +79,9 @@ export function HomeScreen() {
   const db = useSQLiteContext();
 
   const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([]);
+  const [timelineEntries, setTimelineEntries] = useState<
+    TimelineDisplayEntry[]
+  >([]);
   const [timelineLoading, setTimelineLoading] = useState(true);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [mealModalOpen, setMealModalOpen] = useState(false);
@@ -152,7 +155,7 @@ export function HomeScreen() {
     setWeightModalOpen(true);
   }
 
-  function openWeightLog(entry: TimelineEntry) {
+  function openWeightLog(entry: TimelineDisplayEntry) {
     if (entry.kind !== "weight" || entry.weightKg === null) {
       return;
     }
@@ -393,8 +396,11 @@ export function HomeScreen() {
               dayStart={dayStart}
               entries={timelineEntries}
               error={timelineError}
+              isEntryPressable={(entry) =>
+                entry.kind === "weight" && entry.weightKg !== null
+              }
               loading={timelineLoading}
-              onWeightEntryPress={openWeightLog}
+              onEntryPress={openWeightLog}
               onRetry={loadSelectedDateEntries}
             />
           </>
