@@ -12,18 +12,54 @@ export const appColorPalette = {
 } as const;
 
 export const tertiaryColorOptions = [
-  { hex: appColorPalette.red, key: "red", label: "Red" },
-  { hex: appColorPalette.blue, key: "blue", label: "Blue" },
-  { hex: appColorPalette.green, key: "green", label: "Green" },
-  { hex: appColorPalette.purple, key: "purple", label: "Purple" },
   {
+    content: "#FFFFFF",
+    hex: appColorPalette.red,
+    key: "red",
+    label: "Red",
+  },
+  {
+    content: "#FFFFFF",
+    hex: appColorPalette.blue,
+    key: "blue",
+    label: "Blue",
+  },
+  {
+    content: "#111214",
+    hex: appColorPalette.green,
+    key: "green",
+    label: "Green",
+  },
+  {
+    content: "#FFFFFF",
+    hex: appColorPalette.purple,
+    key: "purple",
+    label: "Purple",
+  },
+  {
+    content: "#111214",
     hex: appColorPalette.turquoise,
     key: "turquoise",
     label: "Turquoise",
   },
-  { hex: appColorPalette.yellow, key: "yellow", label: "Yellow" },
-  { hex: appColorPalette.orange, key: "orange", label: "Orange" },
-  { hex: appColorPalette.pink, key: "pink", label: "Pink" },
+  {
+    content: "#111214",
+    hex: appColorPalette.yellow,
+    key: "yellow",
+    label: "Yellow",
+  },
+  {
+    content: "#111214",
+    hex: appColorPalette.orange,
+    key: "orange",
+    label: "Orange",
+  },
+  {
+    content: "#111214",
+    hex: appColorPalette.pink,
+    key: "pink",
+    label: "Pink",
+  },
 ] as const;
 
 export type TertiaryColor = (typeof tertiaryColorOptions)[number]["key"];
@@ -86,6 +122,7 @@ export const themes = {
       accent: "#F4F4F5",
       accentMuted: "rgba(244, 244, 245, 0.14)",
       tertiary: appColorPalette.red,
+      tertiaryContent: "#FFFFFF",
       switchTrackOff: "#2A2B2F",
       switchTrackOn: appColorPalette.red,
       switchThumb: "#FFFFFF",
@@ -105,6 +142,7 @@ export const themes = {
       accent: "#111214",
       accentMuted: "rgba(17, 18, 20, 0.1)",
       tertiary: appColorPalette.red,
+      tertiaryContent: "#FFFFFF",
       switchTrackOff: "#D7D9DB",
       switchTrackOn: appColorPalette.red,
       switchThumb: "#FFFFFF",
@@ -128,6 +166,7 @@ export function createAppTheme(
       ...baseTheme.colors,
       switchTrackOn: selectedColor.hex,
       tertiary: selectedColor.hex,
+      tertiaryContent: selectedColor.content,
     },
   };
 }
