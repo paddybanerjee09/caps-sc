@@ -3,6 +3,8 @@ import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
 import Ionicons from "@expo/vector-icons/Ionicons"; // Style Imports
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { ConditioningLogModal } from "../components/ConditioningLogModal";
+import { ConditioningSessionDetailModal } from "../components/ConditioningSessionDetailModal";
 import { DayTimeline } from "../components/DayTimeline";
 import { MealLogModal } from "../components/MealLogModal";
 import { PressOpacity } from "../components/PressOpacity";
@@ -87,6 +89,10 @@ export function HomeScreen() {
   const [mealModalOpen, setMealModalOpen] = useState(false);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
+  const [conditioningModalOpen, setConditioningModalOpen] = useState(false);
+  const [conditioningDetailId, setConditioningDetailId] = useState<
+    number | null
+  >(null);
   const [selectedWeightEntry, setSelectedWeightEntry] =
     useState<TimelineEntry | null>(null);
   const timelineRequestId = useRef(0);
@@ -162,6 +168,24 @@ export function HomeScreen() {
 
     setSelectedWeightEntry(entry);
     setWeightModalOpen(true);
+  }
+
+  function openTimelineEntry(entry: TimelineDisplayEntry) {
+    if (entry.kind === "weight") {
+      openWeightLog(entry);
+      return;
+    }
+
+    if (entry.kind === "conditioning" && entry.conditioning !== null) {
+      setConditioningDetailId(entry.id);
+    }
+  }
+
+  function isTimelineEntryPressable(entry: TimelineDisplayEntry) {
+    return (
+      (entry.kind === "weight" && entry.weightKg !== null) ||
+      (entry.kind === "conditioning" && entry.conditioning !== null)
+    );
   }
 
   function closeWeightModal() {
@@ -281,6 +305,8 @@ export function HomeScreen() {
                 onPress={
                   kind === "weight"
                     ? openNewWeightLog
+                    : kind === "conditioning"
+                      ? () => setConditioningModalOpen(true)
                     : kind === "meal"
                       ? () => setMealModalOpen(true)
                     : kind === "sleep"
@@ -396,11 +422,9 @@ export function HomeScreen() {
               dayStart={dayStart}
               entries={timelineEntries}
               error={timelineError}
-              isEntryPressable={(entry) =>
-                entry.kind === "weight" && entry.weightKg !== null
-              }
+              isEntryPressable={isTimelineEntryPressable}
               loading={timelineLoading}
-              onEntryPress={openWeightLog}
+              onEntryPress={openTimelineEntry}
               onRetry={loadSelectedDateEntries}
             />
           </>
@@ -439,6 +463,21 @@ export function HomeScreen() {
         onSaved={loadSelectedDateEntries}
         visible={sleepModalOpen}
         wakeDate={selectedDate}
+      />
+
+      <ConditioningLogModal
+        onClose={() => setConditioningModalOpen(false)}
+        onSaved={async (result) => {
+          await handleLoggedEntrySaved(result.startAt);
+        }}
+        selectedDate={selectedDate}
+        visible={conditioningModalOpen}
+      />
+
+      <ConditioningSessionDetailModal
+        onClose={() => setConditioningDetailId(null)}
+        timelineEntryId={conditioningDetailId}
+        visible={conditioningDetailId !== null}
       />
     </Screen>
   );
