@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 5;
+const DATABASE_VERSION = 6;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -829,6 +829,19 @@ export async function migrateDatabase(db: SQLiteDatabase) {
         );
       `);
     });
+  }
+
+  if (currentVersion < 6) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS athlete_preferences (
+        id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+        distance_unit TEXT NOT NULL DEFAULT 'metric'
+          CHECK (distance_unit IN ('metric', 'imperial'))
+      );
+
+      INSERT OR IGNORE INTO athlete_preferences (id, distance_unit)
+      VALUES (1, 'metric');
+    `);
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

@@ -10,6 +10,10 @@ import {
 import { useSQLiteContext } from "expo-sqlite";
 
 import {
+  getDistanceUnit,
+  saveDistanceUnit,
+} from "../data/athletePreferencesRepository";
+import {
   addWeightLog,
   deleteWeightLog as deleteStoredWeightLog,
   getLatestWeightKg,
@@ -40,6 +44,7 @@ export type AthleteProfile = {
 export type UnitSystem = "metric" | "imperial";
 
 type UnitSettings = {
+  distance: UnitSystem;
   height: UnitSystem;
   weight: UnitSystem;
 };
@@ -52,6 +57,7 @@ type AppStateContextValue = {
   username: string;
   setUsername: (username: string) => void;
   unitSettings: UnitSettings;
+  setDistanceUnit: (unit: UnitSystem) => Promise<void>;
   setHeightUnit: (unit: UnitSystem) => void;
   setWeightUnit: (unit: UnitSystem) => void;
   updateWeightLog: (
@@ -81,6 +87,7 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
   const [athleteProfile, setAthleteProfile] = useState(defaultAthleteProfile);
   const [username, setUsername] = useState("Paddy");
   const [unitSettings, setUnitSettings] = useState<UnitSettings>({
+    distance: "metric",
     height: "metric",
     weight: "metric",
   });
@@ -97,6 +104,28 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
   useEffect(() => {
     void refreshLatestWeight();
   }, [refreshLatestWeight]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    void getDistanceUnit(db).then((distance) => {
+      if (isActive) {
+        setUnitSettings((current) => ({ ...current, distance }));
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [db]);
+
+  const setDistanceUnit = useCallback(
+    async (unit: UnitSystem) => {
+      await saveDistanceUnit(db, unit);
+      setUnitSettings((current) => ({ ...current, distance: unit }));
+    },
+    [db],
+  );
 
   const logWeight = useCallback(
     async (weightKg: number, loggedAt = Date.now()) => {
@@ -131,6 +160,7 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
       username,
       setUsername,
       unitSettings,
+      setDistanceUnit,
       setHeightUnit: (unit: UnitSystem) =>
         setUnitSettings((current) => ({ ...current, height: unit })),
       setWeightUnit: (unit: UnitSystem) =>
@@ -141,6 +171,7 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
       athleteProfile,
       deleteWeightLog,
       logWeight,
+      setDistanceUnit,
       unitSettings,
       updateWeightLog,
       username,

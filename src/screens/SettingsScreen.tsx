@@ -30,8 +30,8 @@ export function SettingsScreen() {
     tertiaryColor,
     theme,
   } = useAppTheme();
-  const { setHeightUnit, setWeightUnit, unitSettings } = useAppState();
-  const [distanceInMiles, setDistanceInMiles] = useState(false);
+  const { setDistanceUnit, setHeightUnit, setWeightUnit, unitSettings } =
+    useAppState();
   const [weighInReminders, setWeighInReminders] = useState(false);
   const [trainingReminders, setTrainingReminders] = useState(false);
   const [hydrationReminders, setHydrationReminders] = useState(false);
@@ -83,9 +83,11 @@ export function SettingsScreen() {
           control={
             <OptionSelector
               leftLabel="km"
-              onValueChange={setDistanceInMiles}
+              onValueChange={(isImperial) => {
+                void setDistanceUnit(isImperial ? "imperial" : "metric");
+              }}
               rightLabel="mi"
-              value={distanceInMiles}
+              value={unitSettings.distance === "imperial"}
             />
           }
         />
