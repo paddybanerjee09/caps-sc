@@ -156,6 +156,26 @@ describe("ConditioningSessionForm", () => {
     expect(result.queryByLabelText("Type, Continuous")).toBeNull();
   });
 
+  test("shows dedicated hill sprint fields and locks assault bike to intervals", async () => {
+    const result = await render(<Harness />);
+
+    await fireEvent.press(result.getByLabelText("Activity, Running"));
+    await fireEvent.press(result.getByLabelText("Hill Sprints"));
+
+    expect(result.queryByLabelText(/Type,/)).toBeNull();
+    expect(result.getByLabelText("Distance")).toBeTruthy();
+    expect(result.getByLabelText("Elevation gain")).toBeTruthy();
+    expect(result.getByLabelText("Intensity (RPE)")).toBeTruthy();
+    expect(result.getByLabelText("Repetitions")).toBeTruthy();
+    expect(result.getByLabelText("Rest between reps, 00:00")).toBeTruthy();
+    expect(result.getAllByText("m")).toHaveLength(2);
+
+    await fireEvent.press(result.getByLabelText("Activity, Hill Sprints"));
+    await fireEvent.press(result.getByLabelText("Assault Bike"));
+    expect(result.getByLabelText("Type, Intervals")).toBeTruthy();
+    expect(result.queryByLabelText("Type, Continuous")).toBeNull();
+  });
+
   test("reorders Circuit stations and serializes their new positions", async () => {
     const initialDraft = createDefaultConditioningSessionFormDraft("metric");
     initialDraft.activity = "circuit";

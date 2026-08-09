@@ -55,7 +55,7 @@ describe("getConditioningProtocolSummary", () => {
     };
 
     expect(getConditioningProtocolSummary(protocol, "imperial")).toBe(
-      "Intervals · Distance work: 1 mi per interval · 2 intervals × 1 round · rests: 30s between intervals, 0s between rounds",
+      "Intervals · Distance work: 5280 ft per interval · 2 intervals × 1 round · rests: 30s between intervals, 0s between rounds",
     );
   });
 
@@ -76,7 +76,7 @@ describe("getConditioningProtocolSummary", () => {
     };
 
     expect(getConditioningProtocolSummary(protocol, "metric")).toBe(
-      "Intervals · Distance work: 0.4 km per interval · 3 intervals × 2 rounds · rests: 15s between intervals, 1m between rounds",
+      "Intervals · Distance work: 400 m per interval · 3 intervals × 2 rounds · rests: 15s between intervals, 1m between rounds",
     );
   });
 });

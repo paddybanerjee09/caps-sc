@@ -85,7 +85,7 @@ describe("CreateConditioningSessionModal", () => {
       "30",
     );
     await fireEvent.press(result.getByText("Done"));
-    expect(result.getByLabelText("Work duration, 00:00:30")).toBeTruthy();
+    expect(result.getByLabelText("Work duration, 00:30")).toBeTruthy();
 
     await fireEvent.press(result.getByText("Create"));
     await waitFor(() => expect(mockCreateTemplate).toHaveBeenCalledTimes(1));

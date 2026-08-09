@@ -29,6 +29,7 @@ import type {
 import {
   formatDistanceInput,
   getDistanceUnitLabel,
+  getShortDistanceUnitLabel,
   type ConditioningDistanceUnit,
 } from "../utils/conditioningMeasurements";
 import { ConditioningAdaptationModal } from "./ConditioningAdaptationModal";
@@ -554,7 +555,20 @@ function ProtocolDetails({
             label="Distance per interval"
             mutedColor={mutedColor}
             textColor={textColor}
-            value={formatDistance(protocol.work.distanceMeters, distanceUnit)}
+            value={formatShortDistance(protocol.work.distanceMeters, distanceUnit)}
+          />
+        ) : null}
+        {protocol.work.mode === "distance" &&
+        protocol.work.provenance === "distance-only" &&
+        protocol.work.elevationGainMeters !== undefined ? (
+          <DetailRow
+            label="Elevation gain"
+            mutedColor={mutedColor}
+            textColor={textColor}
+            value={formatShortDistance(
+              protocol.work.elevationGainMeters,
+              distanceUnit,
+            )}
           />
         ) : null}
         {protocol.work.mode === "time" ? (
@@ -820,6 +834,10 @@ function formatDistance(
   distanceUnit: ConditioningDistanceUnit,
 ) {
   return `${formatDistanceInput(meters, distanceUnit)} ${getDistanceUnitLabel(distanceUnit)}`;
+}
+
+function formatShortDistance(metres: number, unit: ConditioningDistanceUnit) {
+  return `${formatDistanceInput(metres, unit, "short")} ${getShortDistanceUnitLabel(unit)}`;
 }
 
 function formatPace(secondsPerKm: number) {

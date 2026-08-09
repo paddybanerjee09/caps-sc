@@ -33,7 +33,7 @@ function createMigrationHarness(userVersion: number) {
 }
 
 describe("conditioning database migrations", () => {
-  test("builds a fresh schema through version 8", async () => {
+  test("builds a fresh schema through version 9", async () => {
     const harness = createMigrationHarness(0);
     await migrateDatabase(harness.db);
 
@@ -49,7 +49,7 @@ describe("conditioning database migrations", () => {
     expect(allSql).toContain(
       "ADD COLUMN distance_duration_omitted INTEGER DEFAULT NULL",
     );
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 8");
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 9");
   });
 
   test("upgrades version 5 additively through preferences and interval timing", async () => {
@@ -74,7 +74,7 @@ describe("conditioning database migrations", () => {
     expect(versionSevenSql).toContain(
       "ADD COLUMN distance_duration_omitted INTEGER DEFAULT NULL",
     );
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 8");
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 9");
   });
 
   test("upgrades version 6 without recreating the preference or conditioning tables", async () => {
@@ -93,7 +93,7 @@ describe("conditioning database migrations", () => {
     expect(migrationSql.match(/ADD COLUMN distance_duration_omitted/g)).toHaveLength(
       2,
     );
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 8");
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 9");
   });
 
   test("upgrades version 7 with the distance-duration omission marker", async () => {
@@ -103,11 +103,21 @@ describe("conditioning database migrations", () => {
     expect(harness.transactionSql.join(" ")).toContain(
       "ADD COLUMN distance_duration_omitted INTEGER DEFAULT NULL",
     );
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 8");
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 9");
   });
 
-  test("leaves a version 8 schema unchanged after enabling connection pragmas", async () => {
+  test("upgrades version 8 with hill sprint elevation", async () => {
     const harness = createMigrationHarness(8);
+    await migrateDatabase(harness.db);
+
+    expect(harness.transactionSql.join(" ")).toContain(
+      "ADD COLUMN interval_elevation_gain_meters REAL DEFAULT NULL",
+    );
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 9");
+  });
+
+  test("leaves a version 9 schema unchanged after enabling connection pragmas", async () => {
+    const harness = createMigrationHarness(9);
     await migrateDatabase(harness.db);
 
     expect(harness.rootSql).toHaveLength(1);

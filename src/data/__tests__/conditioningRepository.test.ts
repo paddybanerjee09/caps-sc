@@ -66,6 +66,7 @@ function makeStoredRows(
     distance_total_duration_seconds: null,
     distance_work_duration_seconds: null,
     distance_duration_omitted: null,
+    interval_elevation_gain_meters: null,
     rest_between_repetitions_seconds: null,
     repetitions_per_set: null,
     set_count: null,
@@ -463,6 +464,7 @@ describe("updateCompletedConditioningSession", () => {
           work: {
             mode: "distance",
             distanceMeters: 400,
+            elevationGainMeters: 25,
             provenance: "distance-only",
           },
           restBetweenIntervalsSeconds: 10,
@@ -482,6 +484,7 @@ describe("updateCompletedConditioningSession", () => {
       distance_total_duration_seconds: 61,
       distance_work_duration_seconds: null,
       distance_duration_omitted: 1,
+      interval_elevation_gain_meters: 25,
     });
     expect(result).toMatchObject({
       timelineEntryId: TIMELINE_ENTRY_ID,

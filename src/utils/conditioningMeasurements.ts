@@ -1,6 +1,8 @@
 export const MAX_ELAPSED_DURATION_SECONDS = 24 * 60 * 60;
 export const METERS_PER_KILOMETER = 1000;
 export const METERS_PER_MILE = 1609.344;
+export const METERS_PER_FOOT = 0.3048;
+export type ConditioningDistanceScale = "long" | "short";
 
 export type ConditioningDistanceUnit = "metric" | "imperial";
 
@@ -81,20 +83,29 @@ export function elapsedDurationPartsToSeconds(
 export function convertDistanceToMeters(
   distance: number,
   unit: ConditioningDistanceUnit,
+  scale: ConditioningDistanceScale = "long",
 ) {
+  if (scale === "short") {
+    return distance * (unit === "metric" ? 1 : METERS_PER_FOOT);
+  }
   return distance * (unit === "metric" ? METERS_PER_KILOMETER : METERS_PER_MILE);
 }
 
 export function convertMetersToDistance(
   distanceMeters: number,
   unit: ConditioningDistanceUnit,
+  scale: ConditioningDistanceScale = "long",
 ) {
+  if (scale === "short") {
+    return distanceMeters / (unit === "metric" ? 1 : METERS_PER_FOOT);
+  }
   return distanceMeters / (unit === "metric" ? METERS_PER_KILOMETER : METERS_PER_MILE);
 }
 
 export function formatDistanceInput(
   distanceMeters: number | null,
   unit: ConditioningDistanceUnit,
+  scale: ConditioningDistanceScale = "long",
 ) {
   if (
     distanceMeters === null ||
@@ -104,13 +115,17 @@ export function formatDistanceInput(
     return "";
   }
 
-  return convertMetersToDistance(distanceMeters, unit)
+  return convertMetersToDistance(distanceMeters, unit, scale)
     .toFixed(3)
     .replace(/\.?0+$/, "");
 }
 
 export function getDistanceUnitLabel(unit: ConditioningDistanceUnit) {
   return unit === "metric" ? "km" : "mi";
+}
+
+export function getShortDistanceUnitLabel(unit: ConditioningDistanceUnit) {
+  return unit === "metric" ? "m" : "ft";
 }
 
 export function calculatePaceSeconds(

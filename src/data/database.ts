@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 8;
+const DATABASE_VERSION = 9;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -886,6 +886,20 @@ export async function migrateDatabase(db: SQLiteDatabase) {
             distance_duration_omitted IS NULL
             OR distance_duration_omitted = 1
           );
+      `);
+    });
+  }
+
+  if (currentVersion < 9) {
+    await db.withExclusiveTransactionAsync(async (transaction) => {
+      await transaction.execAsync(`
+        ALTER TABLE conditioning_session_templates
+        ADD COLUMN interval_elevation_gain_meters REAL DEFAULT NULL
+          CHECK (interval_elevation_gain_meters IS NULL OR interval_elevation_gain_meters > 0);
+
+        ALTER TABLE conditioning_logs
+        ADD COLUMN interval_elevation_gain_meters REAL DEFAULT NULL
+          CHECK (interval_elevation_gain_meters IS NULL OR interval_elevation_gain_meters > 0);
       `);
     });
   }

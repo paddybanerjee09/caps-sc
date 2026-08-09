@@ -25,6 +25,7 @@ import type {
 import {
   formatPace,
   getDistanceUnitLabel,
+  getShortDistanceUnitLabel,
 } from "../utils/conditioningMeasurements";
 import {
   changeConditioningDistanceUnit,
@@ -127,7 +128,10 @@ export function ConditioningSessionForm({
         value={draft.activity}
       />
 
-      {draft.activeProtocolType === "circuit" ? (
+      {draft.activity === "hill_sprints" ? null : draft.activity ===
+        "assault_bike" ? (
+        <ReadOnlyValue label="Type" value="Intervals" />
+      ) : draft.activeProtocolType === "circuit" ? (
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.colors.text }]}>Type</Text>
           <View
@@ -175,7 +179,14 @@ export function ConditioningSessionForm({
         />
       )}
 
-      {draft.activeProtocolType === "continuous" ? (
+      {draft.activity === "hill_sprints" ? (
+        <HillSprintFields
+          disabled={disabled}
+          distanceUnit={distanceUnit}
+          draft={draft}
+          onChange={onChange}
+        />
+      ) : draft.activeProtocolType === "continuous" ? (
         <ContinuousFields
           disabled={disabled}
           distanceUnit={distanceUnit}
@@ -194,12 +205,14 @@ export function ConditioningSessionForm({
         <CircuitFields disabled={disabled} draft={draft} onChange={onChange} />
       )}
 
-      <IntensityFields
-        baselines={baselines}
-        disabled={disabled}
-        draft={draft}
-        onChange={onChange}
-      />
+      {draft.activity !== "hill_sprints" ? (
+        <IntensityFields
+          baselines={baselines}
+          disabled={disabled}
+          draft={draft}
+          onChange={onChange}
+        />
+      ) : null}
 
       <FormTextInput
         disabled={disabled}
@@ -417,6 +430,7 @@ function IntervalFields({
                   },
                 })
               }
+              short
               unit={distanceUnit}
               value={distanceWork.distance.displayInput}
             />
@@ -486,6 +500,107 @@ function IntervalFields({
           />
         </View>
       </View>
+    </View>
+  );
+}
+
+function HillSprintFields({
+  disabled,
+  distanceUnit,
+  draft,
+  onChange,
+}: SharedDraftProps & { distanceUnit: UnitSystem }) {
+  const intervals = draft.intervals;
+
+  return (
+    <View style={styles.section}>
+      <DistanceField
+        disabled={disabled}
+        label="Distance"
+        onChangeText={(displayInput) =>
+          onChange({
+            ...draft,
+            intervals: {
+              ...intervals,
+              distanceWork: {
+                ...intervals.distanceWork,
+                distance: updateConditioningDistanceInput(
+                  intervals.distanceWork.distance,
+                  displayInput,
+                  distanceUnit,
+                ),
+              },
+            },
+          })
+        }
+        short
+        unit={distanceUnit}
+        value={intervals.distanceWork.distance.displayInput}
+      />
+      <DistanceField
+        disabled={disabled}
+        label="Elevation gain"
+        onChangeText={(displayInput) =>
+          onChange({
+            ...draft,
+            intervals: {
+              ...intervals,
+              elevationGain: updateConditioningDistanceInput(
+                intervals.elevationGain,
+                displayInput,
+                distanceUnit,
+              ),
+            },
+          })
+        }
+        short
+        unit={distanceUnit}
+        value={intervals.elevationGain.displayInput}
+      />
+      <FormTextInput
+        disabled={disabled}
+        keyboardType="decimal-pad"
+        label="Intensity (RPE)"
+        maxLength={4}
+        onChangeText={(rpeInput) =>
+          onChange({
+            ...draft,
+            intensity: {
+              ...draft.intensity,
+              activeMethod: "rpe",
+              dirty: true,
+              rpeInput,
+            },
+          })
+        }
+        value={draft.intensity.rpeInput}
+      />
+      <FormTextInput
+        disabled={disabled}
+        keyboardType="number-pad"
+        label="Repetitions"
+        maxLength={3}
+        onChangeText={(intervalCountInput) =>
+          onChange({
+            ...draft,
+            intervals: { ...intervals, intervalCountInput },
+          })
+        }
+        value={intervals.intervalCountInput}
+      />
+      <ElapsedDurationField
+        allowZero
+        disabled={disabled}
+        includeHours={false}
+        label="Rest between reps"
+        onChange={(restBetweenIntervalsSeconds) =>
+          onChange({
+            ...draft,
+            intervals: { ...intervals, restBetweenIntervalsSeconds },
+          })
+        }
+        valueSeconds={intervals.restBetweenIntervalsSeconds}
+      />
     </View>
   );
 }
@@ -851,6 +966,7 @@ function DistanceField({
   hideLabel = false,
   label,
   onChangeText,
+  short = false,
   unit,
   value,
 }: {
@@ -858,6 +974,7 @@ function DistanceField({
   hideLabel?: boolean;
   label: string;
   onChangeText: (value: string) => void;
+  short?: boolean;
   unit: UnitSystem;
   value: string;
 }) {
@@ -868,7 +985,7 @@ function DistanceField({
       keyboardType="decimal-pad"
       label={label}
       onChangeText={onChangeText}
-      suffix={getDistanceUnitLabel(unit)}
+      suffix={short ? getShortDistanceUnitLabel(unit) : getDistanceUnitLabel(unit)}
       value={value}
     />
   );

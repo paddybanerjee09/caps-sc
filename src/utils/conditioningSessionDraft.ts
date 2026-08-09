@@ -14,6 +14,7 @@ import type {
   SnapshottedConditioningIntensity,
 } from "../types/conditioning";
 import {
+  type ConditioningDistanceScale,
   convertDistanceToMeters,
   formatDistanceInput,
 } from "./conditioningMeasurements";
@@ -25,6 +26,7 @@ export type ConditioningDistanceDraft = {
   dirty: boolean;
   displayInput: string;
   displayUnit: UnitSystem;
+  scale: ConditioningDistanceScale;
 };
 
 export type ConditioningIntensityDraft = {
@@ -49,6 +51,7 @@ export type IntervalsProtocolFormDraft = {
     legacyTotalDurationSeconds?: number;
     provenance: "explicit" | "legacy-derived" | "distance-only";
   };
+  elevationGain: ConditioningDistanceDraft;
   intervalCountInput: string;
   restBetweenIntervalsSeconds: number;
   restBetweenRoundsSeconds: number;
@@ -122,7 +125,7 @@ export function createDefaultConditioningSessionFormDraft(
     activeProtocolType: "continuous",
     circuit: createDefaultCircuitDraft(),
     continuous: {
-      distance: createDistanceDraft(null, distanceUnit),
+      distance: createDistanceDraft(null, distanceUnit, "long"),
       durationSeconds: null,
     },
     intensity: createIntensityDraft(null, null),
@@ -154,7 +157,7 @@ export function createConditioningSessionFormDraftFromDefinition(
 
   if (protocol.type === "continuous") {
     draft.continuous = {
-      distance: createDistanceDraft(protocol.distanceMeters, distanceUnit),
+      distance: createDistanceDraft(protocol.distanceMeters, distanceUnit, "long"),
       durationSeconds: protocol.durationSeconds,
     };
   } else if (protocol.type === "intervals") {
@@ -172,6 +175,7 @@ export function createConditioningSessionFormDraftFromDefinition(
               distance: createDistanceDraft(
                 protocol.work.distanceMeters,
                 distanceUnit,
+                "short",
               ),
               durationDirty: false,
               durationSeconds:
@@ -184,6 +188,13 @@ export function createConditioningSessionFormDraftFromDefinition(
                   : undefined,
               provenance: protocol.work.provenance,
             },
+            elevationGain: createDistanceDraft(
+              protocol.work.provenance === "distance-only"
+                ? protocol.work.elevationGainMeters ?? null
+                : null,
+              distanceUnit,
+              "short",
+            ),
           }),
     };
   } else {
@@ -219,6 +230,44 @@ export function selectConditioningActivity(
     };
   }
 
+  if (activity === "hill_sprints") {
+    return {
+      ...draft,
+      activity,
+      activeProtocolType: "intervals",
+      lastNonCircuitProtocolType: "intervals",
+      intensity: {
+        ...draft.intensity,
+        activeMethod: "rpe",
+        dirty: true,
+        historicalSnapshot: null,
+        legacyPace: null,
+      },
+      intervals: {
+        ...draft.intervals,
+        distanceWork: {
+          ...draft.intervals.distanceWork,
+          durationDirty: false,
+          durationSeconds: null,
+          legacyTotalDurationSeconds: undefined,
+          provenance: "distance-only",
+        },
+        restBetweenRoundsSeconds: 0,
+        roundCountInput: "1",
+        workMode: "distance",
+      },
+    };
+  }
+
+  if (activity === "assault_bike") {
+    return {
+      ...draft,
+      activity,
+      activeProtocolType: "intervals",
+      lastNonCircuitProtocolType: "intervals",
+    };
+  }
+
   return {
     ...draft,
     activity,
@@ -233,6 +282,17 @@ export function selectConditioningProtocolType(
   draft: ConditioningSessionFormDraft,
   type: "continuous" | "intervals",
 ): ConditioningSessionFormDraft {
+  if (
+    draft.activity === "hill_sprints" ||
+    draft.activity === "assault_bike"
+  ) {
+    return {
+      ...draft,
+      activeProtocolType: "intervals",
+      lastNonCircuitProtocolType: "intervals",
+    };
+  }
+
   return {
     ...draft,
     activeProtocolType: draft.activity === "circuit" ? "circuit" : type,
@@ -299,10 +359,11 @@ export function updateConditioningDistanceInput(
     canonicalMeters:
       parsed === null || !Number.isFinite(parsed)
         ? null
-        : convertDistanceToMeters(parsed, unit),
+        : convertDistanceToMeters(parsed, unit, distance.scale),
     dirty: true,
     displayInput,
     displayUnit: unit,
+    scale: distance.scale,
   };
 }
 
@@ -318,10 +379,15 @@ export function changeConditioningDistanceUnit(
     draft.intervals.distanceWork.distance,
     distanceUnit,
   );
+  const elevationGain = reformatDistance(
+    draft.intervals.elevationGain,
+    distanceUnit,
+  );
 
   if (
     continuousDistance === draft.continuous.distance &&
-    intervalDistance === draft.intervals.distanceWork.distance
+    intervalDistance === draft.intervals.distanceWork.distance &&
+    elevationGain === draft.intervals.elevationGain
   ) {
     return draft;
   }
@@ -331,6 +397,7 @@ export function changeConditioningDistanceUnit(
     continuous: { ...draft.continuous, distance: continuousDistance },
     intervals: {
       ...draft.intervals,
+      elevationGain,
       distanceWork: {
         ...draft.intervals.distanceWork,
         distance: intervalDistance,
@@ -417,11 +484,12 @@ function createDefaultIntervalsDraft(
 ): IntervalsProtocolFormDraft {
   return {
     distanceWork: {
-      distance: createDistanceDraft(null, distanceUnit),
+      distance: createDistanceDraft(null, distanceUnit, "short"),
       durationDirty: false,
       durationSeconds: null,
       provenance: "distance-only",
     },
+    elevationGain: createDistanceDraft(null, distanceUnit, "short"),
     intervalCountInput: "1",
     restBetweenIntervalsSeconds: 0,
     restBetweenRoundsSeconds: 0,
@@ -443,12 +511,14 @@ function createDefaultCircuitDraft(): CircuitProtocolFormDraft {
 function createDistanceDraft(
   canonicalMeters: number | null,
   displayUnit: UnitSystem,
+  scale: ConditioningDistanceScale = "long",
 ): ConditioningDistanceDraft {
   return {
     canonicalMeters,
     dirty: false,
-    displayInput: formatDistanceInput(canonicalMeters, displayUnit),
+    displayInput: formatDistanceInput(canonicalMeters, displayUnit, scale),
     displayUnit,
+    scale,
   };
 }
 
@@ -504,7 +574,11 @@ function reformatDistance(
 
   return {
     ...distance,
-    displayInput: formatDistanceInput(distance.canonicalMeters, unit),
+    displayInput: formatDistanceInput(
+      distance.canonicalMeters,
+      unit,
+      distance.scale,
+    ),
     displayUnit: unit,
   };
 }
@@ -567,6 +641,13 @@ function buildActiveProtocol(
                   distanceWork.distance.canonicalMeters ?? Number.NaN,
                 mode: "distance",
                 provenance: "distance-only",
+                ...(draft.activity === "hill_sprints"
+                  ? {
+                      elevationGainMeters:
+                        draft.intervals.elevationGain.canonicalMeters ??
+                        Number.NaN,
+                    }
+                  : {}),
               }
             : {
                 distanceMeters:

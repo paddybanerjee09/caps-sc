@@ -73,7 +73,7 @@ describe("conditioning session form draft", () => {
     draft = selectIntervalWorkMode(draft, "distance");
     draft.intervals.distanceWork.distance = updateConditioningDistanceInput(
       draft.intervals.distanceWork.distance,
-      "0.4",
+      "400",
       "metric",
     );
 
@@ -158,7 +158,7 @@ describe("conditioning session form draft", () => {
       "imperial",
     );
 
-    expect(draft.intervals.distanceWork.distance.displayInput).toBe("0.25");
+    expect(draft.intervals.distanceWork.distance.displayInput).toBe("1320");
     const analysis = analyzeConditioningSessionFormDraft(draft, baselines);
     expect(analysis.ok).toBe(true);
     if (
@@ -441,5 +441,41 @@ describe("conditioning session form draft", () => {
       { nameInput: "Sled", workSeconds: 40 },
       { nameInput: "Carry", workSeconds: 30 },
     ]);
+  });
+
+  test("builds the locked hill sprint protocol with elevation and RPE", () => {
+    let draft = createDefaultConditioningSessionFormDraft("metric");
+    draft = selectConditioningActivity(draft, "hill_sprints");
+    draft.intervals.distanceWork.distance = updateConditioningDistanceInput(
+      draft.intervals.distanceWork.distance,
+      "80",
+      "metric",
+    );
+    draft.intervals.elevationGain = updateConditioningDistanceInput(
+      draft.intervals.elevationGain,
+      "12",
+      "metric",
+    );
+    draft.intervals.intervalCountInput = "6";
+    draft.intervals.restBetweenIntervalsSeconds = 90;
+    draft.intensity.rpeInput = "9";
+
+    const analysis = analyzeConditioningSessionFormDraft(draft, baselines);
+    expect(analysis.ok).toBe(true);
+    if (!analysis.ok) return;
+    expect(analysis.intensity).toEqual({ method: "rpe", value: 9 });
+    expect(analysis.protocol).toEqual({
+      type: "intervals",
+      work: {
+        mode: "distance",
+        distanceMeters: 80,
+        elevationGainMeters: 12,
+        provenance: "distance-only",
+      },
+      restBetweenIntervalsSeconds: 90,
+      intervalCount: 6,
+      roundCount: 1,
+      restBetweenRoundsSeconds: 0,
+    });
   });
 });

@@ -112,7 +112,7 @@ describe("ConditioningSessionDetailModal", () => {
   test("shows preferred units and distance intervals without work duration", async () => {
     const result = await renderDetails(buildSession());
 
-    expect(await result.findByLabelText("Distance per interval, 1 mi")).toBeTruthy();
+    expect(await result.findByLabelText("Distance per interval, 5280 ft")).toBeTruthy();
     expect(result.queryByLabelText(/duration per interval/i)).toBeNull();
     expect(result.getByLabelText("Intervals, 2")).toBeTruthy();
     expect(result.getByLabelText("Rounds, 3")).toBeTruthy();

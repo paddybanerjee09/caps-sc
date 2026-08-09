@@ -476,6 +476,21 @@ export function evaluateConditioningProtocol(
         });
       }
 
+      if (
+        protocol.work.provenance === "distance-only" &&
+        protocol.work.elevationGainMeters !== undefined &&
+        !isNumberInRange(
+          protocol.work.elevationGainMeters,
+          Number.EPSILON,
+          conditioningValidationLimits.distanceMeters,
+        )
+      ) {
+        issues.push({
+          field: "work.elevationGainMeters",
+          message: "Elevation gain is invalid.",
+        });
+      }
+
       if (protocol.work.provenance !== "distance-only") {
         const validDuration =
           protocol.work.provenance === "legacy-derived"

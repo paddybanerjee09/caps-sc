@@ -54,6 +54,7 @@ export type IntervalsProtocol = {
         mode: "distance";
         distanceMeters: number;
         provenance: "distance-only";
+        elevationGainMeters?: number;
       };
   restBetweenIntervalsSeconds: number;
   intervalCount: number;

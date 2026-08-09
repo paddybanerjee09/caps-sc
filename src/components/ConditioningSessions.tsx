@@ -44,6 +44,7 @@ import { scoreConditioningSession } from "../utils/conditioningScoring";
 import {
   formatDistanceInput,
   getDistanceUnitLabel,
+  getShortDistanceUnitLabel,
 } from "../utils/conditioningMeasurements";
 import { PressOpacity } from "./PressOpacity";
 
@@ -490,7 +491,7 @@ export function getConditioningProtocolSummary(
     const workSummary =
       protocol.work.mode === "time"
         ? `Time work: ${formatDuration(protocol.work.durationSeconds)} per interval`
-        : `Distance work: ${formatDistance(protocol.work.distanceMeters, distanceUnit)} per interval`;
+        : `Distance work: ${formatShortDistance(protocol.work.distanceMeters, distanceUnit)} per interval`;
     const restSummary = `rests: ${formatDuration(protocol.restBetweenIntervalsSeconds)} between intervals, ${formatDuration(protocol.restBetweenRoundsSeconds)} between rounds`;
     const totalSummary =
       protocol.work.mode === "time"
@@ -537,6 +538,10 @@ function formatDuration(totalSeconds: number) {
 
 function formatDistance(metres: number, unit: UnitSystem) {
   return `${formatDistanceInput(metres, unit)} ${getDistanceUnitLabel(unit)}`;
+}
+
+function formatShortDistance(metres: number, unit: UnitSystem) {
+  return `${formatDistanceInput(metres, unit, "short")} ${getShortDistanceUnitLabel(unit)}`;
 }
 
 const styles = StyleSheet.create({

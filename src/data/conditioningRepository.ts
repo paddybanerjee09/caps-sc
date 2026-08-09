@@ -50,6 +50,7 @@ type StoredDefinitionRow = {
   distance_total_duration_seconds: number | null;
   distance_work_duration_seconds: number | null;
   distance_duration_omitted: number | null;
+  interval_elevation_gain_meters: number | null;
   rest_between_repetitions_seconds: number | null;
   repetitions_per_set: number | null;
   set_count: number | null;
@@ -166,6 +167,7 @@ const DEFINITION_COLUMNS = [
   "distance_total_duration_seconds",
   "distance_work_duration_seconds",
   "distance_duration_omitted",
+  "interval_elevation_gain_meters",
   "rest_between_repetitions_seconds",
   "repetitions_per_set",
   "set_count",
@@ -674,7 +676,11 @@ function areProtocolsEqual(
       left.work.provenance === "distance-only" ||
       right.work.provenance === "distance-only"
     ) {
-      return true;
+      return (
+        left.work.provenance === "distance-only" &&
+        right.work.provenance === "distance-only" &&
+        left.work.elevationGainMeters === right.work.elevationGainMeters
+      );
     }
     return (
       left.work.durationSeconds === right.work.durationSeconds &&
@@ -741,6 +747,11 @@ function getDefinitionStorageValues(
       ? protocol.work.durationSeconds
       : null,
     distanceOnly ? 1 : null,
+    protocol.type === "intervals" &&
+    protocol.work.mode === "distance" &&
+    protocol.work.provenance === "distance-only"
+      ? protocol.work.elevationGainMeters ?? null
+      : null,
     protocol.type === "intervals"
       ? protocol.restBetweenIntervalsSeconds
       : null,
@@ -883,6 +894,12 @@ function getProtocolFromRow(
               mode: "distance",
               distanceMeters: row.interval_work_distance_meters as number,
               provenance: "distance-only",
+              ...(row.interval_elevation_gain_meters == null
+                ? {}
+                : {
+                    elevationGainMeters:
+                      row.interval_elevation_gain_meters,
+                  }),
             }
           : explicitWorkDurationSeconds === null
           ? {
@@ -1642,6 +1659,7 @@ export async function getConditioningSessionByTimelineEntryId(
        log.distance_total_duration_seconds,
        log.distance_work_duration_seconds,
        log.distance_duration_omitted,
+       log.interval_elevation_gain_meters,
        log.rest_between_repetitions_seconds,
        log.repetitions_per_set,
        log.set_count,
