@@ -68,6 +68,7 @@ export type ConditioningSessionFormProps = {
   onAdaptationPress?: () => void;
   onChange: (draft: ConditioningSessionFormDraft) => void;
   scoreResult: ConditioningScoreResult;
+  showHeading?: boolean;
 };
 
 export function ConditioningSessionForm({
@@ -78,6 +79,7 @@ export function ConditioningSessionForm({
   onAdaptationPress,
   onChange,
   scoreResult,
+  showHeading = true,
 }: ConditioningSessionFormProps) {
   const { theme } = useAppTheme();
   const { width } = useWindowDimensions();
@@ -90,12 +92,6 @@ export function ConditioningSessionForm({
     }
   }, [distanceUnit, draft, onChange]);
 
-  const adaptation =
-    scoreResult.status === "scored" && scoreResult.primaryAdaptation
-      ? conditioningAdaptations[scoreResult.primaryAdaptation]
-      : null;
-  const adaptationLabel = adaptation?.label ?? "Adaptation pending";
-
   function updateDraft(patch: Partial<ConditioningSessionFormDraft>) {
     onChange({ ...draft, ...patch });
   }
@@ -106,51 +102,22 @@ export function ConditioningSessionForm({
 
   return (
     <View style={styles.container}>
-      <View style={styles.heading}>
-        <FormTextInput
-          disabled={disabled}
-          label="Session title"
-          maxLength={conditioningValidationLimits.titleLength}
-          onChangeText={(titleInput) => updateDraft({ titleInput })}
-          placeholder="Session title"
-          textAlign="center"
-          value={draft.titleInput}
-        />
-
-        <PressOpacity
-          accessibilityHint="Shows how this session is expected to affect conditioning"
-          accessibilityLabel={`Primary adaptation, ${adaptationLabel}`}
-          disabled={!onAdaptationPress}
-          onPress={onAdaptationPress}
-          style={[
-            styles.adaptationBadge,
-            {
-              backgroundColor:
-                adaptation?.color ?? theme.colors.surfaceMuted,
-              borderColor: adaptation?.color ?? theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <Text
-            numberOfLines={2}
-            style={[
-              styles.adaptationBadgeText,
-              {
-                color: adaptation?.contentColor ?? theme.colors.textMuted,
-              },
-            ]}
-          >
-            {adaptationLabel}
-          </Text>
-        </PressOpacity>
-
-        {scoreResult.status === "insufficient" &&
-        scoreResult.reasons.length > 0 ? (
-          <Text style={[styles.helpText, { color: theme.colors.textMuted }]}>
-            {scoreResult.reasons[0]}
-          </Text>
-        ) : null}
-      </View>
+      {showHeading ? (
+        <View style={styles.heading}>
+          <ConditioningTitleInput
+            disabled={disabled}
+            onChangeText={(titleInput) => updateDraft({ titleInput })}
+            value={draft.titleInput}
+          />
+          <ConditioningAdaptationBadge
+            onPress={onAdaptationPress}
+            scoreResult={scoreResult}
+          />
+          <ConditioningScoreHelp scoreResult={scoreResult} />
+        </View>
+      ) : (
+        <ConditioningScoreHelp scoreResult={scoreResult} />
+      )}
 
       <ConditioningSelectField
         disabled={disabled}
@@ -245,6 +212,90 @@ export function ConditioningSessionForm({
       />
     </View>
   );
+}
+
+export function ConditioningTitleInput({
+  compact = false,
+  disabled = false,
+  onChangeText,
+  value,
+}: {
+  compact?: boolean;
+  disabled?: boolean;
+  onChangeText: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <FormTextInput
+      disabled={disabled}
+      hideLabel={compact}
+      label="Session title"
+      maxLength={conditioningValidationLimits.titleLength}
+      onChangeText={onChangeText}
+      placeholder="Session title"
+      textAlign={compact ? "left" : "center"}
+      value={value}
+    />
+  );
+}
+
+export function ConditioningAdaptationBadge({
+  compact = false,
+  onPress,
+  scoreResult,
+}: {
+  compact?: boolean;
+  onPress?: () => void;
+  scoreResult: ConditioningScoreResult;
+}) {
+  const { theme } = useAppTheme();
+  const adaptation =
+    scoreResult.status === "scored" && scoreResult.primaryAdaptation
+      ? conditioningAdaptations[scoreResult.primaryAdaptation]
+      : null;
+  const adaptationLabel = adaptation?.label ?? "Adaptation pending";
+
+  return (
+    <PressOpacity
+      accessibilityHint="Shows how this session is expected to affect conditioning"
+      accessibilityLabel={`Primary adaptation, ${adaptationLabel}`}
+      disabled={!onPress}
+      onPress={onPress}
+      style={[
+        styles.adaptationBadge,
+        compact && styles.compactAdaptationBadge,
+        {
+          backgroundColor: adaptation?.color ?? theme.colors.surfaceMuted,
+          borderColor: adaptation?.color ?? theme.colors.borderStrong,
+        },
+      ]}
+    >
+      <Text
+        ellipsizeMode="tail"
+        numberOfLines={2}
+        style={[
+          styles.adaptationBadgeText,
+          { color: adaptation?.contentColor ?? theme.colors.textMuted },
+        ]}
+      >
+        {adaptationLabel}
+      </Text>
+    </PressOpacity>
+  );
+}
+
+function ConditioningScoreHelp({
+  scoreResult,
+}: {
+  scoreResult: ConditioningScoreResult;
+}) {
+  const { theme } = useAppTheme();
+  return scoreResult.status === "insufficient" &&
+    scoreResult.reasons.length > 0 ? (
+    <Text style={[styles.helpText, { color: theme.colors.textMuted }]}>
+      {scoreResult.reasons[0]}
+    </Text>
+  ) : null;
 }
 
 type SharedDraftProps = {
@@ -709,6 +760,7 @@ function IntensityFields({
 
 type FormTextInputProps = {
   disabled?: boolean;
+  hideLabel?: boolean;
   keyboardType?: KeyboardTypeOptions;
   label: string;
   maxLength?: number;
@@ -722,6 +774,7 @@ type FormTextInputProps = {
 
 function FormTextInput({
   disabled = false,
+  hideLabel = false,
   keyboardType = "default",
   label,
   maxLength,
@@ -736,7 +789,9 @@ function FormTextInput({
 
   return (
     <View style={styles.field}>
-      <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
+      {!hideLabel ? (
+        <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
+      ) : null}
       <View
         style={[
           styles.inputShell,
@@ -866,6 +921,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: tokens.typography.label.lineHeight,
     textAlign: "center",
+  },
+  compactAdaptationBadge: {
+    flexShrink: 1,
+    maxWidth: "52%",
+    minWidth: 0,
   },
   section: { gap: tokens.spacing.md },
   subsection: { gap: tokens.spacing.md, paddingTop: tokens.spacing.sm },

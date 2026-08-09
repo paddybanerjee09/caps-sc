@@ -45,7 +45,9 @@ import {
 } from "../utils/conditioningSessionDraft";
 import { ConditioningAdaptationModal } from "./ConditioningAdaptationModal";
 import {
+  ConditioningAdaptationBadge,
   ConditioningSessionForm,
+  ConditioningTitleInput,
   createDefaultConditioningSessionFormDraft,
   type ConditioningSessionFormDraft,
 } from "./ConditioningSessionForm";
@@ -323,18 +325,33 @@ export function ConditioningLogModal({
             ) : (
               <>
                 <View style={styles.header}>
-                  <Text style={[styles.title, { color: theme.colors.text }]}>
-                    Log Conditioning
-                  </Text>
-                  <Text
-                    style={[styles.subtitle, { color: theme.colors.textMuted }]}
-                  >
-                    {formatSelectedDate(selectedDate)}
-                  </Text>
-                  <LogTimeChanger
-                    onChange={changeStartTime}
-                    value={startTime}
-                  />
+                  <View style={styles.headerRow}>
+                    <Text style={[styles.title, { color: theme.colors.text }]}>
+                      Log Conditioning
+                    </Text>
+                    <ConditioningAdaptationBadge
+                      compact
+                      onPress={() => setStep("adaptation")}
+                      scoreResult={analysis.score}
+                    />
+                  </View>
+                  <View style={styles.headerRow}>
+                    <View style={styles.titleInputSlot}>
+                      <ConditioningTitleInput
+                        compact
+                        disabled={saving}
+                        onChangeText={(titleInput) =>
+                          setDraft((current) => ({ ...current, titleInput }))
+                        }
+                        value={draft.titleInput}
+                      />
+                    </View>
+                    <LogTimeChanger
+                      inline
+                      onChange={changeStartTime}
+                      value={startTime}
+                    />
+                  </View>
                 </View>
 
                 {loadingBaselines ? (
@@ -372,6 +389,7 @@ export function ConditioningLogModal({
                       onAdaptationPress={() => setStep("adaptation")}
                       onChange={setDraft}
                       scoreResult={analysis.score}
+                      showHeading={false}
                     />
 
                     <Text
@@ -471,15 +489,6 @@ function getLocalDayKey(date: Date) {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
-function formatSelectedDate(date: Date) {
-  return date.toLocaleDateString([], {
-    day: "numeric",
-    month: "long",
-    weekday: "long",
-    year: "numeric",
-  });
-}
-
 const styles = StyleSheet.create({
   overlay: {
     alignItems: "center",
@@ -494,22 +503,25 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   header: {
-    alignItems: "center",
-    gap: tokens.spacing.xs,
+    gap: tokens.spacing.sm,
     paddingHorizontal: tokens.spacing.lg,
     paddingTop: tokens.spacing.lg,
   },
+  headerRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    justifyContent: "space-between",
+    minWidth: 0,
+  },
   title: {
+    flex: 1,
     fontSize: 20,
     fontWeight: "700",
     lineHeight: 26,
-    textAlign: "center",
+    minWidth: 0,
   },
-  subtitle: {
-    fontSize: tokens.typography.label.fontSize,
-    lineHeight: tokens.typography.label.lineHeight,
-    textAlign: "center",
-  },
+  titleInputSlot: { flex: 1, minWidth: 0 },
   body: {
     gap: tokens.spacing.lg,
     padding: tokens.spacing.lg,

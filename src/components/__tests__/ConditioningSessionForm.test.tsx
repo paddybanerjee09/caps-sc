@@ -5,7 +5,9 @@ import { AppThemeProvider } from "../../theme/ThemeContext";
 import type { ConditioningScoreResult } from "../../types/conditioning";
 import { createDefaultConditioningSessionFormDraft } from "../../utils/conditioningSessionDraft";
 import {
+  ConditioningAdaptationBadge,
   ConditioningSessionForm,
+  ConditioningTitleInput,
   type ConditioningSessionFormDraft,
 } from "../ConditioningSessionForm";
 
@@ -95,5 +97,28 @@ describe("ConditioningSessionForm", () => {
     expect(result.getByText("Stations")).toBeTruthy();
     expect(result.getByLabelText("Add station")).toBeTruthy();
     expect(result.queryByLabelText("Type, Continuous")).toBeNull();
+  });
+
+  test("supports compact external title and adaptation placement", async () => {
+    const onChangeText = jest.fn();
+    const result = await render(
+      <AppThemeProvider>
+        <ConditioningTitleInput
+          compact
+          onChangeText={onChangeText}
+          value="Tempo"
+        />
+        <ConditioningAdaptationBadge
+          compact
+          onPress={jest.fn()}
+          scoreResult={insufficientScore}
+        />
+      </AppThemeProvider>,
+    );
+
+    expect(result.getByLabelText("Session title").props.value).toBe("Tempo");
+    const badgeText = result.getByText("Adaptation pending");
+    expect(badgeText.props.numberOfLines).toBe(2);
+    expect(badgeText.props.ellipsizeMode).toBe("tail");
   });
 });
