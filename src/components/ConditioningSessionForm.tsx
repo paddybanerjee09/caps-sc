@@ -369,7 +369,7 @@ function IntervalFields({
   return (
     <View style={styles.section}>
       <View style={styles.workRestRow}>
-        <View style={styles.flexField}>
+        <View style={[styles.flexField, styles.workField]}>
           <ConditioningSelectField
             compact
             disabled={disabled}
@@ -1010,6 +1010,7 @@ const styles = StyleSheet.create({
     lineHeight: tokens.typography.body.lineHeight,
   },
   workRestRow: { flexDirection: "row", gap: tokens.spacing.md },
+  workField: { gap: tokens.spacing.sm },
   structureRow: { flexDirection: "row", gap: tokens.spacing.sm },
   wrappedRow: { flexWrap: "wrap" },
   flexField: { flex: 1, minWidth: 112 },

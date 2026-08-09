@@ -70,16 +70,22 @@ export function ConditioningSelectField<Value extends string>({
           accessibilityRole="button"
           accessibilityState={{ disabled, expanded: open }}
           disabled={disabled}
+          hitSlop={inline ? 10 : undefined}
           onPress={() => setOpen((currentValue) => !currentValue)}
           style={({ pressed }) => [
             styles.selectorButton,
+            inline && styles.inlineSelectorButton,
             { backgroundColor: theme.colors.surfaceMuted },
             pressed && !disabled && { opacity: tokens.opacity.pressed },
           ]}
         >
           <Text
-            numberOfLines={2}
-            style={[styles.selectedLabel, { color: theme.colors.text }]}
+            numberOfLines={inline ? 1 : 2}
+            style={[
+              styles.selectedLabel,
+              inline && styles.inlineSelectedLabel,
+              { color: theme.colors.text },
+            ]}
           >
             {selectedOption?.label ?? placeholder}
           </Text>
@@ -88,7 +94,7 @@ export function ConditioningSelectField<Value extends string>({
             accessible={false}
             color={theme.colors.textMuted}
             name={open ? "chevron-up" : "chevron-down"}
-            size={20}
+            size={inline ? 14 : 20}
           />
         </Pressable>
 
@@ -159,12 +165,12 @@ const styles = StyleSheet.create({
   inlineField: {
     alignItems: "center",
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: tokens.spacing.xs,
   },
   inlineSelector: {
-    flexBasis: 132,
+    flexBasis: 88,
     flexShrink: 1,
-    minWidth: 112,
+    minWidth: 80,
   },
   label: {
     fontSize: tokens.typography.label.fontSize,
@@ -185,10 +191,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
   },
+  inlineSelectorButton: {
+    gap: 2,
+    minHeight: 22,
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: 0,
+  },
   selectedLabel: {
     flex: 1,
     fontSize: tokens.typography.body.fontSize,
     lineHeight: tokens.typography.body.lineHeight,
+  },
+  inlineSelectedLabel: {
+    fontSize: tokens.typography.label.fontSize,
+    lineHeight: tokens.typography.label.lineHeight,
   },
   options: {
     borderTopWidth: StyleSheet.hairlineWidth,
