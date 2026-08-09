@@ -58,6 +58,7 @@ export function ConditioningSelectField<Value extends string>({
         style={[
           styles.selector,
           inline && styles.inlineSelector,
+          inline && open && styles.openInlineSelector,
           {
             borderColor: theme.colors.borderStrong,
             opacity: disabled ? tokens.opacity.disabled : 1,
@@ -102,7 +103,12 @@ export function ConditioningSelectField<Value extends string>({
           <View
             style={[
               styles.options,
-              { borderTopColor: theme.colors.border },
+              inline && styles.inlineOptions,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+                borderTopColor: theme.colors.border,
+              },
             ]}
           >
             {options.map((option, index) => {
@@ -117,6 +123,7 @@ export function ConditioningSelectField<Value extends string>({
                   onPress={() => selectOption(option.key)}
                   style={({ pressed }) => [
                     styles.option,
+                    inline && styles.inlineOption,
                     index > 0 && {
                       borderTopColor: theme.colors.border,
                       borderTopWidth: StyleSheet.hairlineWidth,
@@ -127,6 +134,7 @@ export function ConditioningSelectField<Value extends string>({
                   <Text
                     style={[
                       styles.optionLabel,
+                      inline && styles.inlineOptionLabel,
                       {
                         color: selected
                           ? theme.colors.tertiary
@@ -142,7 +150,7 @@ export function ConditioningSelectField<Value extends string>({
                       accessible={false}
                       color={theme.colors.tertiary}
                       name="checkmark"
-                      size={20}
+                      size={inline ? 14 : 20}
                     />
                   ) : null}
                 </Pressable>
@@ -171,6 +179,11 @@ const styles = StyleSheet.create({
     flexBasis: 88,
     flexShrink: 1,
     minWidth: 80,
+    overflow: "visible",
+    zIndex: 2,
+  },
+  openInlineSelector: {
+    zIndex: 20,
   },
   label: {
     fontSize: tokens.typography.label.fontSize,
@@ -193,7 +206,7 @@ const styles = StyleSheet.create({
   },
   inlineSelectorButton: {
     gap: 2,
-    minHeight: 22,
+    minHeight: tokens.typography.label.lineHeight - 2,
     paddingHorizontal: tokens.spacing.xs,
     paddingVertical: 0,
   },
@@ -209,6 +222,17 @@ const styles = StyleSheet.create({
   options: {
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  inlineOptions: {
+    borderRadius: tokens.radius.sm,
+    borderTopWidth: 1,
+    borderWidth: 1,
+    left: 0,
+    overflow: "hidden",
+    position: "absolute",
+    right: 0,
+    top: "100%",
+    zIndex: 20,
+  },
   option: {
     alignItems: "center",
     flexDirection: "row",
@@ -218,9 +242,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
   },
+  inlineOption: {
+    gap: 2,
+    minHeight: 30,
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: 0,
+  },
   optionLabel: {
     flex: 1,
     fontSize: tokens.typography.body.fontSize,
     lineHeight: tokens.typography.body.lineHeight,
+  },
+  inlineOptionLabel: {
+    fontSize: tokens.typography.label.fontSize,
+    lineHeight: tokens.typography.label.lineHeight,
   },
 });

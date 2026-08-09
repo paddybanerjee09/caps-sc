@@ -422,7 +422,7 @@ function IntervalFields({
           )}
         </View>
 
-        <View style={[styles.flexField, styles.restField]}>
+        <View style={styles.flexField}>
           <ElapsedDurationField
             allowZero
             disabled={disabled}
@@ -1011,7 +1011,6 @@ const styles = StyleSheet.create({
   },
   workRestRow: { flexDirection: "row", gap: tokens.spacing.md },
   workField: { gap: tokens.spacing.sm },
-  restField: { paddingTop: 4 },
   structureRow: { flexDirection: "row", gap: tokens.spacing.sm },
   wrappedRow: { flexWrap: "wrap" },
   flexField: { flex: 1, minWidth: 112 },
