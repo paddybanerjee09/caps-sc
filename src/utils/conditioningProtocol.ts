@@ -161,12 +161,12 @@ export function parseConditioningProtocolDraft(
     }
 
     return evaluateConditioningProtocol({
-      type: "time_intervals",
-      workSeconds,
-      restBetweenRepetitionsSeconds,
-      repetitionsPerSet,
-      setCount,
-      restBetweenSetsSeconds,
+      type: "intervals",
+      work: { mode: "time", durationSeconds: workSeconds },
+      restBetweenIntervalsSeconds: restBetweenRepetitionsSeconds,
+      intervalCount: repetitionsPerSet,
+      roundCount: setCount,
+      restBetweenRoundsSeconds: restBetweenSetsSeconds,
     });
   }
 
@@ -239,14 +239,37 @@ export function parseConditioningProtocolDraft(
       return { ok: false, issues };
     }
 
+    const totalBouts = repetitionsPerSet * setCount;
+    const totalRestSeconds =
+      restBetweenRepetitionsSeconds * (repetitionsPerSet - 1) * setCount +
+      restBetweenSetsSeconds * (setCount - 1);
+    const totalWorkSeconds = elapsedDurationSeconds - totalRestSeconds;
+
+    if (totalWorkSeconds <= 0) {
+      return {
+        ok: false,
+        issues: [
+          {
+            field: "elapsedDurationSeconds",
+            message: "Elapsed duration must be longer than all scheduled rest.",
+          },
+        ],
+      };
+    }
+
     return evaluateConditioningProtocol({
-      type: "distance_intervals",
-      workDistanceMeters,
-      elapsedDurationSeconds,
-      restBetweenRepetitionsSeconds,
-      repetitionsPerSet,
-      setCount,
-      restBetweenSetsSeconds,
+      type: "intervals",
+      work: {
+        mode: "distance",
+        distanceMeters: workDistanceMeters,
+        durationSeconds: totalWorkSeconds / totalBouts,
+        provenance: "legacy-derived",
+        legacyTotalDurationSeconds: elapsedDurationSeconds,
+      },
+      restBetweenIntervalsSeconds: restBetweenRepetitionsSeconds,
+      intervalCount: repetitionsPerSet,
+      roundCount: setCount,
+      restBetweenRoundsSeconds: restBetweenSetsSeconds,
     });
   }
 
@@ -428,49 +451,109 @@ export function evaluateConditioningProtocol(
     };
   }
 
-  if (protocol.type === "time_intervals") {
-    if (!isIntegerInRange(protocol.workSeconds, 1, maximumDuration)) {
-      issues.push({ field: "workSeconds", message: "Work duration is invalid." });
+  if (protocol.type === "intervals") {
+    if (
+      protocol.work.mode === "time" &&
+      !isIntegerInRange(protocol.work.durationSeconds, 1, maximumDuration)
+    ) {
+      issues.push({
+        field: "work.durationSeconds",
+        message: "Work duration is invalid.",
+      });
     }
+
+    if (protocol.work.mode === "distance") {
+      if (
+        !isNumberInRange(
+          protocol.work.distanceMeters,
+          Number.EPSILON,
+          conditioningValidationLimits.distanceMeters,
+        )
+      ) {
+        issues.push({
+          field: "work.distanceMeters",
+          message: "Distance per interval is invalid.",
+        });
+      }
+
+      const validDuration =
+        protocol.work.provenance === "legacy-derived"
+          ? isNumberInRange(
+              protocol.work.durationSeconds,
+              Number.EPSILON,
+              maximumDuration,
+            )
+          : isIntegerInRange(
+              protocol.work.durationSeconds,
+              1,
+              maximumDuration,
+            );
+
+      if (!validDuration) {
+        issues.push({
+          field: "work.durationSeconds",
+          message: "Work duration is invalid.",
+        });
+      }
+
+      if (
+        protocol.work.legacyTotalDurationSeconds !== undefined &&
+        !isIntegerInRange(
+          protocol.work.legacyTotalDurationSeconds,
+          1,
+          maximumDuration,
+        )
+      ) {
+        issues.push({
+          field: "work.legacyTotalDurationSeconds",
+          message: "Legacy elapsed duration is invalid.",
+        });
+      }
+    }
+
     if (
       !isIntegerInRange(
-        protocol.restBetweenRepetitionsSeconds,
+        protocol.restBetweenIntervalsSeconds,
         0,
         maximumDuration,
       )
     ) {
       issues.push({
-        field: "restBetweenRepetitionsSeconds",
-        message: "Rest between repetitions is invalid.",
+        field: "restBetweenIntervalsSeconds",
+        message: "Rest between intervals is invalid.",
       });
     }
     if (
       !isIntegerInRange(
-        protocol.repetitionsPerSet,
+        protocol.intervalCount,
         1,
         conditioningValidationLimits.repetitions,
       )
     ) {
       issues.push({
-        field: "repetitionsPerSet",
-        message: "Repetitions per set is invalid.",
+        field: "intervalCount",
+        message: "Interval count is invalid.",
       });
     }
     if (
       !isIntegerInRange(
-        protocol.setCount,
+        protocol.roundCount,
         1,
         conditioningValidationLimits.sets,
       )
     ) {
-      issues.push({ field: "setCount", message: "Set count is invalid." });
+      issues.push({ field: "roundCount", message: "Round count is invalid." });
     }
     if (
-      !isIntegerInRange(protocol.restBetweenSetsSeconds, 0, maximumDuration)
+      !isIntegerInRange(
+        protocol.restBetweenRoundsSeconds,
+        0,
+        maximumDuration,
+      )
     ) {
       issues.push({
-        field: "restBetweenSetsSeconds",
-        message: "Rest between sets is invalid.",
+        field: "restBetweenRoundsSeconds",
+        message: "Rest between rounds is invalid.",
       });
     }
 
@@ -478,16 +561,38 @@ export function evaluateConditioningProtocol(
       return { ok: false, issues };
     }
 
-    const totalBouts = protocol.repetitionsPerSet * protocol.setCount;
-    const totalWorkSeconds = protocol.workSeconds * totalBouts;
-    const repetitionRestSeconds =
-      protocol.restBetweenRepetitionsSeconds *
-      (protocol.repetitionsPerSet - 1) *
-      protocol.setCount;
-    const setRestSeconds =
-      protocol.restBetweenSetsSeconds * (protocol.setCount - 1);
-    const totalRestSeconds = repetitionRestSeconds + setRestSeconds;
-    const totalSessionSeconds = totalWorkSeconds + totalRestSeconds;
+    const totalBouts = protocol.intervalCount * protocol.roundCount;
+    const totalWorkSeconds = protocol.work.durationSeconds * totalBouts;
+    const intervalRestSeconds =
+      protocol.restBetweenIntervalsSeconds *
+      (protocol.intervalCount - 1) *
+      protocol.roundCount;
+    const roundRestSeconds =
+      protocol.restBetweenRoundsSeconds * (protocol.roundCount - 1);
+    const totalRestSeconds = intervalRestSeconds + roundRestSeconds;
+    const preservedLegacyTotalSeconds =
+      protocol.work.mode === "distance" &&
+      protocol.work.provenance === "legacy-derived"
+        ? protocol.work.legacyTotalDurationSeconds
+        : undefined;
+    const totalSessionSeconds =
+      preservedLegacyTotalSeconds ?? totalWorkSeconds + totalRestSeconds;
+    const exactTotalWorkSeconds =
+      preservedLegacyTotalSeconds === undefined
+        ? totalWorkSeconds
+        : preservedLegacyTotalSeconds - totalRestSeconds;
+
+    if (exactTotalWorkSeconds <= 0) {
+      return {
+        ok: false,
+        issues: [
+          {
+            field: "work.legacyTotalDurationSeconds",
+            message: "Legacy elapsed duration must be longer than all scheduled rest.",
+          },
+        ],
+      };
+    }
 
     if (totalSessionSeconds > maximumDuration) {
       return {
@@ -501,115 +606,7 @@ export function evaluateConditioningProtocol(
       };
     }
 
-    return {
-      ok: true,
-      protocol,
-      metrics: {
-        protocolType: protocol.type,
-        totalBouts,
-        workBoutSeconds: Array(totalBouts).fill(protocol.workSeconds),
-        totalWorkSeconds,
-        totalRestSeconds,
-        totalSessionSeconds,
-        totalDistanceMeters: null,
-        averageWorkBoutSeconds: protocol.workSeconds,
-        workToRestRatio:
-          totalRestSeconds > 0 ? totalWorkSeconds / totalRestSeconds : null,
-        estimatedWorkDuration: false,
-      },
-    };
-  }
-
-  if (protocol.type === "distance_intervals") {
-    if (
-      !isNumberInRange(
-        protocol.workDistanceMeters,
-        Number.EPSILON,
-        conditioningValidationLimits.distanceMeters,
-      )
-    ) {
-      issues.push({
-        field: "workDistanceMeters",
-        message: "Distance per repetition is invalid.",
-      });
-    }
-    if (
-      !isIntegerInRange(protocol.elapsedDurationSeconds, 1, maximumDuration)
-    ) {
-      issues.push({
-        field: "elapsedDurationSeconds",
-        message: "Elapsed duration is invalid.",
-      });
-    }
-    if (
-      !isIntegerInRange(
-        protocol.restBetweenRepetitionsSeconds,
-        0,
-        maximumDuration,
-      )
-    ) {
-      issues.push({
-        field: "restBetweenRepetitionsSeconds",
-        message: "Rest between repetitions is invalid.",
-      });
-    }
-    if (
-      !isIntegerInRange(
-        protocol.repetitionsPerSet,
-        1,
-        conditioningValidationLimits.repetitions,
-      )
-    ) {
-      issues.push({
-        field: "repetitionsPerSet",
-        message: "Repetitions per set is invalid.",
-      });
-    }
-    if (
-      !isIntegerInRange(
-        protocol.setCount,
-        1,
-        conditioningValidationLimits.sets,
-      )
-    ) {
-      issues.push({ field: "setCount", message: "Set count is invalid." });
-    }
-    if (
-      !isIntegerInRange(protocol.restBetweenSetsSeconds, 0, maximumDuration)
-    ) {
-      issues.push({
-        field: "restBetweenSetsSeconds",
-        message: "Rest between sets is invalid.",
-      });
-    }
-
-    if (issues.length > 0) {
-      return { ok: false, issues };
-    }
-
-    const totalBouts = protocol.repetitionsPerSet * protocol.setCount;
-    const repetitionRestSeconds =
-      protocol.restBetweenRepetitionsSeconds *
-      (protocol.repetitionsPerSet - 1) *
-      protocol.setCount;
-    const setRestSeconds =
-      protocol.restBetweenSetsSeconds * (protocol.setCount - 1);
-    const totalRestSeconds = repetitionRestSeconds + setRestSeconds;
-    const totalWorkSeconds = protocol.elapsedDurationSeconds - totalRestSeconds;
-
-    if (totalWorkSeconds <= 0) {
-      return {
-        ok: false,
-        issues: [
-          {
-            field: "elapsedDurationSeconds",
-            message: "Elapsed duration must be longer than all scheduled rest.",
-          },
-        ],
-      };
-    }
-
-    const averageWorkBoutSeconds = totalWorkSeconds / totalBouts;
+    const averageWorkBoutSeconds = exactTotalWorkSeconds / totalBouts;
 
     return {
       ok: true,
@@ -618,14 +615,21 @@ export function evaluateConditioningProtocol(
         protocolType: protocol.type,
         totalBouts,
         workBoutSeconds: Array(totalBouts).fill(averageWorkBoutSeconds),
-        totalWorkSeconds,
+        totalWorkSeconds: exactTotalWorkSeconds,
         totalRestSeconds,
-        totalSessionSeconds: protocol.elapsedDurationSeconds,
-        totalDistanceMeters: protocol.workDistanceMeters * totalBouts,
+        totalSessionSeconds,
+        totalDistanceMeters:
+          protocol.work.mode === "distance"
+            ? protocol.work.distanceMeters * totalBouts
+            : null,
         averageWorkBoutSeconds,
         workToRestRatio:
-          totalRestSeconds > 0 ? totalWorkSeconds / totalRestSeconds : null,
-        estimatedWorkDuration: true,
+          totalRestSeconds > 0
+            ? exactTotalWorkSeconds / totalRestSeconds
+            : null,
+        estimatedWorkDuration:
+          protocol.work.mode === "distance" &&
+          protocol.work.provenance === "legacy-derived",
       },
     };
   }

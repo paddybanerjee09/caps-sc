@@ -9,8 +9,7 @@ export type ConditioningActivity =
 
 export type ConditioningProtocolType =
   | "continuous"
-  | "time_intervals"
-  | "distance_intervals"
+  | "intervals"
   | "circuit";
 
 export type ConditioningIntensityMethod =
@@ -37,23 +36,24 @@ export type ContinuousProtocol = {
   distanceMeters: number | null;
 };
 
-export type TimeIntervalsProtocol = {
-  type: "time_intervals";
-  workSeconds: number;
-  restBetweenRepetitionsSeconds: number;
-  repetitionsPerSet: number;
-  setCount: number;
-  restBetweenSetsSeconds: number;
-};
-
-export type DistanceIntervalsProtocol = {
-  type: "distance_intervals";
-  workDistanceMeters: number;
-  elapsedDurationSeconds: number;
-  restBetweenRepetitionsSeconds: number;
-  repetitionsPerSet: number;
-  setCount: number;
-  restBetweenSetsSeconds: number;
+export type IntervalsProtocol = {
+  type: "intervals";
+  work:
+    | {
+        mode: "time";
+        durationSeconds: number;
+      }
+    | {
+        mode: "distance";
+        distanceMeters: number;
+        durationSeconds: number;
+        provenance: "explicit" | "legacy-derived";
+        legacyTotalDurationSeconds?: number;
+      };
+  restBetweenIntervalsSeconds: number;
+  intervalCount: number;
+  roundCount: number;
+  restBetweenRoundsSeconds: number;
 };
 
 export type CircuitStation = {
@@ -72,8 +72,7 @@ export type CircuitProtocol = {
 
 export type ConditioningProtocol =
   | ContinuousProtocol
-  | TimeIntervalsProtocol
-  | DistanceIntervalsProtocol
+  | IntervalsProtocol
   | CircuitProtocol;
 
 export type ContinuousProtocolDraft = {

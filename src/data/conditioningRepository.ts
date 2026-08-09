@@ -47,6 +47,7 @@ type StoredDefinitionRow = {
   interval_work_duration_seconds: number | null;
   interval_work_distance_meters: number | null;
   distance_total_duration_seconds: number | null;
+  distance_work_duration_seconds: number | null;
   rest_between_repetitions_seconds: number | null;
   repetitions_per_set: number | null;
   set_count: number | null;
@@ -117,6 +118,12 @@ type NormalizedDefinition = {
   metrics: ConditioningProtocolMetrics;
 };
 
+type StoredConditioningProtocolType =
+  | "continuous"
+  | "time_intervals"
+  | "distance_intervals"
+  | "circuit";
+
 const ACTIVITY_VALUES = new Set<ConditioningActivity>([
   "running",
   "hill_sprints",
@@ -128,6 +135,12 @@ const ACTIVITY_VALUES = new Set<ConditioningActivity>([
 ]);
 
 const PROTOCOL_VALUES = new Set<ConditioningProtocolType>([
+  "continuous",
+  "intervals",
+  "circuit",
+]);
+
+const STORED_PROTOCOL_VALUES = new Set<StoredConditioningProtocolType>([
   "continuous",
   "time_intervals",
   "distance_intervals",
@@ -149,6 +162,7 @@ const DEFINITION_COLUMNS = [
   "interval_work_duration_seconds",
   "interval_work_distance_meters",
   "distance_total_duration_seconds",
+  "distance_work_duration_seconds",
   "rest_between_repetitions_seconds",
   "repetitions_per_set",
   "set_count",
@@ -194,6 +208,36 @@ function isProtocolType(value: unknown): value is ConditioningProtocolType {
     typeof value === "string" &&
     PROTOCOL_VALUES.has(value as ConditioningProtocolType)
   );
+}
+
+function isStoredProtocolType(
+  value: unknown,
+): value is StoredConditioningProtocolType {
+  return (
+    typeof value === "string" &&
+    STORED_PROTOCOL_VALUES.has(value as StoredConditioningProtocolType)
+  );
+}
+
+function getStoredProtocolType(
+  protocol: ConditioningProtocol,
+): StoredConditioningProtocolType {
+  if (protocol.type !== "intervals") {
+    return protocol.type;
+  }
+
+  return protocol.work.mode === "time"
+    ? "time_intervals"
+    : "distance_intervals";
+}
+
+function getPublicProtocolType(
+  protocolType: StoredConditioningProtocolType,
+): ConditioningProtocolType {
+  return protocolType === "time_intervals" ||
+    protocolType === "distance_intervals"
+    ? "intervals"
+    : protocolType;
 }
 
 function isAdaptationKey(value: unknown): value is ConditioningAdaptationKey {
@@ -519,28 +563,40 @@ function getDefinitionStorageValues(
 
   return [
     definition.activity,
-    protocol.type,
+    getStoredProtocolType(protocol),
     intensityMethod,
     intensityValue,
     intensityReference,
     protocol.type === "continuous" ? protocol.durationSeconds : null,
     protocol.type === "continuous" ? protocol.distanceMeters : null,
-    protocol.type === "time_intervals" ? protocol.workSeconds : null,
-    protocol.type === "distance_intervals" ? protocol.workDistanceMeters : null,
-    protocol.type === "distance_intervals"
-      ? protocol.elapsedDurationSeconds
+    protocol.type === "intervals" && protocol.work.mode === "time"
+      ? protocol.work.durationSeconds
       : null,
-    protocol.type === "time_intervals" || protocol.type === "distance_intervals"
-      ? protocol.restBetweenRepetitionsSeconds
+    protocol.type === "intervals" && protocol.work.mode === "distance"
+      ? protocol.work.distanceMeters
       : null,
-    protocol.type === "time_intervals" || protocol.type === "distance_intervals"
-      ? protocol.repetitionsPerSet
+    protocol.type === "intervals" && protocol.work.mode === "distance"
+      ? protocol.work.provenance === "legacy-derived" &&
+        protocol.work.legacyTotalDurationSeconds !== undefined
+        ? protocol.work.legacyTotalDurationSeconds
+        : definition.metrics.totalSessionSeconds
       : null,
-    protocol.type === "time_intervals" || protocol.type === "distance_intervals"
-      ? protocol.setCount
+    protocol.type === "intervals" &&
+    protocol.work.mode === "distance" &&
+    protocol.work.provenance === "explicit"
+      ? protocol.work.durationSeconds
       : null,
-    protocol.type === "time_intervals" || protocol.type === "distance_intervals"
-      ? protocol.restBetweenSetsSeconds
+    protocol.type === "intervals"
+      ? protocol.restBetweenIntervalsSeconds
+      : null,
+    protocol.type === "intervals"
+      ? protocol.intervalCount
+      : null,
+    protocol.type === "intervals"
+      ? protocol.roundCount
+      : null,
+    protocol.type === "intervals"
+      ? protocol.restBetweenRoundsSeconds
       : null,
     protocol.type === "circuit" ? protocol.roundCount : null,
     protocol.type === "circuit" ? protocol.restBetweenStationsSeconds : null,
@@ -620,7 +676,7 @@ function getProtocolFromRow(
   row: StoredDefinitionRow,
   stations: CircuitStation[],
 ): { protocol: ConditioningProtocol; metrics: ConditioningProtocolMetrics } {
-  if (!isProtocolType(row.protocol_type)) {
+  if (!isStoredProtocolType(row.protocol_type)) {
     throw new Error("Stored conditioning type is invalid.");
   }
 
@@ -633,24 +689,52 @@ function getProtocolFromRow(
     };
   } else if (row.protocol_type === "time_intervals") {
     protocol = {
-      type: "time_intervals",
-      workSeconds: row.interval_work_duration_seconds as number,
-      restBetweenRepetitionsSeconds:
+      type: "intervals",
+      work: {
+        mode: "time",
+        durationSeconds: row.interval_work_duration_seconds as number,
+      },
+      restBetweenIntervalsSeconds:
         row.rest_between_repetitions_seconds as number,
-      repetitionsPerSet: row.repetitions_per_set as number,
-      setCount: row.set_count as number,
-      restBetweenSetsSeconds: row.rest_between_sets_seconds as number,
+      intervalCount: row.repetitions_per_set as number,
+      roundCount: row.set_count as number,
+      restBetweenRoundsSeconds: row.rest_between_sets_seconds as number,
     };
   } else if (row.protocol_type === "distance_intervals") {
+    const intervalCount = row.repetitions_per_set as number;
+    const roundCount = row.set_count as number;
+    const restBetweenIntervalsSeconds =
+      row.rest_between_repetitions_seconds as number;
+    const restBetweenRoundsSeconds = row.rest_between_sets_seconds as number;
+    const totalDurationSeconds = row.distance_total_duration_seconds as number;
+    const boutCount = intervalCount * roundCount;
+    const scheduledRestSeconds =
+      restBetweenIntervalsSeconds * (intervalCount - 1) * roundCount +
+      restBetweenRoundsSeconds * (roundCount - 1);
+    const explicitWorkDurationSeconds = row.distance_work_duration_seconds;
+
     protocol = {
-      type: "distance_intervals",
-      workDistanceMeters: row.interval_work_distance_meters as number,
-      elapsedDurationSeconds: row.distance_total_duration_seconds as number,
-      restBetweenRepetitionsSeconds:
-        row.rest_between_repetitions_seconds as number,
-      repetitionsPerSet: row.repetitions_per_set as number,
-      setCount: row.set_count as number,
-      restBetweenSetsSeconds: row.rest_between_sets_seconds as number,
+      type: "intervals",
+      work:
+        explicitWorkDurationSeconds === null
+          ? {
+              mode: "distance",
+              distanceMeters: row.interval_work_distance_meters as number,
+              durationSeconds:
+                (totalDurationSeconds - scheduledRestSeconds) / boutCount,
+              provenance: "legacy-derived",
+              legacyTotalDurationSeconds: totalDurationSeconds,
+            }
+          : {
+              mode: "distance",
+              distanceMeters: row.interval_work_distance_meters as number,
+              durationSeconds: explicitWorkDurationSeconds,
+              provenance: "explicit",
+            },
+      restBetweenIntervalsSeconds,
+      intervalCount,
+      roundCount,
+      restBetweenRoundsSeconds,
     };
   } else {
     protocol = {
@@ -785,7 +869,11 @@ function mapScoredResult(
   if (intensity === null) {
     missingInputs.push("Intensity was not provided.");
   }
-  if (protocol.type === "distance_intervals") {
+  if (
+    protocol.type === "intervals" &&
+    protocol.work.mode === "distance" &&
+    protocol.work.provenance === "legacy-derived"
+  ) {
     missingInputs.push(
       "Work duration was estimated from elapsed duration and scheduled rest.",
     );
@@ -1153,7 +1241,7 @@ export async function getConditioningSessionsForRange(
   return rows.map((row) => {
     if (
       !isActivity(row.activity) ||
-      !isProtocolType(row.protocol_type) ||
+      !isStoredProtocolType(row.protocol_type) ||
       !isAdaptationKey(row.primary_adaptation) ||
       (row.evidence_level !== "full" && row.evidence_level !== "limited") ||
       !Number.isInteger(row.timeline_entry_id) ||
@@ -1169,7 +1257,7 @@ export async function getConditioningSessionsForRange(
       startAt: row.start_at,
       endAt: row.end_at,
       activity: row.activity,
-      protocolType: row.protocol_type,
+      protocolType: getPublicProtocolType(row.protocol_type),
       primaryAdaptation: row.primary_adaptation,
       evidence: row.evidence_level,
     };
@@ -1206,6 +1294,7 @@ export async function getConditioningSessionByTimelineEntryId(
        log.interval_work_duration_seconds,
        log.interval_work_distance_meters,
        log.distance_total_duration_seconds,
+       log.distance_work_duration_seconds,
        log.rest_between_repetitions_seconds,
        log.repetitions_per_set,
        log.set_count,

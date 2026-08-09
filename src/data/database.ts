@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 6;
+const DATABASE_VERSION = 7;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -842,6 +842,32 @@ export async function migrateDatabase(db: SQLiteDatabase) {
       INSERT OR IGNORE INTO athlete_preferences (id, distance_unit)
       VALUES (1, 'metric');
     `);
+  }
+
+  if (currentVersion < 7) {
+    await db.withExclusiveTransactionAsync(async (transaction) => {
+      await transaction.execAsync(`
+        ALTER TABLE conditioning_session_templates
+        ADD COLUMN distance_work_duration_seconds INTEGER DEFAULT NULL
+          CHECK (
+            distance_work_duration_seconds IS NULL
+            OR (
+              typeof(distance_work_duration_seconds) = 'integer'
+              AND distance_work_duration_seconds BETWEEN 1 AND 86400
+            )
+          );
+
+        ALTER TABLE conditioning_logs
+        ADD COLUMN distance_work_duration_seconds INTEGER DEFAULT NULL
+          CHECK (
+            distance_work_duration_seconds IS NULL
+            OR (
+              typeof(distance_work_duration_seconds) = 'integer'
+              AND distance_work_duration_seconds BETWEEN 1 AND 86400
+            )
+          );
+      `);
+    });
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

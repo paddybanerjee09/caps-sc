@@ -36,12 +36,12 @@ describe("conditioning protocol calculations", () => {
 
   it("calculates work and scheduled rest for time intervals", () => {
     const result = evaluateConditioningProtocol({
-      type: "time_intervals",
-      workSeconds: 30,
-      restBetweenRepetitionsSeconds: 15,
-      repetitionsPerSet: 4,
-      setCount: 2,
-      restBetweenSetsSeconds: 60,
+      type: "intervals",
+      work: { mode: "time", durationSeconds: 30 },
+      restBetweenIntervalsSeconds: 15,
+      intervalCount: 4,
+      roundCount: 2,
+      restBetweenRoundsSeconds: 60,
     });
 
     expect(result.ok).toBe(true);
@@ -61,13 +61,18 @@ describe("conditioning protocol calculations", () => {
 
   it("derives distance-interval work from elapsed time after rest", () => {
     const result = evaluateConditioningProtocol({
-      type: "distance_intervals",
-      workDistanceMeters: 400,
-      elapsedDurationSeconds: 900,
-      restBetweenRepetitionsSeconds: 30,
-      repetitionsPerSet: 4,
-      setCount: 2,
-      restBetweenSetsSeconds: 90,
+      type: "intervals",
+      work: {
+        mode: "distance",
+        distanceMeters: 400,
+        durationSeconds: 78.75,
+        provenance: "legacy-derived",
+        legacyTotalDurationSeconds: 900,
+      },
+      restBetweenIntervalsSeconds: 30,
+      intervalCount: 4,
+      roundCount: 2,
+      restBetweenRoundsSeconds: 90,
     });
 
     expect(result.ok).toBe(true);
@@ -83,6 +88,59 @@ describe("conditioning protocol calculations", () => {
       estimatedWorkDuration: true,
     });
     expect(result.metrics.workBoutSeconds).toEqual(Array(8).fill(78.75));
+  });
+
+  it("keeps a legacy elapsed total exact across fractional interval work", () => {
+    const result = evaluateConditioningProtocol({
+      type: "intervals",
+      work: {
+        mode: "distance",
+        distanceMeters: 100,
+        durationSeconds: 1 / 49,
+        provenance: "legacy-derived",
+        legacyTotalDurationSeconds: 1,
+      },
+      restBetweenIntervalsSeconds: 0,
+      intervalCount: 49,
+      roundCount: 1,
+      restBetweenRoundsSeconds: 0,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.metrics.totalWorkSeconds).toBe(1);
+    expect(result.metrics.totalSessionSeconds).toBe(1);
+  });
+
+  it("calculates explicit distance work per interval", () => {
+    const result = evaluateConditioningProtocol({
+      type: "intervals",
+      work: {
+        mode: "distance",
+        distanceMeters: 400,
+        durationSeconds: 75,
+        provenance: "explicit",
+      },
+      restBetweenIntervalsSeconds: 30,
+      intervalCount: 4,
+      roundCount: 2,
+      restBetweenRoundsSeconds: 90,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.metrics).toMatchObject({
+      protocolType: "intervals",
+      totalBouts: 8,
+      totalWorkSeconds: 600,
+      totalRestSeconds: 270,
+      totalSessionSeconds: 870,
+      totalDistanceMeters: 3_200,
+      averageWorkBoutSeconds: 75,
+      estimatedWorkDuration: false,
+    });
   });
 
   it("calculates circuit work and rest across rounds", () => {
@@ -130,6 +188,60 @@ describe("conditioning protocol validation", () => {
     });
   });
 
+  it("maps a legacy time-interval draft to the canonical interval model", () => {
+    const result = parseConditioningProtocolDraft({
+      type: "time_intervals",
+      workSecondsInput: "30",
+      restBetweenRepetitionsSecondsInput: "15",
+      repetitionsPerSetInput: "4",
+      setCountInput: "2",
+      restBetweenSetsSecondsInput: "60",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.protocol).toEqual({
+      type: "intervals",
+      work: { mode: "time", durationSeconds: 30 },
+      restBetweenIntervalsSeconds: 15,
+      intervalCount: 4,
+      roundCount: 2,
+      restBetweenRoundsSeconds: 60,
+    });
+  });
+
+  it("preserves elapsed-time provenance when mapping a legacy distance draft", () => {
+    const result = parseConditioningProtocolDraft({
+      type: "distance_intervals",
+      workDistanceMetersInput: "400",
+      elapsedDurationSecondsInput: "900",
+      restBetweenRepetitionsSecondsInput: "30",
+      repetitionsPerSetInput: "4",
+      setCountInput: "2",
+      restBetweenSetsSecondsInput: "90",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.protocol).toEqual({
+      type: "intervals",
+      work: {
+        mode: "distance",
+        distanceMeters: 400,
+        durationSeconds: 78.75,
+        provenance: "legacy-derived",
+        legacyTotalDurationSeconds: 900,
+      },
+      restBetweenIntervalsSeconds: 30,
+      intervalCount: 4,
+      roundCount: 2,
+      restBetweenRoundsSeconds: 90,
+    });
+    expect(result.metrics.estimatedWorkDuration).toBe(true);
+  });
+
   it("reports every invalid field in a draft", () => {
     const result = parseConditioningProtocolDraft({
       type: "time_intervals",
@@ -154,12 +266,12 @@ describe("conditioning protocol validation", () => {
 
   it("rejects a complete interval session longer than 24 hours", () => {
     const result = evaluateConditioningProtocol({
-      type: "time_intervals",
-      workSeconds: 43_201,
-      restBetweenRepetitionsSeconds: 0,
-      repetitionsPerSet: 2,
-      setCount: 1,
-      restBetweenSetsSeconds: 0,
+      type: "intervals",
+      work: { mode: "time", durationSeconds: 43_201 },
+      restBetweenIntervalsSeconds: 0,
+      intervalCount: 2,
+      roundCount: 1,
+      restBetweenRoundsSeconds: 0,
     });
 
     expect(result).toEqual({
@@ -174,14 +286,14 @@ describe("conditioning protocol validation", () => {
   });
 
   it("rejects distance intervals when scheduled rest consumes elapsed time", () => {
-    const result = evaluateConditioningProtocol({
+    const result = parseConditioningProtocolDraft({
       type: "distance_intervals",
-      workDistanceMeters: 200,
-      elapsedDurationSeconds: 120,
-      restBetweenRepetitionsSeconds: 60,
-      repetitionsPerSet: 3,
-      setCount: 1,
-      restBetweenSetsSeconds: 0,
+      workDistanceMetersInput: "200",
+      elapsedDurationSecondsInput: "120",
+      restBetweenRepetitionsSecondsInput: "60",
+      repetitionsPerSetInput: "3",
+      setCountInput: "1",
+      restBetweenSetsSecondsInput: "0",
     });
 
     expect(result).toEqual({

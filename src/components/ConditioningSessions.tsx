@@ -21,7 +21,7 @@ import {
 import {
   conditioningActivityOptions,
   conditioningAdaptations,
-  conditioningProtocolOptions,
+  conditioningProtocolLabels,
 } from "../constants/conditioning";
 import {
   getAthleteConditioningBaselines,
@@ -465,21 +465,26 @@ function getActivityPresentation(activity: ConditioningActivity): {
 }
 
 function getProtocolSummary(protocol: ConditioningProtocol) {
-  const protocolLabel =
-    conditioningProtocolOptions.find((option) => option.key === protocol.type)
-      ?.label ?? "Conditioning";
+  const protocolLabel = getProtocolLabel(protocol.type);
   const result = evaluateConditioningProtocol(protocol);
 
   if (!result.ok) {
     return protocolLabel;
   }
 
-  if (protocol.type === "time_intervals") {
-    return `${protocolLabel} · ${protocol.repetitionsPerSet * protocol.setCount} reps · ${formatDuration(result.metrics.totalSessionSeconds)}`;
-  }
+  if (protocol.type === "intervals") {
+    const intervalStructure = `${protocol.intervalCount} ${protocol.intervalCount === 1 ? "interval" : "intervals"} × ${protocol.roundCount} ${protocol.roundCount === 1 ? "round" : "rounds"}`;
+    const workSummary =
+      protocol.work.mode === "time"
+        ? `Time · ${formatDuration(protocol.work.durationSeconds)} work`
+        : `Distance · ${formatDistance(protocol.work.distanceMeters)} in ${formatDuration(protocol.work.durationSeconds)}`;
+    const legacySummary =
+      protocol.work.mode === "distance" &&
+      protocol.work.provenance === "legacy-derived"
+        ? " · estimated timing"
+        : "";
 
-  if (protocol.type === "distance_intervals") {
-    return `${protocolLabel} · ${protocol.repetitionsPerSet * protocol.setCount} × ${formatDistance(protocol.workDistanceMeters)} · ${formatDuration(result.metrics.totalSessionSeconds)}`;
+    return `${protocolLabel} · ${workSummary} · ${intervalStructure} · ${formatDuration(result.metrics.totalSessionSeconds)}${legacySummary}`;
   }
 
   if (protocol.type === "circuit") {
@@ -487,6 +492,10 @@ function getProtocolSummary(protocol: ConditioningProtocol) {
   }
 
   return `${protocolLabel} · ${formatDuration(result.metrics.totalSessionSeconds)}`;
+}
+
+function getProtocolLabel(type: ConditioningProtocol["type"]) {
+  return conditioningProtocolLabels[type];
 }
 
 function formatDuration(totalSeconds: number) {

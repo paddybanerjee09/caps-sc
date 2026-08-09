@@ -32,16 +32,7 @@ const STRUCTURE_SCORES = {
     lactic_capacity: 0,
     recovery: 1,
   },
-  time_intervals: {
-    aerobic_base: 0.35,
-    aerobic_power: 1,
-    alactic_power: 1,
-    alactic_capacity: 1,
-    lactic_power: 1,
-    lactic_capacity: 1,
-    recovery: 0.1,
-  },
-  distance_intervals: {
+  intervals: {
     aerobic_base: 0.35,
     aerobic_power: 1,
     alactic_power: 1,

@@ -719,30 +719,44 @@ function createProtocolDraft(
     };
   }
 
-  if (protocol.type === "time_intervals") {
-    return {
-      repetitionsPerSetInput: String(protocol.repetitionsPerSet),
-      restBetweenRepetitionsSecondsInput: String(
-        protocol.restBetweenRepetitionsSeconds,
-      ),
-      restBetweenSetsSecondsInput: String(protocol.restBetweenSetsSeconds),
-      setCountInput: String(protocol.setCount),
-      type: protocol.type,
-      workSecondsInput: String(protocol.workSeconds),
-    };
-  }
+  if (protocol.type === "intervals") {
+    if (protocol.work.mode === "time") {
+      return {
+        repetitionsPerSetInput: String(protocol.intervalCount),
+        restBetweenRepetitionsSecondsInput: String(
+          protocol.restBetweenIntervalsSeconds,
+        ),
+        restBetweenSetsSecondsInput: String(protocol.restBetweenRoundsSeconds),
+        setCountInput: String(protocol.roundCount),
+        type: "time_intervals",
+        workSecondsInput: String(protocol.work.durationSeconds),
+      };
+    }
 
-  if (protocol.type === "distance_intervals") {
+    const totalRestSeconds =
+      protocol.restBetweenIntervalsSeconds *
+        (protocol.intervalCount - 1) *
+        protocol.roundCount +
+      protocol.restBetweenRoundsSeconds * (protocol.roundCount - 1);
+    const elapsedDurationSeconds =
+      protocol.work.provenance === "legacy-derived" &&
+      protocol.work.legacyTotalDurationSeconds !== undefined
+        ? protocol.work.legacyTotalDurationSeconds
+        : protocol.work.durationSeconds *
+            protocol.intervalCount *
+            protocol.roundCount +
+          totalRestSeconds;
+
     return {
-      elapsedDurationSecondsInput: String(protocol.elapsedDurationSeconds),
-      repetitionsPerSetInput: String(protocol.repetitionsPerSet),
+      elapsedDurationSecondsInput: String(elapsedDurationSeconds),
+      repetitionsPerSetInput: String(protocol.intervalCount),
       restBetweenRepetitionsSecondsInput: String(
-        protocol.restBetweenRepetitionsSeconds,
+        protocol.restBetweenIntervalsSeconds,
       ),
-      restBetweenSetsSecondsInput: String(protocol.restBetweenSetsSeconds),
-      setCountInput: String(protocol.setCount),
-      type: protocol.type,
-      workDistanceMetersInput: String(protocol.workDistanceMeters),
+      restBetweenSetsSecondsInput: String(protocol.restBetweenRoundsSeconds),
+      setCountInput: String(protocol.roundCount),
+      type: "distance_intervals",
+      workDistanceMetersInput: String(protocol.work.distanceMeters),
     };
   }
 

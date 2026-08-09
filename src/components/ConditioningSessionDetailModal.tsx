@@ -14,7 +14,7 @@ import {
 import {
   conditioningActivityOptions,
   conditioningAdaptations,
-  conditioningProtocolOptions,
+  conditioningProtocolLabels,
   conditioningScoringDisclaimer,
 } from "../constants/conditioning";
 import { getConditioningSessionByTimelineEntryId } from "../data/conditioningRepository";
@@ -297,14 +297,6 @@ export function ConditioningSessionDetailModal({
                     value={formatDistance(session.metrics.totalDistanceMeters)}
                   />
                 ) : null}
-                {session.metrics.estimatedWorkDuration ? (
-                  <Text
-                    style={[styles.helperText, { color: theme.colors.textMuted }]}
-                  >
-                    Work time is estimated from the overall elapsed duration and
-                    recorded rests.
-                  </Text>
-                ) : null}
               </DetailSection>
 
               <DetailSection title="Intensity">
@@ -501,44 +493,53 @@ function ProtocolDetails({
     );
   }
 
-  if (protocol.type === "time_intervals") {
+  if (protocol.type === "intervals") {
     return (
-      <DetailSection title="Time intervals">
+      <DetailSection title="Intervals">
         <DetailRow
-          label="Work interval"
+          label="Work mode"
           mutedColor={mutedColor}
           textColor={textColor}
-          value={formatDuration(protocol.workSeconds)}
+          value={protocol.work.mode === "time" ? "Time" : "Distance"}
+        />
+        {protocol.work.mode === "distance" ? (
+          <DetailRow
+            label="Distance per interval"
+            mutedColor={mutedColor}
+            textColor={textColor}
+            value={formatDistance(protocol.work.distanceMeters)}
+          />
+        ) : null}
+        <DetailRow
+          label="Duration per interval"
+          mutedColor={mutedColor}
+          textColor={textColor}
+          value={formatDuration(protocol.work.durationSeconds)}
         />
         <IntervalStructureRows
           mutedColor={mutedColor}
           protocol={protocol}
           textColor={textColor}
         />
-      </DetailSection>
-    );
-  }
-
-  if (protocol.type === "distance_intervals") {
-    return (
-      <DetailSection title="Distance intervals">
-        <DetailRow
-          label="Work interval"
-          mutedColor={mutedColor}
-          textColor={textColor}
-          value={formatDistance(protocol.workDistanceMeters)}
-        />
-        <DetailRow
-          label="Overall elapsed time"
-          mutedColor={mutedColor}
-          textColor={textColor}
-          value={formatDuration(protocol.elapsedDurationSeconds)}
-        />
-        <IntervalStructureRows
-          mutedColor={mutedColor}
-          protocol={protocol}
-          textColor={textColor}
-        />
+        {protocol.work.mode === "distance" &&
+        protocol.work.provenance === "legacy-derived" ? (
+          <>
+            {protocol.work.legacyTotalDurationSeconds !== undefined ? (
+              <DetailRow
+                label="Legacy elapsed duration"
+                mutedColor={mutedColor}
+                textColor={textColor}
+                value={formatDuration(
+                  protocol.work.legacyTotalDurationSeconds,
+                )}
+              />
+            ) : null}
+            <Text style={[styles.helperText, { color: mutedColor }]}>
+              Duration per interval is estimated from the legacy session’s
+              overall elapsed duration and recorded rests.
+            </Text>
+          </>
+        ) : null}
       </DetailSection>
     );
   }
@@ -588,7 +589,7 @@ function ProtocolDetails({
 
 type IntervalProtocol = Extract<
   ConditioningProtocol,
-  { type: "time_intervals" | "distance_intervals" }
+  { type: "intervals" }
 >;
 
 type IntervalStructureRowsProps = {
@@ -605,28 +606,28 @@ function IntervalStructureRows({
   return (
     <>
       <DetailRow
-        label="Repetitions per set"
+        label="Intervals"
         mutedColor={mutedColor}
         textColor={textColor}
-        value={String(protocol.repetitionsPerSet)}
+        value={String(protocol.intervalCount)}
       />
       <DetailRow
-        label="Sets"
+        label="Rounds"
         mutedColor={mutedColor}
         textColor={textColor}
-        value={String(protocol.setCount)}
+        value={String(protocol.roundCount)}
       />
       <DetailRow
-        label="Rest between repetitions"
+        label="Rest between intervals"
         mutedColor={mutedColor}
         textColor={textColor}
-        value={formatDuration(protocol.restBetweenRepetitionsSeconds)}
+        value={formatDuration(protocol.restBetweenIntervalsSeconds)}
       />
       <DetailRow
-        label="Rest between sets"
+        label="Rest between rounds"
         mutedColor={mutedColor}
         textColor={textColor}
-        value={formatDuration(protocol.restBetweenSetsSeconds)}
+        value={formatDuration(protocol.restBetweenRoundsSeconds)}
       />
     </>
   );
@@ -724,10 +725,7 @@ function getActivityLabel(activity: StoredConditioningSession["activity"]) {
 }
 
 function getProtocolLabel(type: ConditioningProtocol["type"]) {
-  return (
-    conditioningProtocolOptions.find((option) => option.key === type)?.label ??
-    type
-  );
+  return conditioningProtocolLabels[type];
 }
 
 function formatDate(timestamp: number) {

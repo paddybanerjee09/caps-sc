@@ -21,13 +21,17 @@ export const conditioningActivityOptions = [
 
 export const conditioningProtocolOptions = [
   { key: "continuous", label: "Continuous" },
-  { key: "time_intervals", label: "Time Intervals" },
-  { key: "distance_intervals", label: "Distance Intervals" },
-  { key: "circuit", label: "Circuit" },
+  { key: "intervals", label: "Intervals" },
 ] as const satisfies readonly {
-  key: ConditioningProtocolType;
+  key: Exclude<ConditioningProtocolType, "circuit">;
   label: string;
 }[];
+
+export const conditioningProtocolLabels = {
+  continuous: "Continuous",
+  intervals: "Intervals",
+  circuit: "Circuit",
+} as const satisfies Record<ConditioningProtocolType, string>;
 
 export const conditioningAdaptationOrder = [
   "aerobic_base",

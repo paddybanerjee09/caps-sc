@@ -85,26 +85,14 @@ export function createDefaultConditioningProtocolDraft(
     };
   }
 
-  if (type === "time_intervals") {
+  if (type === "intervals") {
     return {
-      type,
+      type: "time_intervals",
       repetitionsPerSetInput: "1",
       restBetweenRepetitionsSecondsInput: "0",
       restBetweenSetsSecondsInput: "0",
       setCountInput: "1",
       workSecondsInput: "",
-    };
-  }
-
-  if (type === "distance_intervals") {
-    return {
-      type,
-      elapsedDurationSecondsInput: "",
-      repetitionsPerSetInput: "1",
-      restBetweenRepetitionsSecondsInput: "0",
-      restBetweenSetsSecondsInput: "0",
-      setCountInput: "1",
-      workDistanceMetersInput: "",
     };
   }
 
@@ -264,7 +252,12 @@ export function ConditioningSessionForm({
           updateDraft({ protocol: createDefaultConditioningProtocolDraft(type) })
         }
         options={conditioningProtocolOptions}
-        value={draft.protocol.type}
+        value={
+          draft.protocol.type === "time_intervals" ||
+          draft.protocol.type === "distance_intervals"
+            ? "intervals"
+            : draft.protocol.type
+        }
       />
 
       <ProtocolFields
