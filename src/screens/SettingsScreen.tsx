@@ -223,6 +223,7 @@ function OptionSelector({
           <PressOpacity
             accessibilityLabel={option.label}
             accessibilityRole="tab"
+            accessibilityState={{ selected: isSelected }}
             key={option.label}
             onPress={() => onValueChange(option.value)}
             style={[
@@ -404,7 +405,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     justifyContent: "center",
-    minHeight: 34,
+    minHeight: 44,
     paddingHorizontal: tokens.spacing.sm,
   },
   optionText: {

@@ -5,6 +5,7 @@ import {
   clearConditioningIntensity,
   createConditioningSessionFormDraftFromDefinition,
   createDefaultConditioningSessionFormDraft,
+  getDistanceWorkDurationForDisplay,
   selectConditioningActivity,
   selectConditioningIntensityMethod,
   selectConditioningProtocolType,
@@ -217,6 +218,45 @@ describe("conditioning session form draft", () => {
     expect(analysis.metrics.totalSessionSeconds).toBe(902);
   });
 
+  test("keeps legacy-derived work duration synchronized with structure edits", () => {
+    const draft = createConditioningSessionFormDraftFromDefinition({
+      title: "Legacy structure edit",
+      activity: "running",
+      intensity: null,
+      notes: null,
+      protocol: {
+        type: "intervals",
+        work: {
+          mode: "distance",
+          distanceMeters: 400,
+          durationSeconds: 78.75,
+          provenance: "legacy-derived",
+          legacyTotalDurationSeconds: 900,
+        },
+        restBetweenIntervalsSeconds: 30,
+        intervalCount: 4,
+        roundCount: 2,
+        restBetweenRoundsSeconds: 90,
+      },
+    });
+
+    draft.intervals.intervalCountInput = "2";
+    draft.intervals.restBetweenIntervalsSeconds = 15;
+    expect(getDistanceWorkDurationForDisplay(draft.intervals)).toBe(195);
+
+    const analysis = analyzeConditioningSessionFormDraft(draft, baselines);
+    expect(analysis.ok).toBe(true);
+    if (
+      !analysis.ok ||
+      analysis.protocol.type !== "intervals" ||
+      analysis.protocol.work.mode !== "distance"
+    ) {
+      return;
+    }
+    expect(analysis.protocol.work.durationSeconds).toBe(195);
+    expect(analysis.metrics.totalSessionSeconds).toBe(900);
+  });
+
   test("ties Circuit activity to its cached station branch", () => {
     let draft = createDefaultConditioningSessionFormDraft();
     draft.circuit.stations = [
@@ -333,7 +373,7 @@ describe("conditioning session form draft", () => {
     const draft = createConditioningSessionFormDraftFromDefinition(
       {
         title: "Historical threshold set",
-        activity: "cycling",
+        activity: "assault_bike",
         intensity: storedIntensity,
         notes: "Keep the original baseline",
         protocol: {

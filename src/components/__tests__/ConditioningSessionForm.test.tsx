@@ -3,7 +3,11 @@ import { useState } from "react";
 
 import { AppThemeProvider } from "../../theme/ThemeContext";
 import type { ConditioningScoreResult } from "../../types/conditioning";
-import { createDefaultConditioningSessionFormDraft } from "../../utils/conditioningSessionDraft";
+import {
+  analyzeConditioningSessionFormDraft,
+  createConditioningSessionFormDraftFromDefinition,
+  createDefaultConditioningSessionFormDraft,
+} from "../../utils/conditioningSessionDraft";
 import {
   ConditioningAdaptationBadge,
   ConditioningSessionForm,
@@ -87,6 +91,56 @@ describe("ConditioningSessionForm", () => {
     expect(result.getByLabelText("Intensity, not selected")).toBeTruthy();
   });
 
+  test("shows retained legacy pace values without offering Pace as a choice", async () => {
+    const thresholdDraft = createConditioningSessionFormDraftFromDefinition({
+      activity: "running",
+      intensity: {
+        method: "pace",
+        paceSecondsPerKm: 245,
+        reference: "threshold_pace",
+      },
+      notes: null,
+      protocol: {
+        distanceMeters: 5_000,
+        durationSeconds: 1_200,
+        type: "continuous",
+      },
+      title: "Threshold run",
+    });
+    const threshold = await render(<Harness initialDraft={thresholdDraft} />);
+    expect(threshold.getByText("Pace — 4:05 min/km")).toBeTruthy();
+    expect(
+      threshold.getByLabelText(
+        "Intensity, Pace, 4:05 min/km, legacy value",
+      ),
+    ).toBeTruthy();
+    expect(threshold.queryByLabelText("Pace")).toBeNull();
+    await threshold.unmount();
+
+    const speedDraft = createConditioningSessionFormDraftFromDefinition({
+      activity: "running",
+      intensity: {
+        method: "pace",
+        reference: "maximum_aerobic_speed",
+        speedKph: 17.5,
+      },
+      notes: null,
+      protocol: {
+        distanceMeters: 3_000,
+        durationSeconds: 600,
+        type: "continuous",
+      },
+      title: "MAS run",
+    });
+    const speed = await render(<Harness initialDraft={speedDraft} />);
+    expect(speed.getByText("Pace — 17.5 km/h")).toBeTruthy();
+    expect(
+      speed.getByLabelText(
+        "Intensity, Pace, 17.5 km/h, legacy value",
+      ),
+    ).toBeTruthy();
+  });
+
   test("activates the cached Circuit branch from the activity selector", async () => {
     const result = await render(<Harness />);
 
@@ -97,6 +151,57 @@ describe("ConditioningSessionForm", () => {
     expect(result.getByText("Stations")).toBeTruthy();
     expect(result.getByLabelText("Add station")).toBeTruthy();
     expect(result.queryByLabelText("Type, Continuous")).toBeNull();
+  });
+
+  test("reorders Circuit stations and serializes their new positions", async () => {
+    const initialDraft = createDefaultConditioningSessionFormDraft("metric");
+    initialDraft.activity = "circuit";
+    initialDraft.activeProtocolType = "circuit";
+    initialDraft.circuit.stations = [
+      { nameInput: "Bike", workSeconds: 30 },
+      { nameInput: "Carry", workSeconds: 45 },
+    ];
+    let latestDraft = initialDraft;
+
+    function ReorderHarness() {
+      const [draft, setDraft] = useState(initialDraft);
+      return (
+        <AppThemeProvider>
+          <ConditioningSessionForm
+            baselines={{
+              maximumAerobicSpeedKph: null,
+              maximumHeartRateBpm: null,
+              thresholdPaceSecondsPerKm: null,
+            }}
+            distanceUnit="metric"
+            draft={draft}
+            onChange={(nextDraft) => {
+              latestDraft = nextDraft;
+              setDraft(nextDraft);
+            }}
+            scoreResult={insufficientScore}
+          />
+        </AppThemeProvider>
+      );
+    }
+
+    const result = await render(<ReorderHarness />);
+    await fireEvent.press(result.getByLabelText("Move station 2 up"));
+    expect(
+      result.getAllByLabelText("Name").map((input) => input.props.value),
+    ).toEqual(["Carry", "Bike"]);
+
+    const analysis = analyzeConditioningSessionFormDraft(latestDraft, {
+      maximumAerobicSpeedKph: null,
+      maximumHeartRateBpm: null,
+      thresholdPaceSecondsPerKm: null,
+    });
+    expect(analysis.ok).toBe(true);
+    if (!analysis.ok || analysis.protocol.type !== "circuit") return;
+    expect(analysis.protocol.stations).toEqual([
+      { name: "Carry", position: 0, workSeconds: 45 },
+      { name: "Bike", position: 1, workSeconds: 30 },
+    ]);
   });
 
   test("supports compact external title and adaptation placement", async () => {

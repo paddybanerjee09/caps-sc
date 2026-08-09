@@ -4,6 +4,7 @@ import {
   useEffect,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -43,7 +44,7 @@ export type AthleteProfile = {
 
 export type UnitSystem = "metric" | "imperial";
 
-type UnitSettings = {
+export type UnitSettings = {
   distance: UnitSystem;
   height: UnitSystem;
   weight: UnitSystem;
@@ -91,6 +92,9 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
     height: "metric",
     weight: "metric",
   });
+  const [distanceUnitHydrated, setDistanceUnitHydrated] = useState(false);
+  const distanceUnitWriteQueue = useRef<Promise<void>>(Promise.resolve());
+  const distanceUnitWriteRequestId = useRef(0);
 
   const refreshLatestWeight = useCallback(async () => {
     const latestWeightKg = await getLatestWeightKg(db);
@@ -107,12 +111,20 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
 
   useEffect(() => {
     let isActive = true;
+    setDistanceUnitHydrated(false);
 
-    void getDistanceUnit(db).then((distance) => {
-      if (isActive) {
-        setUnitSettings((current) => ({ ...current, distance }));
-      }
-    });
+    void getDistanceUnit(db)
+      .then((distance) => {
+        if (isActive) {
+          setUnitSettings((current) => ({ ...current, distance }));
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (isActive) {
+          setDistanceUnitHydrated(true);
+        }
+      });
 
     return () => {
       isActive = false;
@@ -121,8 +133,17 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
 
   const setDistanceUnit = useCallback(
     async (unit: UnitSystem) => {
-      await saveDistanceUnit(db, unit);
-      setUnitSettings((current) => ({ ...current, distance: unit }));
+      const requestId = distanceUnitWriteRequestId.current + 1;
+      distanceUnitWriteRequestId.current = requestId;
+      const write = distanceUnitWriteQueue.current.then(() =>
+        saveDistanceUnit(db, unit),
+      );
+      distanceUnitWriteQueue.current = write.catch(() => undefined);
+      await write;
+
+      if (distanceUnitWriteRequestId.current === requestId) {
+        setUnitSettings((current) => ({ ...current, distance: unit }));
+      }
     },
     [db],
   );
@@ -177,6 +198,10 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
       username,
     ],
   );
+
+  if (!distanceUnitHydrated) {
+    return null;
+  }
 
   return (
     <AppStateContext.Provider value={value}>

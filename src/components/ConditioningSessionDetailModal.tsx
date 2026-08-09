@@ -18,6 +18,7 @@ import {
   conditioningScoringDisclaimer,
 } from "../constants/conditioning";
 import { getConditioningSessionByTimelineEntryId } from "../data/conditioningRepository";
+import { useAppState } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 import type {
@@ -25,6 +26,11 @@ import type {
   SnapshottedConditioningIntensity,
   StoredConditioningSession,
 } from "../types/conditioning";
+import {
+  formatDistanceInput,
+  getDistanceUnitLabel,
+  type ConditioningDistanceUnit,
+} from "../utils/conditioningMeasurements";
 import { ConditioningAdaptationModal } from "./ConditioningAdaptationModal";
 import { PressOpacity } from "./PressOpacity";
 
@@ -47,6 +53,7 @@ export function ConditioningSessionDetailModal({
   visible,
 }: ConditioningSessionDetailModalProps) {
   const db = useSQLiteContext();
+  const { unitSettings } = useAppState();
   const { theme } = useAppTheme();
   const requestId = useRef(0);
   const [detailState, setDetailState] = useState<DetailState>("loading");
@@ -286,6 +293,7 @@ export function ConditioningSessionDetailModal({
               </DetailSection>
 
               <ProtocolDetails
+                distanceUnit={unitSettings.distance}
                 mutedColor={theme.colors.textMuted}
                 protocol={session.protocol}
                 surfaceColor={theme.colors.surfaceMuted}
@@ -316,7 +324,10 @@ export function ConditioningSessionDetailModal({
                     label="Distance"
                     mutedColor={theme.colors.textMuted}
                     textColor={theme.colors.text}
-                    value={formatDistance(session.metrics.totalDistanceMeters)}
+                    value={formatDistance(
+                      session.metrics.totalDistanceMeters,
+                      unitSettings.distance,
+                    )}
                   />
                 ) : null}
               </DetailSection>
@@ -482,6 +493,7 @@ function DetailRow({ label, mutedColor, textColor, value }: DetailRowProps) {
 }
 
 type ProtocolDetailsProps = {
+  distanceUnit: ConditioningDistanceUnit;
   mutedColor: string;
   protocol: ConditioningProtocol;
   surfaceColor: string;
@@ -489,6 +501,7 @@ type ProtocolDetailsProps = {
 };
 
 function ProtocolDetails({
+  distanceUnit,
   mutedColor,
   protocol,
   surfaceColor,
@@ -508,7 +521,7 @@ function ProtocolDetails({
             label="Distance"
             mutedColor={mutedColor}
             textColor={textColor}
-            value={formatDistance(protocol.distanceMeters)}
+            value={formatDistance(protocol.distanceMeters, distanceUnit)}
           />
         ) : null}
       </DetailSection>
@@ -529,11 +542,16 @@ function ProtocolDetails({
             label="Distance per interval"
             mutedColor={mutedColor}
             textColor={textColor}
-            value={formatDistance(protocol.work.distanceMeters)}
+            value={formatDistance(protocol.work.distanceMeters, distanceUnit)}
           />
         ) : null}
         <DetailRow
-          label="Duration per interval"
+          label={
+            protocol.work.mode === "distance" &&
+            protocol.work.provenance === "legacy-derived"
+              ? "Estimated duration per interval"
+              : "Duration per interval"
+          }
           mutedColor={mutedColor}
           textColor={textColor}
           value={formatDuration(protocol.work.durationSeconds)}
@@ -568,6 +586,12 @@ function ProtocolDetails({
 
   return (
     <DetailSection title="Circuit">
+      <DetailRow
+        label="Stations per round"
+        mutedColor={mutedColor}
+        textColor={textColor}
+        value={String(protocol.stations.length)}
+      />
       <DetailRow
         label="Rounds"
         mutedColor={mutedColor}
@@ -801,12 +825,11 @@ function formatDuration(totalSeconds: number) {
   return parts.join(" ");
 }
 
-function formatDistance(meters: number) {
-  if (meters >= 1000) {
-    return `${formatNumber(meters / 1000)} km`;
-  }
-
-  return `${formatNumber(meters)} m`;
+function formatDistance(
+  meters: number,
+  distanceUnit: ConditioningDistanceUnit,
+) {
+  return `${formatDistanceInput(meters, distanceUnit)} ${getDistanceUnitLabel(distanceUnit)}`;
 }
 
 function formatPace(secondsPerKm: number) {

@@ -27,6 +27,7 @@ import {
   getAthleteConditioningBaselines,
   listConditioningTemplates,
 } from "../data/conditioningRepository";
+import { useAppState, type UnitSystem } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 import type {
@@ -40,6 +41,10 @@ import type {
 } from "../types/conditioning";
 import { evaluateConditioningProtocol } from "../utils/conditioningProtocol";
 import { scoreConditioningSession } from "../utils/conditioningScoring";
+import {
+  formatDistanceInput,
+  getDistanceUnitLabel,
+} from "../utils/conditioningMeasurements";
 import { PressOpacity } from "./PressOpacity";
 
 const tokens = themes.dark;
@@ -58,6 +63,7 @@ export function ConditioningSessions({
   visible,
 }: ConditioningSessionsProps) {
   const db = useSQLiteContext();
+  const { unitSettings } = useAppState();
   const { theme } = useAppTheme();
   const [baselines, setBaselines] = useState<AthleteConditioningBaselines>(
     emptyBaselines,
@@ -212,7 +218,7 @@ export function ConditioningSessions({
 
                 return (
                   <PressOpacity
-                    accessibilityLabel={`${template.title}, ${activity.label}, ${getProtocolSummary(template.protocol)}${adaptation ? `, primary adaptation ${adaptation.label}` : ", adaptation undetermined"}${selected ? ", selected" : ""}`}
+                    accessibilityLabel={`${template.title}, ${activity.label}, ${getConditioningProtocolSummary(template.protocol, unitSettings.distance)}${adaptation ? `, primary adaptation ${adaptation.label}` : ", adaptation undetermined"}${selected ? ", selected" : ""}`}
                     accessibilityRole="button"
                     key={template.id}
                     onPress={() => setSelectedTemplateId(template.id)}
@@ -250,13 +256,17 @@ export function ConditioningSessions({
                         {template.title}
                       </Text>
                       <Text
-                        numberOfLines={2}
+                        numberOfLines={4}
                         style={[
                           styles.templateDetails,
                           { color: theme.colors.textMuted },
                         ]}
                       >
-                        {activity.label} · {getProtocolSummary(template.protocol)}
+                        {activity.label} ·{" "}
+                        {getConditioningProtocolSummary(
+                          template.protocol,
+                          unitSettings.distance,
+                        )}
                       </Text>
                     </View>
 
@@ -464,7 +474,10 @@ function getActivityPresentation(activity: ConditioningActivity): {
   };
 }
 
-function getProtocolSummary(protocol: ConditioningProtocol) {
+export function getConditioningProtocolSummary(
+  protocol: ConditioningProtocol,
+  distanceUnit: UnitSystem,
+) {
   const protocolLabel = getProtocolLabel(protocol.type);
   const result = evaluateConditioningProtocol(protocol);
 
@@ -476,22 +489,30 @@ function getProtocolSummary(protocol: ConditioningProtocol) {
     const intervalStructure = `${protocol.intervalCount} ${protocol.intervalCount === 1 ? "interval" : "intervals"} × ${protocol.roundCount} ${protocol.roundCount === 1 ? "round" : "rounds"}`;
     const workSummary =
       protocol.work.mode === "time"
-        ? `Time · ${formatDuration(protocol.work.durationSeconds)} work`
-        : `Distance · ${formatDistance(protocol.work.distanceMeters)} in ${formatDuration(protocol.work.durationSeconds)}`;
+        ? `Time work: ${formatDuration(protocol.work.durationSeconds)} per interval`
+        : `Distance work: ${formatDistance(protocol.work.distanceMeters, distanceUnit)} per interval in ${formatDuration(protocol.work.durationSeconds)}`;
+    const restSummary = `rests: ${formatDuration(protocol.restBetweenIntervalsSeconds)} between intervals, ${formatDuration(protocol.restBetweenRoundsSeconds)} between rounds`;
     const legacySummary =
       protocol.work.mode === "distance" &&
       protocol.work.provenance === "legacy-derived"
-        ? " · estimated timing"
+        ? protocol.work.legacyTotalDurationSeconds === undefined
+          ? " · duration per interval estimated from legacy timing"
+          : ` · duration per interval estimated from legacy ${formatDuration(protocol.work.legacyTotalDurationSeconds)} total`
         : "";
 
-    return `${protocolLabel} · ${workSummary} · ${intervalStructure} · ${formatDuration(result.metrics.totalSessionSeconds)}${legacySummary}`;
+    return `${protocolLabel} · ${workSummary} · ${intervalStructure} · ${restSummary} · ${formatDuration(result.metrics.totalSessionSeconds)} total${legacySummary}`;
   }
 
   if (protocol.type === "circuit") {
     return `${protocolLabel} · ${protocol.roundCount} ${protocol.roundCount === 1 ? "round" : "rounds"} · ${formatDuration(result.metrics.totalSessionSeconds)}`;
   }
 
-  return `${protocolLabel} · ${formatDuration(result.metrics.totalSessionSeconds)}`;
+  const distanceSummary =
+    protocol.distanceMeters === null
+      ? ""
+      : ` · ${formatDistance(protocol.distanceMeters, distanceUnit)}`;
+
+  return `${protocolLabel} · ${formatDuration(result.metrics.totalSessionSeconds)}${distanceSummary}`;
 }
 
 function getProtocolLabel(type: ConditioningProtocol["type"]) {
@@ -499,26 +520,27 @@ function getProtocolLabel(type: ConditioningProtocol["type"]) {
 }
 
 function formatDuration(totalSeconds: number) {
-  if (totalSeconds < 60) {
-    return `${Math.round(totalSeconds)} sec`;
+  const safeSeconds = Math.max(0, Math.round(totalSeconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+  const parts: string[] = [];
+
+  if (hours > 0) {
+    parts.push(`${hours}h`);
+  }
+  if (minutes > 0) {
+    parts.push(`${minutes}m`);
+  }
+  if (seconds > 0 || parts.length === 0) {
+    parts.push(`${seconds}s`);
   }
 
-  const totalMinutes = Math.round(totalSeconds / 60);
-
-  if (totalMinutes < 60) {
-    return `${totalMinutes} min`;
-  }
-
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  return minutes === 0 ? `${hours} hr` : `${hours} hr ${minutes} min`;
+  return parts.join(" ");
 }
 
-function formatDistance(metres: number) {
-  return metres >= 1000
-    ? `${(metres / 1000).toLocaleString([], { maximumFractionDigits: 2 })} km`
-    : `${metres.toLocaleString([], { maximumFractionDigits: 1 })} m`;
+function formatDistance(metres: number, unit: UnitSystem) {
+  return `${formatDistanceInput(metres, unit)} ${getDistanceUnitLabel(unit)}`;
 }
 
 const styles = StyleSheet.create({

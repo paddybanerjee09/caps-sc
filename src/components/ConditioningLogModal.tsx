@@ -320,13 +320,17 @@ export function ConditioningLogModal({
     }
   }
 
+  if (!visible) {
+    return null;
+  }
+
   return (
     <>
       <Modal
         animationType="fade"
         onRequestClose={closeModal}
         transparent
-        visible={visible && !templateSelectorOpen}
+        visible={!templateSelectorOpen}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -510,7 +514,7 @@ export function ConditioningLogModal({
       <ConditioningSessions
         onClose={() => setTemplateSelectorOpen(false)}
         onTemplateSelected={applyTemplate}
-        visible={visible && !editing && templateSelectorOpen}
+        visible={!editing && templateSelectorOpen}
       />
     </>
   );

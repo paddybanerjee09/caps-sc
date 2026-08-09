@@ -163,12 +163,16 @@ export function CreateConditioningSessionModal({
     }
   }
 
+  if (!visible) {
+    return null;
+  }
+
   return (
     <Modal
       animationType="fade"
       onRequestClose={closeModal}
       transparent
-      visible={visible}
+      visible
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}

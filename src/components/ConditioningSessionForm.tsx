@@ -30,6 +30,7 @@ import {
   changeConditioningDistanceUnit,
   clearConditioningIntensity,
   createDefaultConditioningSessionFormDraft,
+  getDistanceWorkDurationForDisplay,
   selectConditioningActivity,
   selectConditioningIntensityMethod,
   selectConditioningProtocolType,
@@ -435,7 +436,7 @@ function IntervalFields({
                     },
                   })
                 }
-                valueSeconds={distanceWork.durationSeconds}
+                valueSeconds={getDistanceWorkDurationForDisplay(intervals)}
               />
             </View>
           )}
@@ -515,6 +516,20 @@ function CircuitFields({ disabled, draft, onChange }: SharedDraftProps) {
     onChange({ ...draft, circuit: { ...circuit, ...patch } });
   }
 
+  function moveStation(index: number, offset: -1 | 1) {
+    const nextIndex = index + offset;
+    if (nextIndex < 0 || nextIndex >= circuit.stations.length) {
+      return;
+    }
+
+    const stations = [...circuit.stations];
+    [stations[index], stations[nextIndex]] = [
+      stations[nextIndex],
+      stations[index],
+    ];
+    updateCircuit({ stations });
+  }
+
   return (
     <View style={styles.section}>
       <View style={styles.stationHeadingRow}>
@@ -554,17 +569,37 @@ function CircuitFields({ disabled, draft, onChange }: SharedDraftProps) {
               Station {index + 1}
             </Text>
             {circuit.stations.length > 1 ? (
-              <SmallAction
-                disabled={disabled}
-                label={`Remove station ${index + 1}`}
-                onPress={() =>
-                  updateCircuit({
-                    stations: circuit.stations.filter(
-                      (_candidate, candidateIndex) => candidateIndex !== index,
-                    ),
-                  })
-                }
-              />
+              <View style={styles.inlineActions}>
+                {index > 0 ? (
+                  <SmallAction
+                    accessibilityLabel={`Move station ${index + 1} up`}
+                    disabled={disabled}
+                    label="Up"
+                    onPress={() => moveStation(index, -1)}
+                  />
+                ) : null}
+                {index < circuit.stations.length - 1 ? (
+                  <SmallAction
+                    accessibilityLabel={`Move station ${index + 1} down`}
+                    disabled={disabled}
+                    label="Down"
+                    onPress={() => moveStation(index, 1)}
+                  />
+                ) : null}
+                <SmallAction
+                  accessibilityLabel={`Remove station ${index + 1}`}
+                  disabled={disabled}
+                  label="Remove"
+                  onPress={() =>
+                    updateCircuit({
+                      stations: circuit.stations.filter(
+                        (_candidate, candidateIndex) =>
+                          candidateIndex !== index,
+                      ),
+                    })
+                  }
+                />
+              </View>
             ) : null}
           </View>
           <FormTextInput
@@ -666,7 +701,7 @@ function IntensityFields({
             Intensity
           </Text>
           <View
-            accessibilityLabel="Intensity, Pace, legacy value"
+            accessibilityLabel={`Intensity, Pace, ${formatLegacyPaceIntensity(intensity.legacyPace)}, legacy value`}
             style={[
               styles.informationalValue,
               {
@@ -676,7 +711,7 @@ function IntensityFields({
             ]}
           >
             <Text style={[styles.valueText, { color: theme.colors.text }]}>
-              Pace — Legacy value
+              Pace — {formatLegacyPaceIntensity(intensity.legacyPace)}
             </Text>
           </View>
           <Text style={[styles.helpText, { color: theme.colors.textMuted }]}>
@@ -877,11 +912,32 @@ function ReadOnlyValue({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatLegacyPaceIntensity(
+  intensity: ConditioningIntensityDraft["legacyPace"],
+) {
+  if (intensity === null) {
+    return "Legacy value";
+  }
+
+  if (intensity.reference === "maximum_aerobic_speed") {
+    return `${intensity.speedKph.toLocaleString([], {
+      maximumFractionDigits: 2,
+    })} km/h`;
+  }
+
+  const roundedSeconds = Math.max(0, Math.round(intensity.paceSecondsPerKm));
+  const minutes = Math.floor(roundedSeconds / 60);
+  const seconds = roundedSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")} min/km`;
+}
+
 function SmallAction({
+  accessibilityLabel,
   disabled,
   label,
   onPress,
 }: {
+  accessibilityLabel?: string;
   disabled: boolean;
   label: string;
   onPress: () => void;
@@ -889,7 +945,7 @@ function SmallAction({
   const { theme } = useAppTheme();
   return (
     <PressOpacity
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       disabled={disabled}
       onPress={onPress}
       style={styles.smallButton}
@@ -978,6 +1034,7 @@ const styles = StyleSheet.create({
   stationHeadingRow: {
     alignItems: "center",
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: tokens.spacing.sm,
     justifyContent: "space-between",
   },
@@ -998,6 +1055,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: 44,
+    minWidth: 44,
     paddingHorizontal: tokens.spacing.sm,
   },
   smallButtonText: {

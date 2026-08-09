@@ -334,6 +334,39 @@ export function changeConditioningDistanceUnit(
   };
 }
 
+export function getDistanceWorkDurationForDisplay(
+  intervals: IntervalsProtocolFormDraft,
+): number | null {
+  const distanceWork = intervals.distanceWork;
+  if (
+    distanceWork.provenance !== "legacy-derived" ||
+    distanceWork.durationDirty ||
+    distanceWork.legacyTotalDurationSeconds === undefined
+  ) {
+    return distanceWork.durationSeconds;
+  }
+
+  const intervalCount = Number(intervals.intervalCountInput.trim());
+  const roundCount = Number(intervals.roundCountInput.trim());
+  const boutCount = intervalCount * roundCount;
+  if (
+    !Number.isInteger(intervalCount) ||
+    intervalCount <= 0 ||
+    !Number.isInteger(roundCount) ||
+    roundCount <= 0 ||
+    !Number.isFinite(boutCount) ||
+    boutCount <= 0
+  ) {
+    return null;
+  }
+
+  const totalRestSeconds =
+    intervals.restBetweenIntervalsSeconds * (intervalCount - 1) * roundCount +
+    intervals.restBetweenRoundsSeconds * (roundCount - 1);
+
+  return (distanceWork.legacyTotalDurationSeconds - totalRestSeconds) / boutCount;
+}
+
 export function analyzeConditioningSessionFormDraft(
   draft: ConditioningSessionFormDraft,
   baselines: AthleteConditioningBaselines,
@@ -508,20 +541,11 @@ function buildActiveProtocol(
       };
     } else {
       const distanceWork = draft.intervals.distanceWork;
-      const boutCount = intervalCount * roundCount;
-      const totalRestSeconds =
-        draft.intervals.restBetweenIntervalsSeconds *
-          (intervalCount - 1) *
-          roundCount +
-        draft.intervals.restBetweenRoundsSeconds * (roundCount - 1);
       const legacyDuration =
         distanceWork.provenance === "legacy-derived" &&
         !distanceWork.durationDirty &&
-        distanceWork.legacyTotalDurationSeconds !== undefined &&
-        Number.isFinite(boutCount) &&
-        boutCount > 0
-          ? (distanceWork.legacyTotalDurationSeconds - totalRestSeconds) /
-            boutCount
+        distanceWork.legacyTotalDurationSeconds !== undefined
+          ? getDistanceWorkDurationForDisplay(draft.intervals)
           : distanceWork.durationSeconds;
 
       protocol = {
