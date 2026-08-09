@@ -29,29 +29,24 @@ import {
   getAthleteConditioningBaselines,
   logCompletedConditioningSession,
 } from "../data/conditioningRepository";
+import { useAppState } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 import type {
   AthleteConditioningBaselines,
-  ConditioningIntensityInput,
-  ConditioningProtocol,
-  ConditioningProtocolDraft,
-  ConditioningScoreResult,
   LoggedConditioningSessionResult,
   NewConditioningLog,
-  SnapshottedConditioningIntensity,
   StoredConditioningTemplate,
 } from "../types/conditioning";
+import { getConditioningEndAt } from "../utils/conditioningProtocol";
 import {
-  getConditioningEndAt,
-  parseConditioningProtocolDraft,
-} from "../utils/conditioningProtocol";
-import { scoreConditioningSession } from "../utils/conditioningScoring";
+  analyzeConditioningSessionFormDraft,
+  createConditioningSessionFormDraftFromDefinition,
+} from "../utils/conditioningSessionDraft";
 import { ConditioningAdaptationModal } from "./ConditioningAdaptationModal";
 import {
   ConditioningSessionForm,
   createDefaultConditioningSessionFormDraft,
-  type ConditioningIntensityDraft,
   type ConditioningSessionFormDraft,
 } from "./ConditioningSessionForm";
 import { ConditioningSessions } from "./ConditioningSessions";
@@ -64,7 +59,6 @@ const EMPTY_BASELINES: AthleteConditioningBaselines = {
   maximumHeartRateBpm: null,
   thresholdPaceSecondsPerKm: null,
 };
-const CONDITIONING_MODEL_VERSION = "conditioning-v1.0.0" as const;
 
 export type ConditioningLogModalProps = {
   onClose: () => void;
@@ -78,28 +72,6 @@ export type ConditioningLogModalProps = {
 
 type ModalStep = "form" | "adaptation";
 
-type DraftAnalysis =
-  | {
-      intensity: ConditioningIntensityInput;
-      ok: true;
-      protocol: ConditioningProtocol;
-      score: Extract<ConditioningScoreResult, { status: "scored" }>;
-      totalSessionSeconds: number;
-    }
-  | {
-      message: string;
-      ok: false;
-      score: ConditioningScoreResult;
-    };
-
-type ParsedIntensity =
-  | {
-      input: ConditioningIntensityInput;
-      ok: true;
-      snapshot: SnapshottedConditioningIntensity;
-    }
-  | { message: string; ok: false };
-
 export function ConditioningLogModal({
   onClose,
   onSaved,
@@ -109,10 +81,11 @@ export function ConditioningLogModal({
 }: ConditioningLogModalProps) {
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
+  const { unitSettings } = useAppState();
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<ConditioningSessionFormDraft>(() =>
-    createDefaultConditioningSessionFormDraft(),
+    createDefaultConditioningSessionFormDraft(unitSettings.distance),
   );
   const [startTime, setStartTime] = useState(() => new Date());
   const [baselines, setBaselines] =
@@ -126,6 +99,8 @@ export function ConditioningLogModal({
   const [saving, setSaving] = useState(false);
   const baselineRequestId = useRef(0);
   const savingGuard = useRef(false);
+  const distanceUnitRef = useRef(unitSettings.distance);
+  distanceUnitRef.current = unitSettings.distance;
   const selectedDayKey = getLocalDayKey(selectedDate);
   const modalMaxHeight = Math.max(
     1,
@@ -165,8 +140,11 @@ export function ConditioningLogModal({
     setAppliedTemplate(template);
     setDraft(
       template
-        ? createDraftFromTemplate(template)
-        : createDefaultConditioningSessionFormDraft(),
+        ? createConditioningSessionFormDraftFromDefinition(
+            template,
+            distanceUnitRef.current,
+          )
+        : createDefaultConditioningSessionFormDraft(distanceUnitRef.current),
     );
     setStartTime(dateWithTime(selectedDate, new Date()));
     setBaselines(EMPTY_BASELINES);
@@ -202,7 +180,12 @@ export function ConditioningLogModal({
 
   function applyTemplate(template: StoredConditioningTemplate) {
     setAppliedTemplate(template);
-    setDraft(createDraftFromTemplate(template));
+    setDraft(
+      createConditioningSessionFormDraftFromDefinition(
+        template,
+        unitSettings.distance,
+      ),
+    );
     setTemplateSelectorOpen(false);
     setStep("form");
   }
@@ -241,7 +224,7 @@ export function ConditioningLogModal({
     const startAt = startTime.getTime();
     const endAt = getConditioningEndAt(
       startAt,
-      analysis.totalSessionSeconds,
+      analysis.metrics.totalSessionSeconds,
     );
     const now = Date.now();
 
@@ -384,6 +367,7 @@ export function ConditioningLogModal({
                     <ConditioningSessionForm
                       baselines={baselines}
                       disabled={saving}
+                      distanceUnit={unitSettings.distance}
                       draft={draft}
                       onAdaptationPress={() => setStep("adaptation")}
                       onChange={setDraft}
@@ -473,326 +457,8 @@ export function ConditioningLogModal({
 function analyzeDraft(
   draft: ConditioningSessionFormDraft,
   baselines: AthleteConditioningBaselines,
-): DraftAnalysis {
-  const protocolResult = parseConditioningProtocolDraft(draft.protocol);
-
-  if (!protocolResult.ok) {
-    const reasons = protocolResult.issues.map((issue) => issue.message);
-    return {
-      message: reasons[0] ?? "Complete the conditioning protocol.",
-      ok: false,
-      score: createInsufficientScore(reasons),
-    };
-  }
-
-  const intensityResult = parseIntensityDraft(
-    draft.intensity,
-    draft.activity,
-    baselines,
-  );
-
-  if (!intensityResult.ok) {
-    return {
-      message: intensityResult.message,
-      ok: false,
-      score: createInsufficientScore([intensityResult.message]),
-    };
-  }
-
-  const score = scoreConditioningSession({
-    activity: draft.activity,
-    intensity: intensityResult.snapshot,
-    protocol: protocolResult.protocol,
-  });
-
-  if (score.status === "insufficient") {
-    return {
-      message: score.reasons[0] ?? "Complete the session information.",
-      ok: false,
-      score,
-    };
-  }
-
-  return {
-    intensity: intensityResult.input,
-    ok: true,
-    protocol: protocolResult.protocol,
-    score,
-    totalSessionSeconds: protocolResult.metrics.totalSessionSeconds,
-  };
-}
-
-function parseIntensityDraft(
-  draft: ConditioningIntensityDraft,
-  activity: ConditioningSessionFormDraft["activity"],
-  baselines: AthleteConditioningBaselines,
-): ParsedIntensity {
-  if (draft.method === null) {
-    return { input: null, ok: true, snapshot: null };
-  }
-
-  if (draft.method === "rpe") {
-    const value = Number(draft.valueInput.trim());
-
-    if (
-      !Number.isFinite(value) ||
-      value < conditioningValidationLimits.rpe.minimum ||
-      value > conditioningValidationLimits.rpe.maximum
-    ) {
-      return { message: "RPE must be from 1 to 10.", ok: false };
-    }
-
-    const intensity = { method: "rpe", value } as const;
-    return { input: intensity, ok: true, snapshot: intensity };
-  }
-
-  if (draft.method === "heart_rate") {
-    const valueBpm = Number(draft.valueBpmInput.trim());
-    const maximumHeartRateBpm = baselines.maximumHeartRateBpm;
-
-    if (maximumHeartRateBpm === null) {
-      return {
-        message:
-          "Set Maximum Heart Rate in Athlete Information before using heart-rate intensity.",
-        ok: false,
-      };
-    }
-
-    if (
-      !Number.isInteger(valueBpm) ||
-      valueBpm < conditioningValidationLimits.sessionHeartRateBpm.minimum ||
-      valueBpm > maximumHeartRateBpm
-    ) {
-      return {
-        message: `Heart rate must be a whole number from ${conditioningValidationLimits.sessionHeartRateBpm.minimum} to ${maximumHeartRateBpm} BPM.`,
-        ok: false,
-      };
-    }
-
-    return {
-      input: { method: "heart_rate", valueBpm },
-      ok: true,
-      snapshot: { method: "heart_rate", valueBpm, maxHeartRateBpm: maximumHeartRateBpm },
-    };
-  }
-
-  if (activity !== "running" && activity !== "hill_sprints") {
-    return {
-      message: "Pace intensity is only available for Running and Hill Sprints.",
-      ok: false,
-    };
-  }
-
-  if (draft.reference === "threshold_pace") {
-    const thresholdPaceSecondsPerKm = baselines.thresholdPaceSecondsPerKm;
-
-    if (thresholdPaceSecondsPerKm === null) {
-      return {
-        message:
-          "Set Threshold Pace in Athlete Information before using pace intensity.",
-        ok: false,
-      };
-    }
-
-    const paceSecondsPerKm = parsePace(draft.valueInput);
-    if (paceSecondsPerKm === null) {
-      return {
-        message: "Pace must use m:ss and be from 0:30 to 60:00 per kilometre.",
-        ok: false,
-      };
-    }
-
-    return {
-      input: {
-        method: "pace",
-        paceSecondsPerKm,
-        reference: "threshold_pace",
-      },
-      ok: true,
-      snapshot: {
-        method: "pace",
-        paceSecondsPerKm,
-        reference: "threshold_pace",
-        thresholdPaceSecondsPerKm,
-      },
-    };
-  }
-
-  const speedKph = Number(draft.valueInput.trim());
-  const maximumAerobicSpeedKph = baselines.maximumAerobicSpeedKph;
-
-  if (maximumAerobicSpeedKph === null) {
-    return {
-      message:
-        "Set Maximum Aerobic Speed in Athlete Information before using speed intensity.",
-      ok: false,
-    };
-  }
-
-  if (
-    !Number.isFinite(speedKph) ||
-    speedKph <= 0 ||
-    speedKph > conditioningValidationLimits.maximumAerobicSpeedKph
-  ) {
-    return {
-      message: "Speed must be greater than 0 and no more than 60 km/h.",
-      ok: false,
-    };
-  }
-
-  return {
-    input: {
-      method: "pace",
-      reference: "maximum_aerobic_speed",
-      speedKph,
-    },
-    ok: true,
-    snapshot: {
-      maximumAerobicSpeedKph,
-      method: "pace",
-      reference: "maximum_aerobic_speed",
-      speedKph,
-    },
-  };
-}
-
-function createInsufficientScore(reasons: string[]): ConditioningScoreResult {
-  return {
-    evidence: "insufficient",
-    modelVersion: CONDITIONING_MODEL_VERSION,
-    primaryAdaptation: null,
-    reasons,
-    scores: null,
-    status: "insufficient",
-  };
-}
-
-function createDraftFromTemplate(
-  template: StoredConditioningTemplate,
-): ConditioningSessionFormDraft {
-  return {
-    activity: template.activity,
-    intensity: createIntensityDraft(template.intensity),
-    notesInput: template.notes ?? "",
-    protocol: createProtocolDraft(template.protocol),
-    titleInput: template.title,
-  };
-}
-
-function createIntensityDraft(
-  intensity: ConditioningIntensityInput,
-): ConditioningIntensityDraft {
-  if (intensity === null) {
-    return { method: null };
-  }
-
-  if (intensity.method === "rpe") {
-    return { method: "rpe", valueInput: String(intensity.value) };
-  }
-
-  if (intensity.method === "heart_rate") {
-    return {
-      method: "heart_rate",
-      valueBpmInput: String(intensity.valueBpm),
-    };
-  }
-
-  return {
-    method: "pace",
-    reference: intensity.reference,
-    valueInput:
-      intensity.reference === "threshold_pace"
-        ? formatPace(intensity.paceSecondsPerKm)
-        : String(intensity.speedKph),
-  };
-}
-
-function createProtocolDraft(
-  protocol: ConditioningProtocol,
-): ConditioningProtocolDraft {
-  if (protocol.type === "continuous") {
-    return {
-      distanceMetersInput:
-        protocol.distanceMeters === null ? "" : String(protocol.distanceMeters),
-      durationSecondsInput: String(protocol.durationSeconds),
-      type: protocol.type,
-    };
-  }
-
-  if (protocol.type === "intervals") {
-    if (protocol.work.mode === "time") {
-      return {
-        repetitionsPerSetInput: String(protocol.intervalCount),
-        restBetweenRepetitionsSecondsInput: String(
-          protocol.restBetweenIntervalsSeconds,
-        ),
-        restBetweenSetsSecondsInput: String(protocol.restBetweenRoundsSeconds),
-        setCountInput: String(protocol.roundCount),
-        type: "time_intervals",
-        workSecondsInput: String(protocol.work.durationSeconds),
-      };
-    }
-
-    const totalRestSeconds =
-      protocol.restBetweenIntervalsSeconds *
-        (protocol.intervalCount - 1) *
-        protocol.roundCount +
-      protocol.restBetweenRoundsSeconds * (protocol.roundCount - 1);
-    const elapsedDurationSeconds =
-      protocol.work.provenance === "legacy-derived" &&
-      protocol.work.legacyTotalDurationSeconds !== undefined
-        ? protocol.work.legacyTotalDurationSeconds
-        : protocol.work.durationSeconds *
-            protocol.intervalCount *
-            protocol.roundCount +
-          totalRestSeconds;
-
-    return {
-      elapsedDurationSecondsInput: String(elapsedDurationSeconds),
-      repetitionsPerSetInput: String(protocol.intervalCount),
-      restBetweenRepetitionsSecondsInput: String(
-        protocol.restBetweenIntervalsSeconds,
-      ),
-      restBetweenSetsSecondsInput: String(protocol.restBetweenRoundsSeconds),
-      setCountInput: String(protocol.roundCount),
-      type: "distance_intervals",
-      workDistanceMetersInput: String(protocol.work.distanceMeters),
-    };
-  }
-
-  return {
-    restBetweenRoundsSecondsInput: String(protocol.restBetweenRoundsSeconds),
-    restBetweenStationsSecondsInput: String(
-      protocol.restBetweenStationsSeconds,
-    ),
-    roundCountInput: String(protocol.roundCount),
-    stations: protocol.stations.map((station) => ({
-      nameInput: station.name,
-      workSecondsInput: String(station.workSeconds),
-    })),
-    type: protocol.type,
-  };
-}
-
-function parsePace(value: string) {
-  const match = /^(\d{1,2}):([0-5]\d)$/.exec(value.trim());
-  if (!match) {
-    return null;
-  }
-
-  const seconds = Number(match[1]) * 60 + Number(match[2]);
-  return seconds >=
-    conditioningValidationLimits.thresholdPaceSecondsPerKm.minimum &&
-    seconds <= conditioningValidationLimits.thresholdPaceSecondsPerKm.maximum
-    ? seconds
-    : null;
-}
-
-function formatPace(secondsPerKm: number) {
-  const roundedSeconds = Math.round(secondsPerKm);
-  const minutes = Math.floor(roundedSeconds / 60);
-  const seconds = roundedSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+) {
+  return analyzeConditioningSessionFormDraft(draft, baselines);
 }
 
 function dateWithTime(day: Date, time: Date) {

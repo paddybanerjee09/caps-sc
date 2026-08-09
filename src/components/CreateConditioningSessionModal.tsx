@@ -18,25 +18,22 @@ import {
   createConditioningTemplate,
   getAthleteConditioningBaselines,
 } from "../data/conditioningRepository";
+import { useAppState } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 import type {
   AthleteConditioningBaselines,
-  ConditioningActivity,
-  ConditioningIntensityInput,
   ConditioningScoreResult,
   NewConditioningTemplate,
   StoredConditioningTemplate,
 } from "../types/conditioning";
-import { parseConditioningProtocolDraft } from "../utils/conditioningProtocol";
+import { analyzeConditioningSessionFormDraft } from "../utils/conditioningSessionDraft";
 import { ConditioningAdaptationModal } from "./ConditioningAdaptationModal";
 import {
   ConditioningSessionForm,
   createDefaultConditioningSessionFormDraft,
-  type ConditioningIntensityDraft,
   type ConditioningSessionFormDraft,
 } from "./ConditioningSessionForm";
-import { getConditioningScorePreview } from "./ConditioningSessions";
 import { PressOpacity } from "./PressOpacity";
 
 const tokens = themes.dark;
@@ -62,8 +59,9 @@ export function CreateConditioningSessionModal({
 }: CreateConditioningSessionModalProps) {
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
+  const { unitSettings } = useAppState();
   const [draft, setDraft] = useState<ConditioningSessionFormDraft>(
-    createDefaultConditioningSessionFormDraft,
+    () => createDefaultConditioningSessionFormDraft(unitSettings.distance),
   );
   const [baselines, setBaselines] =
     useState<AthleteConditioningBaselines>(emptyBaselines);
@@ -73,6 +71,8 @@ export function CreateConditioningSessionModal({
   const [showAdaptations, setShowAdaptations] = useState(false);
   const requestIdRef = useRef(0);
   const savingRef = useRef(false);
+  const distanceUnitRef = useRef(unitSettings.distance);
+  distanceUnitRef.current = unitSettings.distance;
 
   const loadBaselines = useCallback(async () => {
     const requestId = ++requestIdRef.current;
@@ -103,7 +103,9 @@ export function CreateConditioningSessionModal({
       return;
     }
 
-    setDraft(createDefaultConditioningSessionFormDraft());
+    setDraft(
+      createDefaultConditioningSessionFormDraft(distanceUnitRef.current),
+    );
     setBaselines(emptyBaselines);
     setShowAdaptations(false);
     void loadBaselines();
@@ -232,6 +234,7 @@ export function CreateConditioningSessionModal({
                   <ConditioningSessionForm
                     baselines={baselines}
                     disabled={saving}
+                    distanceUnit={unitSettings.distance}
                     draft={draft}
                     onAdaptationPress={() => setShowAdaptations(true)}
                     onChange={setDraft}
@@ -298,39 +301,16 @@ function parseSessionDraft(
 ): ParsedSessionDraft {
   const title = draft.titleInput.trim();
   const notes = draft.notesInput.trim();
-  const protocolResult = parseConditioningProtocolDraft(draft.protocol);
-  const intensityResult = parseIntensityDraft(
-    draft.activity,
-    draft.intensity,
-    baselines,
-  );
+  const analysis = analyzeConditioningSessionFormDraft(draft, baselines);
 
-  if (!protocolResult.ok) {
-    const message = protocolResult.issues[0]?.message ?? "Protocol is invalid.";
-
+  if (!analysis.ok) {
     return {
-      message,
+      message: analysis.message,
       ok: false,
-      score: createInsufficientScore(
-        protocolResult.issues.map((issue) => issue.message),
-      ),
+      score: analysis.score,
     };
   }
-
-  if (!intensityResult.ok) {
-    return {
-      message: intensityResult.message,
-      ok: false,
-      score: createInsufficientScore([intensityResult.message]),
-    };
-  }
-
-  const score = getConditioningScorePreview(
-    draft.activity,
-    protocolResult.protocol,
-    intensityResult.intensity,
-    baselines,
-  );
+  const score = analysis.score;
 
   if (
     title.length === 0 ||
@@ -351,165 +331,21 @@ function parseSessionDraft(
     };
   }
 
-  if (score.status === "insufficient") {
-    return {
-      message: score.reasons[0] ?? "Conditioning information is incomplete.",
-      ok: false,
-      score,
-    };
-  }
-
   return {
     ok: true,
     score,
     value: {
       activity: draft.activity,
-      intensity: intensityResult.intensity,
+      intensity: analysis.intensity,
       notes: notes.length === 0 ? null : notes,
-      protocol: protocolResult.protocol,
+      protocol: analysis.protocol,
       title,
     },
   };
 }
 
-function parseIntensityDraft(
-  activity: ConditioningActivity,
-  draft: ConditioningIntensityDraft,
-  baselines: AthleteConditioningBaselines,
-):
-  | { ok: true; intensity: ConditioningIntensityInput }
-  | { ok: false; message: string } {
-  if (draft.method === null) {
-    return { intensity: null, ok: true };
-  }
-
-  if (draft.method === "rpe") {
-    const value = Number(draft.valueInput.trim());
-
-    if (
-      !Number.isFinite(value) ||
-      value < conditioningValidationLimits.rpe.minimum ||
-      value > conditioningValidationLimits.rpe.maximum
-    ) {
-      return { message: "RPE must be from 1 to 10.", ok: false };
-    }
-
-    return { intensity: { method: "rpe", value }, ok: true };
-  }
-
-  if (draft.method === "heart_rate") {
-    const valueBpm = Number(draft.valueBpmInput.trim());
-
-    if (baselines.maximumHeartRateBpm === null) {
-      return {
-        message: "Set a maximum heart rate in Athlete Information first.",
-        ok: false,
-      };
-    }
-
-    if (
-      !Number.isInteger(valueBpm) ||
-      valueBpm < conditioningValidationLimits.sessionHeartRateBpm.minimum ||
-      valueBpm > baselines.maximumHeartRateBpm
-    ) {
-      return {
-        message: `Heart rate must be a whole number from ${conditioningValidationLimits.sessionHeartRateBpm.minimum} to ${baselines.maximumHeartRateBpm} BPM.`,
-        ok: false,
-      };
-    }
-
-    return { intensity: { method: "heart_rate", valueBpm }, ok: true };
-  }
-
-  if (activity !== "running" && activity !== "hill_sprints") {
-    return {
-      message: "Pace intensity is only available for Running and Hill Sprints.",
-      ok: false,
-    };
-  }
-
-  if (draft.reference === "threshold_pace") {
-    const paceSecondsPerKm = parsePace(draft.valueInput);
-
-    if (baselines.thresholdPaceSecondsPerKm === null) {
-      return {
-        message: "Set a threshold pace in Athlete Information first.",
-        ok: false,
-      };
-    }
-
-    if (
-      paceSecondsPerKm === null ||
-      paceSecondsPerKm <
-        conditioningValidationLimits.thresholdPaceSecondsPerKm.minimum ||
-      paceSecondsPerKm >
-        conditioningValidationLimits.thresholdPaceSecondsPerKm.maximum
-    ) {
-      return {
-        message: "Session pace must use m:ss and be from 0:30 to 60:00 per km.",
-        ok: false,
-      };
-    }
-
-    return {
-      intensity: {
-        method: "pace",
-        paceSecondsPerKm,
-        reference: "threshold_pace",
-      },
-      ok: true,
-    };
-  }
-
-  const speedKph = Number(draft.valueInput.trim());
-
-  if (baselines.maximumAerobicSpeedKph === null) {
-    return {
-      message: "Set a maximum aerobic speed in Athlete Information first.",
-      ok: false,
-    };
-  }
-
-  if (
-    !Number.isFinite(speedKph) ||
-    speedKph <= 0 ||
-    speedKph > conditioningValidationLimits.maximumAerobicSpeedKph
-  ) {
-    return {
-      message: "Session speed must be greater than 0 and no more than 60 km/h.",
-      ok: false,
-    };
-  }
-
-  return {
-    intensity: {
-      method: "pace",
-      reference: "maximum_aerobic_speed",
-      speedKph,
-    },
-    ok: true,
-  };
-}
-
-function parsePace(value: string) {
-  const match = /^(\d{1,2}):([0-5]\d)$/.exec(value.trim());
-
-  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
-}
-
 function getDraftScore(parsedDraft: ParsedSessionDraft) {
   return parsedDraft.score;
-}
-
-function createInsufficientScore(reasons: string[]): ConditioningScoreResult {
-  return {
-    evidence: "insufficient",
-    modelVersion: "conditioning-v1.0.0",
-    primaryAdaptation: null,
-    reasons,
-    scores: null,
-    status: "insufficient",
-  };
 }
 
 const styles = StyleSheet.create({

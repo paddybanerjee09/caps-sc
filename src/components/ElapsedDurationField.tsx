@@ -30,6 +30,7 @@ type DurationDraft = {
 
 type ElapsedDurationFieldProps = {
   allowZero?: boolean;
+  disabled?: boolean;
   label: string;
   maximumSeconds?: number;
   onChange: (valueSeconds: number) => void;
@@ -38,6 +39,7 @@ type ElapsedDurationFieldProps = {
 
 export function ElapsedDurationField({
   allowZero = false,
+  disabled = false,
   label,
   maximumSeconds = MAX_ELAPSED_DURATION_SECONDS,
   onChange,
@@ -109,12 +111,14 @@ export function ElapsedDurationField({
 
       <PressOpacity
         accessibilityLabel={`${label}, ${displayedValue === "--:--:--" ? "not set" : displayedValue}`}
+        disabled={disabled}
         onPress={openPicker}
         style={[
           styles.valueButton,
           {
             backgroundColor: theme.colors.surfaceMuted,
             borderColor: theme.colors.borderStrong,
+            opacity: disabled ? tokens.opacity.disabled : 1,
           },
         ]}
       >

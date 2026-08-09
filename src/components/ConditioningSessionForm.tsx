@@ -1,8 +1,9 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { useEffect } from "react";
 import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
   type KeyboardTypeOptions,
 } from "react-native";
@@ -13,173 +14,102 @@ import {
   conditioningProtocolOptions,
   conditioningValidationLimits,
 } from "../constants/conditioning";
+import type { UnitSystem } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
-import { appColorPalette, themes } from "../theme/theme";
+import { themes } from "../theme/theme";
 import type {
   AthleteConditioningBaselines,
   ConditioningActivity,
-  ConditioningIntensityMethod,
-  ConditioningPaceReference,
-  ConditioningProtocolDraft,
-  ConditioningProtocolType,
   ConditioningScoreResult,
 } from "../types/conditioning";
+import {
+  formatPace,
+  getDistanceUnitLabel,
+} from "../utils/conditioningMeasurements";
+import {
+  changeConditioningDistanceUnit,
+  clearConditioningIntensity,
+  createDefaultConditioningSessionFormDraft,
+  selectConditioningActivity,
+  selectConditioningIntensityMethod,
+  selectConditioningProtocolType,
+  selectIntervalWorkMode,
+  updateConditioningDistanceInput,
+  type ConditioningIntensityDraft,
+  type ConditioningSessionFormDraft,
+} from "../utils/conditioningSessionDraft";
 import { ConditioningSelectField } from "./ConditioningSelectField";
+import { ElapsedDurationField } from "./ElapsedDurationField";
 import { PressOpacity } from "./PressOpacity";
+
+export {
+  createDefaultConditioningSessionFormDraft,
+  type ConditioningIntensityDraft,
+  type ConditioningSessionFormDraft,
+};
 
 const tokens = themes.dark;
 
 const intensityMethodOptions = [
-  { key: "none", label: "No intensity" },
+  { key: "heart_rate", label: "Heart Rate — Recommended" },
   { key: "rpe", label: "RPE" },
-  { key: "heart_rate", label: "Heart Rate" },
-  { key: "pace", label: "Pace" },
-] as const satisfies readonly {
-  key: ConditioningIntensityMethod | "none";
-  label: string;
-}[];
+] as const;
 
-const paceReferenceOptions = [
-  { key: "threshold_pace", label: "Threshold Pace" },
-  { key: "maximum_aerobic_speed", label: "Maximum Aerobic Speed" },
-] as const satisfies readonly {
-  key: ConditioningPaceReference;
-  label: string;
-}[];
-
-export type ConditioningIntensityDraft =
-  | { method: null }
-  | { method: "rpe"; valueInput: string }
-  | { method: "heart_rate"; valueBpmInput: string }
-  | {
-      method: "pace";
-      reference: ConditioningPaceReference;
-      valueInput: string;
-    };
-
-export type ConditioningSessionFormDraft = {
-  activity: ConditioningActivity;
-  intensity: ConditioningIntensityDraft;
-  notesInput: string;
-  protocol: ConditioningProtocolDraft;
-  titleInput: string;
-};
+const intervalWorkOptions = [
+  { key: "time", label: "Time" },
+  { key: "distance", label: "Distance" },
+] as const;
 
 export type ConditioningSessionFormProps = {
   baselines: AthleteConditioningBaselines;
   disabled?: boolean;
+  distanceUnit: UnitSystem;
   draft: ConditioningSessionFormDraft;
   onAdaptationPress?: () => void;
   onChange: (draft: ConditioningSessionFormDraft) => void;
   scoreResult: ConditioningScoreResult;
 };
 
-export function createDefaultConditioningProtocolDraft(
-  type: ConditioningProtocolType,
-): ConditioningProtocolDraft {
-  if (type === "continuous") {
-    return {
-      type,
-      distanceMetersInput: "",
-      durationSecondsInput: "",
-    };
-  }
-
-  if (type === "intervals") {
-    return {
-      type: "time_intervals",
-      repetitionsPerSetInput: "1",
-      restBetweenRepetitionsSecondsInput: "0",
-      restBetweenSetsSecondsInput: "0",
-      setCountInput: "1",
-      workSecondsInput: "",
-    };
-  }
-
-  return {
-    type,
-    restBetweenRoundsSecondsInput: "0",
-    restBetweenStationsSecondsInput: "0",
-    roundCountInput: "1",
-    stations: [{ nameInput: "", workSecondsInput: "" }],
-  };
-}
-
-export function createDefaultConditioningSessionFormDraft(): ConditioningSessionFormDraft {
-  return {
-    activity: "running",
-    intensity: { method: null },
-    notesInput: "",
-    protocol: createDefaultConditioningProtocolDraft("continuous"),
-    titleInput: "",
-  };
-}
-
 export function ConditioningSessionForm({
   baselines,
   disabled = false,
+  distanceUnit,
   draft,
   onAdaptationPress,
   onChange,
   scoreResult,
 }: ConditioningSessionFormProps) {
   const { theme } = useAppTheme();
-  const primaryPresentation =
-    scoreResult.status === "scored"
+  const { width } = useWindowDimensions();
+  const narrow = width < 420;
+
+  useEffect(() => {
+    const reformatted = changeConditioningDistanceUnit(draft, distanceUnit);
+    if (reformatted !== draft) {
+      onChange(reformatted);
+    }
+  }, [distanceUnit, draft, onChange]);
+
+  const adaptation =
+    scoreResult.status === "scored" && scoreResult.primaryAdaptation
       ? conditioningAdaptations[scoreResult.primaryAdaptation]
       : null;
-  const paceAllowed = isPaceActivity(draft.activity);
-  const availableIntensityOptions = paceAllowed
-    ? intensityMethodOptions
-    : intensityMethodOptions.filter((option) => option.key !== "pace");
+  const adaptationLabel = adaptation?.label ?? "Adaptation pending";
 
-  function updateDraft(changes: Partial<ConditioningSessionFormDraft>) {
-    onChange({ ...draft, ...changes });
+  function updateDraft(patch: Partial<ConditioningSessionFormDraft>) {
+    onChange({ ...draft, ...patch });
   }
 
   function changeActivity(activity: ConditioningActivity) {
-    updateDraft({
-      activity,
-      intensity:
-        draft.intensity.method === "pace" && !isPaceActivity(activity)
-          ? { method: null }
-          : draft.intensity,
-    });
-  }
-
-  function changeIntensityMethod(
-    method: ConditioningIntensityMethod | "none",
-  ) {
-    if (method === "none") {
-      updateDraft({ intensity: { method: null } });
-      return;
-    }
-
-    if (method === "rpe") {
-      updateDraft({ intensity: { method, valueInput: "" } });
-      return;
-    }
-
-    if (method === "heart_rate") {
-      updateDraft({ intensity: { method, valueBpmInput: "" } });
-      return;
-    }
-
-    updateDraft({
-      intensity: {
-        method,
-        reference: "threshold_pace",
-        valueInput: "",
-      },
-    });
+    onChange(selectConditioningActivity(draft, activity));
   }
 
   return (
     <View style={styles.container}>
       <View style={styles.heading}>
         <FormTextInput
-          accessibilityLabel="Conditioning session title"
           disabled={disabled}
+          label="Session title"
           maxLength={conditioningValidationLimits.titleLength}
           onChangeText={(titleInput) => updateDraft({ titleInput })}
           placeholder="Session title"
@@ -188,45 +118,30 @@ export function ConditioningSessionForm({
         />
 
         <PressOpacity
-          accessibilityLabel={
-            primaryPresentation
-              ? `View all adaptation scores. Primary adaptation ${primaryPresentation.label}. ${scoreResult.evidence} evidence.`
-              : "Adaptation is undetermined"
-          }
-          disabled={
-            disabled || primaryPresentation === null || !onAdaptationPress
-          }
+          accessibilityHint="Shows how this session is expected to affect conditioning"
+          accessibilityLabel={`Primary adaptation, ${adaptationLabel}`}
+          disabled={!onAdaptationPress}
           onPress={onAdaptationPress}
           style={[
             styles.adaptationBadge,
             {
               backgroundColor:
-                primaryPresentation?.color ?? theme.colors.surfaceMuted,
-              borderColor:
-                primaryPresentation?.color ?? theme.colors.borderStrong,
+                adaptation?.color ?? theme.colors.surfaceMuted,
+              borderColor: adaptation?.color ?? theme.colors.borderStrong,
             },
           ]}
         >
           <Text
+            numberOfLines={2}
             style={[
               styles.adaptationBadgeText,
               {
-                color:
-                  primaryPresentation?.contentColor ?? theme.colors.textMuted,
+                color: adaptation?.contentColor ?? theme.colors.textMuted,
               },
             ]}
           >
-            {primaryPresentation?.label ?? "Undetermined"}
+            {adaptationLabel}
           </Text>
-
-          {primaryPresentation ? (
-            <Ionicons
-              accessible={false}
-              color={primaryPresentation.contentColor}
-              name="stats-chart"
-              size={15}
-            />
-          ) : null}
         </PressOpacity>
 
         {scoreResult.status === "insufficient" &&
@@ -245,205 +160,308 @@ export function ConditioningSessionForm({
         value={draft.activity}
       />
 
-      <ConditioningSelectField
-        disabled={disabled}
-        label="Type"
-        onChange={(type) =>
-          updateDraft({ protocol: createDefaultConditioningProtocolDraft(type) })
-        }
-        options={conditioningProtocolOptions}
-        value={
-          draft.protocol.type === "time_intervals" ||
-          draft.protocol.type === "distance_intervals"
-            ? "intervals"
-            : draft.protocol.type
-        }
-      />
+      {draft.activeProtocolType === "circuit" ? (
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Type</Text>
+          <View
+            accessibilityLabel="Type, Circuit"
+            style={[
+              styles.informationalValue,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.valueText, { color: theme.colors.text }]}>
+              Circuit
+            </Text>
+          </View>
+          {draft.activity !== "circuit" ? (
+            <View style={styles.inlineActions}>
+              <SmallAction
+                disabled={disabled}
+                label="Use Continuous"
+                onPress={() =>
+                  onChange(selectConditioningProtocolType(draft, "continuous"))
+                }
+              />
+              <SmallAction
+                disabled={disabled}
+                label="Use Intervals"
+                onPress={() =>
+                  onChange(selectConditioningProtocolType(draft, "intervals"))
+                }
+              />
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <ConditioningSelectField
+          disabled={disabled}
+          label="Type"
+          onChange={(type) =>
+            onChange(selectConditioningProtocolType(draft, type))
+          }
+          options={conditioningProtocolOptions}
+          value={draft.activeProtocolType}
+        />
+      )}
 
-      <ProtocolFields
-        disabled={disabled}
-        onChange={(protocol) => updateDraft({ protocol })}
-        protocol={draft.protocol}
-      />
-
-      <ConditioningSelectField
-        accessibilityHint="Intensity is optional"
-        disabled={disabled}
-        label="Intensity"
-        onChange={changeIntensityMethod}
-        options={availableIntensityOptions}
-        value={draft.intensity.method ?? "none"}
-      />
-
-      {!paceAllowed ? (
-        <Text style={[styles.helpText, { color: theme.colors.textMuted }]}>
-          Pace intensity is available for Running and Hill Sprints.
-        </Text>
-      ) : null}
+      {draft.activeProtocolType === "continuous" ? (
+        <ContinuousFields
+          disabled={disabled}
+          distanceUnit={distanceUnit}
+          draft={draft}
+          onChange={onChange}
+        />
+      ) : draft.activeProtocolType === "intervals" ? (
+        <IntervalFields
+          disabled={disabled}
+          distanceUnit={distanceUnit}
+          draft={draft}
+          narrow={narrow}
+          onChange={onChange}
+        />
+      ) : (
+        <CircuitFields disabled={disabled} draft={draft} onChange={onChange} />
+      )}
 
       <IntensityFields
         baselines={baselines}
         disabled={disabled}
-        intensity={draft.intensity}
-        onChange={(intensity) => updateDraft({ intensity })}
+        draft={draft}
+        onChange={onChange}
       />
 
       <FormTextInput
-        accessibilityLabel="Conditioning session notes"
         disabled={disabled}
-        label="Notes (optional)"
+        label="Notes"
         maxLength={conditioningValidationLimits.notesLength}
         multiline
         onChangeText={(notesInput) => updateDraft({ notesInput })}
-        placeholder="Add session notes"
+        placeholder="Optional notes"
         value={draft.notesInput}
       />
     </View>
   );
 }
 
-function ProtocolFields({
-  disabled,
-  onChange,
-  protocol,
-}: {
+type SharedDraftProps = {
   disabled: boolean;
-  onChange: (protocol: ConditioningProtocolDraft) => void;
-  protocol: ConditioningProtocolDraft;
-}) {
+  draft: ConditioningSessionFormDraft;
+  onChange: (draft: ConditioningSessionFormDraft) => void;
+};
+
+function ContinuousFields({
+  disabled,
+  distanceUnit,
+  draft,
+  onChange,
+}: SharedDraftProps & { distanceUnit: UnitSystem }) {
+  const continuous = draft.continuous;
+
+  return (
+    <View style={styles.section}>
+      <ElapsedDurationField
+        disabled={disabled}
+        label="Duration"
+        onChange={(durationSeconds) =>
+          onChange({
+            ...draft,
+            continuous: { ...continuous, durationSeconds },
+          })
+        }
+        valueSeconds={continuous.durationSeconds}
+      />
+      <DistanceField
+        disabled={disabled}
+        label="Distance"
+        onChangeText={(displayInput) =>
+          onChange({
+            ...draft,
+            continuous: {
+              ...continuous,
+              distance: updateConditioningDistanceInput(
+                continuous.distance,
+                displayInput,
+                distanceUnit,
+              ),
+            },
+          })
+        }
+        unit={distanceUnit}
+        value={continuous.distance.displayInput}
+      />
+      <ReadOnlyValue
+        label="Pace"
+        value={formatPace(
+          continuous.durationSeconds ?? Number.NaN,
+          continuous.distance.canonicalMeters ?? Number.NaN,
+          distanceUnit,
+        )}
+      />
+    </View>
+  );
+}
+
+function IntervalFields({
+  disabled,
+  distanceUnit,
+  draft,
+  narrow,
+  onChange,
+}: SharedDraftProps & { distanceUnit: UnitSystem; narrow: boolean }) {
+  const intervals = draft.intervals;
+  const distanceWork = intervals.distanceWork;
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.workRestRow}>
+        <View style={styles.flexField}>
+          <ConditioningSelectField
+            compact
+            disabled={disabled}
+            label="Work"
+            onChange={(workMode) =>
+              onChange(selectIntervalWorkMode(draft, workMode))
+            }
+            options={intervalWorkOptions}
+            value={intervals.workMode}
+          />
+
+          {intervals.workMode === "time" ? (
+            <ElapsedDurationField
+              disabled={disabled}
+              label="Work duration"
+              onChange={(timeWorkDurationSeconds) =>
+                onChange({
+                  ...draft,
+                  intervals: { ...intervals, timeWorkDurationSeconds },
+                })
+              }
+              valueSeconds={intervals.timeWorkDurationSeconds}
+            />
+          ) : (
+            <View style={styles.subsection}>
+              <DistanceField
+                disabled={disabled}
+                label="Distance per interval"
+                onChangeText={(displayInput) =>
+                  onChange({
+                    ...draft,
+                    intervals: {
+                      ...intervals,
+                      distanceWork: {
+                        ...distanceWork,
+                        distance: updateConditioningDistanceInput(
+                          distanceWork.distance,
+                          displayInput,
+                          distanceUnit,
+                        ),
+                      },
+                    },
+                  })
+                }
+                unit={distanceUnit}
+                value={distanceWork.distance.displayInput}
+              />
+              <ElapsedDurationField
+                disabled={disabled}
+                label="Duration per interval"
+                onChange={(durationSeconds) =>
+                  onChange({
+                    ...draft,
+                    intervals: {
+                      ...intervals,
+                      distanceWork: {
+                        ...distanceWork,
+                        durationDirty: true,
+                        durationSeconds,
+                        legacyTotalDurationSeconds: undefined,
+                        provenance: "explicit",
+                      },
+                    },
+                  })
+                }
+                valueSeconds={distanceWork.durationSeconds}
+              />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.flexField}>
+          <ElapsedDurationField
+            allowZero
+            disabled={disabled}
+            label="Rest Time"
+            onChange={(restBetweenIntervalsSeconds) =>
+              onChange({
+                ...draft,
+                intervals: { ...intervals, restBetweenIntervalsSeconds },
+              })
+            }
+            valueSeconds={intervals.restBetweenIntervalsSeconds}
+          />
+        </View>
+      </View>
+
+      <View style={[styles.structureRow, narrow && styles.wrappedRow]}>
+        <View style={styles.flexField}>
+          <FormTextInput
+            disabled={disabled}
+            keyboardType="number-pad"
+            label="Intervals"
+            maxLength={3}
+            onChangeText={(intervalCountInput) =>
+              onChange({
+                ...draft,
+                intervals: { ...intervals, intervalCountInput },
+              })
+            }
+            value={intervals.intervalCountInput}
+          />
+        </View>
+        <View style={styles.flexField}>
+          <FormTextInput
+            disabled={disabled}
+            keyboardType="number-pad"
+            label="Rounds"
+            maxLength={2}
+            onChangeText={(roundCountInput) =>
+              onChange({
+                ...draft,
+                intervals: { ...intervals, roundCountInput },
+              })
+            }
+            value={intervals.roundCountInput}
+          />
+        </View>
+        <View style={[styles.flexField, narrow && styles.fullWidth]}>
+          <ElapsedDurationField
+            allowZero
+            disabled={disabled}
+            label="Rest between Rounds"
+            onChange={(restBetweenRoundsSeconds) =>
+              onChange({
+                ...draft,
+                intervals: { ...intervals, restBetweenRoundsSeconds },
+              })
+            }
+            valueSeconds={intervals.restBetweenRoundsSeconds}
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function CircuitFields({ disabled, draft, onChange }: SharedDraftProps) {
   const { theme } = useAppTheme();
+  const circuit = draft.circuit;
 
-  if (protocol.type === "continuous") {
-    return (
-      <View style={styles.section}>
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="number-pad"
-          label="Duration (seconds)"
-          onChangeText={(durationSecondsInput) =>
-            onChange({ ...protocol, durationSecondsInput })
-          }
-          placeholder="1800"
-          value={protocol.durationSecondsInput}
-        />
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="decimal-pad"
-          label="Distance (metres, optional)"
-          onChangeText={(distanceMetersInput) =>
-            onChange({ ...protocol, distanceMetersInput })
-          }
-          placeholder="5000"
-          value={protocol.distanceMetersInput}
-        />
-      </View>
-    );
-  }
-
-  if (protocol.type === "time_intervals") {
-    return (
-      <View style={styles.section}>
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="number-pad"
-          label="Work duration (seconds)"
-          onChangeText={(workSecondsInput) =>
-            onChange({ ...protocol, workSecondsInput })
-          }
-          placeholder="30"
-          value={protocol.workSecondsInput}
-        />
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="number-pad"
-          label="Rest between repetitions (seconds)"
-          onChangeText={(restBetweenRepetitionsSecondsInput) =>
-            onChange({ ...protocol, restBetweenRepetitionsSecondsInput })
-          }
-          placeholder="30"
-          value={protocol.restBetweenRepetitionsSecondsInput}
-        />
-        <CountFields
-          disabled={disabled}
-          onRepetitionsChange={(repetitionsPerSetInput) =>
-            onChange({ ...protocol, repetitionsPerSetInput })
-          }
-          onSetsChange={(setCountInput) =>
-            onChange({ ...protocol, setCountInput })
-          }
-          repetitionsInput={protocol.repetitionsPerSetInput}
-          setsInput={protocol.setCountInput}
-        />
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="number-pad"
-          label="Rest between sets (seconds)"
-          onChangeText={(restBetweenSetsSecondsInput) =>
-            onChange({ ...protocol, restBetweenSetsSecondsInput })
-          }
-          placeholder="120"
-          value={protocol.restBetweenSetsSecondsInput}
-        />
-      </View>
-    );
-  }
-
-  if (protocol.type === "distance_intervals") {
-    return (
-      <View style={styles.section}>
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="decimal-pad"
-          label="Distance per repetition (metres)"
-          onChangeText={(workDistanceMetersInput) =>
-            onChange({ ...protocol, workDistanceMetersInput })
-          }
-          placeholder="400"
-          value={protocol.workDistanceMetersInput}
-        />
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="number-pad"
-          label="Total elapsed duration (seconds)"
-          onChangeText={(elapsedDurationSecondsInput) =>
-            onChange({ ...protocol, elapsedDurationSecondsInput })
-          }
-          placeholder="1800"
-          value={protocol.elapsedDurationSecondsInput}
-        />
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="number-pad"
-          label="Rest between repetitions (seconds)"
-          onChangeText={(restBetweenRepetitionsSecondsInput) =>
-            onChange({ ...protocol, restBetweenRepetitionsSecondsInput })
-          }
-          placeholder="60"
-          value={protocol.restBetweenRepetitionsSecondsInput}
-        />
-        <CountFields
-          disabled={disabled}
-          onRepetitionsChange={(repetitionsPerSetInput) =>
-            onChange({ ...protocol, repetitionsPerSetInput })
-          }
-          onSetsChange={(setCountInput) =>
-            onChange({ ...protocol, setCountInput })
-          }
-          repetitionsInput={protocol.repetitionsPerSetInput}
-          setsInput={protocol.setCountInput}
-        />
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="number-pad"
-          label="Rest between sets (seconds)"
-          onChangeText={(restBetweenSetsSecondsInput) =>
-            onChange({ ...protocol, restBetweenSetsSecondsInput })
-          }
-          placeholder="120"
-          value={protocol.restBetweenSetsSecondsInput}
-        />
-      </View>
-    );
+  function updateCircuit(patch: Partial<typeof circuit>) {
+    onChange({ ...draft, circuit: { ...circuit, ...patch } });
   }
 
   return (
@@ -452,40 +470,24 @@ function ProtocolFields({
         <Text style={[styles.sectionHeading, { color: theme.colors.text }]}>
           Stations
         </Text>
-        <PressOpacity
-          accessibilityLabel="Add circuit station"
+        <SmallAction
           disabled={
             disabled ||
-            protocol.stations.length >= conditioningValidationLimits.stations
+            circuit.stations.length >= conditioningValidationLimits.stations
           }
+          label="Add station"
           onPress={() =>
-            onChange({
-              ...protocol,
+            updateCircuit({
               stations: [
-                ...protocol.stations,
-                { nameInput: "", workSecondsInput: "" },
+                ...circuit.stations,
+                { nameInput: "", workSeconds: null },
               ],
             })
           }
-          style={styles.smallButton}
-        >
-          <Ionicons
-            color={theme.colors.tertiary}
-            name="add"
-            size={18}
-          />
-          <Text
-            style={[
-              styles.smallButtonText,
-              { color: theme.colors.tertiary },
-            ]}
-          >
-            Add station
-          </Text>
-        </PressOpacity>
+        />
       </View>
 
-      {protocol.stations.map((station, index) => (
+      {circuit.stations.map((station, index) => (
         <View
           key={index}
           style={[
@@ -500,137 +502,86 @@ function ProtocolFields({
             <Text style={[styles.stationTitle, { color: theme.colors.text }]}>
               Station {index + 1}
             </Text>
-            {protocol.stations.length > 1 ? (
-              <PressOpacity
-                accessibilityLabel={`Remove station ${index + 1}`}
+            {circuit.stations.length > 1 ? (
+              <SmallAction
                 disabled={disabled}
+                label={`Remove station ${index + 1}`}
                 onPress={() =>
-                  onChange({
-                    ...protocol,
-                    stations: protocol.stations.filter(
-                      (_, stationIndex) => stationIndex !== index,
+                  updateCircuit({
+                    stations: circuit.stations.filter(
+                      (_candidate, candidateIndex) => candidateIndex !== index,
                     ),
                   })
                 }
-                style={styles.removeButton}
-              >
-                <Ionicons
-                  color={appColorPalette.red}
-                  name="trash-outline"
-                  size={18}
-                />
-                <Text style={styles.removeButtonText}>Remove</Text>
-              </PressOpacity>
+              />
             ) : null}
           </View>
-
           <FormTextInput
-            accessibilityLabel={`Station ${index + 1} name`}
             disabled={disabled}
+            label="Name"
             maxLength={conditioningValidationLimits.stationNameLength}
             onChangeText={(nameInput) =>
-              onChange({
-                ...protocol,
-                stations: protocol.stations.map((currentStation, stationIndex) =>
-                  stationIndex === index
-                    ? { ...currentStation, nameInput }
-                    : currentStation,
+              updateCircuit({
+                stations: circuit.stations.map((candidate, candidateIndex) =>
+                  candidateIndex === index
+                    ? { ...candidate, nameInput }
+                    : candidate,
                 ),
               })
             }
-            placeholder="Jump rope"
             value={station.nameInput}
           />
-          <FormTextInput
-            accessibilityLabel={`Station ${index + 1} work duration in seconds`}
+          <ElapsedDurationField
             disabled={disabled}
-            keyboardType="number-pad"
-            label="Work duration (seconds)"
-            onChangeText={(workSecondsInput) =>
-              onChange({
-                ...protocol,
-                stations: protocol.stations.map((currentStation, stationIndex) =>
-                  stationIndex === index
-                    ? { ...currentStation, workSecondsInput }
-                    : currentStation,
+            label="Work duration"
+            onChange={(workSeconds) =>
+              updateCircuit({
+                stations: circuit.stations.map((candidate, candidateIndex) =>
+                  candidateIndex === index
+                    ? { ...candidate, workSeconds }
+                    : candidate,
                 ),
               })
             }
-            placeholder="60"
-            value={station.workSecondsInput}
+            valueSeconds={station.workSeconds}
           />
         </View>
       ))}
 
-      <FormTextInput
-        disabled={disabled}
-        keyboardType="number-pad"
-        label="Rest between stations (seconds)"
-        onChangeText={(restBetweenStationsSecondsInput) =>
-          onChange({ ...protocol, restBetweenStationsSecondsInput })
-        }
-        placeholder="15"
-        value={protocol.restBetweenStationsSecondsInput}
-      />
-      <FormTextInput
-        disabled={disabled}
-        keyboardType="number-pad"
-        label="Rounds"
-        onChangeText={(roundCountInput) =>
-          onChange({ ...protocol, roundCountInput })
-        }
-        placeholder="3"
-        value={protocol.roundCountInput}
-      />
-      <FormTextInput
-        disabled={disabled}
-        keyboardType="number-pad"
-        label="Rest between rounds (seconds)"
-        onChangeText={(restBetweenRoundsSecondsInput) =>
-          onChange({ ...protocol, restBetweenRoundsSecondsInput })
-        }
-        placeholder="120"
-        value={protocol.restBetweenRoundsSecondsInput}
-      />
-    </View>
-  );
-}
-
-function CountFields({
-  disabled,
-  onRepetitionsChange,
-  onSetsChange,
-  repetitionsInput,
-  setsInput,
-}: {
-  disabled: boolean;
-  onRepetitionsChange: (value: string) => void;
-  onSetsChange: (value: string) => void;
-  repetitionsInput: string;
-  setsInput: string;
-}) {
-  return (
-    <View style={styles.twoColumnRow}>
-      <View style={styles.flexField}>
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="number-pad"
-          label="Repetitions per set"
-          onChangeText={onRepetitionsChange}
-          placeholder="8"
-          value={repetitionsInput}
-        />
+      <View style={styles.structureRow}>
+        <View style={styles.flexField}>
+          <ElapsedDurationField
+            allowZero
+            disabled={disabled}
+            label="Rest between Stations"
+            onChange={(restBetweenStationsSeconds) =>
+              updateCircuit({ restBetweenStationsSeconds })
+            }
+            valueSeconds={circuit.restBetweenStationsSeconds}
+          />
+        </View>
+        <View style={styles.flexField}>
+          <FormTextInput
+            disabled={disabled}
+            keyboardType="number-pad"
+            label="Rounds"
+            maxLength={2}
+            onChangeText={(roundCountInput) =>
+              updateCircuit({ roundCountInput })
+            }
+            value={circuit.roundCountInput}
+          />
+        </View>
       </View>
-      <View style={styles.flexField}>
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="number-pad"
-          label="Sets"
-          onChangeText={onSetsChange}
-          placeholder="1"
-          value={setsInput}
-        />
-      </View>
+      <ElapsedDurationField
+        allowZero
+        disabled={disabled}
+        label="Rest between Rounds"
+        onChange={(restBetweenRoundsSeconds) =>
+          updateCircuit({ restBetweenRoundsSeconds })
+        }
+        valueSeconds={circuit.restBetweenRoundsSeconds}
+      />
     </View>
   );
 }
@@ -638,273 +589,364 @@ function CountFields({
 function IntensityFields({
   baselines,
   disabled,
-  intensity,
+  draft,
   onChange,
-}: {
-  baselines: AthleteConditioningBaselines;
-  disabled: boolean;
-  intensity: ConditioningIntensityDraft;
-  onChange: (intensity: ConditioningIntensityDraft) => void;
-}) {
+}: SharedDraftProps & { baselines: AthleteConditioningBaselines }) {
   const { theme } = useAppTheme();
+  const intensity = draft.intensity;
 
-  if (intensity.method === null) {
-    return null;
+  function updateIntensity(patch: Partial<ConditioningIntensityDraft>) {
+    onChange({
+      ...draft,
+      intensity: {
+        ...intensity,
+        ...patch,
+        dirty: true,
+        historicalSnapshot: null,
+      },
+    });
   }
-
-  if (intensity.method === "rpe") {
-    return (
-      <FormTextInput
-        disabled={disabled}
-        keyboardType="number-pad"
-        label="RPE (1–10)"
-        onChangeText={(valueInput) => onChange({ ...intensity, valueInput })}
-        placeholder="7"
-        value={intensity.valueInput}
-      />
-    );
-  }
-
-  if (intensity.method === "heart_rate") {
-    return (
-      <View style={styles.fieldWithHelp}>
-        <FormTextInput
-          disabled={disabled}
-          keyboardType="number-pad"
-          label="Session heart rate (BPM)"
-          onChangeText={(valueBpmInput) =>
-            onChange({ ...intensity, valueBpmInput })
-          }
-          placeholder="170"
-          value={intensity.valueBpmInput}
-        />
-        <Text style={[styles.helpText, { color: theme.colors.textMuted }]}>
-          {baselines.maximumHeartRateBpm === null
-            ? "Set Maximum Heart Rate in Athlete Information before saving."
-            : `Maximum Heart Rate: ${baselines.maximumHeartRateBpm} BPM`}
-        </Text>
-      </View>
-    );
-  }
-
-  const thresholdPace = intensity.reference === "threshold_pace";
 
   return (
     <View style={styles.section}>
-      <ConditioningSelectField
-        disabled={disabled}
-        label="Pace reference"
-        onChange={(reference) =>
-          onChange({ ...intensity, reference, valueInput: "" })
-        }
-        options={paceReferenceOptions}
-        value={intensity.reference}
-      />
-      <FormTextInput
-        disabled={disabled}
-        keyboardType={thresholdPace ? "numbers-and-punctuation" : "decimal-pad"}
-        label={
-          thresholdPace
-            ? "Session pace (m:ss per km)"
-            : "Session speed (km/h)"
-        }
-        onChangeText={(valueInput) => onChange({ ...intensity, valueInput })}
-        placeholder={thresholdPace ? "4:30" : "15"}
-        value={intensity.valueInput}
-      />
-      <Text style={[styles.helpText, { color: theme.colors.textMuted }]}>
-        {thresholdPace
-          ? baselines.thresholdPaceSecondsPerKm === null
-            ? "Set Threshold Pace in Athlete Information before saving."
-            : `Threshold Pace: ${formatPace(baselines.thresholdPaceSecondsPerKm)} per km`
-          : baselines.maximumAerobicSpeedKph === null
-            ? "Set Maximum Aerobic Speed in Athlete Information before saving."
-            : `Maximum Aerobic Speed: ${baselines.maximumAerobicSpeedKph.toLocaleString([], { maximumFractionDigits: 2 })} km/h`}
-      </Text>
+      {intensity.activeMethod === "legacy_pace" ? (
+        <View style={styles.field}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>
+            Intensity
+          </Text>
+          <View
+            accessibilityLabel="Intensity, Pace, legacy value"
+            style={[
+              styles.informationalValue,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.valueText, { color: theme.colors.text }]}>
+              Pace — Legacy value
+            </Text>
+          </View>
+          <Text style={[styles.helpText, { color: theme.colors.textMuted }]}>
+            This saved value is preserved until Heart Rate or RPE is selected.
+          </Text>
+          <View style={styles.inlineActions}>
+            <SmallAction
+              disabled={disabled}
+              label="Use Heart Rate"
+              onPress={() =>
+                onChange(
+                  selectConditioningIntensityMethod(draft, "heart_rate"),
+                )
+              }
+            />
+            <SmallAction
+              disabled={disabled}
+              label="Use RPE"
+              onPress={() =>
+                onChange(selectConditioningIntensityMethod(draft, "rpe"))
+              }
+            />
+          </View>
+        </View>
+      ) : (
+        <>
+          <ConditioningSelectField
+            accessibilityHint="Intensity is optional"
+            disabled={disabled}
+            label="Intensity"
+            onChange={(method) =>
+              onChange(selectConditioningIntensityMethod(draft, method))
+            }
+            options={intensityMethodOptions}
+            placeholder="Choose intensity (optional)"
+            value={intensity.activeMethod}
+          />
+          {intensity.activeMethod !== null ? (
+            <SmallAction
+              disabled={disabled}
+              label="Clear intensity"
+              onPress={() => onChange(clearConditioningIntensity(draft))}
+            />
+          ) : null}
+        </>
+      )}
+
+      {intensity.activeMethod === "heart_rate" ? (
+        <View style={styles.fieldWithHelp}>
+          <FormTextInput
+            disabled={disabled}
+            keyboardType="number-pad"
+            label="Average Heart Rate"
+            maxLength={3}
+            onChangeText={(heartRateInput) =>
+              updateIntensity({ heartRateInput })
+            }
+            suffix="BPM"
+            value={intensity.heartRateInput}
+          />
+          <Text style={[styles.helpText, { color: theme.colors.textMuted }]}>
+            {baselines.maximumHeartRateBpm === null
+              ? "Set Maximum Heart Rate in Athlete Information first."
+              : `Valid range: ${conditioningValidationLimits.sessionHeartRateBpm.minimum}–${baselines.maximumHeartRateBpm} BPM.`}
+          </Text>
+        </View>
+      ) : intensity.activeMethod === "rpe" ? (
+        <FormTextInput
+          disabled={disabled}
+          keyboardType="decimal-pad"
+          label="RPE"
+          maxLength={4}
+          onChangeText={(rpeInput) => updateIntensity({ rpeInput })}
+          placeholder="1–10"
+          value={intensity.rpeInput}
+        />
+      ) : null}
     </View>
   );
 }
 
+type FormTextInputProps = {
+  disabled?: boolean;
+  keyboardType?: KeyboardTypeOptions;
+  label: string;
+  maxLength?: number;
+  multiline?: boolean;
+  onChangeText: (value: string) => void;
+  placeholder?: string;
+  suffix?: string;
+  textAlign?: "auto" | "left" | "right" | "center" | "justify";
+  value: string;
+};
+
 function FormTextInput({
-  accessibilityLabel,
-  disabled,
+  disabled = false,
   keyboardType = "default",
   label,
   maxLength,
   multiline = false,
   onChangeText,
   placeholder,
-  textAlign = "left",
+  suffix,
+  textAlign,
   value,
-}: {
-  accessibilityLabel?: string;
-  disabled: boolean;
-  keyboardType?: KeyboardTypeOptions;
-  label?: string;
-  maxLength?: number;
-  multiline?: boolean;
-  onChangeText: (value: string) => void;
-  placeholder: string;
-  textAlign?: "center" | "left";
-  value: string;
-}) {
+}: FormTextInputProps) {
   const { theme } = useAppTheme();
 
   return (
     <View style={styles.field}>
-      {label ? (
-        <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
-      ) : null}
-      <TextInput
-        accessibilityLabel={accessibilityLabel ?? label}
-        editable={!disabled}
-        keyboardType={keyboardType}
-        maxLength={maxLength}
-        multiline={multiline}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={theme.colors.textMuted}
-        selectionColor={theme.colors.tertiary}
+      <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
+      <View
         style={[
-          styles.input,
-          multiline && styles.notesInput,
+          styles.inputShell,
           {
+            backgroundColor: theme.colors.surfaceMuted,
             borderColor: theme.colors.borderStrong,
-            color: theme.colors.text,
             opacity: disabled ? tokens.opacity.disabled : 1,
-            textAlign,
           },
         ]}
-        value={value}
-      />
+      >
+        <TextInput
+          accessibilityLabel={label}
+          editable={!disabled}
+          keyboardType={keyboardType}
+          maxLength={maxLength}
+          multiline={multiline}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={theme.colors.textMuted}
+          selectionColor={theme.colors.tertiary}
+          style={[
+            styles.input,
+            multiline && styles.notesInput,
+            { color: theme.colors.text, textAlign },
+          ]}
+          value={value}
+        />
+        {suffix ? (
+          <Text style={[styles.suffix, { color: theme.colors.textMuted }]}>
+            {suffix}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 }
 
-function isPaceActivity(activity: ConditioningActivity) {
-  return activity === "running" || activity === "hill_sprints";
+function DistanceField({
+  disabled,
+  label,
+  onChangeText,
+  unit,
+  value,
+}: {
+  disabled: boolean;
+  label: string;
+  onChangeText: (value: string) => void;
+  unit: UnitSystem;
+  value: string;
+}) {
+  return (
+    <FormTextInput
+      disabled={disabled}
+      keyboardType="decimal-pad"
+      label={label}
+      onChangeText={onChangeText}
+      suffix={getDistanceUnitLabel(unit)}
+      value={value}
+    />
+  );
 }
 
-function formatPace(secondsPerKm: number) {
-  const roundedSeconds = Math.round(secondsPerKm);
-  const minutes = Math.floor(roundedSeconds / 60);
-  const seconds = roundedSeconds % 60;
+function ReadOnlyValue({ label, value }: { label: string; value: string }) {
+  const { theme } = useAppTheme();
+  return (
+    <View style={styles.field}>
+      <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
+      <View
+        accessibilityLabel={`${label}, ${value}`}
+        style={[
+          styles.informationalValue,
+          {
+            backgroundColor: theme.colors.surfaceMuted,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <Text style={[styles.valueText, { color: theme.colors.textMuted }]}>
+          {value}
+        </Text>
+      </View>
+    </View>
+  );
+}
 
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+function SmallAction({
+  disabled,
+  label,
+  onPress,
+}: {
+  disabled: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  const { theme } = useAppTheme();
+  return (
+    <PressOpacity
+      accessibilityLabel={label}
+      disabled={disabled}
+      onPress={onPress}
+      style={styles.smallButton}
+    >
+      <Text style={[styles.smallButtonText, { color: theme.colors.tertiary }]}>
+        {label}
+      </Text>
+    </PressOpacity>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: tokens.spacing.lg,
-  },
-  heading: {
-    alignItems: "center",
-    gap: tokens.spacing.sm,
-  },
+  container: { gap: tokens.spacing.lg },
+  heading: { alignItems: "center", gap: tokens.spacing.sm },
   adaptationBadge: {
     alignItems: "center",
-    borderRadius: tokens.radius.pill,
+    borderRadius: 999,
     borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.spacing.xs,
     justifyContent: "center",
     minHeight: 44,
+    minWidth: 0,
+    maxWidth: "80%",
     paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
   },
   adaptationBadgeText: {
+    flexShrink: 1,
     fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
+    fontWeight: "700",
     lineHeight: tokens.typography.label.lineHeight,
     textAlign: "center",
   },
-  section: {
-    gap: tokens.spacing.md,
-  },
-  sectionHeading: {
-    fontSize: tokens.typography.sectionTitle.fontSize,
-    fontWeight: tokens.typography.sectionTitle.fontWeight,
-    lineHeight: tokens.typography.sectionTitle.lineHeight,
-  },
-  field: {
-    gap: tokens.spacing.sm,
-    width: "100%",
-  },
-  fieldWithHelp: {
-    gap: tokens.spacing.xs,
-  },
+  section: { gap: tokens.spacing.md },
+  subsection: { gap: tokens.spacing.md, paddingTop: tokens.spacing.sm },
+  field: { flexShrink: 1, gap: tokens.spacing.sm, minWidth: 0 },
+  fieldWithHelp: { gap: tokens.spacing.xs },
   label: {
     fontSize: tokens.typography.label.fontSize,
     fontWeight: tokens.typography.label.fontWeight,
     lineHeight: tokens.typography.label.lineHeight,
   },
-  input: {
+  inputShell: {
+    alignItems: "center",
     borderRadius: tokens.radius.sm,
     borderWidth: 1,
+    flexDirection: "row",
+    minHeight: 44,
+    overflow: "hidden",
+  },
+  input: {
+    flex: 1,
     fontSize: tokens.typography.body.fontSize,
+    lineHeight: tokens.typography.body.lineHeight,
     minHeight: 44,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
   },
-  notesInput: {
-    minHeight: 96,
-    textAlignVertical: "top",
-  },
-  helpText: {
+  notesInput: { minHeight: 92, textAlignVertical: "top" },
+  suffix: {
     fontSize: tokens.typography.label.fontSize,
-    lineHeight: tokens.typography.label.lineHeight,
-    textAlign: "center",
+    fontWeight: "700",
+    paddingRight: tokens.spacing.md,
   },
-  twoColumnRow: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: tokens.spacing.md,
+  informationalValue: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: tokens.spacing.md,
   },
-  flexField: {
-    flex: 1,
-    minWidth: 0,
+  valueText: {
+    fontSize: tokens.typography.body.fontSize,
+    lineHeight: tokens.typography.body.lineHeight,
   },
+  workRestRow: { flexDirection: "row", gap: tokens.spacing.md },
+  structureRow: { flexDirection: "row", gap: tokens.spacing.sm },
+  wrappedRow: { flexWrap: "wrap" },
+  flexField: { flex: 1, minWidth: 112 },
+  fullWidth: { flexBasis: "100%" },
   stationHeadingRow: {
     alignItems: "center",
     flexDirection: "row",
     gap: tokens.spacing.sm,
     justifyContent: "space-between",
   },
+  sectionHeading: { fontSize: 18, fontWeight: "700" },
+  stationTitle: { fontSize: 16, fontWeight: "700" },
   stationCard: {
-    borderWidth: 1,
     borderRadius: tokens.radius.md,
+    borderWidth: 1,
     gap: tokens.spacing.md,
     padding: tokens.spacing.md,
   },
-  stationTitle: {
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
-    lineHeight: tokens.typography.label.lineHeight,
+  inlineActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: tokens.spacing.xs,
   },
   smallButton: {
     alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.spacing.xs,
     justifyContent: "center",
     minHeight: 44,
     paddingHorizontal: tokens.spacing.sm,
   },
   smallButtonText: {
     fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
+    fontWeight: "700",
     lineHeight: tokens.typography.label.lineHeight,
   },
-  removeButton: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.spacing.xs,
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: tokens.spacing.xs,
-  },
-  removeButtonText: {
-    color: appColorPalette.red,
+  helpText: {
     fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
     lineHeight: tokens.typography.label.lineHeight,
   },
 });

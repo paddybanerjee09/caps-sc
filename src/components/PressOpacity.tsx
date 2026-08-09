@@ -10,6 +10,7 @@ type PressOpacityProps = {
   onPress?: () => void;
   pressedOpacity?: number;
   style?: StyleProp<ViewStyle>;
+  accessibilityHint?: string;
   accessibilityLabel?: string;
   accessibilityRole?: "button" | "tab";
 };
@@ -20,11 +21,13 @@ export function PressOpacity({
   onPress,
   pressedOpacity = themes.dark.opacity.pressed,
   style,
+  accessibilityHint,
   accessibilityLabel,
   accessibilityRole = "button",
 }: PressOpacityProps) {
   return (
     <Pressable
+      accessibilityHint={accessibilityHint}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
       disabled={disabled}

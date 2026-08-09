@@ -14,19 +14,23 @@ export type ConditioningSelectOption<Value extends string> = {
 
 type ConditioningSelectFieldProps<Value extends string> = {
   accessibilityHint?: string;
+  compact?: boolean;
   disabled?: boolean;
   label: string;
   onChange: (value: Value) => void;
   options: readonly ConditioningSelectOption<Value>[];
-  value: Value;
+  placeholder?: string;
+  value: Value | null;
 };
 
 export function ConditioningSelectField<Value extends string>({
   accessibilityHint,
+  compact = false,
   disabled = false,
   label,
   onChange,
   options,
+  placeholder = "Choose an option",
   value,
 }: ConditioningSelectFieldProps<Value>) {
   const { theme } = useAppTheme();
@@ -39,7 +43,7 @@ export function ConditioningSelectField<Value extends string>({
   }
 
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, compact && styles.compactField]}>
       <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
 
       <View
@@ -68,7 +72,7 @@ export function ConditioningSelectField<Value extends string>({
             numberOfLines={2}
             style={[styles.selectedLabel, { color: theme.colors.text }]}
           >
-            {selectedOption?.label ?? "Choose an option"}
+            {selectedOption?.label ?? placeholder}
           </Text>
 
           <Ionicons
@@ -139,6 +143,9 @@ export function ConditioningSelectField<Value extends string>({
 const styles = StyleSheet.create({
   field: {
     gap: tokens.spacing.sm,
+  },
+  compactField: {
+    gap: tokens.spacing.xs,
   },
   label: {
     fontSize: tokens.typography.label.fontSize,
