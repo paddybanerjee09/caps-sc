@@ -513,81 +513,93 @@ function HillSprintFields({
   const intervals = draft.intervals;
 
   return (
-    <View style={styles.section}>
-      <DistanceField
-        disabled={disabled}
-        label="Distance"
-        onChangeText={(displayInput) =>
-          onChange({
-            ...draft,
-            intervals: {
-              ...intervals,
-              distanceWork: {
-                ...intervals.distanceWork,
-                distance: updateConditioningDistanceInput(
-                  intervals.distanceWork.distance,
-                  displayInput,
-                  distanceUnit,
-                ),
-              },
-            },
-          })
-        }
-        short
-        unit={distanceUnit}
-        value={intervals.distanceWork.distance.displayInput}
-      />
-      <DistanceField
-        disabled={disabled}
-        label="Elevation gain"
-        onChangeText={(displayInput) =>
-          onChange({
-            ...draft,
-            intervals: {
-              ...intervals,
-              elevationGain: updateConditioningDistanceInput(
-                intervals.elevationGain,
-                displayInput,
-                distanceUnit,
-              ),
-            },
-          })
-        }
-        short
-        unit={distanceUnit}
-        value={intervals.elevationGain.displayInput}
-      />
-      <FormTextInput
-        disabled={disabled}
-        keyboardType="decimal-pad"
-        label="Intensity (RPE)"
-        maxLength={4}
-        onChangeText={(rpeInput) =>
-          onChange({
-            ...draft,
-            intensity: {
-              ...draft.intensity,
-              activeMethod: "rpe",
-              dirty: true,
-              rpeInput,
-            },
-          })
-        }
-        value={draft.intensity.rpeInput}
-      />
-      <FormTextInput
-        disabled={disabled}
-        keyboardType="number-pad"
-        label="Repetitions"
-        maxLength={3}
-        onChangeText={(intervalCountInput) =>
-          onChange({
-            ...draft,
-            intervals: { ...intervals, intervalCountInput },
-          })
-        }
-        value={intervals.intervalCountInput}
-      />
+    <View style={[styles.section, styles.hillSprintSection]}>
+      <View style={styles.hillSprintRow}>
+        <View style={styles.flexField}>
+          <DistanceField
+            disabled={disabled}
+            label="Distance"
+            onChangeText={(displayInput) =>
+              onChange({
+                ...draft,
+                intervals: {
+                  ...intervals,
+                  distanceWork: {
+                    ...intervals.distanceWork,
+                    distance: updateConditioningDistanceInput(
+                      intervals.distanceWork.distance,
+                      displayInput,
+                      distanceUnit,
+                    ),
+                  },
+                },
+              })
+            }
+            short
+            unit={distanceUnit}
+            value={intervals.distanceWork.distance.displayInput}
+          />
+        </View>
+        <View style={styles.flexField}>
+          <DistanceField
+            disabled={disabled}
+            label="Elevation gain"
+            onChangeText={(displayInput) =>
+              onChange({
+                ...draft,
+                intervals: {
+                  ...intervals,
+                  elevationGain: updateConditioningDistanceInput(
+                    intervals.elevationGain,
+                    displayInput,
+                    distanceUnit,
+                  ),
+                },
+              })
+            }
+            short
+            unit={distanceUnit}
+            value={intervals.elevationGain.displayInput}
+          />
+        </View>
+      </View>
+      <View style={styles.hillSprintRow}>
+        <View style={styles.flexField}>
+          <FormTextInput
+            disabled={disabled}
+            keyboardType="number-pad"
+            label="Repetitions"
+            maxLength={3}
+            onChangeText={(intervalCountInput) =>
+              onChange({
+                ...draft,
+                intervals: { ...intervals, intervalCountInput },
+              })
+            }
+            value={intervals.intervalCountInput}
+          />
+        </View>
+        <View style={styles.flexField}>
+          <FormTextInput
+            disabled={disabled}
+            keyboardType="decimal-pad"
+            label="Intensity (RPE)"
+            maxLength={4}
+            onChangeText={(rpeInput) =>
+              onChange({
+                ...draft,
+                intensity: {
+                  ...draft.intensity,
+                  activeMethod: "rpe",
+                  dirty: true,
+                  rpeInput,
+                },
+              })
+            }
+            value={draft.intensity.rpeInput}
+          />
+        </View>
+      </View>
       <ElapsedDurationField
         allowZero
         disabled={disabled}
@@ -1086,6 +1098,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   section: { gap: tokens.spacing.md },
+  hillSprintSection: { gap: tokens.spacing.sm },
+  hillSprintRow: { flexDirection: "row", gap: tokens.spacing.sm },
   subsection: { gap: tokens.spacing.md, paddingTop: tokens.spacing.sm },
   field: { flexShrink: 1, gap: tokens.spacing.sm, minWidth: 0 },
   fieldWithHelp: { gap: tokens.spacing.xs },
