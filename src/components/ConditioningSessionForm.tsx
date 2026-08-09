@@ -66,6 +66,7 @@ export type ConditioningSessionFormProps = {
   disabled?: boolean;
   distanceUnit: UnitSystem;
   draft: ConditioningSessionFormDraft;
+  horizontalHeading?: boolean;
   onAdaptationPress?: () => void;
   onChange: (draft: ConditioningSessionFormDraft) => void;
   scoreResult: ConditioningScoreResult;
@@ -77,6 +78,7 @@ export function ConditioningSessionForm({
   disabled = false,
   distanceUnit,
   draft,
+  horizontalHeading = false,
   onAdaptationPress,
   onChange,
   scoreResult,
@@ -105,15 +107,23 @@ export function ConditioningSessionForm({
     <View style={styles.container}>
       {showHeading ? (
         <View style={styles.heading}>
-          <ConditioningTitleInput
-            disabled={disabled}
-            onChangeText={(titleInput) => updateDraft({ titleInput })}
-            value={draft.titleInput}
-          />
-          <ConditioningAdaptationBadge
-            onPress={onAdaptationPress}
-            scoreResult={scoreResult}
-          />
+          <View
+            style={horizontalHeading ? styles.horizontalHeading : styles.heading}
+          >
+            <View style={horizontalHeading ? styles.horizontalHeadingTitle : undefined}>
+              <ConditioningTitleInput
+                compact={horizontalHeading}
+                disabled={disabled}
+                onChangeText={(titleInput) => updateDraft({ titleInput })}
+                value={draft.titleInput}
+              />
+            </View>
+            <ConditioningAdaptationBadge
+              compact={horizontalHeading}
+              onPress={onAdaptationPress}
+              scoreResult={scoreResult}
+            />
+          </View>
           <ConditioningScoreHelp scoreResult={scoreResult} />
         </View>
       ) : (
@@ -1074,6 +1084,13 @@ function SmallAction({
 const styles = StyleSheet.create({
   container: { gap: tokens.spacing.lg },
   heading: { alignItems: "center", gap: tokens.spacing.sm },
+  horizontalHeading: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    width: "100%",
+  },
+  horizontalHeadingTitle: { flex: 1, minWidth: 0 },
   adaptationBadge: {
     alignItems: "center",
     borderRadius: 999,

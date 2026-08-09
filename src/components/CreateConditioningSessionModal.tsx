@@ -240,6 +240,7 @@ export function CreateConditioningSessionModal({
                     disabled={saving}
                     distanceUnit={unitSettings.distance}
                     draft={draft}
+                    horizontalHeading
                     onAdaptationPress={() => setShowAdaptations(true)}
                     onChange={setDraft}
                     scoreResult={scoreResult}
