@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   inlineSelectedLabel: {
     fontSize: tokens.typography.label.fontSize,
-    lineHeight: tokens.typography.label.lineHeight,
+    lineHeight: tokens.typography.label.lineHeight - 2,
   },
   options: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -255,6 +255,6 @@ const styles = StyleSheet.create({
   },
   inlineOptionLabel: {
     fontSize: tokens.typography.label.fontSize,
-    lineHeight: tokens.typography.label.lineHeight,
+    lineHeight: tokens.typography.label.lineHeight - 2,
   },
 });
