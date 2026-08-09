@@ -65,6 +65,7 @@ function makeStoredRows(
     interval_work_distance_meters: null,
     distance_total_duration_seconds: null,
     distance_work_duration_seconds: null,
+    distance_duration_omitted: null,
     rest_between_repetitions_seconds: null,
     repetitions_per_set: null,
     set_count: null,
@@ -447,6 +448,46 @@ describe("updateCompletedConditioningSession", () => {
     );
     expect(definitionColumns.intensity_baseline_value).toBe(190);
     expect(result.score.scores.aerobic_base).not.toBe(77);
+  });
+
+  it("stores distance intervals without a work duration", async () => {
+    const harness = createDatabaseHarness();
+
+    const result = await updateCompletedConditioningSession(
+      harness.db,
+      TIMELINE_ENTRY_ID,
+      makeContinuousUpdate({
+        intensity: null,
+        protocol: {
+          type: "intervals",
+          work: {
+            mode: "distance",
+            distanceMeters: 400,
+            provenance: "distance-only",
+          },
+          restBetweenIntervalsSeconds: 10,
+          intervalCount: 3,
+          roundCount: 2,
+          restBetweenRoundsSeconds: 20,
+        },
+      }),
+    );
+
+    const definitionColumns = getUpdatedColumns(
+      findRunCall(harness.committedRunCalls, /UPDATE conditioning_logs SET/i),
+    );
+    expect(definitionColumns).toMatchObject({
+      protocol_type: "distance_intervals",
+      interval_work_distance_meters: 400,
+      distance_total_duration_seconds: 61,
+      distance_work_duration_seconds: null,
+      distance_duration_omitted: 1,
+    });
+    expect(result).toMatchObject({
+      timelineEntryId: TIMELINE_ENTRY_ID,
+      startAt: 1_000_000,
+      endAt: 1_060_000,
+    });
   });
 
   it("resnapshots the current baseline after an explicit intensity change", async () => {

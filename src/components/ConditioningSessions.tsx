@@ -490,17 +490,13 @@ export function getConditioningProtocolSummary(
     const workSummary =
       protocol.work.mode === "time"
         ? `Time work: ${formatDuration(protocol.work.durationSeconds)} per interval`
-        : `Distance work: ${formatDistance(protocol.work.distanceMeters, distanceUnit)} per interval in ${formatDuration(protocol.work.durationSeconds)}`;
+        : `Distance work: ${formatDistance(protocol.work.distanceMeters, distanceUnit)} per interval`;
     const restSummary = `rests: ${formatDuration(protocol.restBetweenIntervalsSeconds)} between intervals, ${formatDuration(protocol.restBetweenRoundsSeconds)} between rounds`;
-    const legacySummary =
-      protocol.work.mode === "distance" &&
-      protocol.work.provenance === "legacy-derived"
-        ? protocol.work.legacyTotalDurationSeconds === undefined
-          ? " · duration per interval estimated from legacy timing"
-          : ` · duration per interval estimated from legacy ${formatDuration(protocol.work.legacyTotalDurationSeconds)} total`
+    const totalSummary =
+      protocol.work.mode === "time"
+        ? ` · ${formatDuration(result.metrics.totalSessionSeconds)} total`
         : "";
-
-    return `${protocolLabel} · ${workSummary} · ${intervalStructure} · ${restSummary} · ${formatDuration(result.metrics.totalSessionSeconds)} total${legacySummary}`;
+    return `${protocolLabel} · ${workSummary} · ${intervalStructure} · ${restSummary}${totalSummary}`;
   }
 
   if (protocol.type === "circuit") {

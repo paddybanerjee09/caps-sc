@@ -58,22 +58,21 @@ describe("ConditioningSessionForm", () => {
     expect(result.getByLabelText("Pace, — min/km")).toBeTruthy();
   });
 
-  test("offers one Intervals type and toggles Time or Distance work", async () => {
+  test("uses an inline Duration or Distance selector with two work/rest fields", async () => {
     const result = await render(<Harness />);
 
     await fireEvent.press(result.getByLabelText("Type, Continuous"));
     expect(result.queryByLabelText("Circuit")).toBeNull();
     await fireEvent.press(result.getByLabelText("Intervals"));
 
-    expect(result.getByLabelText("Work, Time")).toBeTruthy();
+    expect(result.getByLabelText("Work, Duration")).toBeTruthy();
     expect(result.getByLabelText("Work duration, not set")).toBeTruthy();
-    await fireEvent.press(result.getByLabelText("Work, Time"));
+    await fireEvent.press(result.getByLabelText("Work, Duration"));
     await fireEvent.press(result.getByLabelText("Distance"));
 
     expect(result.getByLabelText("Distance per interval")).toBeTruthy();
-    expect(
-      result.getByLabelText("Duration per interval, not set"),
-    ).toBeTruthy();
+    expect(result.queryByText("Duration per interval")).toBeNull();
+    expect(result.queryByLabelText(/Duration per interval/)).toBeNull();
   });
 
   test("exposes Heart Rate and RPE only, with a neutral optional state", async () => {

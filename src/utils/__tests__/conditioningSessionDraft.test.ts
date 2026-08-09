@@ -66,7 +66,7 @@ describe("conditioning session form draft", () => {
     });
   });
 
-  test("restores Time and Distance work caches without leaking hidden fields", () => {
+  test("restores Time and Distance work caches without adding distance duration", () => {
     let draft = createDefaultConditioningSessionFormDraft("metric");
     draft = selectConditioningProtocolType(draft, "intervals");
     draft.intervals.timeWorkDurationSeconds = 45;
@@ -76,8 +76,6 @@ describe("conditioning session form draft", () => {
       "0.4",
       "metric",
     );
-    draft.intervals.distanceWork.durationSeconds = 75;
-    draft.intervals.distanceWork.durationDirty = true;
 
     const distanceAnalysis = analyzeConditioningSessionFormDraft(
       draft,
@@ -90,14 +88,16 @@ describe("conditioning session form draft", () => {
       work: {
         mode: "distance",
         distanceMeters: 400,
-        durationSeconds: 75,
-        provenance: "explicit",
+        provenance: "distance-only",
       },
       restBetweenIntervalsSeconds: 0,
       intervalCount: 1,
       roundCount: 1,
       restBetweenRoundsSeconds: 0,
     });
+    expect(distanceAnalysis.metrics.totalSessionSeconds).toBe(0);
+    expect(distanceAnalysis.metrics.totalWorkSeconds).toBe(0);
+    expect(distanceAnalysis.metrics.totalDistanceMeters).toBe(400);
 
     draft = selectIntervalWorkMode(draft, "time");
     const timeAnalysis = analyzeConditioningSessionFormDraft(draft, baselines);
@@ -164,7 +164,8 @@ describe("conditioning session form draft", () => {
     if (
       !analysis.ok ||
       analysis.protocol.type !== "intervals" ||
-      analysis.protocol.work.mode !== "distance"
+      analysis.protocol.work.mode !== "distance" ||
+      analysis.protocol.work.provenance !== "legacy-derived"
     ) {
       return;
     }
@@ -205,7 +206,8 @@ describe("conditioning session form draft", () => {
     if (
       !analysis.ok ||
       analysis.protocol.type !== "intervals" ||
-      analysis.protocol.work.mode !== "distance"
+      analysis.protocol.work.mode !== "distance" ||
+      analysis.protocol.work.provenance === "distance-only"
     ) {
       return;
     }
@@ -249,7 +251,8 @@ describe("conditioning session form draft", () => {
     if (
       !analysis.ok ||
       analysis.protocol.type !== "intervals" ||
-      analysis.protocol.work.mode !== "distance"
+      analysis.protocol.work.mode !== "distance" ||
+      analysis.protocol.work.provenance === "distance-only"
     ) {
       return;
     }

@@ -327,9 +327,7 @@ describe("ConditioningLogModal", () => {
     expect(
       (await result.findByLabelText("Distance per interval")).props.value,
     ).toBe("0.4");
-    expect(
-      result.getByLabelText("Duration per interval, 00:01:41"),
-    ).toBeTruthy();
+    expect(result.queryByLabelText(/Duration per interval/)).toBeNull();
     expect(result.getByText("Pace — 4:05 min/km")).toBeTruthy();
     await fireEvent.press(result.getByLabelText("Update conditioning session"));
 

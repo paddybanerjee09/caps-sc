@@ -109,22 +109,16 @@ describe("ConditioningSessionDetailModal", () => {
     jest.clearAllMocks();
   });
 
-  test("shows preferred units and complete legacy interval timing", async () => {
+  test("shows preferred units and distance intervals without work duration", async () => {
     const result = await renderDetails(buildSession());
 
     expect(await result.findByLabelText("Distance per interval, 1 mi")).toBeTruthy();
-    expect(
-      result.getByLabelText("Estimated duration per interval, 1m"),
-    ).toBeTruthy();
+    expect(result.queryByLabelText(/duration per interval/i)).toBeNull();
     expect(result.getByLabelText("Intervals, 2")).toBeTruthy();
     expect(result.getByLabelText("Rounds, 3")).toBeTruthy();
     expect(result.getByLabelText("Rest between intervals, 15s")).toBeTruthy();
     expect(result.getByLabelText("Rest between rounds, 30s")).toBeTruthy();
-    expect(result.getByLabelText("Legacy elapsed duration, 7m 30s")).toBeTruthy();
     expect(result.getByLabelText("Distance, 6 mi")).toBeTruthy();
-    expect(
-      result.getByText(/estimated from the legacy session/i),
-    ).toBeTruthy();
   });
 
   test("shows circuit structure and every ordered station", async () => {

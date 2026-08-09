@@ -143,6 +143,35 @@ describe("conditioning protocol calculations", () => {
     });
   });
 
+  it("records distance intervals without inventing work duration", () => {
+    const result = evaluateConditioningProtocol({
+      type: "intervals",
+      work: {
+        mode: "distance",
+        distanceMeters: 400,
+        provenance: "distance-only",
+      },
+      restBetweenIntervalsSeconds: 30,
+      intervalCount: 4,
+      roundCount: 2,
+      restBetweenRoundsSeconds: 90,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.metrics).toMatchObject({
+      totalBouts: 8,
+      totalWorkSeconds: 0,
+      totalRestSeconds: 270,
+      totalSessionSeconds: 270,
+      totalDistanceMeters: 3_200,
+      averageWorkBoutSeconds: 0,
+      workBoutSeconds: [],
+      workToRestRatio: null,
+      estimatedWorkDuration: false,
+    });
+  });
+
   it("calculates circuit work and rest across rounds", () => {
     const result = evaluateConditioningProtocol({
       type: "circuit",
@@ -331,7 +360,11 @@ describe("getConditioningEndAt", () => {
     expect(getConditioningEndAt(1_000, 90)).toBe(91_000);
   });
 
-  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+  it("uses a one-millisecond timeline span when recorded duration is omitted", () => {
+    expect(getConditioningEndAt(1_000, 0)).toBe(1_001);
+  });
+
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY])(
     "returns null for invalid duration %s",
     (durationSeconds) => {
       expect(getConditioningEndAt(1_000, durationSeconds)).toBeNull();

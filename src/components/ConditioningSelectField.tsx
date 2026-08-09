@@ -16,6 +16,7 @@ type ConditioningSelectFieldProps<Value extends string> = {
   accessibilityHint?: string;
   compact?: boolean;
   disabled?: boolean;
+  inline?: boolean;
   label: string;
   onChange: (value: Value) => void;
   options: readonly ConditioningSelectOption<Value>[];
@@ -27,6 +28,7 @@ export function ConditioningSelectField<Value extends string>({
   accessibilityHint,
   compact = false,
   disabled = false,
+  inline = false,
   label,
   onChange,
   options,
@@ -43,12 +45,19 @@ export function ConditioningSelectField<Value extends string>({
   }
 
   return (
-    <View style={[styles.field, compact && styles.compactField]}>
+    <View
+      style={[
+        styles.field,
+        compact && styles.compactField,
+        inline && styles.inlineField,
+      ]}
+    >
       <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
 
       <View
         style={[
           styles.selector,
+          inline && styles.inlineSelector,
           {
             borderColor: theme.colors.borderStrong,
             opacity: disabled ? tokens.opacity.disabled : 1,
@@ -146,6 +155,16 @@ const styles = StyleSheet.create({
   },
   compactField: {
     gap: tokens.spacing.xs,
+  },
+  inlineField: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  inlineSelector: {
+    flexBasis: 132,
+    flexShrink: 1,
+    minWidth: 112,
   },
   label: {
     fontSize: tokens.typography.label.fontSize,

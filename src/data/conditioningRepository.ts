@@ -49,6 +49,7 @@ type StoredDefinitionRow = {
   interval_work_distance_meters: number | null;
   distance_total_duration_seconds: number | null;
   distance_work_duration_seconds: number | null;
+  distance_duration_omitted: number | null;
   rest_between_repetitions_seconds: number | null;
   repetitions_per_set: number | null;
   set_count: number | null;
@@ -164,6 +165,7 @@ const DEFINITION_COLUMNS = [
   "interval_work_distance_meters",
   "distance_total_duration_seconds",
   "distance_work_duration_seconds",
+  "distance_duration_omitted",
   "rest_between_repetitions_seconds",
   "repetitions_per_set",
   "set_count",
@@ -652,19 +654,30 @@ function areProtocolsEqual(
       left.intervalCount !== right.intervalCount ||
       left.roundCount !== right.roundCount ||
       left.restBetweenRoundsSeconds !== right.restBetweenRoundsSeconds ||
-      left.work.mode !== right.work.mode ||
-      left.work.durationSeconds !== right.work.durationSeconds
+      left.work.mode !== right.work.mode
     ) {
       return false;
     }
     if (left.work.mode === "time" && right.work.mode === "time") {
+      return left.work.durationSeconds === right.work.durationSeconds;
+    }
+    if (left.work.mode !== "distance" || right.work.mode !== "distance") {
+      return false;
+    }
+    if (
+      left.work.distanceMeters !== right.work.distanceMeters ||
+      left.work.provenance !== right.work.provenance
+    ) {
+      return false;
+    }
+    if (
+      left.work.provenance === "distance-only" ||
+      right.work.provenance === "distance-only"
+    ) {
       return true;
     }
     return (
-      left.work.mode === "distance" &&
-      right.work.mode === "distance" &&
-      left.work.distanceMeters === right.work.distanceMeters &&
-      left.work.provenance === right.work.provenance &&
+      left.work.durationSeconds === right.work.durationSeconds &&
       left.work.legacyTotalDurationSeconds ===
         right.work.legacyTotalDurationSeconds
     );
@@ -695,6 +708,10 @@ function getDefinitionStorageValues(
   const [intensityMethod, intensityValue, intensityReference] =
     getIntensityStorageValues(definition.intensity);
   const protocol = definition.protocol;
+  const distanceOnly =
+    protocol.type === "intervals" &&
+    protocol.work.mode === "distance" &&
+    protocol.work.provenance === "distance-only";
 
   return [
     definition.activity,
@@ -711,7 +728,9 @@ function getDefinitionStorageValues(
       ? protocol.work.distanceMeters
       : null,
     protocol.type === "intervals" && protocol.work.mode === "distance"
-      ? protocol.work.provenance === "legacy-derived" &&
+      ? distanceOnly
+        ? definition.metrics.totalRestSeconds + 1
+        : protocol.work.provenance === "legacy-derived" &&
         protocol.work.legacyTotalDurationSeconds !== undefined
         ? protocol.work.legacyTotalDurationSeconds
         : definition.metrics.totalSessionSeconds
@@ -721,6 +740,7 @@ function getDefinitionStorageValues(
     protocol.work.provenance === "explicit"
       ? protocol.work.durationSeconds
       : null,
+    distanceOnly ? 1 : null,
     protocol.type === "intervals"
       ? protocol.restBetweenIntervalsSeconds
       : null,
@@ -847,11 +867,24 @@ function getProtocolFromRow(
       restBetweenIntervalsSeconds * (intervalCount - 1) * roundCount +
       restBetweenRoundsSeconds * (roundCount - 1);
     const explicitWorkDurationSeconds = row.distance_work_duration_seconds;
+    const durationOmitted = row.distance_duration_omitted === 1;
+    if (
+      row.distance_duration_omitted !== null &&
+      row.distance_duration_omitted !== 1
+    ) {
+      throw new Error("Stored distance duration state is invalid.");
+    }
 
     protocol = {
       type: "intervals",
       work:
-        explicitWorkDurationSeconds === null
+        durationOmitted
+          ? {
+              mode: "distance",
+              distanceMeters: row.interval_work_distance_meters as number,
+              provenance: "distance-only",
+            }
+          : explicitWorkDurationSeconds === null
           ? {
               mode: "distance",
               distanceMeters: row.interval_work_distance_meters as number,
@@ -1608,6 +1641,7 @@ export async function getConditioningSessionByTimelineEntryId(
        log.interval_work_distance_meters,
        log.distance_total_duration_seconds,
        log.distance_work_duration_seconds,
+       log.distance_duration_omitted,
        log.rest_between_repetitions_seconds,
        log.repetitions_per_set,
        log.set_count,

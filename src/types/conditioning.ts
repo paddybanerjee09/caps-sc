@@ -49,6 +49,11 @@ export type IntervalsProtocol = {
         durationSeconds: number;
         provenance: "explicit" | "legacy-derived";
         legacyTotalDurationSeconds?: number;
+      }
+    | {
+        mode: "distance";
+        distanceMeters: number;
+        provenance: "distance-only";
       };
   restBetweenIntervalsSeconds: number;
   intervalCount: number;

@@ -476,27 +476,30 @@ export function evaluateConditioningProtocol(
         });
       }
 
-      const validDuration =
-        protocol.work.provenance === "legacy-derived"
-          ? isNumberInRange(
-              protocol.work.durationSeconds,
-              Number.EPSILON,
-              maximumDuration,
-            )
-          : isIntegerInRange(
-              protocol.work.durationSeconds,
-              1,
-              maximumDuration,
-            );
+      if (protocol.work.provenance !== "distance-only") {
+        const validDuration =
+          protocol.work.provenance === "legacy-derived"
+            ? isNumberInRange(
+                protocol.work.durationSeconds,
+                Number.EPSILON,
+                maximumDuration,
+              )
+            : isIntegerInRange(
+                protocol.work.durationSeconds,
+                1,
+                maximumDuration,
+              );
 
-      if (!validDuration) {
-        issues.push({
-          field: "work.durationSeconds",
-          message: "Work duration is invalid.",
-        });
+        if (!validDuration) {
+          issues.push({
+            field: "work.durationSeconds",
+            message: "Work duration is invalid.",
+          });
+        }
       }
 
       if (
+        protocol.work.provenance === "legacy-derived" &&
         protocol.work.legacyTotalDurationSeconds !== undefined &&
         !isIntegerInRange(
           protocol.work.legacyTotalDurationSeconds,
@@ -562,7 +565,12 @@ export function evaluateConditioningProtocol(
     }
 
     const totalBouts = protocol.intervalCount * protocol.roundCount;
-    const totalWorkSeconds = protocol.work.durationSeconds * totalBouts;
+    const distanceOnly =
+      protocol.work.mode === "distance" &&
+      protocol.work.provenance === "distance-only";
+    const workDurationSeconds =
+      "durationSeconds" in protocol.work ? protocol.work.durationSeconds : 0;
+    const totalWorkSeconds = workDurationSeconds * totalBouts;
     const intervalRestSeconds =
       protocol.restBetweenIntervalsSeconds *
       (protocol.intervalCount - 1) *
@@ -570,6 +578,17 @@ export function evaluateConditioningProtocol(
     const roundRestSeconds =
       protocol.restBetweenRoundsSeconds * (protocol.roundCount - 1);
     const totalRestSeconds = intervalRestSeconds + roundRestSeconds;
+    if (distanceOnly && totalRestSeconds >= maximumDuration) {
+      return {
+        ok: false,
+        issues: [
+          {
+            field: "totalSessionSeconds",
+            message: "Distance interval rest must total less than 24 hours.",
+          },
+        ],
+      };
+    }
     const preservedLegacyTotalSeconds =
       protocol.work.mode === "distance" &&
       protocol.work.provenance === "legacy-derived"
@@ -582,7 +601,7 @@ export function evaluateConditioningProtocol(
         ? totalWorkSeconds
         : preservedLegacyTotalSeconds - totalRestSeconds;
 
-    if (exactTotalWorkSeconds <= 0) {
+    if (!distanceOnly && exactTotalWorkSeconds <= 0) {
       return {
         ok: false,
         issues: [
@@ -606,7 +625,9 @@ export function evaluateConditioningProtocol(
       };
     }
 
-    const averageWorkBoutSeconds = exactTotalWorkSeconds / totalBouts;
+    const averageWorkBoutSeconds = distanceOnly
+      ? 0
+      : exactTotalWorkSeconds / totalBouts;
 
     return {
       ok: true,
@@ -614,7 +635,9 @@ export function evaluateConditioningProtocol(
       metrics: {
         protocolType: protocol.type,
         totalBouts,
-        workBoutSeconds: Array(totalBouts).fill(averageWorkBoutSeconds),
+        workBoutSeconds: distanceOnly
+          ? []
+          : Array(totalBouts).fill(averageWorkBoutSeconds),
         totalWorkSeconds: exactTotalWorkSeconds,
         totalRestSeconds,
         totalSessionSeconds,
@@ -624,7 +647,7 @@ export function evaluateConditioningProtocol(
             : null,
         averageWorkBoutSeconds,
         workToRestRatio:
-          totalRestSeconds > 0
+          !distanceOnly && totalRestSeconds > 0
             ? exactTotalWorkSeconds / totalRestSeconds
             : null,
         estimatedWorkDuration:
@@ -728,11 +751,12 @@ export function getConditioningEndAt(
   if (
     !Number.isFinite(startAt) ||
     !Number.isFinite(totalSessionSeconds) ||
-    totalSessionSeconds <= 0
+    totalSessionSeconds < 0
   ) {
     return null;
   }
 
-  const endAt = startAt + totalSessionSeconds * 1000;
+  const endAt =
+    startAt + (totalSessionSeconds === 0 ? 1 : totalSessionSeconds * 1000);
   return Number.isFinite(endAt) ? endAt : null;
 }

@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 7;
+const DATABASE_VERSION = 8;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -865,6 +865,26 @@ export async function migrateDatabase(db: SQLiteDatabase) {
               typeof(distance_work_duration_seconds) = 'integer'
               AND distance_work_duration_seconds BETWEEN 1 AND 86400
             )
+          );
+      `);
+    });
+  }
+
+  if (currentVersion < 8) {
+    await db.withExclusiveTransactionAsync(async (transaction) => {
+      await transaction.execAsync(`
+        ALTER TABLE conditioning_session_templates
+        ADD COLUMN distance_duration_omitted INTEGER DEFAULT NULL
+          CHECK (
+            distance_duration_omitted IS NULL
+            OR distance_duration_omitted = 1
+          );
+
+        ALTER TABLE conditioning_logs
+        ADD COLUMN distance_duration_omitted INTEGER DEFAULT NULL
+          CHECK (
+            distance_duration_omitted IS NULL
+            OR distance_duration_omitted = 1
           );
       `);
     });

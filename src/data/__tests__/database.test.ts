@@ -33,7 +33,7 @@ function createMigrationHarness(userVersion: number) {
 }
 
 describe("conditioning database migrations", () => {
-  test("builds a fresh schema through version 7", async () => {
+  test("builds a fresh schema through version 8", async () => {
     const harness = createMigrationHarness(0);
     await migrateDatabase(harness.db);
 
@@ -46,7 +46,10 @@ describe("conditioning database migrations", () => {
     expect(allSql).toContain(
       "ADD COLUMN distance_work_duration_seconds INTEGER DEFAULT NULL",
     );
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 7");
+    expect(allSql).toContain(
+      "ADD COLUMN distance_duration_omitted INTEGER DEFAULT NULL",
+    );
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 8");
   });
 
   test("upgrades version 5 additively through preferences and interval timing", async () => {
@@ -68,7 +71,10 @@ describe("conditioning database migrations", () => {
       "ALTER TABLE conditioning_logs ADD COLUMN distance_work_duration_seconds",
     );
     expect(versionSevenSql).not.toMatch(/DROP TABLE|CREATE TABLE/i);
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 7");
+    expect(versionSevenSql).toContain(
+      "ADD COLUMN distance_duration_omitted INTEGER DEFAULT NULL",
+    );
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 8");
   });
 
   test("upgrades version 6 without recreating the preference or conditioning tables", async () => {
@@ -84,11 +90,24 @@ describe("conditioning database migrations", () => {
     expect(migrationSql.match(/ADD COLUMN distance_work_duration_seconds/g)).toHaveLength(
       2,
     );
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 7");
+    expect(migrationSql.match(/ADD COLUMN distance_duration_omitted/g)).toHaveLength(
+      2,
+    );
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 8");
   });
 
-  test("leaves a version 7 schema unchanged after enabling connection pragmas", async () => {
+  test("upgrades version 7 with the distance-duration omission marker", async () => {
     const harness = createMigrationHarness(7);
+    await migrateDatabase(harness.db);
+
+    expect(harness.transactionSql.join(" ")).toContain(
+      "ADD COLUMN distance_duration_omitted INTEGER DEFAULT NULL",
+    );
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 8");
+  });
+
+  test("leaves a version 8 schema unchanged after enabling connection pragmas", async () => {
+    const harness = createMigrationHarness(8);
     await migrateDatabase(harness.db);
 
     expect(harness.rootSql).toHaveLength(1);

@@ -126,6 +126,9 @@ export function ConditioningSessionDetailModal({
     : null;
   const sessionMatchesSelection =
     session?.timelineEntryId === timelineEntryId;
+  const isDistanceInterval =
+    session?.protocol.type === "intervals" &&
+    session.protocol.work.mode === "distance";
 
   return (
     <Modal
@@ -270,14 +273,19 @@ export function ConditioningSessionDetailModal({
                   textColor={theme.colors.text}
                   value={formatTimeRange(session.startAt, session.endAt)}
                 />
-                <DetailRow
-                  label="Duration"
-                  mutedColor={theme.colors.textMuted}
-                  textColor={theme.colors.text}
-                  value={formatDuration(
-                    Math.max(0, Math.round((session.endAt - session.startAt) / 1000)),
-                  )}
-                />
+                {!isDistanceInterval ? (
+                  <DetailRow
+                    label="Duration"
+                    mutedColor={theme.colors.textMuted}
+                    textColor={theme.colors.text}
+                    value={formatDuration(
+                      Math.max(
+                        0,
+                        Math.round((session.endAt - session.startAt) / 1000),
+                      ),
+                    )}
+                  />
+                ) : null}
                 <DetailRow
                   label="Activity"
                   mutedColor={theme.colors.textMuted}
@@ -301,24 +309,28 @@ export function ConditioningSessionDetailModal({
               />
 
               <DetailSection title="Calculated totals">
-                <DetailRow
-                  label="Work"
-                  mutedColor={theme.colors.textMuted}
-                  textColor={theme.colors.text}
-                  value={formatDuration(session.metrics.totalWorkSeconds)}
-                />
+                {!isDistanceInterval ? (
+                  <DetailRow
+                    label="Work"
+                    mutedColor={theme.colors.textMuted}
+                    textColor={theme.colors.text}
+                    value={formatDuration(session.metrics.totalWorkSeconds)}
+                  />
+                ) : null}
                 <DetailRow
                   label="Rest"
                   mutedColor={theme.colors.textMuted}
                   textColor={theme.colors.text}
                   value={formatDuration(session.metrics.totalRestSeconds)}
                 />
-                <DetailRow
-                  label="Work-to-rest"
-                  mutedColor={theme.colors.textMuted}
-                  textColor={theme.colors.text}
-                  value={formatWorkToRest(session.metrics.workToRestRatio)}
-                />
+                {!isDistanceInterval ? (
+                  <DetailRow
+                    label="Work-to-rest"
+                    mutedColor={theme.colors.textMuted}
+                    textColor={theme.colors.text}
+                    value={formatWorkToRest(session.metrics.workToRestRatio)}
+                  />
+                ) : null}
                 {session.metrics.totalDistanceMeters !== null ? (
                   <DetailRow
                     label="Distance"
@@ -545,41 +557,19 @@ function ProtocolDetails({
             value={formatDistance(protocol.work.distanceMeters, distanceUnit)}
           />
         ) : null}
-        <DetailRow
-          label={
-            protocol.work.mode === "distance" &&
-            protocol.work.provenance === "legacy-derived"
-              ? "Estimated duration per interval"
-              : "Duration per interval"
-          }
-          mutedColor={mutedColor}
-          textColor={textColor}
-          value={formatDuration(protocol.work.durationSeconds)}
-        />
+        {protocol.work.mode === "time" ? (
+          <DetailRow
+            label="Duration per interval"
+            mutedColor={mutedColor}
+            textColor={textColor}
+            value={formatDuration(protocol.work.durationSeconds)}
+          />
+        ) : null}
         <IntervalStructureRows
           mutedColor={mutedColor}
           protocol={protocol}
           textColor={textColor}
         />
-        {protocol.work.mode === "distance" &&
-        protocol.work.provenance === "legacy-derived" ? (
-          <>
-            {protocol.work.legacyTotalDurationSeconds !== undefined ? (
-              <DetailRow
-                label="Legacy elapsed duration"
-                mutedColor={mutedColor}
-                textColor={textColor}
-                value={formatDuration(
-                  protocol.work.legacyTotalDurationSeconds,
-                )}
-              />
-            ) : null}
-            <Text style={[styles.helperText, { color: mutedColor }]}>
-              Duration per interval is estimated from the legacy session’s
-              overall elapsed duration and recorded rests.
-            </Text>
-          </>
-        ) : null}
       </DetailSection>
     );
   }

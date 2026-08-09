@@ -30,7 +30,6 @@ import {
   changeConditioningDistanceUnit,
   clearConditioningIntensity,
   createDefaultConditioningSessionFormDraft,
-  getDistanceWorkDurationForDisplay,
   selectConditioningActivity,
   selectConditioningIntensityMethod,
   selectConditioningProtocolType,
@@ -57,7 +56,7 @@ const intensityMethodOptions = [
 ] as const;
 
 const intervalWorkOptions = [
-  { key: "time", label: "Time" },
+  { key: "time", label: "Duration" },
   { key: "distance", label: "Distance" },
 ] as const;
 
@@ -374,6 +373,7 @@ function IntervalFields({
           <ConditioningSelectField
             compact
             disabled={disabled}
+            inline
             label="Work"
             onChange={(workMode) =>
               onChange(selectIntervalWorkMode(draft, workMode))
@@ -385,6 +385,7 @@ function IntervalFields({
           {intervals.workMode === "time" ? (
             <ElapsedDurationField
               disabled={disabled}
+              hideLabel
               label="Work duration"
               onChange={(timeWorkDurationSeconds) =>
                 onChange({
@@ -395,50 +396,29 @@ function IntervalFields({
               valueSeconds={intervals.timeWorkDurationSeconds}
             />
           ) : (
-            <View style={styles.subsection}>
-              <DistanceField
-                disabled={disabled}
-                label="Distance per interval"
-                onChangeText={(displayInput) =>
-                  onChange({
-                    ...draft,
-                    intervals: {
-                      ...intervals,
-                      distanceWork: {
-                        ...distanceWork,
-                        distance: updateConditioningDistanceInput(
-                          distanceWork.distance,
-                          displayInput,
-                          distanceUnit,
-                        ),
-                      },
+            <DistanceField
+              disabled={disabled}
+              hideLabel
+              label="Distance per interval"
+              onChangeText={(displayInput) =>
+                onChange({
+                  ...draft,
+                  intervals: {
+                    ...intervals,
+                    distanceWork: {
+                      ...distanceWork,
+                      distance: updateConditioningDistanceInput(
+                        distanceWork.distance,
+                        displayInput,
+                        distanceUnit,
+                      ),
                     },
-                  })
-                }
-                unit={distanceUnit}
-                value={distanceWork.distance.displayInput}
-              />
-              <ElapsedDurationField
-                disabled={disabled}
-                label="Duration per interval"
-                onChange={(durationSeconds) =>
-                  onChange({
-                    ...draft,
-                    intervals: {
-                      ...intervals,
-                      distanceWork: {
-                        ...distanceWork,
-                        durationDirty: true,
-                        durationSeconds,
-                        legacyTotalDurationSeconds: undefined,
-                        provenance: "explicit",
-                      },
-                    },
-                  })
-                }
-                valueSeconds={getDistanceWorkDurationForDisplay(intervals)}
-              />
-            </View>
+                  },
+                })
+              }
+              unit={distanceUnit}
+              value={distanceWork.distance.displayInput}
+            />
           )}
         </View>
 
@@ -866,12 +846,14 @@ function FormTextInput({
 
 function DistanceField({
   disabled,
+  hideLabel = false,
   label,
   onChangeText,
   unit,
   value,
 }: {
   disabled: boolean;
+  hideLabel?: boolean;
   label: string;
   onChangeText: (value: string) => void;
   unit: UnitSystem;
@@ -880,6 +862,7 @@ function DistanceField({
   return (
     <FormTextInput
       disabled={disabled}
+      hideLabel={hideLabel}
       keyboardType="decimal-pad"
       label={label}
       onChangeText={onChangeText}

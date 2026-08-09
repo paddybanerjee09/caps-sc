@@ -47,7 +47,7 @@ export type IntervalsProtocolFormDraft = {
     durationDirty: boolean;
     durationSeconds: number | null;
     legacyTotalDurationSeconds?: number;
-    provenance: "explicit" | "legacy-derived";
+    provenance: "explicit" | "legacy-derived" | "distance-only";
   };
   intervalCountInput: string;
   restBetweenIntervalsSeconds: number;
@@ -174,9 +174,14 @@ export function createConditioningSessionFormDraftFromDefinition(
                 distanceUnit,
               ),
               durationDirty: false,
-              durationSeconds: protocol.work.durationSeconds,
+              durationSeconds:
+                protocol.work.provenance === "distance-only"
+                  ? null
+                  : protocol.work.durationSeconds,
               legacyTotalDurationSeconds:
-                protocol.work.legacyTotalDurationSeconds,
+                protocol.work.provenance === "legacy-derived"
+                  ? protocol.work.legacyTotalDurationSeconds
+                  : undefined,
               provenance: protocol.work.provenance,
             },
           }),
@@ -415,7 +420,7 @@ function createDefaultIntervalsDraft(
       distance: createDistanceDraft(null, distanceUnit),
       durationDirty: false,
       durationSeconds: null,
-      provenance: "explicit",
+      provenance: "distance-only",
     },
     intervalCountInput: "1",
     restBetweenIntervalsSeconds: 0,
@@ -555,20 +560,28 @@ function buildActiveProtocol(
         restBetweenRoundsSeconds: draft.intervals.restBetweenRoundsSeconds,
         roundCount,
         type: "intervals",
-        work: {
-          distanceMeters:
-            distanceWork.distance.canonicalMeters ?? Number.NaN,
-          durationSeconds: legacyDuration ?? Number.NaN,
-          ...(distanceWork.provenance === "legacy-derived" &&
-          !distanceWork.durationDirty
+        work:
+          distanceWork.provenance === "distance-only"
             ? {
-                legacyTotalDurationSeconds:
-                  distanceWork.legacyTotalDurationSeconds,
-                provenance: "legacy-derived" as const,
+                distanceMeters:
+                  distanceWork.distance.canonicalMeters ?? Number.NaN,
+                mode: "distance",
+                provenance: "distance-only",
               }
-            : { provenance: "explicit" as const }),
-          mode: "distance",
-        },
+            : {
+                distanceMeters:
+                  distanceWork.distance.canonicalMeters ?? Number.NaN,
+                durationSeconds: legacyDuration ?? Number.NaN,
+                ...(distanceWork.provenance === "legacy-derived" &&
+                !distanceWork.durationDirty
+                  ? {
+                      legacyTotalDurationSeconds:
+                        distanceWork.legacyTotalDurationSeconds,
+                      provenance: "legacy-derived" as const,
+                    }
+                  : { provenance: "explicit" as const }),
+                mode: "distance",
+              },
       };
     }
   } else {

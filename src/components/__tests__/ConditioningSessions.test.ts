@@ -55,11 +55,11 @@ describe("getConditioningProtocolSummary", () => {
     };
 
     expect(getConditioningProtocolSummary(protocol, "imperial")).toBe(
-      "Intervals · Distance work: 1 mi per interval in 8m · 2 intervals × 1 round · rests: 30s between intervals, 0s between rounds · 16m 30s total",
+      "Intervals · Distance work: 1 mi per interval · 2 intervals × 1 round · rests: 30s between intervals, 0s between rounds",
     );
   });
 
-  test("identifies duration derived from an exact legacy total", () => {
+  test("omits legacy duration from the distance summary", () => {
     const protocol: ConditioningProtocol = {
       type: "intervals",
       work: {
@@ -76,7 +76,7 @@ describe("getConditioningProtocolSummary", () => {
     };
 
     expect(getConditioningProtocolSummary(protocol, "metric")).toBe(
-      "Intervals · Distance work: 0.4 km per interval in 1m 35s · 3 intervals × 2 rounds · rests: 15s between intervals, 1m between rounds · 11m 30s total · duration per interval estimated from legacy 11m 30s total",
+      "Intervals · Distance work: 0.4 km per interval · 3 intervals × 2 rounds · rests: 15s between intervals, 1m between rounds",
     );
   });
 });
