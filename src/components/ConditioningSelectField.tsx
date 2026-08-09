@@ -205,6 +205,7 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.spacing.sm,
   },
   inlineSelectorButton: {
+    borderRadius: tokens.radius.sm,
     gap: 2,
     minHeight: tokens.typography.label.lineHeight - 2,
     paddingHorizontal: tokens.spacing.xs,
