@@ -79,4 +79,23 @@ describe("ElapsedDurationField", () => {
 
     expect(onChange).toHaveBeenCalledWith(0);
   });
+
+  test("supports a minute-and-second-only rest control", async () => {
+    const { onChange, result } = await renderField({
+      allowZero: true,
+      includeHours: false,
+      label: "Rest Time",
+      valueSeconds: 75,
+    });
+    const { getByLabelText, getByText, queryByLabelText } = result;
+
+    expect(getByText("01:15")).toBeTruthy();
+    await press(getByLabelText("Rest Time, 01:15"));
+    expect(queryByLabelText("Rest Time hours")).toBeNull();
+    await fireEvent.changeText(getByLabelText("Rest Time minutes"), "02");
+    await fireEvent.changeText(getByLabelText("Rest Time seconds"), "30");
+    await press(getByText("Done"));
+
+    expect(onChange).toHaveBeenCalledWith(150);
+  });
 });

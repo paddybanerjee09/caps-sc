@@ -426,6 +426,7 @@ function IntervalFields({
           <ElapsedDurationField
             allowZero
             disabled={disabled}
+            includeHours={false}
             label="Rest Time"
             onChange={(restBetweenIntervalsSeconds) =>
               onChange({

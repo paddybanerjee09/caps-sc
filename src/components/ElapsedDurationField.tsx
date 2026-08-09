@@ -32,6 +32,7 @@ type ElapsedDurationFieldProps = {
   allowZero?: boolean;
   disabled?: boolean;
   hideLabel?: boolean;
+  includeHours?: boolean;
   label: string;
   maximumSeconds?: number;
   onChange: (valueSeconds: number) => void;
@@ -42,6 +43,7 @@ export function ElapsedDurationField({
   allowZero = false,
   disabled = false,
   hideLabel = false,
+  includeHours = true,
   label,
   maximumSeconds = MAX_ELAPSED_DURATION_SECONDS,
   onChange,
@@ -55,7 +57,7 @@ export function ElapsedDurationField({
   const [draftChanged, setDraftChanged] = useState(false);
   const effectiveMaximum = Math.min(
     Math.max(0, Math.floor(maximumSeconds)),
-    MAX_ELAPSED_DURATION_SECONDS,
+    includeHours ? MAX_ELAPSED_DURATION_SECONDS : 3_599,
   );
   const draftSeconds = elapsedDurationPartsToSeconds(
     draft.hours,
@@ -105,7 +107,9 @@ export function ElapsedDurationField({
     closePicker();
   }
 
-  const displayedValue = formatElapsedDuration(valueSeconds);
+  const displayedValue = includeHours
+    ? formatElapsedDuration(valueSeconds)
+    : formatMinuteSecondDuration(valueSeconds);
 
   return (
     <View style={styles.field}>
@@ -164,13 +168,21 @@ export function ElapsedDurationField({
             </Text>
 
             <View style={styles.controls}>
-              <DurationInput
-                label="Hours"
-                onChangeText={(value) => updateDraft("hours", value)}
-                parentLabel={label}
-                value={draft.hours}
-              />
-              <Text style={[styles.separator, { color: theme.colors.textMuted }]}>:</Text>
+              {includeHours ? (
+                <>
+                  <DurationInput
+                    label="Hours"
+                    onChangeText={(value) => updateDraft("hours", value)}
+                    parentLabel={label}
+                    value={draft.hours}
+                  />
+                  <Text
+                    style={[styles.separator, { color: theme.colors.textMuted }]}
+                  >
+                    :
+                  </Text>
+                </>
+              ) : null}
               <DurationInput
                 label="Minutes"
                 onChangeText={(value) => updateDraft("minutes", value)}
@@ -267,6 +279,21 @@ function createDraft(valueSeconds: number | null): DurationDraft {
     minutes: String(parts.minutes).padStart(2, "0"),
     seconds: String(parts.seconds).padStart(2, "0"),
   };
+}
+
+function formatMinuteSecondDuration(valueSeconds: number | null) {
+  if (
+    valueSeconds === null ||
+    !Number.isFinite(valueSeconds) ||
+    valueSeconds < 0
+  ) {
+    return "--:--";
+  }
+
+  const roundedSeconds = Math.round(valueSeconds);
+  const minutes = Math.floor(roundedSeconds / 60);
+  const seconds = roundedSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function getValidationMessage(
