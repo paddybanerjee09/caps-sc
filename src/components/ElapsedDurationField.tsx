@@ -118,7 +118,7 @@ export function ElapsedDurationField({
       ) : null}
 
       <PressOpacity
-        accessibilityLabel={`${label}, ${displayedValue === "--:--:--" ? "not set" : displayedValue}`}
+        accessibilityLabel={`${label}, ${displayedValue.startsWith("--") ? "not set" : displayedValue}`}
         disabled={disabled}
         onPress={openPicker}
         style={[

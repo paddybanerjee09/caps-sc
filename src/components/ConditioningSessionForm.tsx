@@ -386,6 +386,7 @@ function IntervalFields({
             <ElapsedDurationField
               disabled={disabled}
               hideLabel
+              includeHours={false}
               label="Work duration"
               onChange={(timeWorkDurationSeconds) =>
                 onChange({

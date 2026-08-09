@@ -67,6 +67,10 @@ describe("ConditioningSessionForm", () => {
 
     expect(result.getByLabelText("Work, Duration")).toBeTruthy();
     expect(result.getByLabelText("Work duration, not set")).toBeTruthy();
+    await fireEvent.press(result.getByLabelText("Work duration, not set"));
+    expect(result.queryByLabelText("Work duration hours")).toBeNull();
+    expect(result.getByLabelText("Work duration minutes")).toBeTruthy();
+    await fireEvent.press(result.getByText("Cancel"));
     await fireEvent.press(result.getByLabelText("Work, Duration"));
     await fireEvent.press(result.getByLabelText("Distance"));
 
