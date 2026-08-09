@@ -79,6 +79,13 @@ export type ConditioningSessionFormDraft = {
   titleInput: string;
 };
 
+type ConditioningDraftDefinition = Omit<
+  ConditioningSessionDefinition,
+  "intensity"
+> & {
+  intensity: ConditioningIntensityInput | SnapshottedConditioningIntensity;
+};
+
 export type ConditioningDraftAnalysis =
   | {
       intensity: ConditioningIntensityInput;
@@ -127,7 +134,7 @@ export function createDefaultConditioningSessionFormDraft(
 }
 
 export function createConditioningSessionFormDraftFromDefinition(
-  definition: ConditioningSessionDefinition,
+  definition: ConditioningDraftDefinition,
   distanceUnit: UnitSystem = "metric",
   historicalSnapshot: SnapshottedConditioningIntensity = null,
 ): ConditioningSessionFormDraft {

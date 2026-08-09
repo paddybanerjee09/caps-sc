@@ -323,4 +323,80 @@ describe("conditioning session form draft", () => {
     expect(replaced.intensity).toEqual({ method: "rpe", value: 6 });
     expect(draft.intensity.legacyPace).toBeNull();
   });
+
+  test("hydrates a saved heart-rate snapshot without requiring the current baseline", () => {
+    const storedIntensity = {
+      method: "heart_rate" as const,
+      valueBpm: 168,
+      maxHeartRateBpm: 194,
+    };
+    const draft = createConditioningSessionFormDraftFromDefinition(
+      {
+        title: "Historical threshold set",
+        activity: "cycling",
+        intensity: storedIntensity,
+        notes: "Keep the original baseline",
+        protocol: {
+          type: "continuous",
+          durationSeconds: 1_800,
+          distanceMeters: 12_345.678,
+        },
+      },
+      "imperial",
+      storedIntensity,
+    );
+
+    expect(draft.continuous.distance.canonicalMeters).toBe(12_345.678);
+    expect(draft.intensity.dirty).toBe(false);
+    const analysis = analyzeConditioningSessionFormDraft(draft, {
+      maximumAerobicSpeedKph: null,
+      maximumHeartRateBpm: null,
+      thresholdPaceSecondsPerKm: null,
+    });
+
+    expect(analysis.ok).toBe(true);
+    if (!analysis.ok) return;
+    expect(analysis.intensity).toEqual({
+      method: "heart_rate",
+      valueBpm: 168,
+    });
+    expect(analysis.snapshot).toEqual(storedIntensity);
+    expect(analysis.protocol).toEqual({
+      type: "continuous",
+      durationSeconds: 1_800,
+      distanceMeters: 12_345.678,
+    });
+  });
+
+  test("recreates an edited Circuit draft from the unchanged stored record", () => {
+    const storedDefinition = {
+      title: "Original circuit",
+      activity: "circuit" as const,
+      intensity: null,
+      notes: null,
+      protocol: {
+        type: "circuit" as const,
+        roundCount: 3,
+        restBetweenRoundsSeconds: 90,
+        restBetweenStationsSeconds: 15,
+        stations: [
+          { name: "Sled", position: 0, workSeconds: 40 },
+          { name: "Carry", position: 1, workSeconds: 30 },
+        ],
+      },
+    };
+    const abandonedDraft =
+      createConditioningSessionFormDraftFromDefinition(storedDefinition);
+    abandonedDraft.titleInput = "Unsaved title";
+    abandonedDraft.circuit.stations[0].nameInput = "Unsaved station";
+    abandonedDraft.circuit.stations.pop();
+
+    const reopenedDraft =
+      createConditioningSessionFormDraftFromDefinition(storedDefinition);
+    expect(reopenedDraft.titleInput).toBe("Original circuit");
+    expect(reopenedDraft.circuit.stations).toEqual([
+      { nameInput: "Sled", workSeconds: 40 },
+      { nameInput: "Carry", workSeconds: 30 },
+    ]);
+  });
 });

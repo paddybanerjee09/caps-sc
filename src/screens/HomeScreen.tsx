@@ -25,6 +25,7 @@ import { timelineCategories } from "../constants/timelineCategories";
 import { useAppState, type UnitSystem } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
+import type { StoredConditioningSession } from "../types/conditioning";
 import { formatWeight } from "../utils/weight";
 
 const tokens = themes.dark;
@@ -93,6 +94,8 @@ export function HomeScreen() {
   const [conditioningDetailId, setConditioningDetailId] = useState<
     number | null
   >(null);
+  const [conditioningEditTarget, setConditioningEditTarget] =
+    useState<StoredConditioningSession | null>(null);
   const [selectedWeightEntry, setSelectedWeightEntry] =
     useState<TimelineEntry | null>(null);
   const timelineRequestId = useRef(0);
@@ -191,6 +194,22 @@ export function HomeScreen() {
   function closeWeightModal() {
     setWeightModalOpen(false);
     setSelectedWeightEntry(null);
+  }
+
+  function openNewConditioningLog() {
+    setConditioningEditTarget(null);
+    setConditioningModalOpen(true);
+  }
+
+  function editConditioningSession(session: StoredConditioningSession) {
+    setConditioningDetailId(null);
+    setConditioningEditTarget(session);
+    setConditioningModalOpen(true);
+  }
+
+  function closeConditioningModal() {
+    setConditioningModalOpen(false);
+    setConditioningEditTarget(null);
   }
 
   return (
@@ -306,7 +325,7 @@ export function HomeScreen() {
                   kind === "weight"
                     ? openNewWeightLog
                     : kind === "conditioning"
-                      ? () => setConditioningModalOpen(true)
+                      ? openNewConditioningLog
                     : kind === "meal"
                       ? () => setMealModalOpen(true)
                     : kind === "sleep"
@@ -466,8 +485,14 @@ export function HomeScreen() {
       />
 
       <ConditioningLogModal
-        onClose={() => setConditioningModalOpen(false)}
+        entryToEdit={conditioningEditTarget ?? undefined}
+        onClose={closeConditioningModal}
         onSaved={async (result) => {
+          if (conditioningEditTarget) {
+            await loadSelectedDateEntries();
+            return;
+          }
+
           await handleLoggedEntrySaved(result.startAt);
         }}
         selectedDate={selectedDate}
@@ -476,6 +501,7 @@ export function HomeScreen() {
 
       <ConditioningSessionDetailModal
         onClose={() => setConditioningDetailId(null)}
+        onEdit={editConditioningSession}
         timelineEntryId={conditioningDetailId}
         visible={conditioningDetailId !== null}
       />

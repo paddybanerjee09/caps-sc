@@ -35,12 +35,14 @@ type DetailStep = "session" | "adaptations";
 
 type ConditioningSessionDetailModalProps = {
   onClose: () => void;
+  onEdit?: (session: StoredConditioningSession) => void;
   timelineEntryId: number | null;
   visible: boolean;
 };
 
 export function ConditioningSessionDetailModal({
   onClose,
+  onEdit,
   timelineEntryId,
   visible,
 }: ConditioningSessionDetailModalProps) {
@@ -138,7 +140,27 @@ export function ConditioningSessionDetailModal({
           <View
             style={[styles.header, { borderBottomColor: theme.colors.border }]}
           >
-            <View style={styles.headerSpacer} />
+            {onEdit &&
+            detailState === "content" &&
+            sessionMatchesSelection &&
+            session ? (
+              <PressOpacity
+                accessibilityLabel={`Edit ${session.title}`}
+                onPress={() => onEdit(session)}
+                style={styles.editButton}
+              >
+                <Text
+                  style={[
+                    styles.editButtonText,
+                    { color: theme.colors.tertiary },
+                  ]}
+                >
+                  Edit
+                </Text>
+              </PressOpacity>
+            ) : (
+              <View style={styles.headerSpacer} />
+            )}
             <Text
               numberOfLines={1}
               style={[styles.headerTitle, { color: theme.colors.text }]}
@@ -832,6 +854,17 @@ const styles = StyleSheet.create({
   headerSpacer: {
     height: 44,
     width: 44,
+  },
+  editButton: {
+    alignItems: "center",
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  editButtonText: {
+    fontSize: tokens.typography.label.fontSize,
+    fontWeight: tokens.typography.label.fontWeight,
+    lineHeight: tokens.typography.label.lineHeight,
   },
   headerTitle: {
     flex: 1,

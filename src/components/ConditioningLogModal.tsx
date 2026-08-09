@@ -28,6 +28,7 @@ import {
   ConditioningValidationError,
   getAthleteConditioningBaselines,
   logCompletedConditioningSession,
+  updateCompletedConditioningSession,
 } from "../data/conditioningRepository";
 import { useAppState } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
@@ -36,6 +37,7 @@ import type {
   AthleteConditioningBaselines,
   LoggedConditioningSessionResult,
   NewConditioningLog,
+  StoredConditioningSession,
   StoredConditioningTemplate,
 } from "../types/conditioning";
 import { getConditioningEndAt } from "../utils/conditioningProtocol";
@@ -63,6 +65,7 @@ const EMPTY_BASELINES: AthleteConditioningBaselines = {
 };
 
 export type ConditioningLogModalProps = {
+  entryToEdit?: StoredConditioningSession;
   onClose: () => void;
   onSaved?: (
     result: LoggedConditioningSessionResult,
@@ -75,6 +78,7 @@ export type ConditioningLogModalProps = {
 type ModalStep = "form" | "adaptation";
 
 export function ConditioningLogModal({
+  entryToEdit,
   onClose,
   onSaved,
   selectedDate,
@@ -103,7 +107,17 @@ export function ConditioningLogModal({
   const savingGuard = useRef(false);
   const distanceUnitRef = useRef(unitSettings.distance);
   distanceUnitRef.current = unitSettings.distance;
+  const entryToEditRef = useRef(entryToEdit);
+  entryToEditRef.current = entryToEdit;
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
+  const sourceTemplateRef = useRef(sourceTemplate);
+  sourceTemplateRef.current = sourceTemplate;
   const selectedDayKey = getLocalDayKey(selectedDate);
+  const initializationKey = entryToEdit
+    ? `edit:${entryToEdit.timelineEntryId}:${entryToEdit.updatedAt}`
+    : `create:${selectedDayKey}:${sourceTemplate?.id ?? "blank"}:${sourceTemplate?.updatedAt ?? "new"}`;
+  const editing = entryToEdit !== undefined;
   const modalMaxHeight = Math.max(
     1,
     Math.min(680, windowHeight - insets.top - insets.bottom - 32),
@@ -138,17 +152,28 @@ export function ConditioningLogModal({
       return;
     }
 
-    const template = sourceTemplate ?? null;
+    const storedSession = entryToEditRef.current;
+    const template = storedSession ? null : (sourceTemplateRef.current ?? null);
     setAppliedTemplate(template);
     setDraft(
-      template
+      storedSession
+        ? createConditioningSessionFormDraftFromDefinition(
+            storedSession,
+            distanceUnitRef.current,
+            storedSession.intensity,
+          )
+        : template
         ? createConditioningSessionFormDraftFromDefinition(
             template,
             distanceUnitRef.current,
           )
         : createDefaultConditioningSessionFormDraft(distanceUnitRef.current),
     );
-    setStartTime(dateWithTime(selectedDate, new Date()));
+    setStartTime(
+      storedSession
+        ? new Date(storedSession.startAt)
+        : dateWithTime(selectedDateRef.current, new Date()),
+    );
     setBaselines(EMPTY_BASELINES);
     setStep("form");
     setTemplateSelectorOpen(false);
@@ -159,7 +184,7 @@ export function ConditioningLogModal({
     return () => {
       baselineRequestId.current += 1;
     };
-  }, [loadBaselines, selectedDayKey, selectedDate, sourceTemplate, visible]);
+  }, [initializationKey, loadBaselines, visible]);
 
   const analysis = useMemo(
     () => analyzeDraft(draft, baselines),
@@ -177,7 +202,10 @@ export function ConditioningLogModal({
   }
 
   function changeStartTime(nextTime: Date) {
-    setStartTime(dateWithTime(selectedDate, nextTime));
+    const sessionDay = entryToEditRef.current
+      ? new Date(entryToEditRef.current.startAt)
+      : selectedDateRef.current;
+    setStartTime(dateWithTime(sessionDay, nextTime));
   }
 
   function applyTemplate(template: StoredConditioningTemplate) {
@@ -251,12 +279,11 @@ export function ConditioningLogModal({
       return;
     }
 
-    const session: NewConditioningLog = {
+    const session = {
       activity: draft.activity,
       intensity: analysis.intensity,
       notes: notes.length > 0 ? notes : null,
       protocol: analysis.protocol,
-      sourceTemplateId: appliedTemplate?.id ?? null,
       startAt,
       title,
     };
@@ -265,7 +292,16 @@ export function ConditioningLogModal({
     setSaving(true);
 
     try {
-      const result = await logCompletedConditioningSession(db, session);
+      const result = entryToEdit
+        ? await updateCompletedConditioningSession(
+            db,
+            entryToEdit.timelineEntryId,
+            session,
+          )
+        : await logCompletedConditioningSession(db, {
+            ...session,
+            sourceTemplateId: appliedTemplate?.id ?? null,
+          } satisfies NewConditioningLog);
       await onSaved?.(result);
       savingGuard.current = false;
       setSaving(false);
@@ -274,7 +310,9 @@ export function ConditioningLogModal({
       savingGuard.current = false;
       setSaving(false);
       Alert.alert(
-        "Couldn’t log conditioning session",
+        editing
+          ? "Couldn’t update conditioning session"
+          : "Couldn’t log conditioning session",
         error instanceof ConditioningValidationError
           ? error.message
           : "Please try again.",
@@ -327,7 +365,7 @@ export function ConditioningLogModal({
                 <View style={styles.header}>
                   <View style={styles.headerRow}>
                     <Text style={[styles.title, { color: theme.colors.text }]}>
-                      Log Conditioning
+                      {editing ? "Edit Conditioning" : "Log Conditioning"}
                     </Text>
                     <ConditioningAdaptationBadge
                       compact
@@ -406,27 +444,29 @@ export function ConditioningLogModal({
                     { borderTopColor: theme.colors.border },
                   ]}
                 >
-                  <PressOpacity
-                    accessibilityLabel="Choose a pre-existing conditioning session"
-                    disabled={loadingBaselines || baselineError || saving}
-                    onPress={() => setTemplateSelectorOpen(true)}
-                    style={[
-                      styles.templateButton,
-                      {
-                        backgroundColor: theme.colors.surfaceMuted,
-                        borderColor: theme.colors.borderStrong,
-                      },
-                    ]}
-                  >
-                    <Text
+                  {!editing ? (
+                    <PressOpacity
+                      accessibilityLabel="Choose a pre-existing conditioning session"
+                      disabled={loadingBaselines || baselineError || saving}
+                      onPress={() => setTemplateSelectorOpen(true)}
                       style={[
-                        styles.templateButtonText,
-                        { color: theme.colors.text },
+                        styles.templateButton,
+                        {
+                          backgroundColor: theme.colors.surfaceMuted,
+                          borderColor: theme.colors.borderStrong,
+                        },
                       ]}
                     >
-                      Log Pre-existing Session
-                    </Text>
-                  </PressOpacity>
+                      <Text
+                        style={[
+                          styles.templateButtonText,
+                          { color: theme.colors.text },
+                        ]}
+                      >
+                        Log Pre-existing Session
+                      </Text>
+                    </PressOpacity>
+                  ) : null}
 
                   <View style={styles.actionRow}>
                     <PressOpacity
@@ -439,7 +479,11 @@ export function ConditioningLogModal({
                     </PressOpacity>
 
                     <PressOpacity
-                      accessibilityLabel="Log conditioning session"
+                      accessibilityLabel={
+                        editing
+                          ? "Update conditioning session"
+                          : "Log conditioning session"
+                      }
                       disabled={loadingBaselines || baselineError || saving}
                       onPress={() => void saveSession()}
                       style={styles.actionButton}
@@ -451,7 +495,7 @@ export function ConditioningLogModal({
                         />
                       ) : (
                         <Text style={{ color: theme.colors.tertiary }}>
-                          Log Session
+                          {editing ? "Update Session" : "Log Session"}
                         </Text>
                       )}
                     </PressOpacity>
@@ -466,7 +510,7 @@ export function ConditioningLogModal({
       <ConditioningSessions
         onClose={() => setTemplateSelectorOpen(false)}
         onTemplateSelected={applyTemplate}
-        visible={visible && templateSelectorOpen}
+        visible={visible && !editing && templateSelectorOpen}
       />
     </>
   );

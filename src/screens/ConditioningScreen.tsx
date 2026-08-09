@@ -30,6 +30,7 @@ import { themes } from "../theme/theme";
 import type {
   ConditioningActivity,
   ConditioningCalendarRecord,
+  StoredConditioningSession,
 } from "../types/conditioning";
 
 const tokens = themes.dark;
@@ -45,6 +46,8 @@ export function ConditioningScreen() {
   const [calendarLoading, setCalendarLoading] = useState(true);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [logModalOpen, setLogModalOpen] = useState(false);
+  const [entryToEdit, setEntryToEdit] =
+    useState<StoredConditioningSession | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailTimelineEntryId, setDetailTimelineEntryId] = useState<
     number | null
@@ -106,6 +109,22 @@ export function ConditioningScreen() {
     );
   }
 
+  function openCreateLog() {
+    setEntryToEdit(null);
+    setLogModalOpen(true);
+  }
+
+  function closeLogModal() {
+    setLogModalOpen(false);
+    setEntryToEdit(null);
+  }
+
+  function editSession(session: StoredConditioningSession) {
+    setDetailTimelineEntryId(null);
+    setEntryToEdit(session);
+    setLogModalOpen(true);
+  }
+
   return (
     <Screen centerTitle title="Conditioning">
       <View style={styles.content}>
@@ -127,7 +146,7 @@ export function ConditioningScreen() {
           <PressOpacity
             accessibilityLabel={`Log conditioning session for ${formatFullDate(selectedDate)}`}
             disabled={selectedDateIsFuture}
-            onPress={() => setLogModalOpen(true)}
+            onPress={openCreateLog}
             style={[
               styles.primaryButton,
               { backgroundColor: theme.colors.tertiary },
@@ -173,7 +192,8 @@ export function ConditioningScreen() {
       </View>
 
       <ConditioningLogModal
-        onClose={() => setLogModalOpen(false)}
+        entryToEdit={entryToEdit ?? undefined}
+        onClose={closeLogModal}
         onSaved={async () => {
           await loadCalendar();
         }}
@@ -188,6 +208,7 @@ export function ConditioningScreen() {
 
       <ConditioningSessionDetailModal
         onClose={() => setDetailTimelineEntryId(null)}
+        onEdit={editSession}
         timelineEntryId={detailTimelineEntryId}
         visible={detailTimelineEntryId !== null}
       />
