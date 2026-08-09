@@ -23,6 +23,7 @@ import type {
   SnapshottedConditioningIntensity,
   StoredConditioningSession,
   StoredConditioningTemplate,
+  UpdateConditioningLog,
 } from "../types/conditioning";
 import {
   evaluateConditioningProtocol,
@@ -176,6 +177,9 @@ const DEFINITION_COLUMN_SQL = DEFINITION_COLUMNS.join(", ");
 const DEFINITION_PLACEHOLDER_SQL = DEFINITION_COLUMNS.map(() => "?").join(
   ", ",
 );
+const DEFINITION_UPDATE_SQL = DEFINITION_COLUMNS.map(
+  (column) => `${column} = ?`,
+).join(", ");
 
 export class ConditioningValidationError extends Error {
   readonly issues: ConditioningValidationIssue[];
@@ -498,27 +502,41 @@ function normalizeIntensity(
   };
 }
 
+function normalizeDefinitionFields(
+  input: NewConditioningTemplate | NewConditioningLog | UpdateConditioningLog,
+): Omit<NormalizedDefinition, "intensity"> {
+  if (!isActivity(input.activity)) {
+    return fail("activity", "Activity is invalid.");
+  }
+
+  const protocolResult = normalizeProtocol(input.protocol);
+
+  return {
+    title: normalizeTitle(input.title),
+    activity: input.activity,
+    protocol: protocolResult.protocol,
+    notes: normalizeNotes(input.notes),
+    metrics: protocolResult.metrics,
+  };
+}
+
 function normalizeDefinition(
   input: NewConditioningTemplate | NewConditioningLog,
   baselines: AthleteConditioningBaselines,
 ): NormalizedDefinition & {
   snapshottedIntensity: SnapshottedConditioningIntensity;
 } {
-  if (!isActivity(input.activity)) {
-    return fail("activity", "Activity is invalid.");
-  }
-
-  const protocolResult = normalizeProtocol(input.protocol);
-  const intensity = normalizeIntensity(input.intensity, input.activity, baselines);
+  const definition = normalizeDefinitionFields(input);
+  const intensity = normalizeIntensity(
+    input.intensity,
+    definition.activity,
+    baselines,
+  );
 
   return {
-    title: normalizeTitle(input.title),
-    activity: input.activity,
-    protocol: protocolResult.protocol,
+    ...definition,
     intensity: intensity.input,
     snapshottedIntensity: intensity.snapshot,
-    notes: normalizeNotes(input.notes),
-    metrics: protocolResult.metrics,
   };
 }
 
@@ -552,6 +570,123 @@ function getSnapshotBaselineValue(
   return intensity.reference === "threshold_pace"
     ? intensity.thresholdPaceSecondsPerKm
     : intensity.maximumAerobicSpeedKph;
+}
+
+function getIntensityInputFromSnapshot(
+  intensity: SnapshottedConditioningIntensity,
+): ConditioningIntensityInput {
+  if (intensity === null) {
+    return null;
+  }
+  if (intensity.method === "rpe") {
+    return { method: "rpe", value: intensity.value };
+  }
+  if (intensity.method === "heart_rate") {
+    return { method: "heart_rate", valueBpm: intensity.valueBpm };
+  }
+  if (intensity.reference === "threshold_pace") {
+    return {
+      method: "pace",
+      reference: "threshold_pace",
+      paceSecondsPerKm: intensity.paceSecondsPerKm,
+    };
+  }
+  return {
+    method: "pace",
+    reference: "maximum_aerobic_speed",
+    speedKph: intensity.speedKph,
+  };
+}
+
+function hasSameIntensityValue(
+  input: ConditioningIntensityInput,
+  stored: SnapshottedConditioningIntensity,
+) {
+  const storedInput = getIntensityInputFromSnapshot(stored);
+  if (input === null || storedInput === null) {
+    return input === storedInput;
+  }
+  if (input.method !== storedInput.method) {
+    return false;
+  }
+  if (input.method === "rpe" && storedInput.method === "rpe") {
+    return input.value === storedInput.value;
+  }
+  if (
+    input.method === "heart_rate" &&
+    storedInput.method === "heart_rate"
+  ) {
+    return input.valueBpm === storedInput.valueBpm;
+  }
+  if (input.method !== "pace" || storedInput.method !== "pace") {
+    return false;
+  }
+  if (input.reference !== storedInput.reference) {
+    return false;
+  }
+  return input.reference === "threshold_pace" &&
+    storedInput.reference === "threshold_pace"
+    ? input.paceSecondsPerKm === storedInput.paceSecondsPerKm
+    : input.reference === "maximum_aerobic_speed" &&
+        storedInput.reference === "maximum_aerobic_speed" &&
+        input.speedKph === storedInput.speedKph;
+}
+
+function areProtocolsEqual(
+  left: ConditioningProtocol,
+  right: ConditioningProtocol,
+) {
+  if (left.type !== right.type) {
+    return false;
+  }
+  if (left.type === "continuous" && right.type === "continuous") {
+    return (
+      left.durationSeconds === right.durationSeconds &&
+      left.distanceMeters === right.distanceMeters
+    );
+  }
+  if (left.type === "intervals" && right.type === "intervals") {
+    if (
+      left.restBetweenIntervalsSeconds !==
+        right.restBetweenIntervalsSeconds ||
+      left.intervalCount !== right.intervalCount ||
+      left.roundCount !== right.roundCount ||
+      left.restBetweenRoundsSeconds !== right.restBetweenRoundsSeconds ||
+      left.work.mode !== right.work.mode ||
+      left.work.durationSeconds !== right.work.durationSeconds
+    ) {
+      return false;
+    }
+    if (left.work.mode === "time" && right.work.mode === "time") {
+      return true;
+    }
+    return (
+      left.work.mode === "distance" &&
+      right.work.mode === "distance" &&
+      left.work.distanceMeters === right.work.distanceMeters &&
+      left.work.provenance === right.work.provenance &&
+      left.work.legacyTotalDurationSeconds ===
+        right.work.legacyTotalDurationSeconds
+    );
+  }
+  if (left.type !== "circuit" || right.type !== "circuit") {
+    return false;
+  }
+  return (
+    left.restBetweenStationsSeconds === right.restBetweenStationsSeconds &&
+    left.roundCount === right.roundCount &&
+    left.restBetweenRoundsSeconds === right.restBetweenRoundsSeconds &&
+    left.stations.length === right.stations.length &&
+    left.stations.every((station, index) => {
+      const other = right.stations[index];
+      return (
+        other !== undefined &&
+        station.name === other.name &&
+        station.position === other.position &&
+        station.workSeconds === other.workSeconds
+      );
+    })
+  );
 }
 
 function getDefinitionStorageValues(
@@ -1199,6 +1334,184 @@ export async function logCompletedConditioningSession(
     endAt,
     score,
   };
+}
+
+export async function updateCompletedConditioningSession(
+  db: SQLiteDatabase,
+  timelineEntryId: number,
+  input: UpdateConditioningLog,
+): Promise<LoggedConditioningSessionResult> {
+  if (!isPositiveInteger(timelineEntryId)) {
+    return fail("timelineEntryId", "Conditioning session ID is invalid.");
+  }
+
+  let updatedSession: LoggedConditioningSessionResult | null = null;
+
+  await db.withExclusiveTransactionAsync(async (transaction) => {
+    const existing = await getConditioningSessionByTimelineEntryId(
+      transaction,
+      timelineEntryId,
+    );
+    if (!existing) {
+      return fail(
+        "timelineEntryId",
+        "Completed conditioning session was not found.",
+      );
+    }
+
+    const definitionFields = normalizeDefinitionFields(input);
+    const intensityIsUnchanged = hasSameIntensityValue(
+      input.intensity,
+      existing.intensity,
+    );
+    const normalizedIntensity = intensityIsUnchanged
+      ? {
+          input: getIntensityInputFromSnapshot(existing.intensity),
+          snapshot: existing.intensity,
+        }
+      : normalizeIntensity(
+          input.intensity,
+          definitionFields.activity,
+          await getAthleteConditioningBaselines(transaction),
+        );
+    const definition = {
+      ...definitionFields,
+      intensity: normalizedIntensity.input,
+      snapshottedIntensity: normalizedIntensity.snapshot,
+    };
+
+    if (!Number.isInteger(input.startAt) || input.startAt < 0) {
+      return fail("startAt", "Conditioning start time is invalid.");
+    }
+    const endAt = getConditioningEndAt(
+      input.startAt,
+      definition.metrics.totalSessionSeconds,
+    );
+    if (endAt === null) {
+      return fail("endAt", "Conditioning end time is invalid.");
+    }
+    const now = Date.now();
+    if (input.startAt > now || endAt > now) {
+      return fail(
+        "startAt",
+        "Completed conditioning sessions cannot be in the future.",
+      );
+    }
+
+    const scoringInputsAreUnchanged =
+      intensityIsUnchanged &&
+      definition.activity === existing.activity &&
+      areProtocolsEqual(definition.protocol, existing.protocol);
+    const score = scoringInputsAreUnchanged
+      ? existing.score
+      : scoreConditioningSession({
+          activity: definition.activity,
+          protocol: definition.protocol,
+          intensity: definition.snapshottedIntensity,
+        });
+    if (score.status !== "scored") {
+      throw new ConditioningValidationError(
+        score.reasons.map((message) => ({ field: "score", message })),
+      );
+    }
+
+    const timelineUpdate = await transaction.runAsync(
+      `UPDATE timeline_entries
+       SET title = ?,
+           start_at = ?,
+           end_at = ?,
+           notes = ?,
+           updated_at = ?
+       WHERE id = ?
+         AND kind = 'conditioning'
+         AND status = 'completed'`,
+      [
+        definition.title,
+        input.startAt,
+        endAt,
+        definition.notes,
+        now,
+        timelineEntryId,
+      ],
+    );
+    if (timelineUpdate.changes !== 1) {
+      throw new Error("Completed conditioning timeline entry was not updated.");
+    }
+
+    const definitionUpdate = await transaction.runAsync(
+      `UPDATE conditioning_logs
+       SET ${DEFINITION_UPDATE_SQL},
+           intensity_baseline_value = ?
+       WHERE timeline_entry_id = ?`,
+      [
+        ...getDefinitionStorageValues(definition),
+        getSnapshotBaselineValue(definition.snapshottedIntensity),
+        timelineEntryId,
+      ],
+    );
+    if (definitionUpdate.changes !== 1) {
+      throw new Error("Conditioning log definition was not updated.");
+    }
+
+    await transaction.runAsync(
+      `DELETE FROM conditioning_log_stations
+       WHERE timeline_entry_id = ?`,
+      [timelineEntryId],
+    );
+    if (definition.protocol.type === "circuit") {
+      await insertStations(
+        transaction,
+        "conditioning_log_stations",
+        "timeline_entry_id",
+        timelineEntryId,
+        definition.protocol.stations,
+      );
+    }
+
+    const scoreUpdate = await transaction.runAsync(
+      `UPDATE conditioning_adaptation_scores
+       SET aerobic_base_score = ?,
+           aerobic_power_score = ?,
+           alactic_power_score = ?,
+           alactic_capacity_score = ?,
+           lactic_power_score = ?,
+           lactic_capacity_score = ?,
+           recovery_score = ?,
+           primary_adaptation = ?,
+           evidence_level = ?,
+           scoring_model_version = ?
+       WHERE timeline_entry_id = ?`,
+      [
+        score.scores.aerobic_base,
+        score.scores.aerobic_power,
+        score.scores.alactic_power,
+        score.scores.alactic_capacity,
+        score.scores.lactic_power,
+        score.scores.lactic_capacity,
+        score.scores.recovery,
+        score.primaryAdaptation,
+        score.evidence,
+        score.modelVersion,
+        timelineEntryId,
+      ],
+    );
+    if (scoreUpdate.changes !== 1) {
+      throw new Error("Conditioning adaptation scores were not updated.");
+    }
+
+    updatedSession = {
+      timelineEntryId,
+      startAt: input.startAt,
+      endAt,
+      score,
+    };
+  });
+
+  if (updatedSession === null) {
+    throw new Error("Conditioning session could not be updated.");
+  }
+
+  return updatedSession;
 }
 
 export async function getConditioningSessionsForRange(

@@ -186,6 +186,11 @@ export type NewConditioningLog = Omit<
   intensity: ConditioningIntensityInput;
 };
 
+export type UpdateConditioningLog = Omit<
+  NewConditioningLog,
+  "sourceTemplateId"
+>;
+
 export type ConditioningProtocolMetrics = {
   protocolType: ConditioningProtocolType;
   totalBouts: number;
