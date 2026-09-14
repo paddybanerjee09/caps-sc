@@ -28,7 +28,7 @@ export function StrengthExerciseEditorModal({ exercise, initial, onCancel, onLog
   const id = initial?.exerciseId ?? exercise?.exerciseId ?? "";
   useEffect(() => {
     if (exercise) return;
-    const controller = new AbortController(); setLoading(true); setDetailError(null);
+    const controller = new AbortController();
     void getExerciseDbDetail(id, controller.signal).then(value => { if (!controller.signal.aborted) setDetail(value); })
       .catch(e => { if (!controller.signal.aborted) setDetailError(e instanceof Error ? e.message : "Exercise details unavailable."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
@@ -47,7 +47,7 @@ export function StrengthExerciseEditorModal({ exercise, initial, onCancel, onLog
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
       <Text style={[s.title, { color: theme.colors.text }]}>{detail?.name ?? initial?.name}</Text>
       {loading ? <ActivityIndicator accessibilityLabel="Loading exercise details" color={theme.colors.tertiary} /> : null}
-      {detailError ? <><StrengthMessage>{detailError} Your saved prescription remains available.</StrengthMessage><StrengthButton label="Retry exercise details" onPress={() => setRetry(n => n + 1)} /></> : null}
+      {detailError ? <><StrengthMessage>{detailError} Your saved prescription remains available.</StrengthMessage><StrengthButton label="Retry exercise details" onPress={() => { setLoading(true); setDetailError(null); setRetry(n => n + 1); }} /></> : null}
       {detail?.gifUrl && !mediaFailed ? <Image accessibilityLabel={`${detail.name} demonstration`} source={{ uri: detail.gifUrl, cache: "reload", headers: { "Cache-Control": "no-store" } }} resizeMode="contain" style={{ height: 180, width: "100%" }} onError={() => setMediaFailed(true)} /> : <StrengthMessage>Exercise image unavailable.</StrengthMessage>}
       {detail ? <>
         <StrengthMessage>Body parts: {detail.bodyParts.join(", ") || "Unavailable"}</StrengthMessage>

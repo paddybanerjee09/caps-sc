@@ -19,8 +19,7 @@ export function ExerciseSearchModal({ onSelect, onCancel }: { onSelect: (exercis
   useEffect(() => {
     const version = ++generation.current;
     const controller = new AbortController(); request.current = controller;
-    setResults([]); setCursor(null); setError(null); setSelecting(false);
-    const valid = query.replace(/\s/g, "").length >= 2; setLoading(valid);
+    const valid = query.replace(/\s/g, "").length >= 2;
     const timer = setTimeout(async () => {
       if (!valid) return;
       try {
@@ -29,7 +28,7 @@ export function ExerciseSearchModal({ onSelect, onCancel }: { onSelect: (exercis
       } catch (e) { if (!controller.signal.aborted && !isExerciseRequestCancelled(e)) setError(e instanceof Error ? e.message : "Search failed."); }
       finally { if (version === generation.current && !controller.signal.aborted) setLoading(false); }
     }, 300);
-    return () => { clearTimeout(timer); controller.abort(); request.current?.abort(); generation.current++; };
+    return () => { clearTimeout(timer); controller.abort(); request.current?.abort(); if (generation.current === version) generation.current += 1; };
   }, [query, retry]);
   async function loadMore() {
     if (!cursor || loading || selecting) return;
@@ -57,10 +56,13 @@ export function ExerciseSearchModal({ onSelect, onCancel }: { onSelect: (exercis
   }
   return <View style={{ height: "100%", maxHeight: 620 }}>
     <View style={s.header}><Text style={[s.title, { color: theme.colors.text }]}>Add exercise</Text>
-      <StrengthField label="Search exercises" value={query} autoFocus onChangeText={value => { request.current?.abort(); setQuery(value); }} />
+      <StrengthField label="Search exercises" value={query} autoFocus onChangeText={value => {
+        request.current?.abort(); setResults([]); setCursor(null); setError(null); setSelecting(false);
+        setLoading(value.replace(/\s/g, "").length >= 2); setQuery(value);
+      }} />
       {query.replace(/\s/g, "").length < 2 ? <StrengthMessage>Enter at least two characters.</StrengthMessage> : null}
       {loading || selecting ? <ActivityIndicator accessibilityLabel={selecting ? "Loading exercise details" : "Searching exercises"} color={theme.colors.tertiary} /> : null}
-      {error ? <><StrengthMessage>{error}</StrengthMessage><StrengthButton label="Retry search" onPress={() => setRetry(n => n + 1)} /></> : null}
+      {error ? <><StrengthMessage>{error}</StrengthMessage><StrengthButton label="Retry search" onPress={() => { setError(null); setLoading(true); setRetry(n => n + 1); }} /></> : null}
     </View>
     <FlatList data={results} keyExtractor={e => e.exerciseId} keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}
       renderItem={({ item }) => <PressOpacity disabled={selecting} accessibilityLabel={`Select ${item.name}`} onPress={() => void select(item)} style={[s.card, { borderColor: theme.colors.border }]}>
