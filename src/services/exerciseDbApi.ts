@@ -36,35 +36,50 @@ export function normalizeExerciseDbExercise(value: unknown): ExerciseDbExercise 
 export function isStrengthSearchResult(e: ExerciseDbExercise) {
   if (e.exerciseTypes?.some(type => type.toLowerCase() === "cardio")) return false;
   // Free records lack exerciseTypes. Only obvious cardio names are excluded.
-  return e.exerciseTypes !== undefined || !/\b(treadmill|elliptical|stationary bike|jump rope|jumping jack|running|jogging)\b/i.test(e.name);
+  return Boolean(e.exerciseTypes?.length) || !/\b(treadmill|elliptical|stationary bike|jump rope|jumping jacks?|running|jogging)\b/i.test(e.name);
 }
 export function buildExerciseSearchUrl(query: string, cursor: string | null = null, config: ExerciseDbConfig = { tier: "free" }) {
   const base = (config.baseUrl ?? exerciseDbFreeBaseUrl).replace(/\/$/, "");
-  const params = new URLSearchParams({ limit: "25" });
+  const params = new URLSearchParams();
   if (config.tier === "proxy") {
+    params.set("limit", "25");
     params.set("name", query.trim()); params.set("exerciseTypes", "strength");
     if (cursor) params.set("after", cursor);
     return `${base}/exercises?${params.toString()}`;
   }
-  params.set("q", query.trim());
-  if (cursor) params.set("offset", cursor);
+  // Free /search supports only search and threshold, and returns a single list.
+  // Its live OpenAPI contract is at https://oss.exercisedb.dev/swagger.
+  params.set("search", query.trim());
   return `${base}/exercises/search?${params.toString()}`;
 }
 async function request(url: string, signal?: AbortSignal): Promise<unknown> {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  signal?.addEventListener("abort", abort);
+  const timeout = setTimeout(abort, 15_000);
   try {
-    signal?.throwIfAborted();
-    const response = await fetch(url, { signal, cache: "no-store" });
+    throwIfCancelled(controller.signal);
+    const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
     if (response.status === 429) throw new ExerciseDbError("Exercise service rate limit reached. Wait a moment, then retry.", "rate-limit", 429);
     if (!response.ok) throw new ExerciseDbError(`Exercise service request failed (${response.status}). Please retry.`, "http", response.status);
     let payload: unknown;
     try { payload = await response.json(); } catch { throw new ExerciseDbError("Exercise service returned invalid JSON.", "malformed"); }
-    signal?.throwIfAborted();
+    throwIfCancelled(controller.signal);
     if (object(payload).success === false || object(payload).error) throw new ExerciseDbError("Exercise service reported an API error. Please retry.", "http");
     return payload;
   } catch (error) {
-    if (signal?.aborted || isExerciseRequestCancelled(error) || error instanceof ExerciseDbError) throw error;
+    if (signal?.aborted) throwIfCancelled(signal);
+    if (controller.signal.aborted) throw new ExerciseDbError("Exercise request timed out. Please retry.", "network");
+    if (isExerciseRequestCancelled(error) || error instanceof ExerciseDbError) throw error;
     throw new ExerciseDbError("Couldn't reach the exercise service. Check your connection and retry.", "network");
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
   }
+}
+function throwIfCancelled(signal: AbortSignal) {
+  if (signal.aborted) { const error = new Error("Exercise request cancelled."); error.name = "AbortError"; throw error; }
 }
 export function isExerciseRequestCancelled(error: unknown) { return error instanceof Error && error.name === "AbortError"; }
 export async function searchExerciseDb(query: string, signal?: AbortSignal, cursor: string | null = null, config: ExerciseDbConfig = { tier: "free" }): Promise<ExerciseSearchPage> {
@@ -77,17 +92,13 @@ export async function searchExerciseDb(query: string, signal?: AbortSignal, curs
   if (config.tier === "proxy") {
     const meta = object(payload.meta);
     if (meta.hasNextPage === true && typeof meta.nextCursor === "string") nextCursor = meta.nextCursor;
-  } else {
-    const meta = payload.metadata && typeof payload.metadata === "object" ? object(payload.metadata) : null;
-    if (meta && typeof meta.nextPage === "string" && meta.nextPage) {
-      try { nextCursor = new URL(meta.nextPage, exerciseDbFreeBaseUrl).searchParams.get("offset"); } catch { /* Ignore malformed pagination links. */ }
-    } else if (data.length === 25) nextCursor = String(Number(cursor ?? 0) + 25);
   }
   return { exercises, nextCursor };
 }
-export async function getExerciseDbDetail(id: string, signal?: AbortSignal): Promise<ExerciseDbExercise> {
+export async function getExerciseDbDetail(id: string, signal?: AbortSignal, config: ExerciseDbConfig = { tier: "free" }): Promise<ExerciseDbExercise> {
   if (!id.trim()) throw new ExerciseDbError("Exercise ID is missing.", "malformed");
-  const payload = object(await request(`${exerciseDbFreeBaseUrl}/exercises/${encodeURIComponent(id)}`, signal));
+  const base = (config.baseUrl ?? exerciseDbFreeBaseUrl).replace(/\/$/, "");
+  const payload = object(await request(`${base}/exercises/${encodeURIComponent(id)}`, signal));
   const exercise = normalizeExerciseDbExercise(payload.data);
   if (exercise.exerciseId !== id) throw new ExerciseDbError("Exercise detail ID did not match.", "malformed");
   return exercise;
