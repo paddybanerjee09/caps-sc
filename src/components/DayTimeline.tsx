@@ -16,6 +16,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 
+import { strengthAdaptations } from "../constants/strength";
 import { conditioningAdaptations } from "../constants/conditioning";
 import { timelineCategories } from "../constants/timelineCategories";
 import type { TimelineDisplayEntry } from "../data/timelineRepository";
@@ -551,12 +552,12 @@ function formatAccessibilityLabel(entry: TimelineDisplayEntry) {
   const category = timelineCategories[entry.kind];
   const entryLabel = getTimelineEntryLabel(entry);
   const accessibleLabel =
-    entry.kind === "meal" || entry.kind === "conditioning"
+    entry.kind === "meal" || entry.kind === "conditioning" || entry.kind === "strength"
       ? `${category.label}, ${entryLabel}`
       : category.label;
   const adaptationLabel = entry.conditioning
     ? `, ${conditioningAdaptations[entry.conditioning.primaryAdaptation].label}`
-    : "";
+    : entry.strength ? `, ${strengthAdaptations[entry.strength.primaryAdaptation].label}` : "";
   const startTime = formatTime(entry.startAt);
 
   if (entry.endAt === null) {
@@ -567,12 +568,13 @@ function formatAccessibilityLabel(entry: TimelineDisplayEntry) {
 }
 
 function getTimelineEntryLabel(entry: TimelineDisplayEntry) {
-  return entry.kind === "meal" || entry.kind === "conditioning"
+  return entry.kind === "meal" || entry.kind === "conditioning" || entry.kind === "strength"
     ? entry.title
     : timelineCategories[entry.kind].label;
 }
 
 function getTimelineEntryPresentation(entry: TimelineDisplayEntry) {
+  if (entry.strength) return strengthAdaptations[entry.strength.primaryAdaptation];
   if (entry.conditioning !== null) {
     return conditioningAdaptations[entry.conditioning.primaryAdaptation];
   }

@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
+import type { StrengthAdaptation } from "../types/strength";
 import type { ConditioningAdaptationKey } from "../types/conditioning";
 
 export type TimelineKind =
@@ -41,6 +42,7 @@ export type TimelineConditioningMetadata = {
 };
 
 export type TimelineDisplayEntry = TimelineEntry & {
+  strength?: { primaryAdaptation: StrengthAdaptation; evidence: "full" | "limited" } | null;
   conditioning: TimelineConditioningMetadata | null;
 };
 
@@ -56,6 +58,8 @@ type TimelineEntryRow = {
   updated_at: number;
 
   weight_kg: number | null;
+  strength_primary_adaptation: string | null;
+  strength_evidence_level: string | null;
   conditioning_primary_adaptation: string | null;
   conditioning_evidence_level: string | null;
 };
@@ -329,6 +333,8 @@ export async function getTimelineEntriesForDay(
     `SELECT
            timeline_entries.*,
            weight_logs.weight_kg,
+           strength_adaptation_scores.primary_adaptation AS strength_primary_adaptation,
+           strength_adaptation_scores.evidence_level AS strength_evidence_level,
            conditioning_adaptation_scores.primary_adaptation
              AS conditioning_primary_adaptation,
            conditioning_adaptation_scores.evidence_level
@@ -336,6 +342,8 @@ export async function getTimelineEntriesForDay(
          FROM timeline_entries
          LEFT JOIN weight_logs
            ON weight_logs.timeline_entry_id = timeline_entries.id
+         LEFT JOIN strength_adaptation_scores
+           ON strength_adaptation_scores.timeline_entry_id = timeline_entries.id
          LEFT JOIN conditioning_adaptation_scores
            ON conditioning_adaptation_scores.timeline_entry_id = timeline_entries.id
          WHERE timeline_entries.start_at < $dayEnd
@@ -406,6 +414,8 @@ function convertTimelineEntryRow(row: TimelineEntryRow): TimelineDisplayEntry {
     updatedAt: row.updated_at,
     weightKg: row.weight_kg,
     conditioning,
+    strength: row.kind === "strength" && (row.strength_primary_adaptation === "hypertrophy" || row.strength_primary_adaptation === "power" || row.strength_primary_adaptation === "endurance") && (row.strength_evidence_level === "full" || row.strength_evidence_level === "limited")
+      ? { primaryAdaptation: row.strength_primary_adaptation, evidence: row.strength_evidence_level } : null,
   };
 }
 
