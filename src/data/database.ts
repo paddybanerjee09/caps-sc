@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
+import { strengthMigrationSql } from "./strengthMigration";
 
-const DATABASE_VERSION = 9;
+const DATABASE_VERSION = 10;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -901,6 +902,12 @@ export async function migrateDatabase(db: SQLiteDatabase) {
         ADD COLUMN interval_elevation_gain_meters REAL DEFAULT NULL
           CHECK (interval_elevation_gain_meters IS NULL OR interval_elevation_gain_meters > 0);
       `);
+    });
+  }
+
+  if (currentVersion < 10) {
+    await db.withExclusiveTransactionAsync(async (transaction) => {
+      await transaction.execAsync(strengthMigrationSql);
     });
   }
 
