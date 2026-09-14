@@ -10,19 +10,22 @@ import { formatWeight } from "../utils/weight";
 import { StrengthAdaptationModal } from "./StrengthAdaptationModal";
 import { StrengthButton, StrengthMessage, StrengthModalFrame, strengthStyles as s } from "./StrengthFormPrimitives";
 export function StrengthSessionDetailModal({ timelineEntryId, onClose }: { timelineEntryId: number | null; onClose: () => void }) {
+  if (timelineEntryId === null) return null;
+  return <StrengthSessionDetailContent key={timelineEntryId} timelineEntryId={timelineEntryId} onClose={onClose} />;
+}
+function StrengthSessionDetailContent({ timelineEntryId, onClose }: { timelineEntryId: number; onClose: () => void }) {
   const db = useSQLiteContext(); const { theme } = useAppTheme(); const { unitSettings } = useAppState();
   const [session, setSession] = useState<StoredStrengthSession | null>(null); const [error, setError] = useState<string | null>(null); const [retry, setRetry] = useState(0);
   useEffect(() => {
-    let active = true; setSession(null); setError(null);
-    if (timelineEntryId === null) return;
+    let active = true;
     void getStrengthSessionByTimelineEntryId(db, timelineEntryId).then(value => {
       if (active) { setSession(value); if (!value) setError("Strength session not found."); }
     }).catch(() => { if (active) setError("Couldn't load strength session."); });
     return () => { active = false; };
   }, [db, timelineEntryId, retry]);
-  return <StrengthModalFrame visible={timelineEntryId !== null} onClose={onClose}>
+  return <StrengthModalFrame visible onClose={onClose}>
     <ScrollView contentContainerStyle={s.body}>
-      {error ? <><StrengthMessage>{error}</StrengthMessage><StrengthButton label="Retry strength session" onPress={() => setRetry(n => n + 1)} /></> : !session ? <StrengthMessage>Loading strength session…</StrengthMessage> : <>
+      {error ? <><StrengthMessage>{error}</StrengthMessage><StrengthButton label="Retry strength session" onPress={() => { setSession(null); setError(null); setRetry(n => n + 1); }} /></> : !session ? <StrengthMessage>Loading strength session…</StrengthMessage> : <>
         <Text style={[s.title, { color: theme.colors.text }]}>{session.title}</Text>
         <StrengthMessage>{new Date(session.startAt).toLocaleString()}</StrengthMessage>
         {session.exercises.map((e, index) => {
