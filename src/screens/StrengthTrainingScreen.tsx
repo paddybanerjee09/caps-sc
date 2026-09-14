@@ -24,13 +24,13 @@ export function StrengthTrainingScreen() {
   const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false); const [editTemplate, setEditTemplate] = useState<StoredStrengthTemplate | undefined>();
   const [confirmTemplate, setConfirmTemplate] = useState<StoredStrengthTemplate | null>(null); const [detailId, setDetailId] = useState<number | null>(null);
-  const refresh = useCallback(() => setRevision(n => n + 1), []);
+  const refresh = useCallback(() => { setLoading(true); setError(null); setRevision(n => n + 1); }, []);
   const { dayStart, dayEnd } = useMemo(() => {
     const start = new Date(selectedDate); start.setHours(0, 0, 0, 0);
     const end = new Date(start); end.setDate(end.getDate() + 1); return { dayStart: start, dayEnd: end };
   }, [selectedDate]);
   useEffect(() => {
-    let active = true; setLoading(true); setError(null);
+    let active = true;
     const start = new Date(month.getFullYear(), month.getMonth(), 1); start.setDate(start.getDate() - start.getDay());
     const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
     const weeks = Math.max(5, Math.ceil((new Date(month.getFullYear(), month.getMonth(), 1).getDay() + days) / 7));
@@ -52,8 +52,8 @@ export function StrengthTrainingScreen() {
   return <Screen title="Strength Training" centerTitle>
     <View style={{ gap: themes.dark.spacing.lg }}>
       <MonthTimeline displayedMonth={month} selectedDate={selectedDate} events={events} loading={loading} error={error} onRetry={refresh}
-        sessionKindLabel="strength" emptyText="No strength sessions on this date" onSelectedDateChange={setSelectedDate}
-        onDisplayedMonthChange={value => { setMonth(value); if (selectedDate.getMonth() !== value.getMonth() || selectedDate.getFullYear() !== value.getFullYear()) setSelectedDate(value); }}
+        sessionKindLabel="strength" emptyText="No strength sessions on this date" onSelectedDateChange={value => { setLoading(true); setError(null); setSelectedDate(value); }}
+        onDisplayedMonthChange={value => { setLoading(true); setError(null); setMonth(value); if (selectedDate.getMonth() !== value.getMonth() || selectedDate.getFullYear() !== value.getFullYear()) setSelectedDate(value); }}
         onEventPress={event => setDetailId(event.timelineEntryId)} />
       <DayTimeline dayStart={dayStart} dayEnd={dayEnd} entries={entries} loading={loading} error={error} onRetry={refresh}
         isEntryPressable={entry => entry.kind === "strength"} onEntryPress={entry => { if (entry.kind === "strength") setDetailId(entry.id); }} />

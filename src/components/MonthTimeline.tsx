@@ -88,14 +88,10 @@ export function MonthTimeline({
 
   const calendarDates = createCalendarDates(monthStart);
   const eventsByDate = useMemo(() => groupEventsByDate(events), [events]);
-  const selectedEvents = useMemo(
-    () =>
-      [...(eventsByDate.get(selectedDateKey) ?? [])].sort(
-        (firstEvent, secondEvent) =>
-          firstEvent.startAt - secondEvent.startAt ||
-          firstEvent.timelineEntryId - secondEvent.timelineEntryId,
-      ),
-    [eventsByDate, selectedDateKey],
+  const selectedEvents = [...(eventsByDate.get(selectedDateKey) ?? [])].sort(
+    (firstEvent, secondEvent) =>
+      firstEvent.startAt - secondEvent.startAt ||
+      firstEvent.timelineEntryId - secondEvent.timelineEntryId,
   );
 
   function changeMonth(offset: number) {
