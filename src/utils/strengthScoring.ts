@@ -16,14 +16,17 @@ export function scoreStrengthExercise(e: StrengthExercise): StrengthExerciseScor
   const intensitySource = e.percent1RM !== null ? "entered" : estimated1RM ? "estimated" : "unavailable";
   const intensity = (curve: readonly number[]) => percent === null ? c.missingIntensityPreference : preference(percent, curve);
   const totalRepetitions = e.sets * e.reps;
+  const volumeLoadKg = e.externalLoadKg * totalRepetitions;
   const hardSets = e.sets * clamp((e.rpe - c.hardSetRpeFloor) / c.hardSetRpeSpan, 0.1);
   const movement = e.movementProfile === "explosive" ? 1 : e.movementProfile === "unknown" ? c.unknownPowerFactor : c.nonExplosivePowerFactor;
+  const hypertrophyVolume = e.externalLoadKg === 0 ? 1
+    : c.volumeLoadFloor + (1 - c.volumeLoadFloor) * clamp(volumeLoadKg / c.hypertrophyVolumeLoadKg);
   const scores: StrengthScores = {
-    hypertrophy: 100 * preference(e.reps, c.hypertrophyReps) * preference(e.rpe, c.hypertrophyRpe) * intensity(c.hypertrophyIntensity),
+    hypertrophy: 100 * preference(e.reps, c.hypertrophyReps) * preference(e.rpe, c.hypertrophyRpe) * intensity(c.hypertrophyIntensity) * hypertrophyVolume,
     power: 100 * movement * preference(e.reps, c.powerReps) * preference(e.rpe, c.powerRpe) * intensity(c.powerIntensity) * preference(totalRepetitions, c.powerExposure),
     endurance: 100 * preference(e.reps, c.enduranceReps) * intensity(c.enduranceIntensity) * clamp(totalRepetitions / c.sessionRepetitions),
   };
-  return { scores, hardSets, totalRepetitions, volumeLoadKg: e.externalLoadKg * totalRepetitions,
+  return { scores, hardSets, totalRepetitions, volumeLoadKg,
     percent1RMUsed: percent, estimated1RM, intensitySource,
     evidence: intensitySource === "entered" && e.movementProfile !== "unknown" ? "full" : "limited", modelVersion: strengthModelVersion };
 }
