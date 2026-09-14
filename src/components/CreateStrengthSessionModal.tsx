@@ -1,5 +1,5 @@
 import { useSQLiteContext } from "expo-sqlite";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { strengthAdaptations } from "../constants/strength";
 import { createStrengthTemplate, logCompletedStrengthSession, updateStrengthTemplate } from "../data/strengthRepository";
@@ -18,19 +18,19 @@ export type CreateStrengthSessionModalProps = {
   onClose: () => void; onSaved?: () => void; onLogged: () => void;
 };
 type Editor = { index?: number; exercise?: ExerciseDbExercise; initial?: StrengthExercise };
-export function CreateStrengthSessionModal({ visible, selectedDate, template, onClose, onSaved, onLogged }: CreateStrengthSessionModalProps) {
+export function CreateStrengthSessionModal(props: CreateStrengthSessionModalProps) {
+  if (!props.visible) return null;
+  return <CreateStrengthSessionModalContent key={`${props.template?.id ?? "new"}:${props.selectedDate.getTime()}`} {...props} />;
+}
+function CreateStrengthSessionModalContent({ selectedDate, template, onClose, onSaved, onLogged }: CreateStrengthSessionModalProps) {
   const db = useSQLiteContext(); const { theme } = useAppTheme();
-  const [draft, setDraft] = useState<StrengthSessionDraft>({ title: "", exercises: [] });
-  const [templateId, setTemplateId] = useState<number | undefined>();
-  const [time, setTime] = useState(new Date()); const [view, setView] = useState<"session" | "search" | "editor" | "adaptations">("session");
+  const [draft, setDraft] = useState<StrengthSessionDraft>(() => template ? { title: template.title, exercises: template.exercises.map(e => ({ ...e })) } : { title: "", exercises: [] });
+  const [templateId, setTemplateId] = useState<number | undefined>(template?.id);
+  const [maximumLogTime] = useState(() => new Date());
+  const [time, setTime] = useState(() => { try { return strengthLogTimeForDate(selectedDate, maximumLogTime); } catch { return new Date(selectedDate); } });
+  const [view, setView] = useState<"session" | "search" | "editor" | "adaptations">("session");
   const [editor, setEditor] = useState<Editor>({}); const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false); const saving = useRef(false);
-  useEffect(() => {
-    if (!visible) return;
-    setDraft(template ? { title: template.title, exercises: template.exercises.map(e => ({ ...e })) } : { title: "", exercises: [] });
-    setTemplateId(template?.id); setView("session"); setEditor({}); setMessage(null);
-    try { setTime(strengthLogTimeForDate(selectedDate)); } catch { setTime(new Date(selectedDate)); }
-  }, [visible, selectedDate, template]);
   const score = scoreStrengthSession(draft.exercises);
   function close() { if (!saving.current) onClose(); }
   function back() { setEditor({}); setView("session"); }
@@ -51,7 +51,7 @@ export function CreateStrengthSessionModal({ visible, selectedDate, template, on
     } catch (e) { setMessage(e instanceof Error ? e.message : "Couldn't save workout. Please retry."); }
     finally { saving.current = false; setBusy(false); }
   }
-  return <StrengthModalFrame visible={visible} onClose={view === "session" ? close : back}>
+  return <StrengthModalFrame visible onClose={view === "session" ? close : back}>
     {view === "search" ? <ExerciseSearchModal onCancel={back} onSelect={exercise => { setEditor({ exercise }); setView("editor"); }} /> :
       view === "editor" ? <StrengthExerciseEditorModal {...editor} onCancel={back} onLog={exercise => {
         setDraft(current => ({ ...current, exercises: editor.index === undefined ? [...current.exercises, exercise] : current.exercises.map((e, i) => i === editor.index ? exercise : e) }));
@@ -62,7 +62,7 @@ export function CreateStrengthSessionModal({ visible, selectedDate, template, on
           <StrengthButton disabled={busy} label={score.status === "insufficient" ? "Adaptation pending" : strengthAdaptations[score.primaryAdaptation].label} onPress={() => setView("adaptations")} />
         </View><View style={s.row}><View style={{ flex: 1, minWidth: 140 }}>
           <StrengthField label="Session title" value={draft.title} maxLength={80} editable={!busy} onChangeText={title => { setDraft(current => ({ ...current, title })); setMessage(null); }} />
-        </View><LogTimeChanger inline maximumDate={new Date()} value={time} onChange={date => { if (!saving.current) setTime(date); }} /></View></View>
+        </View><LogTimeChanger inline maximumDate={maximumLogTime} value={time} onChange={date => { if (!saving.current) setTime(date); }} /></View></View>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
           {draft.exercises.map((exercise, index) => <View key={index} style={[s.card, { borderColor: theme.colors.border }]}>
             <Text style={{ color: theme.colors.text, fontWeight: "700" }}>{exercise.name}</Text>
@@ -76,7 +76,7 @@ export function CreateStrengthSessionModal({ visible, selectedDate, template, on
         <View style={[s.actions, { borderTopColor: theme.colors.border }]}>
           <StrengthButton label="Cancel" disabled={busy} onPress={close} />
           <StrengthButton label="Save" disabled={busy} onPress={() => void save(false)} />
-          <StrengthButton label="Quick Log" primary disabled={busy || time.getTime() > Date.now()} onPress={() => void save(true)} />
+          <StrengthButton label="Quick Log" primary disabled={busy || time.getTime() > maximumLogTime.getTime()} onPress={() => void save(true)} />
         </View>
       </>}
   </StrengthModalFrame>;
