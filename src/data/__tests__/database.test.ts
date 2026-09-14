@@ -32,8 +32,8 @@ function createMigrationHarness(userVersion: number) {
   return { db, rootSql, transactionSql };
 }
 
-describe("conditioning database migrations", () => {
-  test("builds a fresh schema through version 9", async () => {
+describe("database migrations", () => {
+  test("builds a fresh schema through version 10", async () => {
     const harness = createMigrationHarness(0);
     await migrateDatabase(harness.db);
 
@@ -49,7 +49,13 @@ describe("conditioning database migrations", () => {
     expect(allSql).toContain(
       "ADD COLUMN distance_duration_omitted INTEGER DEFAULT NULL",
     );
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 9");
+    expect(allSql).toContain("CREATE TABLE strength_session_templates");
+    expect(allSql).toContain("CREATE TABLE strength_template_exercises");
+    expect(allSql).toContain("CREATE TABLE strength_logs");
+    expect(allSql).toContain("CREATE TABLE strength_log_exercises");
+    expect(allSql).toContain("CREATE TABLE strength_adaptation_scores");
+    expect(allSql).toContain("CREATE TABLE strength_exercise_adaptation_scores");
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 10");
   });
 
   test("upgrades version 5 additively through preferences and interval timing", async () => {
@@ -70,11 +76,11 @@ describe("conditioning database migrations", () => {
     expect(versionSevenSql).toContain(
       "ALTER TABLE conditioning_logs ADD COLUMN distance_work_duration_seconds",
     );
-    expect(versionSevenSql).not.toMatch(/DROP TABLE|CREATE TABLE/i);
+    expect(versionSevenSql).not.toMatch(/DROP TABLE/i);
     expect(versionSevenSql).toContain(
       "ADD COLUMN distance_duration_omitted INTEGER DEFAULT NULL",
     );
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 9");
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 10");
   });
 
   test("upgrades version 6 without recreating the preference or conditioning tables", async () => {
@@ -86,14 +92,14 @@ describe("conditioning database migrations", () => {
       ...harness.transactionSql,
     ].join(" ");
     expect(migrationSql).not.toContain("athlete_preferences");
-    expect(migrationSql).not.toMatch(/DROP TABLE|CREATE TABLE/i);
+    expect(migrationSql).not.toMatch(/DROP TABLE/i);
     expect(migrationSql.match(/ADD COLUMN distance_work_duration_seconds/g)).toHaveLength(
       2,
     );
     expect(migrationSql.match(/ADD COLUMN distance_duration_omitted/g)).toHaveLength(
       2,
     );
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 9");
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 10");
   });
 
   test("upgrades version 7 with the distance-duration omission marker", async () => {
@@ -103,7 +109,7 @@ describe("conditioning database migrations", () => {
     expect(harness.transactionSql.join(" ")).toContain(
       "ADD COLUMN distance_duration_omitted INTEGER DEFAULT NULL",
     );
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 9");
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 10");
   });
 
   test("upgrades version 8 with hill sprint elevation", async () => {
@@ -113,15 +119,29 @@ describe("conditioning database migrations", () => {
     expect(harness.transactionSql.join(" ")).toContain(
       "ADD COLUMN interval_elevation_gain_meters REAL DEFAULT NULL",
     );
-    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 9");
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 10");
   });
 
-  test("leaves a version 9 schema unchanged after enabling connection pragmas", async () => {
+  test("upgrades version 9 transactionally with required foreign-key behavior", async () => {
     const harness = createMigrationHarness(9);
     await migrateDatabase(harness.db);
 
-    expect(harness.rootSql).toHaveLength(1);
+    expect(harness.rootSql).toHaveLength(2);
     expect(harness.rootSql[0]).toContain("PRAGMA journal_mode = WAL");
+    expect(harness.transactionSql).toHaveLength(1);
+    const sql = harness.transactionSql[0];
+    expect(sql).toContain("REFERENCES strength_session_templates(id) ON DELETE CASCADE");
+    expect(sql).toContain("REFERENCES timeline_entries(id) ON DELETE CASCADE");
+    expect(sql).toContain("REFERENCES strength_session_templates(id) ON DELETE SET NULL");
+    expect(sql).toContain("FOREIGN KEY (timeline_entry_id, position) REFERENCES strength_log_exercises(timeline_entry_id, position) ON DELETE CASCADE");
+    expect(sql).not.toMatch(/DROP TABLE|ALTER TABLE/i);
+    expect(harness.rootSql.at(-1)).toBe("PRAGMA user_version = 10");
+  });
+
+  test("leaves version 10 unchanged after enabling connection pragmas", async () => {
+    const harness = createMigrationHarness(10);
+    await migrateDatabase(harness.db);
+    expect(harness.rootSql).toHaveLength(1);
     expect(harness.transactionSql).toEqual([]);
   });
 });
