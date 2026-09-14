@@ -37,7 +37,7 @@ export type MonthTimelineEvent = {
   color: string;
   contentColor: string;
   dateKey: string;
-  endAt: number;
+  endAt: number | null;
   id: string;
   startAt: number;
   timelineEntryId: number;
@@ -45,6 +45,8 @@ export type MonthTimelineEvent = {
 };
 
 export type MonthTimelineProps = {
+  sessionKindLabel?: string;
+  emptyText?: string;
   displayedMonth: Date;
   error: string | null;
   events: readonly MonthTimelineEvent[];
@@ -57,6 +59,8 @@ export type MonthTimelineProps = {
 };
 
 export function MonthTimeline({
+  sessionKindLabel = "conditioning",
+  emptyText = "No conditioning sessions on this date",
   displayedMonth,
   error,
   events,
@@ -196,7 +200,7 @@ export function MonthTimeline({
 
       {loading ? (
         <View
-          accessibilityLabel="Loading conditioning calendar"
+          accessibilityLabel={`Loading ${sessionKindLabel} calendar`}
           accessibilityLiveRegion="polite"
           style={styles.calendarState}
         >
@@ -209,7 +213,7 @@ export function MonthTimeline({
           </Text>
 
           <PressOpacity
-            accessibilityLabel="Retry loading conditioning calendar"
+            accessibilityLabel={`Retry loading ${sessionKindLabel} calendar`}
             onPress={onRetry}
             style={[
               styles.retryButton,
@@ -248,6 +252,7 @@ export function MonthTimeline({
                     selected,
                     isToday,
                     dateEvents.length,
+                    sessionKindLabel,
                   )}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
@@ -360,7 +365,7 @@ export function MonthTimeline({
                 accessibilityLiveRegion="polite"
                 style={[styles.emptyText, { color: theme.colors.textMuted }]}
               >
-                No conditioning sessions on this date
+                {emptyText}
               </Text>
             ) : (
               <View style={styles.eventList}>
@@ -526,6 +531,7 @@ function formatDateAccessibilityLabel(
   selected: boolean,
   today: boolean,
   eventCount: number,
+  sessionKindLabel: string,
 ) {
   const parts = [formatFullDate(date)];
 
@@ -539,14 +545,15 @@ function formatDateAccessibilityLabel(
 
   parts.push(
     eventCount === 1
-      ? "1 conditioning session"
-      : `${eventCount} conditioning sessions`,
+      ? `1 ${sessionKindLabel} session`
+      : `${eventCount} ${sessionKindLabel} sessions`,
   );
 
   return parts.join(", ");
 }
 
 function formatEventTime(event: MonthTimelineEvent, selectedDate: Date) {
+  if (event.endAt === null) return formatTime(event.startAt);
   const dayStart = new Date(selectedDate);
   const dayEnd = new Date(selectedDate);
 
