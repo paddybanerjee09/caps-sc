@@ -2,7 +2,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useSQLiteContext } from "expo-sqlite";
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -63,6 +62,22 @@ export function ConditioningSessions({
   onTemplateSelected,
   visible,
 }: ConditioningSessionsProps) {
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <ConditioningSessionsContent
+      onClose={onClose}
+      onTemplateSelected={onTemplateSelected}
+    />
+  );
+}
+
+function ConditioningSessionsContent({
+  onClose,
+  onTemplateSelected,
+}: Omit<ConditioningSessionsProps, "visible">) {
   const db = useSQLiteContext();
   const { unitSettings } = useAppState();
   const { theme } = useAppTheme();
@@ -73,52 +88,49 @@ export function ConditioningSessions({
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
     null,
   );
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadRevision, setLoadRevision] = useState(0);
   const requestIdRef = useRef(0);
 
-  const loadTemplates = useCallback(async () => {
+  useEffect(() => {
     const requestId = ++requestIdRef.current;
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const [nextTemplates, nextBaselines] = await Promise.all([
+    void Promise.all([
         listConditioningTemplates(db),
         getAthleteConditioningBaselines(db),
-      ]);
+      ])
+      .then(([nextTemplates, nextBaselines]) => {
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
 
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-
-      setTemplates(nextTemplates);
-      setBaselines(nextBaselines);
-      setSelectedTemplateId(null);
-    } catch {
-      if (requestId === requestIdRef.current) {
-        setError("Couldn't load saved sessions.");
-      }
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [db]);
-
-  useEffect(() => {
-    if (!visible) {
-      requestIdRef.current += 1;
-      return;
-    }
-
-    void loadTemplates();
+        setTemplates(nextTemplates);
+        setBaselines(nextBaselines);
+        setSelectedTemplateId(null);
+        setError(null);
+      })
+      .catch(() => {
+        if (requestId === requestIdRef.current) {
+          setError("Couldn't load saved sessions.");
+        }
+      })
+      .finally(() => {
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
+      });
 
     return () => {
       requestIdRef.current += 1;
     };
-  }, [loadTemplates, visible]);
+  }, [db, loadRevision]);
+
+  function retryLoading() {
+    setLoading(true);
+    setError(null);
+    setLoadRevision((currentRevision) => currentRevision + 1);
+  }
 
   const templatePresentations = useMemo(
     () =>
@@ -152,7 +164,7 @@ export function ConditioningSessions({
       animationType="fade"
       onRequestClose={closeModal}
       transparent
-      visible={visible}
+      visible
     >
       <View
         style={[
@@ -182,7 +194,7 @@ export function ConditioningSessions({
               </Text>
               <PressOpacity
                 accessibilityLabel="Retry loading saved conditioning sessions"
-                onPress={() => void loadTemplates()}
+                onPress={retryLoading}
                 style={[
                   styles.retryButton,
                   {
