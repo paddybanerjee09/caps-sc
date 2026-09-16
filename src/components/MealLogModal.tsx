@@ -667,11 +667,10 @@ export function MealLogModal({
               </View>
             ) : (
               <>
+                <Text style={[styles.label, { color: theme.colors.text }]}>
+                  Title
+                </Text>
                 <View style={styles.titleTimeRow}>
-                  <View style={styles.titleField}>
-                    <Text style={[styles.label, { color: theme.colors.text }]}>
-                      Title
-                    </Text>
                     <TextInput
                       accessibilityLabel="Meal title"
                       maxLength={50}
@@ -681,6 +680,7 @@ export function MealLogModal({
                       selectionColor={theme.colors.tertiary}
                       style={[
                         styles.textInput,
+                        styles.titleField,
                         {
                           borderColor: theme.colors.borderStrong,
                           color: theme.colors.text,
@@ -688,15 +688,12 @@ export function MealLogModal({
                       ]}
                       value={title}
                     />
-                  </View>
-
                   {visible ? (
-                    <View style={styles.timeField}>
                       <LogTimeChanger
+                        inline
                         onChange={setLoggedAt}
                         value={loggedAt}
                       />
-                    </View>
                   ) : null}
                 </View>
 
@@ -1349,16 +1346,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
   },
   titleTimeRow: {
-    alignItems: "flex-end",
+    alignItems: "stretch",
     flexDirection: "row",
     gap: tokens.spacing.md,
   },
   titleField: {
     flex: 1,
     minWidth: 0,
-  },
-  timeField: {
-    width: 120,
   },
   section: {
     gap: tokens.spacing.sm,

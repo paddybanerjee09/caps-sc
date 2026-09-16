@@ -106,17 +106,15 @@ export function LogTimeChanger({
           value,
         )}`}
         onPress={openPicker}
-        style={[styles.button, inline && styles.inlineButton]}
-      >
-        <View
-          style={[
-            styles.buttonPill,
+        style={[
+            styles.button,
+            inline && styles.inlineButton,
             {
               backgroundColor: theme.colors.surfaceMuted,
               borderColor: theme.colors.border,
             },
           ]}
-        >
+      >
           <Ionicons
             color={theme.colors.textMuted}
             name="time-outline"
@@ -129,7 +127,6 @@ export function LogTimeChanger({
           >
             {formatTime(value)}
           </Text>
-        </View>
       </PressOpacity>
 
       {Platform.OS === "ios" ? (
@@ -217,11 +214,12 @@ function formatFullDateTime(date: Date) {
 
 const styles = StyleSheet.create({
   container: {
+    alignSelf: "center",
     alignItems: "center",
     paddingTop: tokens.spacing.sm,
-    width: "100%",
   },
   inlineContainer: {
+    alignSelf: "stretch",
     flexShrink: 0,
     paddingTop: 0,
     width: "auto",
@@ -230,23 +228,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: 44,
-  },
-  inlineButton: {
-    minWidth: 72,
-  },
-  buttonPill: {
-    alignItems: "center",
     borderRadius: tokens.radius.sm,
     borderWidth: 1,
     flexDirection: "row",
     gap: tokens.spacing.xs,
-    height: 28,
     paddingHorizontal: tokens.spacing.sm,
   },
+  inlineButton: {
+    flex: 1,
+    minWidth: 72,
+  },
   time: {
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: tokens.typography.label.fontWeight,
-    lineHeight: 14,
+    lineHeight: 18,
   },
   modalOverlay: {
     alignItems: "center",

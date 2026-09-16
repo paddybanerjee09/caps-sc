@@ -57,12 +57,13 @@ function CreateStrengthSessionModalContent({ selectedDate, template, onClose, on
         setDraft(current => ({ ...current, exercises: editor.index === undefined ? [...current.exercises, exercise] : current.exercises.map((e, i) => i === editor.index ? exercise : e) }));
         setMessage(null); back();
       }} /> : view === "adaptations" ? <ScrollView><StrengthAdaptationModal result={score} onBack={back} /></ScrollView> : <>
-        <View style={s.header}><View style={[s.row, { justifyContent: "space-between" }]}>
+        <View style={s.header}><View style={[s.headerRow, { justifyContent: "space-between" }]}>
           <Text style={[s.title, { color: theme.colors.text }]}>Log Strength Session</Text>
-          <StrengthButton disabled={busy} label={score.status === "insufficient" ? "Adaptation pending" : strengthAdaptations[score.primaryAdaptation].label} onPress={() => setView("adaptations")} />
-        </View><View style={s.row}><View style={{ flex: 1, minWidth: 140 }}>
-          <StrengthField label="Session title" value={draft.title} maxLength={80} editable={!busy} onChangeText={title => { setDraft(current => ({ ...current, title })); setMessage(null); }} />
-        </View><LogTimeChanger inline maximumDate={maximumLogTime} value={time} onChange={date => { if (!saving.current) setTime(date); }} /></View></View>
+          <StrengthButton style={{ maxWidth: "45%" }} disabled={busy} label={score.status === "insufficient" ? "Adaptation pending" : strengthAdaptations[score.primaryAdaptation].label} onPress={() => setView("adaptations")} />
+        </View>
+          <StrengthField label="Session title" value={draft.title} maxLength={80} editable={!busy} onChangeText={title => { setDraft(current => ({ ...current, title })); setMessage(null); }}
+            accessory={<LogTimeChanger inline maximumDate={maximumLogTime} value={time} onChange={date => { if (!saving.current) setTime(date); }} />} />
+        </View>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
           {draft.exercises.map((exercise, index) => <View key={index} style={[s.card, { borderColor: theme.colors.border }]}>
             <Text style={{ color: theme.colors.text, fontWeight: "700" }}>{exercise.name}</Text>
