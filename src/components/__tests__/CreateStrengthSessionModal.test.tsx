@@ -17,7 +17,7 @@ jest.mock("../LogTimeChanger", () => {
   const { Text } = jest.requireActual("react-native");
   return { LogTimeChanger: () => <Text>Log time</Text> };
 });
-const mockPrescribed: StrengthExercise = { exerciseId: "bench", name: "Bench press", labelConfirmed: true,
+const mockPrescribed: StrengthExercise = { exerciseId: "bench", name: "Bench press", 
   movementProfile: "non_explosive", movementProfileSource: "name-rule", externalLoadKg: 80, sets: 3, reps: 8, rpe: 8, percent1RM: 70, notes: null };
 jest.mock("../ExerciseSearchModal", () => {
   const { Pressable, Text } = jest.requireActual("react-native");

@@ -2,10 +2,10 @@ import { strengthLimits } from "../constants/strength";
 import type { StrengthExercise, StrengthSessionDraft } from "../types/strength";
 
 export function validateStrengthExercise(e: StrengthExercise): void {
-  if (!e.exerciseId?.trim() || !e.labelConfirmed || !e.name?.trim() || e.name.trim().length > 120)
-    throw new Error("Confirm a workout label of 1–120 characters for each exercise.");
+  if (!e.exerciseId?.trim() || !e.name?.trim() || e.name.trim().length > 120)
+    throw new Error("Choose an exercise with a name of 1–120 characters.");
   if (!Number.isFinite(e.externalLoadKg) || e.externalLoadKg < 0 || e.externalLoadKg > strengthLimits.loadKg)
-    throw new Error("External weight must be between 0 and 2000 kg.");
+    throw new Error("Weight must be between 0 and 2000 kg.");
   if (!Number.isInteger(e.sets) || e.sets < 1 || e.sets > strengthLimits.sets ||
       !Number.isInteger(e.reps) || e.reps < 1 || e.reps > strengthLimits.reps)
     throw new Error("Enter whole sets (1–50) and reps (1–500).");

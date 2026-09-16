@@ -36,9 +36,9 @@ export function StrengthButton({ label, onPress, disabled, primary, accessibilit
     <Text style={{ color: primary ? theme.colors.tertiaryContent : theme.colors.text, fontWeight: "700" }}>{label}</Text>
   </PressOpacity>;
 }
-export function StrengthField({ label, accessory, ...props }: TextInputProps & { label: string; accessory?: ReactNode }) {
+export function StrengthField({ label, accessory, fieldWidth, ...props }: TextInputProps & { label: string; accessory?: ReactNode; fieldWidth?: number }) {
   const { theme } = useAppTheme();
-  return <View style={{ gap: t.spacing.xs }}><Text style={{ color: theme.colors.textMuted }}>{label}</Text>
+  return <View style={{ gap: t.spacing.xs, width: fieldWidth, maxWidth: "100%" }}><Text style={{ color: theme.colors.textMuted }}>{label}</Text>
     <View style={strengthStyles.controlRow}>
       <TextInput {...props} accessibilityLabel={label} placeholderTextColor={theme.colors.textMuted}
         style={[strengthStyles.input, { flex: 1, minWidth: 0, color: theme.colors.text, borderColor: theme.colors.borderStrong }, props.style]} />

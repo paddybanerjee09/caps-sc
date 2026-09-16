@@ -20,7 +20,7 @@ type ContributionRow = { hard_sets: number; total_repetitions: number; volume_lo
 
 function validateId(id: number) { if (!Number.isSafeInteger(id) || id <= 0) throw new Error("Invalid strength record ID."); }
 function mapExercise(e: ExerciseRow): StrengthExercise {
-  return { exerciseId: e.exercise_external_id, name: e.exercise_name, labelConfirmed: true,
+  return { exerciseId: e.exercise_external_id, name: e.exercise_name, 
     movementProfile: e.movement_profile, movementProfileSource: e.movement_profile_source,
     externalLoadKg: e.external_load_kg, sets: e.sets, reps: e.reps, rpe: e.rpe, percent1RM: e.percent_1rm, notes: e.notes };
 }

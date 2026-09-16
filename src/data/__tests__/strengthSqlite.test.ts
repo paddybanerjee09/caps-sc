@@ -6,7 +6,7 @@ import { getTimelineEntriesForDay } from "../timelineRepository";
 import type { StrengthExercise } from "../../types/strength";
 
 const exercise: StrengthExercise = {
-  exerciseId: "user-selected-id", name: "My bench press", labelConfirmed: true,
+  exerciseId: "user-selected-id", name: "My bench press", 
   movementProfile: "non_explosive", movementProfileSource: "name-rule",
   externalLoadKg: 40, sets: 3, reps: 10, rpe: 8, percent1RM: 65, notes: "Warmup done",
 };

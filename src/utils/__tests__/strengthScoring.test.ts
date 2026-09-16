@@ -2,7 +2,7 @@ import type { StrengthExercise } from "../../types/strength";
 import { scoreStrengthExercise, scoreStrengthSession } from "../strengthScoring";
 
 function exercise(overrides: Partial<StrengthExercise> = {}): StrengthExercise {
-  return { exerciseId: "x", name: "bench press", labelConfirmed: true, movementProfile: "non_explosive", movementProfileSource: "name-rule",
+  return { exerciseId: "x", name: "bench press", movementProfile: "non_explosive", movementProfileSource: "name-rule",
     externalLoadKg: 80, sets: 4, reps: 10, rpe: 9, percent1RM: 70, notes: null, ...overrides };
 }
 describe("strength scoring", () => {

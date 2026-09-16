@@ -18,8 +18,7 @@ export type ExerciseDbExercise = {
 
 export type StrengthExercise = {
   exerciseId: string;
-  name: string; // User-confirmed minimal workout label, not a metadata cache.
-  labelConfirmed: boolean;
+  name: string; // Selected exercise name, not a metadata cache.
   movementProfile: MovementProfile;
   movementProfileSource: MovementProfileSource;
   externalLoadKg: number;

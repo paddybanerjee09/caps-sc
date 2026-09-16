@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { createStrengthTemplate, getStrengthSessionByTimelineEntryId, getStrengthSessionsForRange, logCompletedStrengthSession, updateStrengthTemplate } from "../strengthRepository";
 import type { StrengthExercise } from "../../types/strength";
 
-const exercise: StrengthExercise = { exerciseId: "stable-1", name: "Back squat", labelConfirmed: true,
+const exercise: StrengthExercise = { exerciseId: "stable-1", name: "Back squat", 
   movementProfile: "unknown", movementProfileSource: "unknown", externalLoadKg: 100, sets: 3, reps: 5, rpe: 8, percent1RM: 75, notes: "Controlled" };
 afterEach(() => jest.restoreAllMocks());
 function harness() {

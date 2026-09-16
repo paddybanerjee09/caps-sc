@@ -20,7 +20,7 @@ const session: StoredStrengthSession = {
   primaryAdaptation: "hypertrophy",
   evidence: "full",
   exercises: [{
-    exerciseId: "bench", name: "Bench press", labelConfirmed: true,
+    exerciseId: "bench", name: "Bench press", 
     movementProfile: "non_explosive", movementProfileSource: "name-rule",
     externalLoadKg: 80, sets: 3, reps: 8, rpe: 8, percent1RM: 75, notes: "Controlled reps",
   }],

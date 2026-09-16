@@ -1,5 +1,5 @@
 // Metadata columns are reserved for a licensed provider plan. Current writes use
-// only a user-confirmed label and empty arrays; media URLs have no storage column.
+// only the selected exercise name and empty arrays; media URLs have no storage column.
 const exerciseColumns = `
   position INTEGER NOT NULL CHECK (typeof(position) = 'integer' AND position BETWEEN 0 AND 99),
   exercise_external_id TEXT NOT NULL CHECK (length(trim(exercise_external_id)) > 0),

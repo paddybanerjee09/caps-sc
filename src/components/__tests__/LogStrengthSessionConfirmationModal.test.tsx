@@ -7,7 +7,7 @@ const mockDb = {}; const mockLogSession = jest.fn();
 jest.mock("expo-sqlite", () => ({ useSQLiteContext: () => mockDb }));
 jest.mock("../../data/strengthRepository", () => ({ logCompletedStrengthSession: (...args: unknown[]) => mockLogSession(...args) }));
 const template: StoredStrengthTemplate = { id: 8, title: "Legs", createdAt: 1, updatedAt: 1, exercises: [{
-  exerciseId: "squat", name: "Squat", labelConfirmed: true, movementProfile: "unknown", movementProfileSource: "unknown",
+  exerciseId: "squat", name: "Squat", movementProfile: "unknown", movementProfileSource: "unknown",
   externalLoadKg: 0, sets: 3, reps: 5, rpe: 8, percent1RM: null, notes: null,
 }] };
 describe("LogStrengthSessionConfirmationModal", () => {
