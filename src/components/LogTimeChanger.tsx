@@ -107,26 +107,26 @@ export function LogTimeChanger({
         )}`}
         onPress={openPicker}
         style={[
-            styles.button,
-            inline && styles.inlineButton,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.border,
-            },
-          ]}
+          styles.button,
+          inline && styles.inlineButton,
+          {
+            backgroundColor: theme.colors.surfaceMuted,
+            borderColor: theme.colors.border,
+          },
+        ]}
       >
-          <Ionicons
-            color={theme.colors.textMuted}
-            name="time-outline"
-            size={15}
-          />
+        <Ionicons
+          color={theme.colors.textMuted}
+          name="time-outline"
+          size={15}
+        />
 
-          <Text
-            numberOfLines={1}
-            style={[styles.time, { color: theme.colors.text }]}
-          >
-            {formatTime(value)}
-          </Text>
+        <Text
+          numberOfLines={1}
+          style={[styles.time, { color: theme.colors.text }]}
+        >
+          {formatTime(value)}
+        </Text>
       </PressOpacity>
 
       {Platform.OS === "ios" ? (

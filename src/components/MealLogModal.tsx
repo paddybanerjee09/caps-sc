@@ -671,29 +671,29 @@ export function MealLogModal({
                   Title
                 </Text>
                 <View style={styles.titleTimeRow}>
-                    <TextInput
-                      accessibilityLabel="Meal title"
-                      maxLength={50}
-                      onChangeText={setTitle}
-                      placeholder="Meal title"
-                      placeholderTextColor={theme.colors.textMuted}
-                      selectionColor={theme.colors.tertiary}
-                      style={[
-                        styles.textInput,
-                        styles.titleField,
-                        {
-                          borderColor: theme.colors.borderStrong,
-                          color: theme.colors.text,
-                        },
-                      ]}
-                      value={title}
-                    />
+                  <TextInput
+                    accessibilityLabel="Meal title"
+                    maxLength={50}
+                    onChangeText={setTitle}
+                    placeholder="Meal title"
+                    placeholderTextColor={theme.colors.textMuted}
+                    selectionColor={theme.colors.tertiary}
+                    style={[
+                      styles.textInput,
+                      styles.titleField,
+                      {
+                        borderColor: theme.colors.borderStrong,
+                        color: theme.colors.text,
+                      },
+                    ]}
+                    value={title}
+                  />
                   {visible ? (
-                      <LogTimeChanger
-                        inline
-                        onChange={setLoggedAt}
-                        value={loggedAt}
-                      />
+                    <LogTimeChanger
+                      inline
+                      onChange={setLoggedAt}
+                      value={loggedAt}
+                    />
                   ) : null}
                 </View>
 
