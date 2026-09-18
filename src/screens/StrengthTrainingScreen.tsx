@@ -10,6 +10,7 @@ import { Screen } from "../components/Screen";
 import { StrengthButton, StrengthMessage } from "../components/StrengthFormPrimitives";
 import { StrengthSessionDetailModal } from "../components/StrengthSessionDetailModal";
 import { strengthAdaptations } from "../constants/strength";
+import { getStrengthMonthPresentation } from "../utils/timelinePresentation";
 import { getStrengthSessionsForRange, listStrengthTemplates } from "../data/strengthRepository";
 import { getTimelineEntriesForDay, type TimelineDisplayEntry } from "../data/timelineRepository";
 import { themes } from "../theme/theme";
@@ -41,13 +42,17 @@ export function StrengthTrainingScreen() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [db, dayEnd, dayStart, month, revision]);
-  const events: MonthTimelineEvent[] = sessions.map(session => ({
-    id: String(session.timelineEntryId), timelineEntryId: session.timelineEntryId, title: session.title,
-    startAt: session.startAt, endAt: null, dateKey: getMonthTimelineDateKey(new Date(session.startAt)),
-    activityIcon: "weight-lifter", activityLabel: "Strength", adaptationLabel: strengthAdaptations[session.primaryAdaptation].label,
-    color: strengthAdaptations[session.primaryAdaptation].color, contentColor: strengthAdaptations[session.primaryAdaptation].contentColor,
-    accessibilityLabel: `${session.title}, Strength, ${strengthAdaptations[session.primaryAdaptation].label}`,
-  }));
+  const events: MonthTimelineEvent[] = sessions.map(session => {
+    const presentation = getStrengthMonthPresentation(session.primaryAdaptation);
+    const adaptationLabel = strengthAdaptations[session.primaryAdaptation]?.label ?? presentation.label;
+    return {
+      id: String(session.timelineEntryId), timelineEntryId: session.timelineEntryId, title: session.title,
+      startAt: session.startAt, endAt: null, dateKey: getMonthTimelineDateKey(new Date(session.startAt)),
+      activityIcon: "weight-lifter", activityLabel: "Strength", adaptationLabel,
+      color: presentation.color, contentColor: presentation.contentColor,
+      accessibilityLabel: `${session.title}, Strength, ${adaptationLabel}`,
+    };
+  });
   const today = new Date(); today.setHours(0, 0, 0, 0); const future = dayStart.getTime() > today.getTime();
   return <Screen title="Strength Training" centerTitle>
     <View style={{ gap: themes.dark.spacing.lg }}>

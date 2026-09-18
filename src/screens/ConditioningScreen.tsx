@@ -25,6 +25,7 @@ import {
   conditioningAdaptations,
 } from "../constants/conditioning";
 import { getConditioningSessionsForRange } from "../data/conditioningRepository";
+import { getConditioningMonthPresentation } from "../utils/timelinePresentation";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 import type {
@@ -254,7 +255,8 @@ function mapCalendarEvents(
 
   for (const session of sessions) {
     const activity = getActivityPresentation(session.activity);
-    const adaptation = conditioningAdaptations[session.primaryAdaptation];
+    const adaptation = getConditioningMonthPresentation(session.primaryAdaptation);
+    const adaptationLabel = conditioningAdaptations[session.primaryAdaptation]?.label ?? adaptation.label;
     const firstVisibleTimestamp = Math.max(session.startAt, rangeStart.getTime());
     const lastVisibleTimestamp = Math.min(session.endAt, rangeEnd.getTime());
     const cursor = startOfLocalDay(new Date(firstVisibleTimestamp));
@@ -270,13 +272,13 @@ function mapCalendarEvents(
         const dateKey = getMonthTimelineDateKey(cursor);
 
         events.push({
-          accessibilityLabel: `${session.title}, ${activity.label}, ${adaptation.label}`,
+          accessibilityLabel: `${session.title}, ${activity.label}, ${adaptationLabel}`,
           activityIcon:
             activity.icon as ComponentProps<
               typeof MaterialCommunityIcons
             >["name"],
           activityLabel: activity.label,
-          adaptationLabel: adaptation.label,
+          adaptationLabel,
           color: adaptation.color,
           contentColor: adaptation.contentColor,
           dateKey,
