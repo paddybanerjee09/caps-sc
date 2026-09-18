@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, View, type TextInputProps, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, Text, TextInput, View, type TextInputProps, type StyleProp, type ViewStyle } from "react-native";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
+import { AppModalFrame } from "./AppModalFrame";
 import { PressOpacity } from "./PressOpacity";
 const t = themes.dark;
 export const strengthStyles = StyleSheet.create({
@@ -18,14 +19,22 @@ export const strengthStyles = StyleSheet.create({
   button: { borderWidth: 1, borderRadius: t.radius.sm, minHeight: 44, paddingHorizontal: t.spacing.md, paddingVertical: t.spacing.sm, justifyContent: "center", alignItems: "center" },
   input: { borderWidth: 1, borderRadius: t.radius.sm, minHeight: 44, paddingHorizontal: t.spacing.md, paddingVertical: t.spacing.sm, ...t.typography.body },
 });
-export function StrengthModalFrame({ children, onClose, visible }: { children: ReactNode; onClose: () => void; visible: boolean }) {
-  const { theme } = useAppTheme();
-  if (!visible) return null;
-  return <Modal transparent visible animationType="fade" onRequestClose={onClose}>
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[strengthStyles.overlay, { backgroundColor: theme.colors.overlay }]}>
-      <View style={[strengthStyles.modal, { backgroundColor: theme.colors.surface }]}>{children}</View>
-    </KeyboardAvoidingView>
-  </Modal>;
+export function StrengthModalFrame({
+  children,
+  onClose,
+  visible,
+  dismissDisabled,
+}: {
+  children: ReactNode;
+  onClose: () => void;
+  visible: boolean;
+  dismissDisabled?: boolean;
+}) {
+  return (
+    <AppModalFrame dismissDisabled={dismissDisabled} visible={visible} width="wide" onClose={onClose}>
+      {children}
+    </AppModalFrame>
+  );
 }
 export function StrengthButton({ label, onPress, disabled, primary, accessibilityLabel, style }: {
   label: string; onPress: () => void; disabled?: boolean; primary?: boolean; accessibilityLabel?: string; style?: StyleProp<ViewStyle>;

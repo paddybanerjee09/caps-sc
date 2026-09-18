@@ -9,16 +9,11 @@ import {
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   conditioningScoringDisclaimer,
@@ -45,6 +40,7 @@ import {
   analyzeConditioningSessionFormDraft,
   createConditioningSessionFormDraftFromDefinition,
 } from "../utils/conditioningSessionDraft";
+import { AppModalFrame } from "./AppModalFrame";
 import { ConditioningAdaptationModal } from "./ConditioningAdaptationModal";
 import {
   ConditioningAdaptationBadge,
@@ -88,8 +84,6 @@ export function ConditioningLogModal({
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
   const { unitSettings } = useAppState();
-  const { height: windowHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<ConditioningSessionFormDraft>(() =>
     createDefaultConditioningSessionFormDraft(unitSettings.distance),
   );
@@ -118,11 +112,6 @@ export function ConditioningLogModal({
     ? `edit:${entryToEdit.timelineEntryId}:${entryToEdit.updatedAt}`
     : `create:${selectedDayKey}:${sourceTemplate?.id ?? "blank"}:${sourceTemplate?.updatedAt ?? "new"}`;
   const editing = entryToEdit !== undefined;
-  const modalMaxHeight = Math.max(
-    1,
-    Math.min(680, windowHeight - insets.top - insets.bottom - 32),
-  );
-
   const loadBaselines = useCallback(async () => {
     const requestId = baselineRequestId.current + 1;
     baselineRequestId.current = requestId;
@@ -320,40 +309,15 @@ export function ConditioningLogModal({
     }
   }
 
-  if (!visible) {
-    return null;
-  }
-
   return (
     <>
-      <Modal
-        animationType="fade"
-        onRequestClose={closeModal}
-        transparent
-        visible={!templateSelectorOpen}
+      <AppModalFrame
+        dismissDisabled={saving}
+        visible={visible && !templateSelectorOpen}
+        width="form"
+        onClose={closeModal}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={[
-            styles.overlay,
-            {
-              backgroundColor: theme.colors.overlay,
-              paddingBottom: Math.max(tokens.spacing.lg, insets.bottom),
-              paddingTop: Math.max(tokens.spacing.lg, insets.top),
-            },
-          ]}
-        >
-          <View
-            accessibilityViewIsModal
-            style={[
-              styles.modal,
-              {
-                backgroundColor: theme.colors.surface,
-                maxHeight: modalMaxHeight,
-              },
-            ]}
-          >
-            {step === "adaptation" ? (
+        {step === "adaptation" ? (
               <ScrollView
                 contentContainerStyle={styles.adaptationBody}
                 keyboardShouldPersistTaps="handled"
@@ -505,11 +469,9 @@ export function ConditioningLogModal({
                     </PressOpacity>
                   </View>
                 </View>
-              </>
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          </>
+        )}
+      </AppModalFrame>
 
       <ConditioningSessions
         onClose={() => setTemplateSelectorOpen(false)}

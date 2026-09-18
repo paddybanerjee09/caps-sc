@@ -12,6 +12,7 @@ import { ExerciseSearchModal } from "./ExerciseSearchModal";
 import { LogTimeChanger } from "./LogTimeChanger";
 import { StrengthAdaptationModal } from "./StrengthAdaptationModal";
 import { StrengthExerciseEditorModal } from "./StrengthExerciseEditorModal";
+import { AdaptationStatusButton } from "./AdaptationStatusButton";
 import { StrengthButton, StrengthField, StrengthMessage, StrengthModalFrame, strengthStyles as s } from "./StrengthFormPrimitives";
 
 export type CreateStrengthSessionModalProps = {
@@ -52,15 +53,21 @@ function CreateStrengthSessionModalContent({ selectedDate, template, onClose, on
     } catch (e) { setMessage(e instanceof Error ? e.message : "Couldn't save workout. Please retry."); }
     finally { saving.current = false; setBusy(false); }
   }
-  return <StrengthModalFrame visible onClose={view === "session" ? close : back}>
+  const adaptationLabel = score.status === "insufficient" ? "Adaptation pending" : strengthAdaptations[score.primaryAdaptation].label;
+  return <StrengthModalFrame dismissDisabled={busy} visible onClose={view === "session" ? close : back}>
     {view === "search" ? <ExerciseSearchModal onCancel={back} onSelect={exercise => { setEditor({ exercise }); setView("editor"); }} /> :
       view === "editor" ? <StrengthExerciseEditorModal {...editor} onCancel={back} onLog={exercise => {
         setDraft(current => ({ ...current, exercises: editor.index === undefined ? [...current.exercises, exercise] : current.exercises.map((e, i) => i === editor.index ? exercise : e) }));
         setMessage(null); back();
       }} /> : view === "adaptations" ? <ScrollView><StrengthAdaptationModal result={score} onBack={back} /></ScrollView> : <>
-        <View style={s.header}><View style={[s.headerRow, { justifyContent: "space-between" }]}>
-          <Text style={[s.title, { color: theme.colors.text }]}>Log Strength Session</Text>
-          <StrengthButton style={{ maxWidth: "45%" }} disabled={busy} label={score.status === "insufficient" ? "Adaptation pending" : strengthAdaptations[score.primaryAdaptation].label} onPress={() => setView("adaptations")} />
+        <View style={s.header}><View style={[s.headerRow, { justifyContent: "space-between", flexWrap: "wrap" }]}>
+          <Text style={[s.title, { color: theme.colors.text, flex: 1, minWidth: 120 }]}>Log Strength Session</Text>
+          <AdaptationStatusButton
+            accessibilityLabel={`Primary adaptation, ${adaptationLabel}`}
+            disabled={busy}
+            label={adaptationLabel}
+            onPress={() => setView("adaptations")}
+          />
         </View>
           <StrengthField label="Session title" value={draft.title} maxLength={80} editable={!busy} onChangeText={title => { setDraft(current => ({ ...current, title })); setMessage(null); }}
             accessory={<LogTimeChanger inline maximumDate={maximumLogTime} value={time} onChange={date => { if (!saving.current) setTime(date); }} />} />

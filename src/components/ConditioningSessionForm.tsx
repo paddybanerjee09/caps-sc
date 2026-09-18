@@ -39,6 +39,7 @@ import {
   type ConditioningIntensityDraft,
   type ConditioningSessionFormDraft,
 } from "../utils/conditioningSessionDraft";
+import { AdaptationStatusButton } from "./AdaptationStatusButton";
 import { ConditioningSelectField } from "./ConditioningSelectField";
 import { ElapsedDurationField } from "./ElapsedDurationField";
 import { PressOpacity } from "./PressOpacity";
@@ -66,7 +67,6 @@ export type ConditioningSessionFormProps = {
   disabled?: boolean;
   distanceUnit: UnitSystem;
   draft: ConditioningSessionFormDraft;
-  horizontalHeading?: boolean;
   onAdaptationPress?: () => void;
   onChange: (draft: ConditioningSessionFormDraft) => void;
   scoreResult: ConditioningScoreResult;
@@ -78,7 +78,6 @@ export function ConditioningSessionForm({
   disabled = false,
   distanceUnit,
   draft,
-  horizontalHeading = false,
   onAdaptationPress,
   onChange,
   scoreResult,
@@ -107,23 +106,15 @@ export function ConditioningSessionForm({
     <View style={styles.container}>
       {showHeading ? (
         <View style={styles.heading}>
-          <View
-            style={horizontalHeading ? styles.horizontalHeading : styles.heading}
-          >
-            <View style={horizontalHeading ? styles.horizontalHeadingTitle : undefined}>
-              <ConditioningTitleInput
-                compact={horizontalHeading}
-                disabled={disabled}
-                onChangeText={(titleInput) => updateDraft({ titleInput })}
-                value={draft.titleInput}
-              />
-            </View>
-            <ConditioningAdaptationBadge
-              compact={horizontalHeading}
-              onPress={onAdaptationPress}
-              scoreResult={scoreResult}
-            />
-          </View>
+          <ConditioningTitleInput
+            disabled={disabled}
+            onChangeText={(titleInput) => updateDraft({ titleInput })}
+            value={draft.titleInput}
+          />
+          <ConditioningAdaptationBadge
+            onPress={onAdaptationPress}
+            scoreResult={scoreResult}
+          />
           <ConditioningScoreHelp scoreResult={scoreResult} />
         </View>
       ) : (
@@ -263,7 +254,6 @@ export function ConditioningTitleInput({
 }
 
 export function ConditioningAdaptationBadge({
-  compact = false,
   onPress,
   scoreResult,
 }: {
@@ -271,7 +261,6 @@ export function ConditioningAdaptationBadge({
   onPress?: () => void;
   scoreResult: ConditioningScoreResult;
 }) {
-  const { theme } = useAppTheme();
   const adaptation =
     scoreResult.status === "scored" && scoreResult.primaryAdaptation
       ? conditioningAdaptations[scoreResult.primaryAdaptation]
@@ -279,31 +268,14 @@ export function ConditioningAdaptationBadge({
   const adaptationLabel = adaptation?.label ?? "Adaptation pending";
 
   return (
-    <PressOpacity
-      accessibilityHint="Shows how this session is expected to affect conditioning"
+    <AdaptationStatusButton
       accessibilityLabel={`Primary adaptation, ${adaptationLabel}`}
-      disabled={!onPress}
+      backgroundColor={adaptation?.color}
+      borderColor={adaptation?.color}
+      contentColor={adaptation?.contentColor}
+      label={adaptationLabel}
       onPress={onPress}
-      style={[
-        styles.adaptationBadge,
-        compact && styles.compactAdaptationBadge,
-        {
-          backgroundColor: adaptation?.color ?? theme.colors.surfaceMuted,
-          borderColor: adaptation?.color ?? theme.colors.borderStrong,
-        },
-      ]}
-    >
-      <Text
-        ellipsizeMode="tail"
-        numberOfLines={2}
-        style={[
-          styles.adaptationBadgeText,
-          { color: adaptation?.contentColor ?? theme.colors.textMuted },
-        ]}
-      >
-        {adaptationLabel}
-      </Text>
-    </PressOpacity>
+    />
   );
 }
 
@@ -1084,13 +1056,6 @@ function SmallAction({
 const styles = StyleSheet.create({
   container: { gap: tokens.spacing.lg },
   heading: { alignItems: "center", gap: tokens.spacing.sm },
-  horizontalHeading: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-    width: "100%",
-  },
-  horizontalHeadingTitle: { flex: 1, minWidth: 0 },
   adaptationBadge: {
     alignItems: "center",
     borderRadius: 999,
