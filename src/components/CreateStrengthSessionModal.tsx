@@ -1,6 +1,8 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
 import { useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { PressOpacity } from "./PressOpacity";
 import { strengthAdaptations } from "../constants/strength";
 import { createStrengthTemplate, logCompletedStrengthSession, updateStrengthTemplate } from "../data/strengthRepository";
 import { useAppTheme } from "../theme/ThemeContext";
@@ -48,7 +50,8 @@ function CreateStrengthSessionModalContent({ selectedDate, template, onClose, on
       } else {
         if (templateId !== undefined) await updateStrengthTemplate(db, templateId, draft);
         else { const result = await createStrengthTemplate(db, draft); setTemplateId(result.id); }
-        setMessage("Workout saved."); onSaved?.();
+        onSaved?.();
+        onClose();
       }
     } catch (e) { setMessage(e instanceof Error ? e.message : "Couldn't save workout. Please retry."); }
     finally { saving.current = false; setBusy(false); }
@@ -74,18 +77,26 @@ function CreateStrengthSessionModalContent({ selectedDate, template, onClose, on
         </View>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
           {draft.exercises.map((exercise, index) => <View key={index} style={[s.card, { borderColor: theme.colors.border }]}>
-            <Text style={{ color: theme.colors.text, fontWeight: "700" }}>{exercise.name}</Text>
-            <StrengthMessage>{exercise.sets}×{exercise.reps} · RPE {exercise.rpe}</StrengthMessage>
-            <View style={s.row}><StrengthButton disabled={busy} label="Edit" accessibilityLabel={`Edit exercise ${index + 1}, ${exercise.name}`} onPress={() => { setEditor({ initial: exercise, index }); setView("editor"); }} />
-              <StrengthButton disabled={busy} label="Remove" accessibilityLabel={`Remove exercise ${index + 1}, ${exercise.name}`} onPress={() => { setDraft(current => ({ ...current, exercises: current.exercises.filter((_, i) => i !== index) })); setMessage(null); }} /></View>
+            <View style={[s.row, { alignItems: "flex-start", justifyContent: "space-between" }]}>
+              <View style={{ flex: 1, gap: theme.spacing.xs, minWidth: 0 }}>
+                <Text style={{ color: theme.colors.text, fontWeight: "700" }}>{exercise.name}</Text>
+                <StrengthMessage>{exercise.sets}×{exercise.reps} · RPE {exercise.rpe}</StrengthMessage>
+              </View>
+              <PressOpacity accessibilityLabel={`Edit exercise ${index + 1}, ${exercise.name}`} disabled={busy} onPress={() => { setEditor({ initial: exercise, index }); setView("editor"); }} style={{ alignItems: "center", height: 44, justifyContent: "center", width: 44 }}>
+                <Ionicons color={theme.colors.text} name="create-outline" size={22} />
+              </PressOpacity>
+              <PressOpacity accessibilityLabel={`Remove exercise ${index + 1}, ${exercise.name}`} disabled={busy} onPress={() => { setDraft(current => ({ ...current, exercises: current.exercises.filter((_, i) => i !== index) })); setMessage(null); }} style={{ alignItems: "center", height: 44, justifyContent: "center", width: 44 }}>
+                <Ionicons color={theme.colors.text} name="trash-outline" size={22} />
+              </PressOpacity>
+            </View>
           </View>)}
           <StrengthButton disabled={busy} label="Add exercise" onPress={() => setView("search")} />
           {message ? <StrengthMessage>{message}</StrengthMessage> : null}
         </ScrollView>
-        <View style={[s.actions, { borderTopColor: theme.colors.border }]}>
+        <View style={[s.actions, { borderTopColor: theme.colors.border, justifyContent: "flex-end" }]}>
           <StrengthButton label="Cancel" disabled={busy} onPress={close} />
           <StrengthButton label="Save" disabled={busy} onPress={() => void save(false)} />
-          <StrengthButton label="Quick Log" primary disabled={busy || time.getTime() > maximumLogTime.getTime()} onPress={() => void save(true)} />
+          <StrengthButton label="Log" primary disabled={busy || time.getTime() > maximumLogTime.getTime()} onPress={() => void save(true)} />
         </View>
       </>}
   </StrengthModalFrame>;
