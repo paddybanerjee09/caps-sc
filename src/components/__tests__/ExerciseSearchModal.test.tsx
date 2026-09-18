@@ -1,7 +1,7 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 
 import { AppThemeProvider } from "../../theme/ThemeContext";
-import type { ExerciseDbExercise } from "../../types/strength";
+import type { ExerciseDbExercise } from "../../types/exerciseDb";
 import { ExerciseSearchModal } from "../ExerciseSearchModal";
 
 const mockSearch = jest.fn();

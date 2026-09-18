@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { getExerciseDbDetail, isExerciseRequestCancelled, isStrengthSearchResult, searchExerciseDb } from "../services/exerciseDbApi";
 import { useAppTheme } from "../theme/ThemeContext";
-import type { ExerciseDbExercise } from "../types/strength";
+import type { ExerciseDbExercise } from "../types/exerciseDb";
 import { PressOpacity } from "./PressOpacity";
 import { StrengthButton, StrengthField, StrengthMessage, strengthStyles as s } from "./StrengthFormPrimitives";
 

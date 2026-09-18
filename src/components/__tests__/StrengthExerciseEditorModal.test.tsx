@@ -1,7 +1,8 @@
 import { fireEvent, render } from "@testing-library/react-native";
 
 import { AppThemeProvider } from "../../theme/ThemeContext";
-import type { ExerciseDbExercise, StrengthExercise } from "../../types/strength";
+import type { ExerciseDbExercise } from "../../types/exerciseDb";
+import type { StrengthExercise } from "../../types/strength";
 import { StrengthExerciseEditorModal } from "../StrengthExerciseEditorModal";
 
 let mockWeightUnit = "imperial";
