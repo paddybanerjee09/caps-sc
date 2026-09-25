@@ -79,7 +79,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     lineHeight: 15,
-    textAlign: "center",
     flex: 1,
     textAlign: "left",
   },
