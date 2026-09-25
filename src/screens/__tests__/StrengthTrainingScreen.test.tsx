@@ -5,16 +5,12 @@ import { StrengthTrainingScreen } from "../StrengthTrainingScreen";
 
 const mockDb = {};
 const mockGetSessions = jest.fn();
-const mockGetEntries = jest.fn();
 const mockListTemplates = jest.fn();
 
 jest.mock("expo-sqlite", () => ({ useSQLiteContext: () => mockDb }));
 jest.mock("../../data/strengthRepository", () => ({
   getStrengthSessionsForRange: (...args: unknown[]) => mockGetSessions(...args),
   listStrengthTemplates: (...args: unknown[]) => mockListTemplates(...args),
-}));
-jest.mock("../../data/timelineRepository", () => ({
-  getTimelineEntriesForDay: (...args: unknown[]) => mockGetEntries(...args),
 }));
 jest.mock("../../components/MonthTimeline", () => {
   const { Pressable, Text, View } = jest.requireActual("react-native");
@@ -26,10 +22,6 @@ jest.mock("../../components/MonthTimeline", () => {
     </View>,
   };
 });
-jest.mock("../../components/DayTimeline", () => {
-  const { Text } = jest.requireActual("react-native");
-  return { DayTimeline: ({ entries }: { entries: { title: string }[] }) => <Text>Day: {entries.map(entry => entry.title).join("|")}</Text> };
-});
 jest.mock("../../components/CreateStrengthSessionModal", () => {
   const { Pressable, Text } = jest.requireActual("react-native");
   return { CreateStrengthSessionModal: ({ visible, onClose, onLogged }: { visible: boolean; onClose: () => void; onLogged: () => void }) => visible
@@ -37,32 +29,21 @@ jest.mock("../../components/CreateStrengthSessionModal", () => {
     : null };
 });
 jest.mock("../../components/LogStrengthSessionConfirmationModal", () => ({ LogStrengthSessionConfirmationModal: () => null }));
-jest.mock("../../components/SavedStrengthWorkoutsDropdown", () => ({ SavedStrengthWorkoutsDropdown: () => null }));
+jest.mock("../../components/SavedStrengthWorkoutsModal", () => ({ SavedStrengthWorkoutsModal: () => null }));
 jest.mock("../../components/StrengthSessionDetailModal", () => ({ StrengthSessionDetailModal: () => null }));
-
-const strengthEntry = {
-  id: 11, kind: "strength", title: "Squat day", startAt: 1_700_000_000_000, endAt: null,
-  status: "completed", notes: null, createdAt: 1, updatedAt: 1, weightKg: null, conditioning: null,
-  strength: { primaryAdaptation: "hypertrophy", evidence: "full" },
-};
-const mealEntry = {
-  id: 12, kind: "meal", title: "Lunch", startAt: 1_700_000_100_000, endAt: null,
-  status: "completed", notes: null, createdAt: 1, updatedAt: 1, weightKg: null, conditioning: null,
-};
 
 describe("StrengthTrainingScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetSessions.mockResolvedValue([{ timelineEntryId: 11, title: "Squat day", startAt: 1_700_000_000_000, primaryAdaptation: "hypertrophy", evidence: "full" }]);
-    mockGetEntries.mockResolvedValue([strengthEntry, mealEntry]);
     mockListTemplates.mockResolvedValue([]);
   });
 
-  test("uses strength-only month events, all day entries, and refreshes after logging", async () => {
+  test("uses strength-only month events and refreshes after logging", async () => {
     const result = await render(<AppThemeProvider><StrengthTrainingScreen /></AppThemeProvider>);
     await waitFor(() => expect(mockGetSessions.mock.calls.length).toBeGreaterThan(0));
     expect(result.getByText("Month: Squat day:weight-lifter")).toBeTruthy();
-    expect(result.getByText("Day: Squat day|Lunch")).toBeTruthy();
+    expect(result.getByText("Log Workout")).toBeTruthy();
 
     const initialReads = mockGetSessions.mock.calls.length;
     await fireEvent.press(result.getByText("Log Workout"));

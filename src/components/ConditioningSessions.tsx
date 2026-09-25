@@ -9,9 +9,7 @@ import {
   type ComponentProps,
 } from "react";
 import {
-  ActivityIndicator,
-  Modal,
-  ScrollView,
+  FlatList,
   StyleSheet,
   Text,
   View,
@@ -45,6 +43,8 @@ import {
   getDistanceUnitLabel,
   getShortDistanceUnitLabel,
 } from "../utils/conditioningMeasurements";
+import { AppModalFrame } from "./AppModalFrame";
+import { CollectionStateView } from "./CollectionStateView";
 import { PressOpacity } from "./PressOpacity";
 
 const tokens = themes.dark;
@@ -160,199 +160,165 @@ function ConditioningSessionsContent({
   }
 
   return (
-    <Modal
-      animationType="fade"
-      onRequestClose={closeModal}
-      transparent
-      visible
-    >
-      <View
-        style={[
-          styles.modalOverlay,
-          { backgroundColor: theme.colors.overlay },
-        ]}
-      >
-        <View style={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.colors.text }]}>
-              Saved Sessions
-            </Text>
-          </View>
+    <AppModalFrame visible width="wide" onClose={closeModal}>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          Saved Sessions
+        </Text>
+      </View>
 
-          {loading ? (
-            <View
-              accessibilityLabel="Loading saved conditioning sessions"
-              accessibilityLiveRegion="polite"
-              style={styles.stateContainer}
-            >
-              <ActivityIndicator color={theme.colors.tertiary} />
-            </View>
-          ) : error ? (
-            <View accessibilityLiveRegion="polite" style={styles.stateContainer}>
-              <Text style={[styles.stateText, { color: theme.colors.text }]}>
-                {error}
-              </Text>
+      {loading ? (
+        <CollectionStateView
+          label="Loading saved conditioning sessions"
+          variant="loading"
+        />
+      ) : error ? (
+        <CollectionStateView
+          actionLabel="Retry loading saved conditioning sessions"
+          label={error}
+          variant="error"
+          onAction={retryLoading}
+        />
+      ) : templatePresentations.length === 0 ? (
+        <CollectionStateView
+          label="No saved conditioning sessions"
+          variant="empty"
+        />
+      ) : (
+        <FlatList
+          contentContainerStyle={styles.templateList}
+          data={templatePresentations}
+          keyExtractor={({ template }) => String(template.id)}
+          nestedScrollEnabled
+          renderItem={({ item: { score, template } }) => {
+            const selected = template.id === selectedTemplateId;
+            const activity = getActivityPresentation(template.activity);
+            const adaptation =
+              score.status === "scored"
+                ? conditioningAdaptations[score.primaryAdaptation]
+                : null;
+
+            return (
               <PressOpacity
-                accessibilityLabel="Retry loading saved conditioning sessions"
-                onPress={retryLoading}
+                accessibilityLabel={`${template.title}, ${activity.label}, ${getConditioningProtocolSummary(template.protocol, unitSettings.distance)}${adaptation ? `, primary adaptation ${adaptation.label}` : ", adaptation undetermined"}${selected ? ", selected" : ""}`}
+                accessibilityRole="button"
+                onPress={() => setSelectedTemplateId(template.id)}
                 style={[
-                  styles.retryButton,
+                  styles.templateRow,
                   {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.borderStrong,
+                    backgroundColor: selected
+                      ? theme.colors.surfaceMuted
+                      : theme.colors.surface,
+                    borderColor: selected
+                      ? theme.colors.tertiary
+                      : theme.colors.border,
                   },
                 ]}
               >
-                <Text style={[styles.buttonText, { color: theme.colors.text }]}>
-                  Retry
-                </Text>
-              </PressOpacity>
-            </View>
-          ) : templatePresentations.length === 0 ? (
-            <View accessibilityLiveRegion="polite" style={styles.stateContainer}>
-              <Text style={[styles.stateText, { color: theme.colors.textMuted }]}>
-                No saved conditioning sessions
-              </Text>
-            </View>
-          ) : (
-            <ScrollView
-              contentContainerStyle={styles.templateList}
-              nestedScrollEnabled
-              showsVerticalScrollIndicator={false}
-              style={styles.templateScroll}
-            >
-              {templatePresentations.map(({ score, template }) => {
-                const selected = template.id === selectedTemplateId;
-                const activity = getActivityPresentation(template.activity);
-                const adaptation =
-                  score.status === "scored"
-                    ? conditioningAdaptations[score.primaryAdaptation]
-                    : null;
+                <View
+                  accessible={false}
+                  style={[
+                    styles.activityIcon,
+                    { backgroundColor: theme.colors.surfaceMuted },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    color={theme.colors.tertiary}
+                    name={activity.icon}
+                    size={22}
+                  />
+                </View>
 
-                return (
-                  <PressOpacity
-                    accessibilityLabel={`${template.title}, ${activity.label}, ${getConditioningProtocolSummary(template.protocol, unitSettings.distance)}${adaptation ? `, primary adaptation ${adaptation.label}` : ", adaptation undetermined"}${selected ? ", selected" : ""}`}
-                    accessibilityRole="button"
-                    key={template.id}
-                    onPress={() => setSelectedTemplateId(template.id)}
+                <View accessible={false} style={styles.templateText}>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.templateTitle, { color: theme.colors.text }]}
+                  >
+                    {template.title}
+                  </Text>
+                  <Text
+                    numberOfLines={4}
                     style={[
-                      styles.templateRow,
-                      {
-                        backgroundColor: selected
-                          ? theme.colors.surfaceMuted
-                          : theme.colors.surface,
-                        borderColor: selected
-                          ? theme.colors.tertiary
-                          : theme.colors.border,
-                      },
+                      styles.templateDetails,
+                      { color: theme.colors.textMuted },
                     ]}
                   >
-                    <View
-                      accessible={false}
+                    {activity.label} ·{" "}
+                    {getConditioningProtocolSummary(
+                      template.protocol,
+                      unitSettings.distance,
+                    )}
+                  </Text>
+                </View>
+
+                {adaptation ? (
+                  <View
+                    accessible={false}
+                    style={[
+                      styles.adaptationBadge,
+                      { backgroundColor: adaptation.color },
+                    ]}
+                  >
+                    <Text
+                      numberOfLines={2}
                       style={[
-                        styles.activityIcon,
-                        { backgroundColor: theme.colors.surfaceMuted },
+                        styles.adaptationText,
+                        { color: adaptation.contentColor },
                       ]}
                     >
-                      <MaterialCommunityIcons
-                        color={theme.colors.tertiary}
-                        name={activity.icon}
-                        size={22}
-                      />
-                    </View>
+                      {adaptation.label}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text
+                    accessible={false}
+                    style={[
+                      styles.undeterminedText,
+                      { color: theme.colors.textMuted },
+                    ]}
+                  >
+                    Undetermined
+                  </Text>
+                )}
 
-                    <View accessible={false} style={styles.templateText}>
-                      <Text
-                        numberOfLines={1}
-                        style={[styles.templateTitle, { color: theme.colors.text }]}
-                      >
-                        {template.title}
-                      </Text>
-                      <Text
-                        numberOfLines={4}
-                        style={[
-                          styles.templateDetails,
-                          { color: theme.colors.textMuted },
-                        ]}
-                      >
-                        {activity.label} ·{" "}
-                        {getConditioningProtocolSummary(
-                          template.protocol,
-                          unitSettings.distance,
-                        )}
-                      </Text>
-                    </View>
+                <Ionicons
+                  accessible={false}
+                  color={
+                    selected ? theme.colors.tertiary : theme.colors.textMuted
+                  }
+                  name={selected ? "checkmark-circle" : "ellipse-outline"}
+                  size={22}
+                />
+              </PressOpacity>
+            );
+          }}
+          showsVerticalScrollIndicator={false}
+          style={styles.templateScroll}
+        />
+      )}
 
-                    {adaptation ? (
-                      <View
-                        accessible={false}
-                        style={[
-                          styles.adaptationBadge,
-                          { backgroundColor: adaptation.color },
-                        ]}
-                      >
-                        <Text
-                          numberOfLines={2}
-                          style={[
-                            styles.adaptationText,
-                            { color: adaptation.contentColor },
-                          ]}
-                        >
-                          {adaptation.label}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text
-                        accessible={false}
-                        style={[
-                          styles.undeterminedText,
-                          { color: theme.colors.textMuted },
-                        ]}
-                      >
-                        Undetermined
-                      </Text>
-                    )}
-
-                    <Ionicons
-                      accessible={false}
-                      color={
-                        selected ? theme.colors.tertiary : theme.colors.textMuted
-                      }
-                      name={selected ? "checkmark-circle" : "ellipse-outline"}
-                      size={22}
-                    />
-                  </PressOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
-
-          <View
-            style={[
-              styles.actions,
-              { borderTopColor: theme.colors.border },
-            ]}
-          >
-            <PressOpacity onPress={closeModal} style={styles.actionButton}>
-              <Text style={[styles.buttonText, { color: theme.colors.textMuted }]}>
-                Cancel
-              </Text>
-            </PressOpacity>
-            <PressOpacity
-              disabled={selectedTemplate === null || loading || error !== null}
-              onPress={confirmSelection}
-              style={styles.actionButton}
-            >
-              <Text
-                style={[styles.buttonText, { color: theme.colors.tertiary }]}
-              >
-                Log Session
-              </Text>
-            </PressOpacity>
-          </View>
-        </View>
+      <View
+        style={[
+          styles.actions,
+          { borderTopColor: theme.colors.border },
+        ]}
+      >
+        <PressOpacity onPress={closeModal} style={styles.actionButton}>
+          <Text style={[styles.buttonText, { color: theme.colors.textMuted }]}>
+            Cancel
+          </Text>
+        </PressOpacity>
+        <PressOpacity
+          disabled={selectedTemplate === null || loading || error !== null}
+          onPress={confirmSelection}
+          style={styles.actionButton}
+        >
+          <Text style={[styles.buttonText, { color: theme.colors.tertiary }]}>
+            Log Session
+          </Text>
+        </PressOpacity>
       </View>
-    </Modal>
+    </AppModalFrame>
   );
 }
 
@@ -557,24 +523,12 @@ function formatShortDistance(metres: number, unit: UnitSystem) {
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    alignItems: "center",
-    flex: 1,
-    justifyContent: "center",
-    padding: tokens.spacing.xl,
-  },
-  modal: {
-    borderRadius: tokens.radius.lg,
-    maxHeight: "84%",
-    maxWidth: 520,
-    overflow: "hidden",
-    width: "100%",
-  },
   header: {
     alignItems: "center",
     flexDirection: "row",
     gap: tokens.spacing.sm,
     padding: tokens.spacing.lg,
+    paddingBottom: 0,
   },
   title: {
     flex: 1,
@@ -582,30 +536,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
-  stateContainer: {
-    alignItems: "center",
-    flexShrink: 1,
-    gap: tokens.spacing.md,
-    justifyContent: "center",
-    minHeight: 240,
-    padding: tokens.spacing.lg,
-  },
-  stateText: {
-    fontSize: tokens.typography.body.fontSize,
-    lineHeight: tokens.typography.body.lineHeight,
-    textAlign: "center",
-  },
-  retryButton: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 44,
-    minWidth: 84,
-    paddingHorizontal: tokens.spacing.md,
-  },
   templateScroll: {
+    flexGrow: 1,
     flexShrink: 1,
+    maxHeight: 420,
   },
   templateList: {
     gap: tokens.spacing.sm,

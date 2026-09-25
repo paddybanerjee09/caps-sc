@@ -1,47 +1,65 @@
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import { CreateStrengthSessionModal } from "../components/CreateStrengthSessionModal";
-import { DayTimeline } from "../components/DayTimeline";
 import { LogStrengthSessionConfirmationModal } from "../components/LogStrengthSessionConfirmationModal";
 import { getMonthTimelineDateKey, MonthTimeline, type MonthTimelineEvent } from "../components/MonthTimeline";
-import { SavedStrengthWorkoutsDropdown } from "../components/SavedStrengthWorkoutsDropdown";
+import { SavedStrengthWorkoutsModal } from "../components/SavedStrengthWorkoutsModal";
 import { Screen } from "../components/Screen";
-import { StrengthButton, StrengthMessage } from "../components/StrengthFormPrimitives";
+import { SessionActionMenu } from "../components/SessionActionMenu";
+import { StrengthMessage } from "../components/StrengthFormPrimitives";
 import { StrengthSessionDetailModal } from "../components/StrengthSessionDetailModal";
 import { strengthAdaptations } from "../constants/strength";
-import { getStrengthMonthPresentation } from "../utils/timelinePresentation";
 import { getStrengthSessionsForRange, listStrengthTemplates } from "../data/strengthRepository";
-import { getTimelineEntriesForDay, type TimelineDisplayEntry } from "../data/timelineRepository";
+import { getStrengthMonthPresentation } from "../utils/timelinePresentation";
+import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 import type { StrengthCalendarRecord, StoredStrengthTemplate } from "../types/strength";
 
 export function StrengthTrainingScreen() {
   const db = useSQLiteContext();
+  const { theme } = useAppTheme();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1, 12));
-  const [revision, setRevision] = useState(0); const [sessions, setSessions] = useState<StrengthCalendarRecord[]>([]);
-  const [entries, setEntries] = useState<TimelineDisplayEntry[]>([]); const [templates, setTemplates] = useState<StoredStrengthTemplate[]>([]);
-  const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false); const [editTemplate, setEditTemplate] = useState<StoredStrengthTemplate | undefined>();
-  const [confirmTemplate, setConfirmTemplate] = useState<StoredStrengthTemplate | null>(null); const [detailId, setDetailId] = useState<number | null>(null);
+  const [revision, setRevision] = useState(0);
+  const [sessions, setSessions] = useState<StrengthCalendarRecord[]>([]);
+  const [templates, setTemplates] = useState<StoredStrengthTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTemplate, setEditTemplate] = useState<StoredStrengthTemplate | undefined>();
+  const [confirmTemplate, setConfirmTemplate] = useState<StoredStrengthTemplate | null>(null);
+  const [detailId, setDetailId] = useState<number | null>(null);
+  const [savedModalOpen, setSavedModalOpen] = useState(false);
   const refresh = useCallback(() => { setLoading(true); setError(null); setRevision(n => n + 1); }, []);
-  const { dayStart, dayEnd } = useMemo(() => {
-    const start = new Date(selectedDate); start.setHours(0, 0, 0, 0);
-    const end = new Date(start); end.setDate(end.getDate() + 1); return { dayStart: start, dayEnd: end };
+  const { dayStart } = useMemo(() => {
+    const start = new Date(selectedDate);
+    start.setHours(0, 0, 0, 0);
+    return { dayStart: start };
   }, [selectedDate]);
   useEffect(() => {
     let active = true;
-    const start = new Date(month.getFullYear(), month.getMonth(), 1); start.setDate(start.getDate() - start.getDay());
+    const start = new Date(month.getFullYear(), month.getMonth(), 1);
+    start.setDate(start.getDate() - start.getDay());
     const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
     const weeks = Math.max(5, Math.ceil((new Date(month.getFullYear(), month.getMonth(), 1).getDay() + days) / 7));
-    const end = new Date(start); end.setDate(end.getDate() + weeks * 7);
-    void Promise.all([getStrengthSessionsForRange(db, start.getTime(), end.getTime()), getTimelineEntriesForDay(db, dayStart.getTime(), dayEnd.getTime()), listStrengthTemplates(db)])
-      .then(([nextSessions, nextEntries, nextTemplates]) => { if (active) { setSessions(nextSessions); setEntries(nextEntries); setTemplates(nextTemplates); } })
+    const end = new Date(start);
+    end.setDate(end.getDate() + weeks * 7);
+    void Promise.all([
+      getStrengthSessionsForRange(db, start.getTime(), end.getTime()),
+      listStrengthTemplates(db),
+    ])
+      .then(([nextSessions, nextTemplates]) => {
+        if (active) {
+          setSessions(nextSessions);
+          setTemplates(nextTemplates);
+        }
+      })
       .catch(() => { if (active) setError("Couldn't load strength workouts and timelines."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [db, dayEnd, dayStart, month, revision]);
+  }, [db, month, revision]);
   const events: MonthTimelineEvent[] = sessions.map(session => {
     const presentation = getStrengthMonthPresentation(session.primaryAdaptation);
     const adaptationLabel = strengthAdaptations[session.primaryAdaptation]?.label ?? presentation.label;
@@ -53,22 +71,48 @@ export function StrengthTrainingScreen() {
       accessibilityLabel: `${session.title}, Strength, ${adaptationLabel}`,
     };
   });
-  const today = new Date(); today.setHours(0, 0, 0, 0); const future = dayStart.getTime() > today.getTime();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const future = dayStart.getTime() > today.getTime();
   return <Screen title="Strength Training" centerTitle>
     <View style={{ gap: themes.dark.spacing.lg }}>
       <MonthTimeline displayedMonth={month} selectedDate={selectedDate} events={events} loading={loading} error={error} onRetry={refresh}
         sessionKindLabel="strength" emptyText="No strength sessions on this date" onSelectedDateChange={value => { setLoading(true); setError(null); setSelectedDate(value); }}
         onDisplayedMonthChange={value => { setLoading(true); setError(null); setMonth(value); if (selectedDate.getMonth() !== value.getMonth() || selectedDate.getFullYear() !== value.getFullYear()) setSelectedDate(value); }}
         onEventPress={event => setDetailId(event.timelineEntryId)} />
-      <DayTimeline dayStart={dayStart} dayEnd={dayEnd} entries={entries} loading={loading} error={error} onRetry={refresh}
-        isEntryPressable={entry => entry.kind === "strength"} onEntryPress={entry => { if (entry.kind === "strength") setDetailId(entry.id); }} />
-      <StrengthButton label="Log Workout" primary disabled={future} onPress={() => { setEditTemplate(undefined); setCreateOpen(true); }} />
+      <SessionActionMenu
+        items={[
+          {
+            key: "log-workout",
+            label: "Log Workout",
+            icon: <MaterialCommunityIcons color={theme.colors.tertiaryContent} name="weight-lifter" size={28} />,
+            primary: true,
+            disabled: future,
+            onPress: () => { setEditTemplate(undefined); setCreateOpen(true); },
+          },
+          {
+            key: "saved-workouts",
+            label: "Saved Workouts",
+            icon: <MaterialCommunityIcons color={theme.colors.text} name="bookmark-outline" size={28} />,
+            onPress: () => setSavedModalOpen(true),
+          },
+        ]}
+      />
       {future ? <StrengthMessage>Completed sessions can only be logged for today or an earlier date.</StrengthMessage> : null}
-      <SavedStrengthWorkoutsDropdown templates={templates} loading={loading} error={error} onRetry={refresh} disabled={future}
-        onEdit={template => { setEditTemplate(template); setCreateOpen(true); }} onLog={setConfirmTemplate} />
     </View>
     <CreateStrengthSessionModal visible={createOpen} selectedDate={selectedDate} template={editTemplate} onClose={() => setCreateOpen(false)} onSaved={refresh} onLogged={refresh} />
     <LogStrengthSessionConfirmationModal template={confirmTemplate} selectedDate={selectedDate} onClose={() => setConfirmTemplate(null)} onLogged={refresh} />
     <StrengthSessionDetailModal timelineEntryId={detailId} onClose={() => setDetailId(null)} />
+    <SavedStrengthWorkoutsModal
+      disabled={future}
+      error={error}
+      loading={loading}
+      templates={templates}
+      visible={savedModalOpen}
+      onClose={() => setSavedModalOpen(false)}
+      onEdit={template => { setSavedModalOpen(false); setEditTemplate(template); setCreateOpen(true); }}
+      onLog={template => { setSavedModalOpen(false); setConfirmTemplate(template); }}
+      onRetry={refresh}
+    />
   </Screen>;
 }

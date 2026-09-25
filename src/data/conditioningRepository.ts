@@ -27,9 +27,12 @@ import type {
 } from "../types/conditioning";
 import {
   evaluateConditioningProtocol,
-  getConditioningEndAt,
 } from "../utils/conditioningProtocol";
 import { scoreConditioningSession } from "../utils/conditioningScoring";
+import {
+  deriveSessionBoundsFromEnd,
+  SessionTimeValidationError,
+} from "../utils/sessionTime";
 
 type BaselineRow = {
   maximum_heart_rate_bpm: number | null;
@@ -1269,19 +1272,20 @@ export async function logCompletedConditioningSession(
     );
   }
 
-  if (!Number.isInteger(input.startAt) || input.startAt < 0) {
-    return fail("startAt", "Conditioning start time is invalid.");
-  }
-  const endAt = getConditioningEndAt(
-    input.startAt,
-    definition.metrics.totalSessionSeconds,
-  );
-  if (endAt === null) {
-    return fail("endAt", "Conditioning end time is invalid.");
-  }
-  const now = Date.now();
-  if (input.startAt > now || endAt > now) {
-    return fail("startAt", "Completed conditioning sessions cannot be in the future.");
+  let startAt: number;
+  let endAt: number;
+  try {
+    ({ startAt, endAt } = deriveSessionBoundsFromEnd(
+      input.endedAt,
+      definition.metrics.totalSessionSeconds,
+    ));
+  } catch (error) {
+    return fail(
+      "endedAt",
+      error instanceof SessionTimeValidationError
+        ? error.message
+        : "Conditioning end time is invalid.",
+    );
   }
   if (
     input.sourceTemplateId !== null &&
@@ -1290,6 +1294,7 @@ export async function logCompletedConditioningSession(
     return fail("sourceTemplateId", "Conditioning template ID is invalid.");
   }
 
+  const now = Date.now();
   let timelineEntryId: number | null = null;
 
   await db.withExclusiveTransactionAsync(async (transaction) => {
@@ -1315,7 +1320,7 @@ export async function logCompletedConditioningSession(
         created_at,
         updated_at
       ) VALUES ('conditioning', ?, ?, ?, 'completed', ?, ?, ?)`,
-      [definition.title, input.startAt, endAt, definition.notes, now, now],
+      [definition.title, startAt, endAt, definition.notes, now, now],
     );
     timelineEntryId = timelineResult.lastInsertRowId;
 
@@ -1380,7 +1385,7 @@ export async function logCompletedConditioningSession(
 
   return {
     timelineEntryId,
-    startAt: input.startAt,
+    startAt,
     endAt,
     score,
   };
@@ -1430,23 +1435,22 @@ export async function updateCompletedConditioningSession(
       snapshottedIntensity: normalizedIntensity.snapshot,
     };
 
-    if (!Number.isInteger(input.startAt) || input.startAt < 0) {
-      return fail("startAt", "Conditioning start time is invalid.");
-    }
-    const endAt = getConditioningEndAt(
-      input.startAt,
-      definition.metrics.totalSessionSeconds,
-    );
-    if (endAt === null) {
-      return fail("endAt", "Conditioning end time is invalid.");
-    }
-    const now = Date.now();
-    if (input.startAt > now || endAt > now) {
+    let startAt: number;
+    let endAt: number;
+    try {
+      ({ startAt, endAt } = deriveSessionBoundsFromEnd(
+        input.endedAt,
+        definition.metrics.totalSessionSeconds,
+      ));
+    } catch (error) {
       return fail(
-        "startAt",
-        "Completed conditioning sessions cannot be in the future.",
+        "endedAt",
+        error instanceof SessionTimeValidationError
+          ? error.message
+          : "Conditioning end time is invalid.",
       );
     }
+    const now = Date.now();
 
     const scoringInputsAreUnchanged =
       intensityIsUnchanged &&
@@ -1477,7 +1481,7 @@ export async function updateCompletedConditioningSession(
          AND status = 'completed'`,
       [
         definition.title,
-        input.startAt,
+        startAt,
         endAt,
         definition.notes,
         now,
@@ -1551,7 +1555,7 @@ export async function updateCompletedConditioningSession(
 
     updatedSession = {
       timelineEntryId,
-      startAt: input.startAt,
+      startAt,
       endAt,
       score,
     };

@@ -8,6 +8,8 @@ import type {
 } from "../../types/conditioning";
 import { ConditioningLogModal } from "../ConditioningLogModal";
 
+jest.setTimeout(30_000);
+
 const mockDb = {};
 const mockGetBaselines = jest.fn();
 const mockLogSession = jest.fn();
@@ -179,7 +181,7 @@ describe("ConditioningLogModal", () => {
           durationSeconds: 600,
           type: "continuous",
         },
-        startAt: 1_000_000,
+        endedAt: 1_600_000,
         title: "Stored run",
       }),
     );

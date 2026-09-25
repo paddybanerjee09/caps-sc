@@ -8,7 +8,7 @@ import {
   useState,
   type ComponentProps,
 } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { ConditioningLogModal } from "../components/ConditioningLogModal";
 import { ConditioningSessionDetailModal } from "../components/ConditioningSessionDetailModal";
@@ -18,8 +18,9 @@ import {
   MonthTimeline,
   type MonthTimelineEvent,
 } from "../components/MonthTimeline";
-import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
+import { SessionActionMenu } from "../components/SessionActionMenu";
+import { StrengthMessage } from "../components/StrengthFormPrimitives";
 import {
   conditioningActivityOptions,
   conditioningAdaptations,
@@ -144,51 +145,44 @@ export function ConditioningScreen() {
         />
 
         <View style={styles.actions}>
-          <PressOpacity
-            accessibilityLabel={`Log conditioning session for ${formatFullDate(selectedDate)}`}
-            disabled={selectedDateIsFuture}
-            onPress={openCreateLog}
-            style={[
-              styles.primaryButton,
-              { backgroundColor: theme.colors.tertiary },
-            ]}
-          >
-            <Text
-              style={[
-                styles.primaryButtonText,
-                { color: theme.colors.tertiaryContent },
-              ]}
-            >
-              Log Conditioning Session
-            </Text>
-          </PressOpacity>
-
-          {selectedDateIsFuture ? (
-            <Text style={[styles.futureHelp, { color: theme.colors.textMuted }]}>
-              Completed sessions can only be logged for today or an earlier date.
-            </Text>
-          ) : null}
-
-          <PressOpacity
-            accessibilityLabel="Create conditioning session template"
-            onPress={() => setCreateModalOpen(true)}
-            style={[
-              styles.secondaryButton,
+          <SessionActionMenu
+            items={[
               {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.borderStrong,
+                key: "log-conditioning",
+                label: "Log Session",
+                accessibilityLabel: `Log conditioning session for ${formatFullDate(selectedDate)}`,
+                icon: (
+                  <MaterialCommunityIcons
+                    color={theme.colors.tertiaryContent}
+                    name="run-fast"
+                    size={28}
+                  />
+                ),
+                primary: true,
+                disabled: selectedDateIsFuture,
+                onPress: openCreateLog,
+              },
+              {
+                key: "create-conditioning",
+                label: "Create Session",
+                accessibilityLabel: "Create conditioning session template",
+                icon: (
+                  <MaterialCommunityIcons
+                    color={theme.colors.text}
+                    name="plus-circle-outline"
+                    size={28}
+                  />
+                ),
+                onPress: () => setCreateModalOpen(true),
               },
             ]}
-          >
-            <Text
-              style={[
-                styles.secondaryButtonText,
-                { color: theme.colors.text },
-              ]}
-            >
-              Create Conditioning Session
-            </Text>
-          </PressOpacity>
+          />
+
+          {selectedDateIsFuture ? (
+            <StrengthMessage>
+              Completed sessions can only be logged for today or an earlier date.
+            </StrengthMessage>
+          ) : null}
         </View>
       </View>
 
@@ -350,38 +344,5 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: tokens.spacing.md,
-  },
-  primaryButton: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: tokens.spacing.lg,
-  },
-  primaryButtonText: {
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
-    lineHeight: tokens.typography.body.lineHeight,
-    textAlign: "center",
-  },
-  futureHelp: {
-    fontSize: tokens.typography.label.fontSize,
-    lineHeight: tokens.typography.label.lineHeight,
-    marginTop: -tokens.spacing.sm,
-    textAlign: "center",
-  },
-  secondaryButton: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: tokens.spacing.lg,
-  },
-  secondaryButtonText: {
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
-    lineHeight: tokens.typography.body.lineHeight,
-    textAlign: "center",
   },
 });
