@@ -9,7 +9,6 @@ export type SessionActionTileProps = {
   onPress: () => void;
   disabled?: boolean;
   accessibilityLabel?: string;
-  size: number;
   primary?: boolean;
 };
 
@@ -19,7 +18,6 @@ export function SessionActionTile({
   onPress,
   disabled = false,
   accessibilityLabel,
-  size,
   primary = false,
 }: SessionActionTileProps) {
   const { theme } = useAppTheme();
@@ -38,8 +36,8 @@ export function SessionActionTile({
           borderColor: primary
             ? theme.colors.tertiary
             : theme.colors.borderStrong,
-          height: size,
-          width: size,
+          minHeight: 58,
+          width: "100%",
         },
       ]}
     >
@@ -64,11 +62,12 @@ export function SessionActionTile({
 const styles = StyleSheet.create({
   tile: {
     alignItems: "center",
+    flexDirection: "row",
     borderRadius: 12,
     borderWidth: 1,
-    gap: 8,
+    gap: 12,
     justifyContent: "center",
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     paddingVertical: 10,
   },
   icon: {
@@ -81,5 +80,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 15,
     textAlign: "center",
+    flex: 1,
+    textAlign: "left",
   },
 });
