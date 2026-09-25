@@ -9,16 +9,11 @@ import {
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   conditioningScoringDisclaimer,
@@ -40,11 +35,12 @@ import type {
   StoredConditioningSession,
   StoredConditioningTemplate,
 } from "../types/conditioning";
-import { getConditioningEndAt } from "../utils/conditioningProtocol";
+import { deriveSessionBoundsFromEnd, SessionTimeValidationError } from "../utils/sessionTime";
 import {
   analyzeConditioningSessionFormDraft,
   createConditioningSessionFormDraftFromDefinition,
 } from "../utils/conditioningSessionDraft";
+import { AppModalFrame } from "./AppModalFrame";
 import { ConditioningAdaptationModal } from "./ConditioningAdaptationModal";
 import {
   ConditioningAdaptationBadge,
@@ -88,12 +84,10 @@ export function ConditioningLogModal({
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
   const { unitSettings } = useAppState();
-  const { height: windowHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<ConditioningSessionFormDraft>(() =>
     createDefaultConditioningSessionFormDraft(unitSettings.distance),
   );
-  const [startTime, setStartTime] = useState(() => new Date());
+  const [endTime, setEndTime] = useState(() => new Date());
   const [baselines, setBaselines] =
     useState<AthleteConditioningBaselines>(EMPTY_BASELINES);
   const [appliedTemplate, setAppliedTemplate] =
@@ -118,11 +112,6 @@ export function ConditioningLogModal({
     ? `edit:${entryToEdit.timelineEntryId}:${entryToEdit.updatedAt}`
     : `create:${selectedDayKey}:${sourceTemplate?.id ?? "blank"}:${sourceTemplate?.updatedAt ?? "new"}`;
   const editing = entryToEdit !== undefined;
-  const modalMaxHeight = Math.max(
-    1,
-    Math.min(680, windowHeight - insets.top - insets.bottom - 32),
-  );
-
   const loadBaselines = useCallback(async () => {
     const requestId = baselineRequestId.current + 1;
     baselineRequestId.current = requestId;
@@ -169,9 +158,9 @@ export function ConditioningLogModal({
           )
         : createDefaultConditioningSessionFormDraft(distanceUnitRef.current),
     );
-    setStartTime(
+    setEndTime(
       storedSession
-        ? new Date(storedSession.startAt)
+        ? new Date(storedSession.endAt)
         : dateWithTime(selectedDateRef.current, new Date()),
     );
     setBaselines(EMPTY_BASELINES);
@@ -201,11 +190,11 @@ export function ConditioningLogModal({
     onClose();
   }
 
-  function changeStartTime(nextTime: Date) {
+  function changeEndTime(nextTime: Date) {
     const sessionDay = entryToEditRef.current
-      ? new Date(entryToEditRef.current.startAt)
+      ? new Date(entryToEditRef.current.endAt)
       : selectedDateRef.current;
-    setStartTime(dateWithTime(sessionDay, nextTime));
+    setEndTime(dateWithTime(sessionDay, nextTime));
   }
 
   function applyTemplate(template: StoredConditioningTemplate) {
@@ -251,30 +240,19 @@ export function ConditioningLogModal({
       return;
     }
 
-    const startAt = startTime.getTime();
-    const endAt = getConditioningEndAt(
-      startAt,
-      analysis.metrics.totalSessionSeconds,
-    );
-    const now = Date.now();
+    const endedAt = endTime.getTime();
 
-    if (!Number.isInteger(startAt) || endAt === null) {
-      Alert.alert("Invalid session", "Choose a valid session time.");
-      return;
-    }
-
-    if (startAt > now) {
-      Alert.alert(
-        "Session is in the future",
-        "A completed conditioning session must start in the past or present.",
+    try {
+      deriveSessionBoundsFromEnd(
+        endedAt,
+        analysis.metrics.totalSessionSeconds,
       );
-      return;
-    }
-
-    if (endAt > now) {
+    } catch (error) {
       Alert.alert(
-        "Session is not complete",
-        "Choose an earlier start time so the full session ends in the past or present.",
+        "Invalid session",
+        error instanceof SessionTimeValidationError
+          ? error.message
+          : "Choose a valid log time.",
       );
       return;
     }
@@ -284,7 +262,7 @@ export function ConditioningLogModal({
       intensity: analysis.intensity,
       notes: notes.length > 0 ? notes : null,
       protocol: analysis.protocol,
-      startAt,
+      endedAt,
       title,
     };
 
@@ -320,40 +298,15 @@ export function ConditioningLogModal({
     }
   }
 
-  if (!visible) {
-    return null;
-  }
-
   return (
     <>
-      <Modal
-        animationType="fade"
-        onRequestClose={closeModal}
-        transparent
-        visible={!templateSelectorOpen}
+      <AppModalFrame
+        dismissDisabled={saving}
+        visible={visible && !templateSelectorOpen}
+        width="form"
+        onClose={closeModal}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={[
-            styles.overlay,
-            {
-              backgroundColor: theme.colors.overlay,
-              paddingBottom: Math.max(tokens.spacing.lg, insets.bottom),
-              paddingTop: Math.max(tokens.spacing.lg, insets.top),
-            },
-          ]}
-        >
-          <View
-            accessibilityViewIsModal
-            style={[
-              styles.modal,
-              {
-                backgroundColor: theme.colors.surface,
-                maxHeight: modalMaxHeight,
-              },
-            ]}
-          >
-            {step === "adaptation" ? (
+        {step === "adaptation" ? (
               <ScrollView
                 contentContainerStyle={styles.adaptationBody}
                 keyboardShouldPersistTaps="handled"
@@ -390,8 +343,8 @@ export function ConditioningLogModal({
                     </View>
                     <LogTimeChanger
                       inline
-                      onChange={changeStartTime}
-                      value={startTime}
+                      onChange={changeEndTime}
+                      value={endTime}
                     />
                   </View>
                 </View>
@@ -505,11 +458,9 @@ export function ConditioningLogModal({
                     </PressOpacity>
                   </View>
                 </View>
-              </>
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          </>
+        )}
+      </AppModalFrame>
 
       <ConditioningSessions
         onClose={() => setTemplateSelectorOpen(false)}

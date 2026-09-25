@@ -1,7 +1,6 @@
 import {
   Image,
   StyleSheet,
-  Text,
   View,
   type ImageSourcePropType,
 } from "react-native";
@@ -70,21 +69,27 @@ export function Header({ onMenuPress, topInset }: HeaderProps) {
         <View style={[styles.menuLine, { backgroundColor: theme.colors.text }]} />
       </PressOpacity>
 
-      <Image
-        accessibilityIgnoresInvertColors
-        accessibilityLabel="CAPS"
-        resizeMode="cover"
-        source={logos[colorScheme][tertiaryColor]}
-        style={[styles.logo, { top: topInset + theme.spacing.sm + 3 }]}
-      />
-
-      <PressOpacity
-        accessibilityLabel="CAPS AI"
-        onPress={() => {}}
-        style={[styles.aiButton, { backgroundColor: theme.colors.tertiary }]}
+      <View
+        pointerEvents="none"
+        style={[
+          styles.logoOverlay,
+          {
+            left: 0,
+            right: 0,
+            top: topInset + theme.spacing.sm,
+          },
+        ]}
       >
-        <Text style={styles.aiButtonText}>CAPS AI</Text>
-      </PressOpacity>
+        <Image
+          accessibilityIgnoresInvertColors
+          accessibilityLabel="CAPS"
+          resizeMode="cover"
+          source={logos[colorScheme][tertiaryColor]}
+          style={styles.logo}
+        />
+      </View>
+
+      <View style={styles.trailingSpacer} />
     </View>
   );
 }
@@ -105,11 +110,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 40,
   },
+  logoOverlay: {
+    alignItems: "center",
+    bottom: tokens.spacing.sm,
+    justifyContent: "center",
+    position: "absolute",
+  },
   logo: {
     height: 34,
-    left: "50%",
-    marginLeft: -80,
-    position: "absolute",
     width: 160,
   },
   menuLine: {
@@ -118,17 +126,8 @@ const styles = StyleSheet.create({
     marginVertical: 2,
     width: 17,
   },
-  aiButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    justifyContent: "center",
-    minHeight: 40,
-    paddingHorizontal: tokens.spacing.lg,
-  },
-  aiButtonText: {
-    color: "#FFFFFF",
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
-    lineHeight: tokens.typography.label.lineHeight,
+  trailingSpacer: {
+    height: 40,
+    width: 40,
   },
 });

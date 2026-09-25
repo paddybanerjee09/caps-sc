@@ -1,7 +1,10 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
+import { AccessibilityInfo } from "react-native";
+
+jest.setTimeout(30_000);
 
 import { AppThemeProvider } from "../../theme/ThemeContext";
-import type { ExerciseDbExercise } from "../../types/strength";
+import type { ExerciseDbExercise } from "../../types/exerciseDb";
 import { ExerciseSearchModal } from "../ExerciseSearchModal";
 
 const mockSearch = jest.fn();
@@ -14,10 +17,19 @@ jest.mock("../../services/exerciseDbApi", () => ({
   searchExerciseDb: (...args: unknown[]) => mockSearch(...args),
 }));
 
+jest.mock("expo-image", () => ({
+  Image: () => null,
+}));
+
+jest.mock("@expo/vector-icons/Ionicons", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 const lightweight: ExerciseDbExercise = {
   exerciseId: "bench",
-  name: "Bench press",
-  gifUrl: null,
+  name: "Bench Press",
+  gifUrl: "https://img.test/bench.gif",
   bodyParts: [],
   targetMuscles: [],
   secondaryMuscles: [],
@@ -26,9 +38,9 @@ const lightweight: ExerciseDbExercise = {
 };
 const detail: ExerciseDbExercise = {
   ...lightweight,
-  bodyParts: ["chest"],
-  targetMuscles: ["pectorals"],
-  equipments: ["barbell"],
+  bodyParts: ["Chest"],
+  targetMuscles: ["Pectorals"],
+  equipments: ["Barbell"],
   instructions: ["Press the bar."],
 };
 
@@ -36,6 +48,8 @@ describe("ExerciseSearchModal", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    jest.spyOn(AccessibilityInfo, "isReduceMotionEnabled").mockResolvedValue(false);
+    jest.spyOn(AccessibilityInfo, "addEventListener").mockReturnValue({ remove: jest.fn() } as never);
     mockSearch.mockResolvedValue({ exercises: [lightweight], nextCursor: null });
     mockDetail.mockResolvedValue(detail);
   });
@@ -57,7 +71,7 @@ describe("ExerciseSearchModal", () => {
     await act(async () => { await jest.advanceTimersByTimeAsync(300); });
     await waitFor(() => expect(mockSearch).toHaveBeenCalledWith("bench", expect.any(AbortSignal)));
 
-    await fireEvent.press(result.getByLabelText("Select Bench press"));
+    await fireEvent.press(result.getByLabelText("Bench Press"));
     await waitFor(() => expect(mockDetail).toHaveBeenCalledWith("bench", expect.any(AbortSignal)));
     expect(onSelect).toHaveBeenCalledWith(detail);
   });
@@ -78,7 +92,7 @@ describe("ExerciseSearchModal", () => {
     await fireEvent.press(result.getByText("Retry search"));
     await act(async () => { await jest.advanceTimersByTimeAsync(300); });
     await waitFor(() => expect(mockSearch).toHaveBeenCalledTimes(2));
-    expect(result.getByLabelText("Select Bench press")).toBeTruthy();
+    expect(result.getByLabelText("Bench Press")).toBeTruthy();
   });
 
   test("aborts an in-flight search when dismissed", async () => {

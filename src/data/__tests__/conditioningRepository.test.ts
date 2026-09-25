@@ -182,7 +182,7 @@ function makeContinuousUpdate(
 ): UpdateConditioningLog {
   return {
     title: "Updated conditioning",
-    startAt: 1_000_000,
+    endedAt: 1_600_000,
     activity: "running",
     protocol: {
       type: "continuous",
@@ -257,7 +257,7 @@ describe("updateCompletedConditioningSession", () => {
       updateCompletedConditioningSession(
         harness.db,
         TIMELINE_ENTRY_ID,
-        makeContinuousUpdate({ startAt: NOW - 300_000 }),
+        makeContinuousUpdate({ endedAt: NOW + 300_000 }),
       ),
     ).rejects.toThrow("Completed conditioning sessions cannot be in the future.");
     expect(harness.attemptedRunCalls).toHaveLength(0);
@@ -362,7 +362,7 @@ describe("updateCompletedConditioningSession", () => {
 
     await updateCompletedConditioningSession(harness.db, TIMELINE_ENTRY_ID, {
       title: "New circuit",
-      startAt: 1_000_000,
+      endedAt: 1_600_000,
       activity: "circuit",
       protocol: {
         type: "circuit",
@@ -458,6 +458,7 @@ describe("updateCompletedConditioningSession", () => {
       harness.db,
       TIMELINE_ENTRY_ID,
       makeContinuousUpdate({
+        endedAt: 1_060_000,
         intensity: null,
         protocol: {
           type: "intervals",
@@ -488,7 +489,7 @@ describe("updateCompletedConditioningSession", () => {
     });
     expect(result).toMatchObject({
       timelineEntryId: TIMELINE_ENTRY_ID,
-      startAt: 1_000_000,
+      startAt: 999_000,
       endAt: 1_060_000,
     });
   });
@@ -538,7 +539,7 @@ describe("updateCompletedConditioningSession", () => {
 
     await updateCompletedConditioningSession(harness.db, TIMELINE_ENTRY_ID, {
       title: "Renamed legacy intervals",
-      startAt: 1_000_000,
+      endedAt: 1_000_066,
       activity: "running",
       protocol: {
         type: "intervals",

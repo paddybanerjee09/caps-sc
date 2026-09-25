@@ -19,6 +19,7 @@ import {
 import { strengthAdaptations } from "../constants/strength";
 import { conditioningAdaptations } from "../constants/conditioning";
 import { timelineCategories } from "../constants/timelineCategories";
+import { getDayTimelinePresentation } from "../utils/timelinePresentation";
 import type { TimelineDisplayEntry } from "../data/timelineRepository";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
@@ -574,12 +575,7 @@ function getTimelineEntryLabel(entry: TimelineDisplayEntry) {
 }
 
 function getTimelineEntryPresentation(entry: TimelineDisplayEntry) {
-  if (entry.strength) return strengthAdaptations[entry.strength.primaryAdaptation];
-  if (entry.conditioning !== null) {
-    return conditioningAdaptations[entry.conditioning.primaryAdaptation];
-  }
-
-  return timelineCategories[entry.kind];
+  return getDayTimelinePresentation(entry.kind);
 }
 
 function formatTime(timestamp: number) {

@@ -1,4 +1,5 @@
-import type { ExerciseDbExercise } from "../types/strength";
+import type { ExerciseDbExercise } from "../types/exerciseDb";
+import { formatExerciseDbTitle } from "../utils/exerciseDbFormatting";
 
 export const exerciseDbFreeBaseUrl = "https://oss.exercisedb.dev/api/v1";
 // Enhanced requests are ONLY for a future first-party server proxy. No key/header
@@ -24,14 +25,25 @@ function firstMedia(value: unknown): string | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return Object.values(value).map(mediaUrl).find(Boolean) ?? null;
 }
+function formatTaxonomy(values: string[]): string[] {
+  return values.map(formatExerciseDbTitle).filter(Boolean);
+}
 export function normalizeExerciseDbExercise(value: unknown): ExerciseDbExercise {
   const row = object(value);
   if (typeof row.exerciseId !== "string" || !row.exerciseId.trim() || typeof row.name !== "string" || !row.name.trim())
     throw new ExerciseDbError("Exercise identity is missing.", "malformed");
-  return { exerciseId: row.exerciseId, name: row.name.trim(), gifUrl: mediaUrl(row.gifUrl) ?? firstMedia(row.gifUrls) ?? mediaUrl(row.imageUrl) ?? firstMedia(row.imageUrls),
-    bodyParts: strings(row.bodyParts), targetMuscles: strings(row.targetMuscles), secondaryMuscles: strings(row.secondaryMuscles),
-    equipments: strings(row.equipments), instructions: strings(row.instructions),
-    ...(row.exerciseTypes === undefined ? {} : { exerciseTypes: strings(row.exerciseTypes) }) };
+  const instructions = strings(row.instructions);
+  return {
+    exerciseId: row.exerciseId.trim(),
+    name: formatExerciseDbTitle(row.name),
+    gifUrl: mediaUrl(row.gifUrl) ?? firstMedia(row.gifUrls) ?? mediaUrl(row.imageUrl) ?? firstMedia(row.imageUrls),
+    bodyParts: formatTaxonomy(strings(row.bodyParts)),
+    targetMuscles: formatTaxonomy(strings(row.targetMuscles)),
+    secondaryMuscles: formatTaxonomy(strings(row.secondaryMuscles)),
+    equipments: formatTaxonomy(strings(row.equipments)),
+    instructions,
+    ...(row.exerciseTypes === undefined ? {} : { exerciseTypes: formatTaxonomy(strings(row.exerciseTypes)) }),
+  };
 }
 export function isStrengthSearchResult(e: ExerciseDbExercise) {
   if (e.exerciseTypes?.some(type => type.toLowerCase() === "cardio")) return false;
@@ -41,16 +53,11 @@ export function isStrengthSearchResult(e: ExerciseDbExercise) {
 export function buildExerciseSearchUrl(query: string, cursor: string | null = null, config: ExerciseDbConfig = { tier: "free" }) {
   const base = (config.baseUrl ?? exerciseDbFreeBaseUrl).replace(/\/$/, "");
   const params = new URLSearchParams();
-  if (config.tier === "proxy") {
-    params.set("limit", "25");
-    params.set("name", query.trim()); params.set("exerciseTypes", "strength");
-    if (cursor) params.set("after", cursor);
-    return `${base}/exercises?${params.toString()}`;
-  }
-  // Free /search supports only search and threshold, and returns a single list.
-  // Its live OpenAPI contract is at https://oss.exercisedb.dev/swagger.
-  params.set("search", query.trim());
-  return `${base}/exercises/search?${params.toString()}`;
+  params.set("limit", "25");
+  params.set("name", query.trim());
+  if (config.tier === "proxy") params.set("exerciseTypes", "strength");
+  if (cursor) params.set("after", cursor);
+  return `${base}/exercises?${params.toString()}`;
 }
 async function request(url: string, signal?: AbortSignal): Promise<unknown> {
   const controller = new AbortController();
@@ -82,18 +89,19 @@ function throwIfCancelled(signal: AbortSignal) {
   if (signal.aborted) { const error = new Error("Exercise request cancelled."); error.name = "AbortError"; throw error; }
 }
 export function isExerciseRequestCancelled(error: unknown) { return error instanceof Error && error.name === "AbortError"; }
+function parseSearchCursor(payload: Record<string, unknown>): string | null {
+  if (!payload.meta || typeof payload.meta !== "object" || Array.isArray(payload.meta)) return null;
+  const meta = payload.meta as Record<string, unknown>;
+  if (meta.hasNextPage === true && typeof meta.nextCursor === "string" && meta.nextCursor.trim()) return meta.nextCursor;
+  return null;
+}
 export async function searchExerciseDb(query: string, signal?: AbortSignal, cursor: string | null = null, config: ExerciseDbConfig = { tier: "free" }): Promise<ExerciseSearchPage> {
   if (query.replace(/\s/g, "").length < 2) return { exercises: [], nextCursor: null };
   const payload = object(await request(buildExerciseSearchUrl(query, cursor, config), signal));
   const data = Array.isArray(payload.data) ? payload.data : object(payload.data).exercises;
   if (!Array.isArray(data)) throw new ExerciseDbError("Exercise results are missing.", "malformed");
   const exercises = data.map(normalizeExerciseDbExercise).filter(isStrengthSearchResult);
-  let nextCursor: string | null = null;
-  if (config.tier === "proxy") {
-    const meta = object(payload.meta);
-    if (meta.hasNextPage === true && typeof meta.nextCursor === "string") nextCursor = meta.nextCursor;
-  }
-  return { exercises, nextCursor };
+  return { exercises, nextCursor: parseSearchCursor(payload) };
 }
 export async function getExerciseDbDetail(id: string, signal?: AbortSignal, config: ExerciseDbConfig = { tier: "free" }): Promise<ExerciseDbExercise> {
   if (!id.trim()) throw new ExerciseDbError("Exercise ID is missing.", "malformed");

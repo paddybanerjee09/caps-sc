@@ -43,6 +43,7 @@ import type {
   NormalizedFoodSearchResult,
   StoredMealLog,
 } from "../types/nutrition";
+import { CollectionStateView } from "./CollectionStateView";
 import { FoodServingEditor } from "./FoodServingEditor";
 import { LogTimeChanger } from "./LogTimeChanger";
 import { PressOpacity } from "./PressOpacity";
@@ -189,12 +190,7 @@ export function MealLogModal({
     }
   }, [db, selectedDate]);
 
-  useEffect(() => {
-    if (!visible) {
-      initializationRequestId.current += 1;
-      return;
-    }
-
+  function initializeModal() {
     resetSearchDraft();
     setSaving(false);
     setDeleting(false);
@@ -223,6 +219,14 @@ export function MealLogModal({
     } else {
       void initializeCreateDraft();
     }
+  }
+
+  useEffect(() => {
+    if (!visible) {
+      initializationRequestId.current += 1;
+      cancelSearchRequest();
+      cancelDetailsRequest();
+    }
 
     return () => {
       initializationRequestId.current += 1;
@@ -232,9 +236,6 @@ export function MealLogModal({
   }, [
     cancelDetailsRequest,
     cancelSearchRequest,
-    initializeCreateDraft,
-    mealToEdit,
-    resetSearchDraft,
     visible,
   ]);
 
@@ -282,13 +283,8 @@ export function MealLogModal({
     }
 
     const query = searchQuery.trim();
-    cancelSearchRequest();
-    setSearchError(null);
-    setSearchResults([]);
-    setLastSubmittedQuery("");
 
     if (query.length < MINIMUM_SEARCH_LENGTH) {
-      setSearchLoading(false);
       return;
     }
 
@@ -300,6 +296,18 @@ export function MealLogModal({
       clearTimeout(timeout);
     };
   }, [cancelSearchRequest, runSearch, searchQuery, visible]);
+
+  function changeSearchQuery(query: string) {
+    cancelSearchRequest();
+    setSearchQuery(query);
+    setSearchError(null);
+    setSearchResults([]);
+    setLastSubmittedQuery("");
+
+    if (query.trim().length < MINIMUM_SEARCH_LENGTH) {
+      setSearchLoading(false);
+    }
+  }
 
   const parsedDraftItems = useMemo(
     () =>
@@ -590,6 +598,7 @@ export function MealLogModal({
     <Modal
       animationType="fade"
       onRequestClose={closeModal}
+      onShow={initializeModal}
       transparent
       visible={visible}
     >
@@ -716,7 +725,7 @@ export function MealLogModal({
                       accessibilityLabel="Search foods"
                       autoCapitalize="none"
                       autoCorrect={false}
-                      onChangeText={setSearchQuery}
+                      onChangeText={changeSearchQuery}
                       placeholder="Search USDA foods"
                       placeholderTextColor={theme.colors.textMuted}
                       returnKeyType="search"
@@ -736,48 +745,29 @@ export function MealLogModal({
                         ]}
                       >
                         {searchLoading ? (
-                          <View style={styles.searchState}>
-                            <ActivityIndicator
-                              color={theme.colors.tertiary}
-                            />
-                          </View>
+                          <CollectionStateView
+                            compact
+                            label="Searching foods"
+                            variant="loading"
+                          />
                         ) : searchError ? (
-                          <View style={styles.searchState}>
-                            <Text
-                              style={[
-                                styles.stateText,
-                                { color: theme.colors.text },
-                              ]}
-                            >
-                              {searchError}
-                            </Text>
-                            <PressOpacity
-                              accessibilityLabel="Retry food search"
-                              onPress={() =>
-                                void runSearch(
-                                  lastSubmittedQuery || searchQuery.trim(),
-                                )
-                              }
-                              style={styles.retryButton}
-                            >
-                              <Text
-                                style={{ color: theme.colors.tertiary }}
-                              >
-                                Retry
-                              </Text>
-                            </PressOpacity>
-                          </View>
+                          <CollectionStateView
+                            actionLabel="Retry food search"
+                            compact
+                            label={searchError}
+                            variant="error"
+                            onAction={() =>
+                              void runSearch(
+                                lastSubmittedQuery || searchQuery.trim(),
+                              )
+                            }
+                          />
                         ) : searchResults.length === 0 ? (
-                          <View style={styles.searchState}>
-                            <Text
-                              style={[
-                                styles.helpText,
-                                { color: theme.colors.textMuted },
-                              ]}
-                            >
-                              No foods found.
-                            </Text>
-                          </View>
+                          <CollectionStateView
+                            compact
+                            label="No foods found."
+                            variant="noMatch"
+                          />
                         ) : (
                           <ScrollView
                             keyboardShouldPersistTaps="handled"

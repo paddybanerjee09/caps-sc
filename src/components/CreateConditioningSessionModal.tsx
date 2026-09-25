@@ -3,9 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,6 +25,7 @@ import type {
   StoredConditioningTemplate,
 } from "../types/conditioning";
 import { analyzeConditioningSessionFormDraft } from "../utils/conditioningSessionDraft";
+import { AppModalFrame } from "./AppModalFrame";
 import { ConditioningAdaptationModal } from "./ConditioningAdaptationModal";
 import {
   ConditioningSessionForm,
@@ -163,42 +161,19 @@ export function CreateConditioningSessionModal({
     }
   }
 
-  if (!visible) {
-    return null;
-  }
-
   return (
-    <Modal
-      animationType="fade"
-      onRequestClose={closeModal}
-      transparent
-      visible
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={[
-          styles.modalOverlay,
-          { backgroundColor: theme.colors.overlay },
-        ]}
-      >
-        <View style={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-          {showAdaptations ? (
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <ConditioningAdaptationModal
-                onBack={() => setShowAdaptations(false)}
-                result={scoreResult}
-              />
-            </ScrollView>
-          ) : (
-            <>
-              <Text style={[styles.title, { color: theme.colors.text }]}>
-                Create Conditioning Session
-              </Text>
+    <AppModalFrame dismissDisabled={saving} visible={visible} width="form" onClose={closeModal}>
+      {showAdaptations ? (
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ConditioningAdaptationModal onBack={() => setShowAdaptations(false)} result={scoreResult} />
+        </ScrollView>
+      ) : (
+        <>
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            Create Conditioning Session
+          </Text>
 
-              {loading ? (
+          {loading ? (
                 <View
                   accessibilityLabel="Loading conditioning session form"
                   accessibilityLiveRegion="polite"
@@ -240,7 +215,6 @@ export function CreateConditioningSessionModal({
                     disabled={saving}
                     distanceUnit={unitSettings.distance}
                     draft={draft}
-                    horizontalHeading
                     onAdaptationPress={() => setShowAdaptations(true)}
                     onChange={setDraft}
                     scoreResult={scoreResult}
@@ -283,12 +257,10 @@ export function CreateConditioningSessionModal({
                     </Text>
                   )}
                 </PressOpacity>
-              </View>
-            </>
-          )}
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+          </View>
+        </>
+      )}
+    </AppModalFrame>
   );
 }
 

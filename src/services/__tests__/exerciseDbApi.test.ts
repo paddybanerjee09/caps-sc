@@ -1,23 +1,27 @@
 import { buildExerciseSearchUrl, ExerciseDbError, getExerciseDbDetail, normalizeExerciseDbExercise, searchExerciseDb } from "../exerciseDbApi";
 
 const originalFetch = globalThis.fetch;
-const record = { exerciseId: "abc", name: "Bench Press", gifUrl: "https://img.test/a.gif", bodyParts: ["chest"], targetMuscles: ["pectorals"], secondaryMuscles: ["triceps"], equipments: ["barbell"], instructions: ["Press"] };
+const record = { exerciseId: "abc", name: "bench press", gifUrl: "https://img.test/a.gif", bodyParts: ["chest"], targetMuscles: ["pectorals"], secondaryMuscles: ["triceps"], equipments: ["barbell"], instructions: ["Press the bar upward."] };
 afterEach(() => { globalThis.fetch = originalFetch; jest.restoreAllMocks(); });
 describe("ExerciseDB adapter", () => {
   test("builds free and proxy request URLs", () => {
-    expect(buildExerciseSearchUrl(" bench ")).toBe("https://oss.exercisedb.dev/api/v1/exercises/search?search=bench");
+    expect(buildExerciseSearchUrl(" bench ")).toBe("https://oss.exercisedb.dev/api/v1/exercises?limit=25&name=bench");
     expect(buildExerciseSearchUrl("bench", "cursor", { tier: "proxy", baseUrl: "https://caps.test/api/" })).toBe("https://caps.test/api/exercises?limit=25&name=bench&exerciseTypes=strength&after=cursor");
+    expect(buildExerciseSearchUrl("bench", "cursor")).toBe("https://oss.exercisedb.dev/api/v1/exercises?limit=25&name=bench&after=cursor");
   });
-  test("normalizes free records without inventing exercise types", () => {
+  test("normalizes free records with formatted titles and preserved instructions", () => {
     const result = normalizeExerciseDbExercise(record);
     expect(result.exerciseId).toBe("abc");
+    expect(result.name).toBe("Bench Press");
+    expect(result.bodyParts).toEqual(["Chest"]);
+    expect(result.instructions).toEqual(["Press the bar upward."]);
     expect("exerciseTypes" in result).toBe(false);
     expect(() => normalizeExerciseDbExercise({ name: "Missing id" })).toThrow(ExerciseDbError);
   });
   test("filters explicit cardio and obvious free-tier cardio", async () => {
     globalThis.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ success: true, data: [record,
       { ...record, exerciseId: "cardio", exerciseTypes: ["cardio"] }, { ...record, exerciseId: "run", name: "treadmill running" }] }) }) as jest.Mock;
-    await expect(searchExerciseDb("be")).resolves.toMatchObject({ exercises: [{ exerciseId: "abc" }] });
+    await expect(searchExerciseDb("be")).resolves.toMatchObject({ exercises: [{ exerciseId: "abc", name: "Bench Press" }] });
   });
   test.each([[429, "rate-limit"], [500, "http"]] as const)("maps HTTP %s errors", async (status, kind) => {
     globalThis.fetch = jest.fn().mockResolvedValue({ ok: false, status }) as jest.Mock;
@@ -38,9 +42,9 @@ describe("ExerciseDB adapter", () => {
     await expect(searchExerciseDb(" a ")).resolves.toEqual({ exercises: [], nextCursor: null });
     expect(mockFetch).not.toHaveBeenCalled();
   });
-  test("free search does not invent pagination; proxy cursors are normalized", async () => {
+  test("free and proxy cursors are normalized from meta", async () => {
     globalThis.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ success: true, data: Array.from({ length: 25 }, () => record), meta: { hasNextPage: true, nextCursor: "next" } }) });
-    expect((await searchExerciseDb("bench")).nextCursor).toBeNull();
+    expect((await searchExerciseDb("bench")).nextCursor).toBe("next");
     expect((await searchExerciseDb("bench", undefined, null, { tier: "proxy", baseUrl: "https://caps.test" })).nextCursor).toBe("next");
   });
   test.each([

@@ -3,19 +3,6 @@ export type MovementProfileSource = "curated-id" | "name-rule" | "unknown";
 export type StrengthAdaptation = "hypertrophy" | "power" | "endurance";
 export type StrengthScores = Record<StrengthAdaptation, number>;
 
-// Provider records are ephemeral. Never pass this object to SQLite.
-export type ExerciseDbExercise = {
-  exerciseId: string;
-  name: string;
-  gifUrl: string | null;
-  bodyParts: string[];
-  targetMuscles: string[];
-  secondaryMuscles: string[];
-  equipments: string[];
-  instructions: string[];
-  exerciseTypes?: string[];
-};
-
 export type StrengthExercise = {
   exerciseId: string;
   name: string; // Selected exercise name, not a metadata cache.

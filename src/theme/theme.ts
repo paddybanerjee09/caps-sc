@@ -94,6 +94,21 @@ const shared = {
       lineHeight: 16,
       fontWeight: "700",
     },
+    caption: {
+      fontSize: 11,
+      lineHeight: 14,
+      fontWeight: "600",
+    },
+  },
+  layout: {
+    modalGutter: 16,
+    modalMaxHeight: 620,
+    compactModalWidth: 420,
+    formModalWidth: 560,
+    wideModalWidth: 620,
+    tileMinWidth: 96,
+    tileGap: 12,
+    mediaThumbnail: 64,
   },
   radius: {
     sm: 8,
@@ -127,6 +142,8 @@ export const themes = {
       switchTrackOn: appColorPalette.red,
       switchThumb: "#FFFFFF",
       overlay: "rgba(0, 0, 0, 0.58)",
+      danger: appColorPalette.red,
+      action: appColorPalette.red,
     },
   },
   light: {
@@ -147,6 +164,8 @@ export const themes = {
       switchTrackOn: appColorPalette.red,
       switchThumb: "#FFFFFF",
       overlay: "rgba(17, 18, 20, 0.34)",
+      danger: appColorPalette.red,
+      action: appColorPalette.red,
     },
   },
 } as const;

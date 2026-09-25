@@ -188,7 +188,7 @@ export type NewConditioningLog = Omit<
   "intensity"
 > & {
   sourceTemplateId: number | null;
-  startAt: number;
+  endedAt: number;
   intensity: ConditioningIntensityInput;
 };
 
