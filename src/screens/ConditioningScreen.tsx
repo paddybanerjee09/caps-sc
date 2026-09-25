@@ -12,7 +12,6 @@ import { StyleSheet, View } from "react-native";
 
 import { ConditioningLogModal } from "../components/ConditioningLogModal";
 import { ConditioningSessionDetailModal } from "../components/ConditioningSessionDetailModal";
-import { CreateConditioningSessionModal } from "../components/CreateConditioningSessionModal";
 import {
   getMonthTimelineDateKey,
   MonthTimeline,
@@ -53,7 +52,6 @@ export function ConditioningScreen() {
     useState<StoredConditioningSession | null>(null);
   const [sourceTemplate, setSourceTemplate] = useState<import("../types/conditioning").StoredConditioningTemplate | undefined>();
   const [savedSessionsOpen, setSavedSessionsOpen] = useState(false);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailTimelineEntryId, setDetailTimelineEntryId] = useState<
     number | null
   >(null);
@@ -169,19 +167,6 @@ export function ConditioningScreen() {
                 onPress: openCreateLog,
               },
               {
-                key: "create-conditioning",
-                label: "Create Session",
-                accessibilityLabel: "Create conditioning session template",
-                icon: (
-                  <MaterialCommunityIcons
-                    color={theme.colors.text}
-                    name="plus-circle-outline"
-                    size={28}
-                  />
-                ),
-                onPress: () => setCreateModalOpen(true),
-              },
-              {
                 key: "saved-conditioning",
                 label: savedSessionsOpen ? "Hide Saved Sessions" : "Saved Sessions",
                 accessibilityLabel: "Toggle saved conditioning sessions",
@@ -218,11 +203,6 @@ export function ConditioningScreen() {
         selectedDate={selectedDate}
         sourceTemplate={sourceTemplate}
         visible={logModalOpen}
-      />
-
-      <CreateConditioningSessionModal
-        onClose={() => setCreateModalOpen(false)}
-        visible={createModalOpen}
       />
 
       <ConditioningSessionDetailModal
