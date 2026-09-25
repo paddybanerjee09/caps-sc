@@ -19,6 +19,7 @@ import {
   type MonthTimelineEvent,
 } from "../components/MonthTimeline";
 import { Screen } from "../components/Screen";
+import { SavedConditioningSessionsDropdown } from "../components/SavedConditioningSessionsDropdown";
 import { SessionActionMenu } from "../components/SessionActionMenu";
 import { StrengthMessage } from "../components/StrengthFormPrimitives";
 import {
@@ -50,6 +51,8 @@ export function ConditioningScreen() {
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [entryToEdit, setEntryToEdit] =
     useState<StoredConditioningSession | null>(null);
+  const [sourceTemplate, setSourceTemplate] = useState<import("../types/conditioning").StoredConditioningTemplate | undefined>();
+  const [savedSessionsOpen, setSavedSessionsOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailTimelineEntryId, setDetailTimelineEntryId] = useState<
     number | null
@@ -113,17 +116,20 @@ export function ConditioningScreen() {
 
   function openCreateLog() {
     setEntryToEdit(null);
+    setSourceTemplate(undefined);
     setLogModalOpen(true);
   }
 
   function closeLogModal() {
     setLogModalOpen(false);
     setEntryToEdit(null);
+    setSourceTemplate(undefined);
   }
 
   function editSession(session: StoredConditioningSession) {
     setDetailTimelineEntryId(null);
     setEntryToEdit(session);
+    setSourceTemplate(undefined);
     setLogModalOpen(true);
   }
 
@@ -175,7 +181,24 @@ export function ConditioningScreen() {
                 ),
                 onPress: () => setCreateModalOpen(true),
               },
+              {
+                key: "saved-conditioning",
+                label: savedSessionsOpen ? "Hide Saved Sessions" : "Saved Sessions",
+                accessibilityLabel: "Toggle saved conditioning sessions",
+                icon: <MaterialCommunityIcons color={theme.colors.text} name="bookmark-outline" size={28} />,
+                onPress: () => setSavedSessionsOpen((open) => !open),
+              },
             ]}
+          />
+
+          <SavedConditioningSessionsDropdown
+            onSelect={(template) => {
+              setSourceTemplate(template);
+              setEntryToEdit(null);
+              setSavedSessionsOpen(false);
+              setLogModalOpen(true);
+            }}
+            visible={savedSessionsOpen}
           />
 
           {selectedDateIsFuture ? (
@@ -193,6 +216,7 @@ export function ConditioningScreen() {
           await loadCalendar();
         }}
         selectedDate={selectedDate}
+        sourceTemplate={sourceTemplate}
         visible={logModalOpen}
       />
 
