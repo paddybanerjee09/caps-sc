@@ -50,7 +50,6 @@ import {
   createDefaultConditioningSessionFormDraft,
   type ConditioningSessionFormDraft,
 } from "./ConditioningSessionForm";
-import { ConditioningSessions } from "./ConditioningSessions";
 import { LogTimeChanger } from "./LogTimeChanger";
 import { PressOpacity } from "./PressOpacity";
 import { StrengthButton, strengthStyles } from "./StrengthFormPrimitives";
@@ -95,7 +94,6 @@ export function ConditioningLogModal({
   const [appliedTemplate, setAppliedTemplate] =
     useState<StoredConditioningTemplate | null>(sourceTemplate ?? null);
   const [step, setStep] = useState<ModalStep>("form");
-  const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
   const [loadingBaselines, setLoadingBaselines] = useState(false);
   const [baselineError, setBaselineError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -167,7 +165,6 @@ export function ConditioningLogModal({
     );
     setBaselines(EMPTY_BASELINES);
     setStep("form");
-    setTemplateSelectorOpen(false);
     setSaving(false);
     savingGuard.current = false;
     void loadBaselines();
@@ -187,7 +184,6 @@ export function ConditioningLogModal({
       return;
     }
 
-    setTemplateSelectorOpen(false);
     setStep("form");
     onClose();
   }
@@ -197,18 +193,6 @@ export function ConditioningLogModal({
       ? new Date(entryToEditRef.current.endAt)
       : selectedDateRef.current;
     setEndTime(dateWithTime(sessionDay, nextTime));
-  }
-
-  function applyTemplate(template: StoredConditioningTemplate) {
-    setAppliedTemplate(template);
-    setDraft(
-      createConditioningSessionFormDraftFromDefinition(
-        template,
-        unitSettings.distance,
-      ),
-    );
-    setTemplateSelectorOpen(false);
-    setStep("form");
   }
 
   async function saveTemplate() {
@@ -349,7 +333,7 @@ export function ConditioningLogModal({
     <>
       <AppModalFrame
         dismissDisabled={saving}
-        visible={visible && !templateSelectorOpen}
+        visible={visible}
         width="wide"
         onClose={closeModal}
       >
@@ -442,33 +426,6 @@ export function ConditioningLogModal({
                   </ScrollView>
                 )}
 
-                <>
-                  {!editing ? (
-                    <View style={styles.templateSection}>
-                      <PressOpacity
-                        accessibilityLabel="Choose a pre-existing conditioning session"
-                        disabled={loadingBaselines || baselineError || saving}
-                        onPress={() => setTemplateSelectorOpen(true)}
-                        style={[
-                          styles.templateButton,
-                          {
-                            backgroundColor: theme.colors.surfaceMuted,
-                            borderColor: theme.colors.borderStrong,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.templateButtonText,
-                            { color: theme.colors.text },
-                          ]}
-                        >
-                          Log Pre-existing Session
-                        </Text>
-                      </PressOpacity>
-                    </View>
-                  ) : null}
-
                   <View
                     style={[
                       strengthStyles.actions,
@@ -503,16 +460,9 @@ export function ConditioningLogModal({
                       primary
                     />
                   </View>
-                </>
           </>
         )}
       </AppModalFrame>
-
-      <ConditioningSessions
-        onClose={() => setTemplateSelectorOpen(false)}
-        onTemplateSelected={applyTemplate}
-        visible={!editing && templateSelectorOpen}
-      />
     </>
   );
 }
@@ -601,24 +551,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 44,
     minWidth: 72,
-  },
-  templateSection: {
-    paddingHorizontal: tokens.spacing.lg,
-    paddingTop: tokens.spacing.md,
-  },
-  templateButton: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: tokens.spacing.md,
-    width: "100%",
-  },
-  templateButtonText: {
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
-    lineHeight: tokens.typography.label.lineHeight,
-    textAlign: "center",
   },
 });
