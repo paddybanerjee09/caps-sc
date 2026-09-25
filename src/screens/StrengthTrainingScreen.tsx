@@ -5,7 +5,7 @@ import { Text, View } from "react-native";
 import { CreateStrengthSessionModal } from "../components/CreateStrengthSessionModal";
 import { LogStrengthSessionConfirmationModal } from "../components/LogStrengthSessionConfirmationModal";
 import { getMonthTimelineDateKey, MonthTimeline, type MonthTimelineEvent } from "../components/MonthTimeline";
-import { SavedStrengthWorkoutsModal } from "../components/SavedStrengthWorkoutsModal";
+import { SavedStrengthWorkoutsDropdown } from "../components/SavedStrengthWorkoutsDropdown";
 import { Screen } from "../components/Screen";
 import { SessionActionMenu } from "../components/SessionActionMenu";
 import { StrengthMessage } from "../components/StrengthFormPrimitives";
@@ -103,16 +103,15 @@ export function StrengthTrainingScreen() {
     <CreateStrengthSessionModal visible={createOpen} selectedDate={selectedDate} template={editTemplate} onClose={() => setCreateOpen(false)} onSaved={refresh} onLogged={refresh} />
     <LogStrengthSessionConfirmationModal template={confirmTemplate} selectedDate={selectedDate} onClose={() => setConfirmTemplate(null)} onLogged={refresh} />
     <StrengthSessionDetailModal timelineEntryId={detailId} onClose={() => setDetailId(null)} />
-    <SavedStrengthWorkoutsModal
+    <SavedStrengthWorkoutsDropdown
       disabled={future}
       error={error}
       loading={loading}
-      templates={templates}
-      visible={savedModalOpen}
-      onClose={() => setSavedModalOpen(false)}
       onEdit={template => { setSavedModalOpen(false); setEditTemplate(template); setCreateOpen(true); }}
       onLog={template => { setSavedModalOpen(false); setConfirmTemplate(template); }}
       onRetry={refresh}
+      templates={templates}
+      visible={savedModalOpen}
     />
   </Screen>;
 }
