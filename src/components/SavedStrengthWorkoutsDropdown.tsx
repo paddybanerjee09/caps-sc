@@ -5,6 +5,7 @@ import { themes } from "../theme/theme";
 import type { StoredStrengthTemplate } from "../types/strength";
 import { CollectionStateView } from "./CollectionStateView";
 import { PressOpacity } from "./PressOpacity";
+import { SavedSessionCardGrid } from "./SavedSessionCardGrid";
 
 const tokens = themes.dark;
 
@@ -50,10 +51,11 @@ export function SavedStrengthWorkoutsDropdown({
           variant="empty"
         />
       ) : (
-        <View style={styles.cards}>
-          {templates.map((template) => (
+        <SavedSessionCardGrid
+          data={templates}
+          keyExtractor={(template) => String(template.id)}
+          renderItem={(template) => (
             <View
-              key={template.id}
               style={[styles.card, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
             >
               <PressOpacity
@@ -77,18 +79,17 @@ export function SavedStrengthWorkoutsDropdown({
                 <Ionicons color={theme.colors.textMuted} name="ellipsis-horizontal" size={22} />
               </PressOpacity>
             </View>
-          ))}
-        </View>
+          )}
+        />
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { borderRadius: tokens.radius.md, padding: tokens.spacing.sm },
-  cards: { gap: tokens.spacing.sm },
-  card: { borderRadius: tokens.radius.md, borderWidth: 1, minHeight: 76, overflow: "hidden" },
-  cardBody: { gap: tokens.spacing.xs, justifyContent: "center", minHeight: 76, padding: tokens.spacing.md, paddingRight: 48 },
+  container: { borderRadius: tokens.radius.md, padding: tokens.spacing.sm, paddingTop: 0 },
+  card: { borderRadius: tokens.radius.md, borderWidth: 1, flex: 1, overflow: "hidden" },
+  cardBody: { flex: 1, gap: tokens.spacing.xs, justifyContent: "center", padding: tokens.spacing.md, paddingRight: 48 },
   title: { fontSize: tokens.typography.label.fontSize, fontWeight: "700" },
   details: { fontSize: tokens.typography.caption.fontSize, lineHeight: tokens.typography.caption.lineHeight },
   edit: { alignItems: "center", height: 44, justifyContent: "center", position: "absolute", right: 0, top: 0, width: 44 },

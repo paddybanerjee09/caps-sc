@@ -347,6 +347,6 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.lg,
   },
   actions: {
-    gap: tokens.spacing.md,
+    gap: 0,
   },
 });

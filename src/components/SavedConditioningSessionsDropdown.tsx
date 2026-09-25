@@ -8,6 +8,7 @@ import { themes } from "../theme/theme";
 import type { StoredConditioningTemplate } from "../types/conditioning";
 import { CollectionStateView } from "./CollectionStateView";
 import { PressOpacity } from "./PressOpacity";
+import { SavedSessionCardGrid } from "./SavedSessionCardGrid";
 
 const tokens = themes.dark;
 
@@ -55,10 +56,11 @@ export function SavedConditioningSessionsDropdown({ onSelect, visible }: Props) 
       ) : templates.length === 0 ? (
         <CollectionStateView label="No saved conditioning sessions yet." variant="empty" />
       ) : (
-        <View style={styles.cards}>
-          {templates.map((template) => (
+        <SavedSessionCardGrid
+          data={templates}
+          keyExtractor={(template) => String(template.id)}
+          renderItem={(template) => (
             <PressOpacity
-              key={template.id}
               accessibilityLabel={`Log saved conditioning session ${template.title}`}
               onPress={() => onSelect(template)}
               style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
@@ -71,17 +73,16 @@ export function SavedConditioningSessionsDropdown({ onSelect, visible }: Props) 
                 <Text numberOfLines={2} style={[styles.details, { color: theme.colors.textMuted }]}>{template.activity} · {template.protocol.type}</Text>
               </View>
             </PressOpacity>
-          ))}
-        </View>
+          )}
+        />
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { borderRadius: tokens.radius.md, padding: tokens.spacing.sm },
-  cards: { gap: tokens.spacing.sm },
-  card: { alignItems: "center", borderRadius: tokens.radius.md, borderWidth: 1, flexDirection: "row", gap: tokens.spacing.md, minHeight: 76, padding: tokens.spacing.md },
+  container: { borderRadius: tokens.radius.md, padding: tokens.spacing.sm, paddingTop: 0 },
+  card: { alignItems: "center", borderRadius: tokens.radius.md, borderWidth: 1, flex: 1, flexDirection: "row", gap: tokens.spacing.sm, padding: tokens.spacing.sm },
   icon: { alignItems: "center", borderRadius: tokens.radius.sm, height: 40, justifyContent: "center", width: 40 },
   text: { flex: 1, gap: tokens.spacing.xs },
   title: { fontSize: tokens.typography.label.fontSize, fontWeight: "700" },

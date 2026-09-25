@@ -170,7 +170,7 @@ export function StrengthTrainingScreen() {
             },
             {
               key: "saved-workouts",
-              label: "Saved Workouts",
+              label: savedModalOpen ? "Hide Saved Workouts" : "Saved Workouts",
               icon: (
                 <MaterialCommunityIcons
                   color={theme.colors.text}
@@ -178,9 +178,26 @@ export function StrengthTrainingScreen() {
                   size={28}
                 />
               ),
-              onPress: () => setSavedModalOpen(true),
+              onPress: () => setSavedModalOpen((open) => !open),
             },
           ]}
+        />
+        <SavedStrengthWorkoutsDropdown
+          disabled={future}
+          error={error}
+          loading={loading}
+          onEdit={(template) => {
+            setSavedModalOpen(false);
+            setEditTemplate(template);
+            setCreateOpen(true);
+          }}
+          onLog={(template) => {
+            setSavedModalOpen(false);
+            setConfirmTemplate(template);
+          }}
+          onRetry={refresh}
+          templates={templates}
+          visible={savedModalOpen}
         />
         {future ? (
           <StrengthMessage>
@@ -205,23 +222,6 @@ export function StrengthTrainingScreen() {
       <StrengthSessionDetailModal
         timelineEntryId={detailId}
         onClose={() => setDetailId(null)}
-      />
-      <SavedStrengthWorkoutsDropdown
-        disabled={future}
-        error={error}
-        loading={loading}
-        onEdit={(template) => {
-          setSavedModalOpen(false);
-          setEditTemplate(template);
-          setCreateOpen(true);
-        }}
-        onLog={(template) => {
-          setSavedModalOpen(false);
-          setConfirmTemplate(template);
-        }}
-        onRetry={refresh}
-        templates={templates}
-        visible={savedModalOpen}
       />
     </Screen>
   );
