@@ -36,7 +36,7 @@ export function SessionActionTile({
           borderColor: primary
             ? theme.colors.tertiary
             : theme.colors.borderStrong,
-          minHeight: 58,
+          minHeight: 48,
           width: "100%",
         },
       ]}
@@ -68,12 +68,12 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: "center",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 6,
   },
   icon: {
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 28,
+    minHeight: 24,
   },
   label: {
     fontSize: 12,
