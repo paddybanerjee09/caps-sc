@@ -64,21 +64,63 @@ export function SavedConditioningSessionsDropdown({ onSelect, visible }: Props) 
         <SavedSessionCardGrid
           data={templates}
           keyExtractor={(template) => String(template.id)}
-          renderItem={(template) => (
+          renderItem={(template, size) => {
+            const compact = size.width < 140;
+
+            return (
             <PressOpacity
               accessibilityLabel={`Log saved conditioning session ${template.title}`}
               onPress={() => onSelect(template)}
-              style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              style={[
+                styles.card,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                  gap: compact ? tokens.spacing.xs : tokens.spacing.sm,
+                  padding: compact ? tokens.spacing.sm : tokens.spacing.md,
+                },
+              ]}
             >
-              <View style={[styles.icon, { backgroundColor: theme.colors.surfaceMuted }]}>
-                <MaterialCommunityIcons color={theme.colors.tertiary} name="run-fast" size={22} />
+              <View
+                style={[
+                  styles.icon,
+                  compact && styles.compactIcon,
+                  { backgroundColor: theme.colors.surfaceMuted },
+                ]}
+              >
+                <MaterialCommunityIcons color={theme.colors.tertiary} name="run-fast" size={compact ? 18 : 22} />
               </View>
               <View style={styles.text}>
-                <Text numberOfLines={1} style={[styles.title, { color: theme.colors.text }]}>{template.title}</Text>
-                <Text numberOfLines={2} style={[styles.details, { color: theme.colors.textMuted }]}>{template.activity} · {template.protocol.type}</Text>
+                <Text
+                  numberOfLines={2}
+                  style={[
+                    styles.title,
+                    {
+                      color: theme.colors.text,
+                      fontSize: compact ? 10 : tokens.typography.label.fontSize,
+                      lineHeight: compact ? 13 : tokens.typography.label.lineHeight,
+                    },
+                  ]}
+                >
+                  {template.title}
+                </Text>
+                <Text
+                  numberOfLines={compact ? 3 : 2}
+                  style={[
+                    styles.details,
+                    {
+                      color: theme.colors.textMuted,
+                      fontSize: compact ? 9 : tokens.typography.caption.fontSize,
+                      lineHeight: compact ? 11 : tokens.typography.caption.lineHeight,
+                    },
+                  ]}
+                >
+                  {template.activity} · {template.protocol.type}
+                </Text>
               </View>
             </PressOpacity>
-          )}
+            );
+          }}
         />
       )}
     </View>
@@ -91,8 +133,9 @@ const styles = StyleSheet.create({
     padding: tokens.spacing.sm,
     paddingTop: tokens.spacing.xs,
   },
-  card: { alignItems: "center", borderRadius: tokens.radius.md, borderWidth: 1, flex: 1, flexDirection: "row", gap: tokens.spacing.sm, padding: tokens.spacing.sm },
+  card: { alignItems: "center", borderRadius: tokens.radius.md, borderWidth: 1, flex: 1, flexDirection: "row" },
   icon: { alignItems: "center", borderRadius: tokens.radius.sm, height: 40, justifyContent: "center", width: 40 },
+  compactIcon: { height: 32, width: 32 },
   text: { flex: 1, gap: tokens.spacing.xs },
   title: { fontSize: tokens.typography.label.fontSize, fontWeight: "700" },
   details: { fontSize: tokens.typography.caption.fontSize },

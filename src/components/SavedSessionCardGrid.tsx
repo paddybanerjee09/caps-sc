@@ -35,7 +35,11 @@ export function SavedSessionCardGrid<T>({
       0,
       (availableWidth - COLUMN_GAP * (columns - 1)) / columns,
     );
-    return { height: width / CARD_ASPECT_RATIO, width };
+    return {
+      height:
+        columns === 1 ? width / CARD_ASPECT_RATIO : Math.max(width * 0.9, 96),
+      width,
+    };
   }, [availableWidth, columns]);
   const needsScroll = data.length > MAX_VISIBLE_CARDS;
   const maxHeight =

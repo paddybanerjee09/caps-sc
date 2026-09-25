@@ -54,7 +54,10 @@ export function SavedStrengthWorkoutsDropdown({
         <SavedSessionCardGrid
           data={templates}
           keyExtractor={(template) => String(template.id)}
-          renderItem={(template) => (
+          renderItem={(template, size) => {
+            const compact = size.width < 140;
+
+            return (
             <View
               style={[styles.card, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
             >
@@ -62,24 +65,52 @@ export function SavedStrengthWorkoutsDropdown({
                 accessibilityLabel={`Log saved workout ${template.title}`}
                 disabled={disabled}
                 onPress={() => onLog(template)}
-                style={styles.cardBody}
+                style={[
+                  styles.cardBody,
+                  {
+                    gap: compact ? tokens.spacing.xs : tokens.spacing.sm,
+                    padding: compact ? tokens.spacing.sm : tokens.spacing.md,
+                    paddingRight: compact ? 36 : 48,
+                  },
+                ]}
               >
-                <Text numberOfLines={1} style={[styles.title, { color: theme.colors.text }]}>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.title,
+                    {
+                      color: theme.colors.text,
+                      fontSize: compact ? 10 : tokens.typography.label.fontSize,
+                      lineHeight: compact ? 13 : tokens.typography.label.lineHeight,
+                    },
+                  ]}
+                >
                   {template.title}
                 </Text>
-                <Text numberOfLines={3} style={[styles.details, { color: theme.colors.textMuted }]}>
+                <Text
+                  numberOfLines={compact ? 4 : 3}
+                  style={[
+                    styles.details,
+                    {
+                      color: theme.colors.textMuted,
+                      fontSize: compact ? 9 : tokens.typography.caption.fontSize,
+                      lineHeight: compact ? 11 : tokens.typography.caption.lineHeight,
+                    },
+                  ]}
+                >
                   {template.exercises.map((exercise) => `${exercise.name} · ${exercise.sets}×${exercise.reps}`).join(", ")}
                 </Text>
               </PressOpacity>
               <PressOpacity
                 accessibilityLabel={`Edit saved workout ${template.title}`}
                 onPress={() => onEdit(template)}
-                style={styles.edit}
+                style={[styles.edit, compact && styles.compactEdit]}
               >
-                <Ionicons color={theme.colors.textMuted} name="ellipsis-horizontal" size={22} />
+                <Ionicons color={theme.colors.textMuted} name="ellipsis-horizontal" size={compact ? 18 : 22} />
               </PressOpacity>
             </View>
-          )}
+            );
+          }}
         />
       )}
     </View>
@@ -93,8 +124,9 @@ const styles = StyleSheet.create({
     paddingTop: tokens.spacing.xs,
   },
   card: { borderRadius: tokens.radius.md, borderWidth: 1, flex: 1, overflow: "hidden" },
-  cardBody: { flex: 1, gap: tokens.spacing.xs, justifyContent: "center", padding: tokens.spacing.md, paddingRight: 48 },
+  cardBody: { flex: 1, justifyContent: "center" },
   title: { fontSize: tokens.typography.label.fontSize, fontWeight: "700" },
   details: { fontSize: tokens.typography.caption.fontSize, lineHeight: tokens.typography.caption.lineHeight },
   edit: { alignItems: "center", height: 44, justifyContent: "center", position: "absolute", right: 0, top: 0, width: 44 },
+  compactEdit: { height: 36, width: 36 },
 });
