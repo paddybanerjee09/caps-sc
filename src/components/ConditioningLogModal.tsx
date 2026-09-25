@@ -21,6 +21,7 @@ import {
 } from "../constants/conditioning";
 import {
   ConditioningValidationError,
+  createConditioningTemplate,
   getAthleteConditioningBaselines,
   logCompletedConditioningSession,
   updateCompletedConditioningSession,
@@ -207,6 +208,51 @@ export function ConditioningLogModal({
     );
     setTemplateSelectorOpen(false);
     setStep("form");
+  }
+
+  async function saveTemplate() {
+    if (savingGuard.current || editing) return;
+
+    const title = draft.titleInput.trim();
+    if (
+      title.length === 0 ||
+      title.length > conditioningValidationLimits.titleLength
+    ) {
+      Alert.alert(
+        "Invalid session",
+        `Add a title no longer than ${conditioningValidationLimits.titleLength} characters.`,
+      );
+      return;
+    }
+
+    if (!analysis.ok) {
+      Alert.alert("Check conditioning session", analysis.message);
+      return;
+    }
+
+    savingGuard.current = true;
+    setSaving(true);
+
+    try {
+      await createConditioningTemplate(db, {
+        activity: draft.activity,
+        intensity: analysis.intensity,
+        notes: draft.notesInput.trim() || null,
+        protocol: analysis.protocol,
+        title,
+      });
+      onClose();
+    } catch (error) {
+      Alert.alert(
+        "Couldn't save conditioning session",
+        error instanceof ConditioningValidationError
+          ? error.message
+          : "Please try again.",
+      );
+    } finally {
+      savingGuard.current = false;
+      setSaving(false);
+    }
   }
 
   async function saveSession() {
@@ -434,6 +480,17 @@ export function ConditioningLogModal({
                     >
                       <Text style={{ color: theme.colors.textMuted }}>Cancel</Text>
                     </PressOpacity>
+
+                    {!editing ? (
+                      <PressOpacity
+                        accessibilityLabel="Save conditioning session"
+                        disabled={loadingBaselines || baselineError || saving}
+                        onPress={() => void saveTemplate()}
+                        style={styles.actionButton}
+                      >
+                        <Text style={{ color: theme.colors.tertiary }}>Save</Text>
+                      </PressOpacity>
+                    ) : null}
 
                     <PressOpacity
                       accessibilityLabel={
