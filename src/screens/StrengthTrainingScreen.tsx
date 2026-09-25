@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { CreateStrengthSessionModal } from "../components/CreateStrengthSessionModal";
 import { LogStrengthSessionConfirmationModal } from "../components/LogStrengthSessionConfirmationModal";
 import {
@@ -122,7 +122,7 @@ export function StrengthTrainingScreen() {
   const future = dayStart.getTime() > today.getTime();
   return (
     <Screen title="Strength Training" centerTitle>
-      <View style={{ gap: themes.dark.spacing.md }}>
+      <View style={styles.content}>
         <MonthTimeline
           displayedMonth={month}
           selectedDate={selectedDate}
@@ -149,8 +149,9 @@ export function StrengthTrainingScreen() {
           }}
           onEventPress={(event) => setDetailId(event.timelineEntryId)}
         />
-        <SessionActionMenu
-          items={[
+        <View style={styles.actions}>
+          <SessionActionMenu
+            items={[
             {
               key: "log-workout",
               label: "Log Workout",
@@ -180,25 +181,26 @@ export function StrengthTrainingScreen() {
               ),
               onPress: () => setSavedModalOpen((open) => !open),
             },
-          ]}
-        />
-        <SavedStrengthWorkoutsDropdown
-          disabled={future}
-          error={error}
-          loading={loading}
-          onEdit={(template) => {
-            setSavedModalOpen(false);
-            setEditTemplate(template);
-            setCreateOpen(true);
-          }}
-          onLog={(template) => {
-            setSavedModalOpen(false);
-            setConfirmTemplate(template);
-          }}
-          onRetry={refresh}
-          templates={templates}
-          visible={savedModalOpen}
-        />
+            ]}
+          />
+          <SavedStrengthWorkoutsDropdown
+            disabled={future}
+            error={error}
+            loading={loading}
+            onEdit={(template) => {
+              setSavedModalOpen(false);
+              setEditTemplate(template);
+              setCreateOpen(true);
+            }}
+            onLog={(template) => {
+              setSavedModalOpen(false);
+              setConfirmTemplate(template);
+            }}
+            onRetry={refresh}
+            templates={templates}
+            visible={savedModalOpen}
+          />
+        </View>
         {future ? (
           <StrengthMessage>
             Completed sessions can only be logged for today or an earlier date.
@@ -226,3 +228,8 @@ export function StrengthTrainingScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  content: { gap: themes.dark.spacing.md },
+  actions: { gap: 0 },
+});

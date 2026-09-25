@@ -14,7 +14,6 @@ const tokens = themes.dark;
 
 type Props = {
   onSelect: (template: StoredConditioningTemplate) => void;
-  onRetry?: () => void;
   visible: boolean;
 };
 
@@ -24,6 +23,7 @@ export function SavedConditioningSessionsDropdown({ onSelect, visible }: Props) 
   const [templates, setTemplates] = useState<StoredConditioningTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadRevision, setLoadRevision] = useState(0);
 
   useEffect(() => {
     if (!visible) return;
@@ -43,7 +43,7 @@ export function SavedConditioningSessionsDropdown({ onSelect, visible }: Props) 
     return () => {
       active = false;
     };
-  }, [db, visible]);
+  }, [db, loadRevision, visible]);
 
   if (!visible) return null;
 
@@ -52,7 +52,12 @@ export function SavedConditioningSessionsDropdown({ onSelect, visible }: Props) 
       {loading ? (
         <CollectionStateView label="Loading saved sessions…" variant="loading" />
       ) : error ? (
-        <CollectionStateView label={error} variant="error" />
+        <CollectionStateView
+          actionLabel="Retry saved sessions"
+          label={error}
+          onAction={() => setLoadRevision((revision) => revision + 1)}
+          variant="error"
+        />
       ) : templates.length === 0 ? (
         <CollectionStateView label="No saved conditioning sessions yet." variant="empty" />
       ) : (
