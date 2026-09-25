@@ -86,7 +86,11 @@ export function SavedConditioningSessionsDropdown({ onSelect, visible }: Props) 
 }
 
 const styles = StyleSheet.create({
-  container: { borderRadius: tokens.radius.md, padding: tokens.spacing.sm, paddingTop: 0 },
+  container: {
+    borderRadius: tokens.radius.md,
+    padding: tokens.spacing.sm,
+    paddingTop: tokens.spacing.xs,
+  },
   card: { alignItems: "center", borderRadius: tokens.radius.md, borderWidth: 1, flex: 1, flexDirection: "row", gap: tokens.spacing.sm, padding: tokens.spacing.sm },
   icon: { alignItems: "center", borderRadius: tokens.radius.sm, height: 40, justifyContent: "center", width: 40 },
   text: { flex: 1, gap: tokens.spacing.xs },

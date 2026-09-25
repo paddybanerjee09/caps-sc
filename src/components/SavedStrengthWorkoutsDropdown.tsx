@@ -87,7 +87,11 @@ export function SavedStrengthWorkoutsDropdown({
 }
 
 const styles = StyleSheet.create({
-  container: { borderRadius: tokens.radius.md, padding: tokens.spacing.sm, paddingTop: 0 },
+  container: {
+    borderRadius: tokens.radius.md,
+    padding: tokens.spacing.sm,
+    paddingTop: tokens.spacing.xs,
+  },
   card: { borderRadius: tokens.radius.md, borderWidth: 1, flex: 1, overflow: "hidden" },
   cardBody: { flex: 1, gap: tokens.spacing.xs, justifyContent: "center", padding: tokens.spacing.md, paddingRight: 48 },
   title: { fontSize: tokens.typography.label.fontSize, fontWeight: "700" },
