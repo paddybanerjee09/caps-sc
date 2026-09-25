@@ -9,7 +9,8 @@ import {
 const MAX_VISIBLE_ROWS = 3;
 const MAX_VISIBLE_CARDS = 9;
 const CARD_ASPECT_RATIO = 4 / 3;
-const GAP = 8;
+const COLUMN_GAP = 8;
+const ROW_GAP = 4;
 
 export type SavedSessionCardSize = {
   height: number;
@@ -30,11 +31,15 @@ export function SavedSessionCardGrid<T>({
   const [availableWidth, setAvailableWidth] = useState(0);
   const columns = getColumnCount(data.length);
   const cardSize = useMemo(() => {
-    const width = Math.max(0, (availableWidth - GAP * (columns - 1)) / columns);
+    const width = Math.max(
+      0,
+      (availableWidth - COLUMN_GAP * (columns - 1)) / columns,
+    );
     return { height: width / CARD_ASPECT_RATIO, width };
   }, [availableWidth, columns]);
   const needsScroll = data.length > MAX_VISIBLE_CARDS;
-  const maxHeight = cardSize.height * MAX_VISIBLE_ROWS + GAP * (MAX_VISIBLE_ROWS - 1);
+  const maxHeight =
+    cardSize.height * MAX_VISIBLE_ROWS + ROW_GAP * (MAX_VISIBLE_ROWS - 1);
 
   function updateAvailableWidth(event: LayoutChangeEvent) {
     const nextWidth = Math.floor(event.nativeEvent.layout.width);
@@ -79,6 +84,11 @@ function getColumnCount(itemCount: number) {
 
 const styles = StyleSheet.create({
   container: { width: "100%" },
-  cards: { flexDirection: "row", flexWrap: "wrap", gap: GAP },
+  cards: {
+    columnGap: COLUMN_GAP,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: ROW_GAP,
+  },
   scrollContent: { paddingRight: 2 },
 });
