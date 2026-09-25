@@ -53,6 +53,7 @@ import {
 import { ConditioningSessions } from "./ConditioningSessions";
 import { LogTimeChanger } from "./LogTimeChanger";
 import { PressOpacity } from "./PressOpacity";
+import { StrengthButton, strengthStyles } from "./StrengthFormPrimitives";
 
 const tokens = themes.dark;
 const EMPTY_BASELINES: AthleteConditioningBaselines = {
@@ -349,7 +350,7 @@ export function ConditioningLogModal({
       <AppModalFrame
         dismissDisabled={saving}
         visible={visible && !templateSelectorOpen}
-        width="form"
+        width="wide"
         onClose={closeModal}
       >
         {step === "adaptation" ? (
@@ -441,80 +442,68 @@ export function ConditioningLogModal({
                   </ScrollView>
                 )}
 
-                <View
-                  style={[
-                    styles.actions,
-                    { borderTopColor: theme.colors.border },
-                  ]}
-                >
+                <>
                   {!editing ? (
-                    <PressOpacity
-                      accessibilityLabel="Choose a pre-existing conditioning session"
-                      disabled={loadingBaselines || baselineError || saving}
-                      onPress={() => setTemplateSelectorOpen(true)}
-                      style={[
-                        styles.templateButton,
-                        {
-                          backgroundColor: theme.colors.surfaceMuted,
-                          borderColor: theme.colors.borderStrong,
-                        },
-                      ]}
-                    >
-                      <Text
+                    <View style={styles.templateSection}>
+                      <PressOpacity
+                        accessibilityLabel="Choose a pre-existing conditioning session"
+                        disabled={loadingBaselines || baselineError || saving}
+                        onPress={() => setTemplateSelectorOpen(true)}
                         style={[
-                          styles.templateButtonText,
-                          { color: theme.colors.text },
+                          styles.templateButton,
+                          {
+                            backgroundColor: theme.colors.surfaceMuted,
+                            borderColor: theme.colors.borderStrong,
+                          },
                         ]}
                       >
-                        Log Pre-existing Session
-                      </Text>
-                    </PressOpacity>
+                        <Text
+                          style={[
+                            styles.templateButtonText,
+                            { color: theme.colors.text },
+                          ]}
+                        >
+                          Log Pre-existing Session
+                        </Text>
+                      </PressOpacity>
+                    </View>
                   ) : null}
 
-                  <View style={styles.actionRow}>
-                    <PressOpacity
+                  <View
+                    style={[
+                      strengthStyles.actions,
+                      { borderTopColor: theme.colors.border, justifyContent: "flex-end" },
+                    ]}
+                  >
+                    <StrengthButton
                       accessibilityLabel="Cancel conditioning log"
                       disabled={saving}
+                      label="Cancel"
                       onPress={closeModal}
-                      style={styles.actionButton}
-                    >
-                      <Text style={{ color: theme.colors.textMuted }}>Cancel</Text>
-                    </PressOpacity>
+                    />
 
                     {!editing ? (
-                      <PressOpacity
+                      <StrengthButton
                         accessibilityLabel="Save conditioning session"
                         disabled={loadingBaselines || baselineError || saving}
+                        label="Save"
                         onPress={() => void saveTemplate()}
-                        style={styles.actionButton}
-                      >
-                        <Text style={{ color: theme.colors.tertiary }}>Save</Text>
-                      </PressOpacity>
+                      />
                     ) : null}
 
-                    <PressOpacity
+                    <StrengthButton
                       accessibilityLabel={
                         editing
                           ? "Update conditioning session"
                           : "Log conditioning session"
                       }
                       disabled={loadingBaselines || baselineError || saving}
+                      label={editing ? "Update" : "Log"}
                       onPress={() => void saveSession()}
-                      style={styles.actionButton}
-                    >
-                      {saving ? (
-                        <ActivityIndicator
-                          color={theme.colors.tertiary}
-                          size="small"
-                        />
-                      ) : (
-                        <Text style={{ color: theme.colors.tertiary }}>
-                          {editing ? "Update Session" : "Log Session"}
-                        </Text>
-                      )}
-                    </PressOpacity>
+                      primary
+                    />
                   </View>
-                </View>
+                </>
           </>
         )}
       </AppModalFrame>
@@ -613,11 +602,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
     minWidth: 72,
   },
-  actions: {
-    borderTopWidth: 1,
-    gap: tokens.spacing.sm,
+  templateSection: {
     paddingHorizontal: tokens.spacing.lg,
-    paddingVertical: tokens.spacing.md,
+    paddingTop: tokens.spacing.md,
   },
   templateButton: {
     alignItems: "center",
@@ -633,16 +620,5 @@ const styles = StyleSheet.create({
     fontWeight: tokens.typography.label.fontWeight,
     lineHeight: tokens.typography.label.lineHeight,
     textAlign: "center",
-  },
-  actionRow: {
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-    justifyContent: "flex-end",
-  },
-  actionButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
-    minWidth: 88,
   },
 });
