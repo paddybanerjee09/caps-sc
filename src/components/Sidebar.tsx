@@ -1,15 +1,21 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { ComponentProps } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import {
-  Animated,
-  Easing,
   Pressable,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from "react-native";
+import Animated, {
+  Easing,
+  interpolate,
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
 import {
   sidebarItems,
@@ -48,49 +54,44 @@ export function Sidebar({
 }: SidebarProps) {
   const { width } = useWindowDimensions();
   const { theme } = useAppTheme();
-  const [mounted, setMounted] = useState(open);
-  const progress = useRef(new Animated.Value(open ? 1 : 0)).current;
-  const panelWidth = Math.min(width * 0.58, 240);
+  const progress = useSharedValue(open ? 1 : 0);
+  const panelWidth = Math.round(width * 0.55);
 
   useEffect(() => {
-    if (open) {
-      setMounted(true);
-    }
-
-    Animated.timing(progress, {
-      duration: 180,
-      easing: Easing.out(Easing.cubic),
-      toValue: open ? 1 : 0,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished && !open) {
-        setMounted(false);
-      }
-    });
+    progress.set(
+      withTiming(open ? 1 : 0, {
+        duration: 300,
+        easing: Easing.bezier(0.23, 1, 0.32, 1),
+        reduceMotion: ReduceMotion.System,
+      }),
+    );
   }, [open, progress]);
 
-  if (!mounted) {
-    return null;
-  }
-
-  const scrimOpacity = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
-  const translateX = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-panelWidth, 0],
-  });
+  const scrimStyle = useAnimatedStyle(() => ({
+    opacity: progress.get(),
+  }));
+  const panelStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateX: interpolate(progress.get(), [0, 1], [-panelWidth, 0]),
+      },
+    ],
+  }));
 
   return (
-    <View pointerEvents={open ? "auto" : "none"} style={styles.overlay}>
+    <View
+      accessibilityViewIsModal={open}
+      importantForAccessibility={open ? "yes" : "no-hide-descendants"}
+      pointerEvents={open ? "auto" : "none"}
+      style={styles.overlay}
+    >
       <Animated.View
         style={[
           styles.scrim,
           {
             backgroundColor: theme.colors.overlay,
-            opacity: scrimOpacity,
           },
+          scrimStyle,
         ]}
       >
         <Pressable
@@ -107,9 +108,9 @@ export function Sidebar({
             borderRightColor: theme.colors.border,
             paddingBottom: bottomInset + theme.spacing.xl,
             paddingTop: topInset + theme.spacing.xl,
-            transform: [{ translateX }],
             width: panelWidth,
           },
+          panelStyle,
         ]}
       >
         {sidebarItems.map((item) => {
@@ -149,19 +150,31 @@ export function Sidebar({
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    bottom: 0,
     flexDirection: "row",
-    zIndex: 10,
+    elevation: 1000,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    zIndex: 1000,
   },
   scrim: {
-    ...StyleSheet.absoluteFillObject,
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
   scrimPress: {
     flex: 1,
   },
   panel: {
     borderRightWidth: StyleSheet.hairlineWidth,
+    elevation: 1001,
+    height: "100%",
     paddingHorizontal: tokens.spacing.lg,
+    zIndex: 1,
   },
   item: {
     alignItems: "center",

@@ -8,7 +8,6 @@
     "icon": "./assets/images/CAPS App Logo.png",
     "scheme": "capssc",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },

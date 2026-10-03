@@ -20,12 +20,14 @@ import { PressOpacity } from "./PressOpacity";
 const tokens = themes.dark;
 
 type LogTimeChangerProps = {
+  inline?: boolean;
   maximumDate?: Date;
   onChange: (date: Date) => void;
   value: Date;
 };
 
 export function LogTimeChanger({
+  inline = false,
   maximumDate,
   onChange,
   value,
@@ -98,7 +100,7 @@ export function LogTimeChanger({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, inline && styles.inlineContainer]}>
       <PressOpacity
         accessibilityLabel={`Change log time. Currently ${formatFullDateTime(
           value,
@@ -215,6 +217,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: tokens.spacing.sm,
     width: "100%",
+  },
+  inlineContainer: {
+    alignSelf: "flex-end",
+    paddingTop: 0,
+    width: "auto",
   },
   button: {
     alignItems: "center",

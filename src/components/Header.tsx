@@ -1,7 +1,6 @@
 import {
   Image,
   StyleSheet,
-  Text,
   View,
   type ImageSourcePropType,
 } from "react-native";
@@ -78,13 +77,6 @@ export function Header({ onMenuPress, topInset }: HeaderProps) {
         style={[styles.logo, { top: topInset + theme.spacing.sm + 3 }]}
       />
 
-      <PressOpacity
-        accessibilityLabel="CAPS AI"
-        onPress={() => {}}
-        style={[styles.aiButton, { backgroundColor: theme.colors.tertiary }]}
-      >
-        <Text style={styles.aiButtonText}>CAPS AI</Text>
-      </PressOpacity>
     </View>
   );
 }
@@ -94,7 +86,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     paddingBottom: tokens.spacing.sm,
     paddingHorizontal: tokens.spacing.lg,
   },
@@ -117,18 +109,5 @@ const styles = StyleSheet.create({
     height: 2,
     marginVertical: 2,
     width: 17,
-  },
-  aiButton: {
-    alignItems: "center",
-    borderRadius: 999,
-    justifyContent: "center",
-    minHeight: 40,
-    paddingHorizontal: tokens.spacing.lg,
-  },
-  aiButtonText: {
-    color: "#FFFFFF",
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
-    lineHeight: tokens.typography.label.lineHeight,
   },
 });

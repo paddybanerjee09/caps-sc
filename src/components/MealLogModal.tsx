@@ -97,8 +97,9 @@ export function MealLogModal({
   const [initializationError, setInitializationError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [servingEditor, setServingEditor] =
-    useState<ServingEditorState | null>(null);
+  const [servingEditor, setServingEditor] = useState<ServingEditorState | null>(
+    null,
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<
@@ -189,12 +190,7 @@ export function MealLogModal({
     }
   }, [db, selectedDate]);
 
-  useEffect(() => {
-    if (!visible) {
-      initializationRequestId.current += 1;
-      return;
-    }
-
+  const initializeModal = useCallback(() => {
     resetSearchDraft();
     setSaving(false);
     setDeleting(false);
@@ -223,6 +219,23 @@ export function MealLogModal({
     } else {
       void initializeCreateDraft();
     }
+  }, [initializeCreateDraft, mealToEdit, resetSearchDraft]);
+
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(initializeModal, 0);
+
+      return () => {
+        clearTimeout(timer);
+        initializationRequestId.current += 1;
+        cancelSearchRequest();
+        cancelDetailsRequest();
+      };
+    } else {
+      initializationRequestId.current += 1;
+      cancelSearchRequest();
+      cancelDetailsRequest();
+    }
 
     return () => {
       initializationRequestId.current += 1;
@@ -232,9 +245,7 @@ export function MealLogModal({
   }, [
     cancelDetailsRequest,
     cancelSearchRequest,
-    initializeCreateDraft,
-    mealToEdit,
-    resetSearchDraft,
+    initializeModal,
     visible,
   ]);
 
@@ -282,13 +293,8 @@ export function MealLogModal({
     }
 
     const query = searchQuery.trim();
-    cancelSearchRequest();
-    setSearchError(null);
-    setSearchResults([]);
-    setLastSubmittedQuery("");
 
     if (query.length < MINIMUM_SEARCH_LENGTH) {
-      setSearchLoading(false);
       return;
     }
 
@@ -300,6 +306,18 @@ export function MealLogModal({
       clearTimeout(timeout);
     };
   }, [cancelSearchRequest, runSearch, searchQuery, visible]);
+
+  function changeSearchQuery(query: string) {
+    cancelSearchRequest();
+    setSearchQuery(query);
+    setSearchError(null);
+    setSearchResults([]);
+    setLastSubmittedQuery("");
+
+    if (query.trim().length < MINIMUM_SEARCH_LENGTH) {
+      setSearchLoading(false);
+    }
+  }
 
   const parsedDraftItems = useMemo(
     () =>
@@ -413,9 +431,7 @@ export function MealLogModal({
   }
 
   function selectSearchResult(result: NormalizedFoodSearchResult) {
-    const existingItem = draftItems.find(
-      (item) => item.fdcId === result.fdcId,
-    );
+    const existingItem = draftItems.find((item) => item.fdcId === result.fdcId);
 
     if (existingItem) {
       openFoodEditor(existingItem);
@@ -540,11 +556,7 @@ export function MealLogModal({
   }
 
   async function deleteExistingMeal() {
-    if (
-      !mealToEdit ||
-      deletingGuard.current ||
-      savingGuard.current
-    ) {
+    if (!mealToEdit || deletingGuard.current || savingGuard.current) {
       return;
     }
 
@@ -581,9 +593,7 @@ export function MealLogModal({
   const searchText = searchQuery.trim();
   const searchDropdownOpen =
     searchText.length >= MINIMUM_SEARCH_LENGTH &&
-    (searchLoading ||
-      searchError !== null ||
-      lastSubmittedQuery.length > 0);
+    (searchLoading || searchError !== null || lastSubmittedQuery.length > 0);
   const busy = saving || deleting;
 
   return (
@@ -667,36 +677,33 @@ export function MealLogModal({
               </View>
             ) : (
               <>
+                <Text style={[styles.label, { color: theme.colors.text }]}>
+                  Title
+                </Text>
                 <View style={styles.titleTimeRow}>
-                  <View style={styles.titleField}>
-                    <Text style={[styles.label, { color: theme.colors.text }]}>
-                      Title
-                    </Text>
-                    <TextInput
-                      accessibilityLabel="Meal title"
-                      maxLength={50}
-                      onChangeText={setTitle}
-                      placeholder="Meal title"
-                      placeholderTextColor={theme.colors.textMuted}
-                      selectionColor={theme.colors.tertiary}
-                      style={[
-                        styles.textInput,
-                        {
-                          borderColor: theme.colors.borderStrong,
-                          color: theme.colors.text,
-                        },
-                      ]}
-                      value={title}
-                    />
-                  </View>
-
+                  <TextInput
+                    accessibilityLabel="Meal title"
+                    maxLength={50}
+                    onChangeText={setTitle}
+                    placeholder="Meal title"
+                    placeholderTextColor={theme.colors.textMuted}
+                    selectionColor={theme.colors.tertiary}
+                    style={[
+                      styles.textInput,
+                      styles.titleField,
+                      {
+                        borderColor: theme.colors.borderStrong,
+                        color: theme.colors.text,
+                      },
+                    ]}
+                    value={title}
+                  />
                   {visible ? (
-                    <View style={styles.timeField}>
-                      <LogTimeChanger
-                        onChange={setLoggedAt}
-                        value={loggedAt}
-                      />
-                    </View>
+                    <LogTimeChanger
+                      inline
+                      onChange={setLoggedAt}
+                      value={loggedAt}
+                    />
                   ) : null}
                 </View>
 
@@ -719,15 +726,12 @@ export function MealLogModal({
                       accessibilityLabel="Search foods"
                       autoCapitalize="none"
                       autoCorrect={false}
-                      onChangeText={setSearchQuery}
+                      onChangeText={changeSearchQuery}
                       placeholder="Search USDA foods"
                       placeholderTextColor={theme.colors.textMuted}
                       returnKeyType="search"
                       selectionColor={theme.colors.tertiary}
-                      style={[
-                        styles.searchInput,
-                        { color: theme.colors.text },
-                      ]}
+                      style={[styles.searchInput, { color: theme.colors.text }]}
                       value={searchQuery}
                     />
 
@@ -740,9 +744,7 @@ export function MealLogModal({
                       >
                         {searchLoading ? (
                           <View style={styles.searchState}>
-                            <ActivityIndicator
-                              color={theme.colors.tertiary}
-                            />
+                            <ActivityIndicator color={theme.colors.tertiary} />
                           </View>
                         ) : searchError ? (
                           <View style={styles.searchState}>
@@ -763,9 +765,7 @@ export function MealLogModal({
                               }
                               style={styles.retryButton}
                             >
-                              <Text
-                                style={{ color: theme.colors.tertiary }}
-                              >
+                              <Text style={{ color: theme.colors.tertiary }}>
                                 Retry
                               </Text>
                             </PressOpacity>
@@ -803,8 +803,7 @@ export function MealLogModal({
                                     styles.searchResult,
                                     index > 0
                                       ? {
-                                          borderTopColor:
-                                            theme.colors.border,
+                                          borderTopColor: theme.colors.border,
                                           borderTopWidth: 1,
                                         }
                                       : null,
@@ -871,9 +870,7 @@ export function MealLogModal({
                                       (resultError !== null &&
                                         !resultError.retryable)
                                     }
-                                    onPress={() =>
-                                      selectSearchResult(result)
-                                    }
+                                    onPress={() => selectSearchResult(result)}
                                     style={styles.resultActionButton}
                                   >
                                     {loadingDetails ? (
@@ -988,9 +985,7 @@ export function MealLogModal({
                               <NutrientValue
                                 label="kcal"
                                 quantityInput={item.quantityInput}
-                                value={
-                                  item.nutrientsPerServing.energyKcal
-                                }
+                                value={item.nutrientsPerServing.energyKcal}
                               />
                               <NutrientValue
                                 label="P"
@@ -1002,10 +997,7 @@ export function MealLogModal({
                                 label="C"
                                 quantityInput={item.quantityInput}
                                 unit="g"
-                                value={
-                                  item.nutrientsPerServing
-                                    .carbohydratesG
-                                }
+                                value={item.nutrientsPerServing.carbohydratesG}
                               />
                               <NutrientValue
                                 label="F"
@@ -1038,10 +1030,7 @@ export function MealLogModal({
 
           {!servingEditor ? (
             <View
-              style={[
-                styles.actions,
-                { borderTopColor: theme.colors.border },
-              ]}
+              style={[styles.actions, { borderTopColor: theme.colors.border }]}
             >
               {mealToEdit ? (
                 <PressOpacity
@@ -1069,9 +1058,7 @@ export function MealLogModal({
                 onPress={closeModal}
                 style={styles.actionButton}
               >
-                <Text style={{ color: theme.colors.textMuted }}>
-                  Cancel
-                </Text>
+                <Text style={{ color: theme.colors.textMuted }}>Cancel</Text>
               </PressOpacity>
 
               <PressOpacity
@@ -1213,24 +1200,14 @@ function formatSearchResultAccessibility(
       "kilocalories",
       true,
     ),
-    formatAccessibleNutrient(
-      "Protein",
-      nutrients.proteinG,
-      "grams",
-      false,
-    ),
+    formatAccessibleNutrient("Protein", nutrients.proteinG, "grams", false),
     formatAccessibleNutrient(
       "Carbohydrates",
       nutrients.carbohydratesG,
       "grams",
       false,
     ),
-    formatAccessibleNutrient(
-      "Fat",
-      nutrients.fatG,
-      "grams",
-      false,
-    ),
+    formatAccessibleNutrient("Fat", nutrients.fatG, "grams", false),
   ].join(", ");
 
   return [
@@ -1349,16 +1326,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
   },
   titleTimeRow: {
-    alignItems: "flex-end",
+    alignItems: "stretch",
     flexDirection: "row",
     gap: tokens.spacing.md,
   },
   titleField: {
     flex: 1,
     minWidth: 0,
-  },
-  timeField: {
-    width: 120,
   },
   section: {
     gap: tokens.spacing.sm,

@@ -71,16 +71,15 @@ export function NutritionScreen() {
   }, [dayEnd, dayStart, db]);
 
   useEffect(() => {
-    void loadMeals();
+    const timer = setTimeout(() => {
+      void loadMeals();
+    }, 0);
 
     return () => {
+      clearTimeout(timer);
       requestId.current += 1;
     };
   }, [loadMeals]);
-
-  useEffect(() => {
-    setExpandedMealId(null);
-  }, [currentDay]);
 
   useEffect(() => {
     const today = new Date();
@@ -119,6 +118,11 @@ export function NutritionScreen() {
     setSelectedMeal(null);
   }
 
+  function changeDay(numberOfDays: number) {
+    setExpandedMealId(null);
+    setCurrentDay((selectedDate) => shiftLocalDate(selectedDate, numberOfDays));
+  }
+
   async function handleMealSaved(loggedAt: number) {
     const loggedDate = new Date(loggedAt);
 
@@ -141,9 +145,7 @@ export function NutritionScreen() {
           accessibilityLabel={`Show previous day, ${formatFullDate(
             previousDate,
           )}`}
-          onPress={() =>
-            setCurrentDay((selectedDate) => shiftLocalDate(selectedDate, -1))
-          }
+          onPress={() => changeDay(-1)}
           style={styles.dateArrow}
         >
           <Ionicons
@@ -162,9 +164,7 @@ export function NutritionScreen() {
 
         <PressOpacity
           accessibilityLabel={`Show next day, ${formatFullDate(nextDate)}`}
-          onPress={() =>
-            setCurrentDay((selectedDate) => shiftLocalDate(selectedDate, 1))
-          }
+          onPress={() => changeDay(1)}
           style={styles.dateArrow}
         >
           <Ionicons

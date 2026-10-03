@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"; // React imports
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+
+import Animated, {
+  Easing,
+  interpolate,
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
 import Ionicons from "@expo/vector-icons/Ionicons"; // Style Imports
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
@@ -57,7 +66,7 @@ export function HomeScreen() {
   const sportsText = formatSports(athleteProfile.sports);
 
   const [quickLogOpen, setQuickLogOpen] = useState(false);
-  const quickLogAnimation = useRef(new Animated.Value(0)).current;
+  const quickLogAnimation = useSharedValue(0);
 
   const [selectedHomeSection, setSelectedHomeSection] =
     useState<HomeSection>("today");
@@ -67,13 +76,19 @@ export function HomeScreen() {
 
     setQuickLogOpen(willOpen);
 
-    Animated.timing(quickLogAnimation, {
-      toValue: willOpen ? 1 : 0,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
+    quickLogAnimation.set(
+      withTiming(willOpen ? 1 : 0, {
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        reduceMotion: ReduceMotion.System,
+      }),
+    );
   }
+
+  const quickLogMenuStyle = useAnimatedStyle(() => ({
+    height: interpolate(quickLogAnimation.get(), [0, 1], [0, 188]),
+    opacity: quickLogAnimation.get(),
+  }));
 
   const db = useSQLiteContext();
 
@@ -122,9 +137,12 @@ export function HomeScreen() {
   }, [dayEnd, dayStart, db]);
 
   useEffect(() => {
-    void loadSelectedDateEntries();
+    const timer = setTimeout(() => {
+      void loadSelectedDateEntries();
+    }, 0);
 
     return () => {
+      clearTimeout(timer);
       timelineRequestId.current += 1;
     };
   }, [loadSelectedDateEntries]);
@@ -244,21 +262,7 @@ export function HomeScreen() {
       <Animated.View
         style={[
           styles.quickLogMenuWrapper,
-          {
-            height: quickLogAnimation.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 188],
-            }),
-            opacity: quickLogAnimation,
-            transform: [
-              {
-                translateY: quickLogAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 0],
-                }),
-              },
-            ],
-          },
+          quickLogMenuStyle,
         ]}
       >
         <View
