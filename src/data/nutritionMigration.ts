@@ -1,4 +1,6 @@
-export const nutritionV5MigrationSql = `
+export const nutritionV5RebuildSql = `
+DROP TABLE IF EXISTS meal_items_v5;
+
 CREATE TABLE meal_items_v5 (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   meal_timeline_entry_id INTEGER NOT NULL,
@@ -90,26 +92,23 @@ FROM meal_items;
 DROP TABLE meal_items;
 ALTER TABLE meal_items_v5 RENAME TO meal_items;
 
+CREATE INDEX IF NOT EXISTS meal_items_meal_timeline_entry_id
+ON meal_items (meal_timeline_entry_id);
+
+CREATE INDEX IF NOT EXISTS meal_items_food_identity
+ON meal_items (source, external_id);
+`;
+
+export const nutritionV5SequenceSql = `
 DELETE FROM sqlite_sequence
 WHERE name = 'meal_items' OR name = 'meal_items_v5';
 
 INSERT INTO sqlite_sequence (name, seq)
 SELECT 'meal_items', COALESCE(MAX(id), 0) FROM meal_items;
+`;
 
-CREATE INDEX meal_items_meal_timeline_entry_id
-ON meal_items (meal_timeline_entry_id);
-
-CREATE INDEX meal_items_food_identity
-ON meal_items (source, external_id);
-
-ALTER TABLE meal_logs ADD COLUMN operation_id TEXT;
-ALTER TABLE meal_logs ADD COLUMN saved_meal_id TEXT;
-
-CREATE UNIQUE INDEX meal_logs_operation_id
-ON meal_logs (operation_id)
-WHERE operation_id IS NOT NULL;
-
-CREATE TABLE nutrition_operations (
+export const nutritionV5TablesSql = `
+CREATE TABLE IF NOT EXISTS nutrition_operations (
   operation_id TEXT PRIMARY KEY,
   kind TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('pending', 'committed')),
@@ -117,7 +116,7 @@ CREATE TABLE nutrition_operations (
   created_at INTEGER NOT NULL
 );
 
-CREATE TABLE custom_foods (
+CREATE TABLE IF NOT EXISTS custom_foods (
   id TEXT PRIMARY KEY,
   operation_id TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL CHECK (length(trim(name)) > 0),
@@ -135,7 +134,7 @@ CREATE TABLE custom_foods (
   updated_at INTEGER NOT NULL
 );
 
-CREATE TABLE food_favourites (
+CREATE TABLE IF NOT EXISTS food_favourites (
   id TEXT PRIMARY KEY,
   source TEXT NOT NULL,
   external_id TEXT NOT NULL,
@@ -145,7 +144,7 @@ CREATE TABLE food_favourites (
   created_at INTEGER NOT NULL
 );
 
-CREATE TABLE saved_meals (
+CREATE TABLE IF NOT EXISTS saved_meals (
   id TEXT PRIMARY KEY,
   operation_id TEXT NOT NULL UNIQUE,
   title TEXT NOT NULL CHECK (length(trim(title)) > 0),
@@ -153,7 +152,7 @@ CREATE TABLE saved_meals (
   updated_at INTEGER NOT NULL
 );
 
-CREATE TABLE saved_meal_items (
+CREATE TABLE IF NOT EXISTS saved_meal_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   saved_meal_id TEXT NOT NULL,
   position INTEGER NOT NULL,
@@ -178,15 +177,27 @@ CREATE TABLE saved_meal_items (
     ON DELETE CASCADE
 );
 
-CREATE INDEX saved_meal_items_saved_meal_id
+CREATE INDEX IF NOT EXISTS saved_meal_items_saved_meal_id
 ON saved_meal_items (saved_meal_id, position);
 
-CREATE INDEX saved_meals_created_at
+CREATE INDEX IF NOT EXISTS saved_meals_created_at
 ON saved_meals (created_at, id);
 
-CREATE TABLE nutrition_workspace (
+CREATE UNIQUE INDEX IF NOT EXISTS meal_logs_operation_id
+ON meal_logs (operation_id)
+WHERE operation_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS nutrition_workspace (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   payload TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
+`;
+
+export const nutritionV5MigrationSql = `
+${nutritionV5RebuildSql}
+${nutritionV5SequenceSql}
+ALTER TABLE meal_logs ADD COLUMN operation_id TEXT;
+ALTER TABLE meal_logs ADD COLUMN saved_meal_id TEXT;
+${nutritionV5TablesSql}
 `;

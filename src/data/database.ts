@@ -1,6 +1,10 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-import { nutritionV5MigrationSql } from "./nutritionMigration";
+import {
+  nutritionV5RebuildSql,
+  nutritionV5SequenceSql,
+  nutritionV5TablesSql,
+} from "./nutritionMigration";
 
 const DATABASE_VERSION = 5;
 
@@ -15,8 +19,9 @@ export async function migrateDatabase(db: SQLiteDatabase) {
   );
 
   const currentVersion = versionResult?.user_version ?? 0;
+  const workspaceReady = await tableExists(db, "nutrition_workspace");
 
-  if (currentVersion >= DATABASE_VERSION) {
+  if (currentVersion >= DATABASE_VERSION && workspaceReady) {
     return;
   }
 
@@ -128,11 +133,53 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     `);
   }
 
-  if (currentVersion < 5) {
-    await db.execAsync("PRAGMA foreign_keys = OFF;");
-    await db.execAsync(nutritionV5MigrationSql);
-    await db.execAsync("PRAGMA foreign_keys = ON;");
+  if (currentVersion < 5 || !workspaceReady) {
+    await applyNutritionV5(db);
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
+}
+
+async function applyNutritionV5(db: SQLiteDatabase) {
+  if (!(await columnExists(db, "meal_items", "source"))) {
+    await db.execAsync("PRAGMA foreign_keys = OFF;");
+    await db.execAsync(nutritionV5RebuildSql);
+    try {
+      await db.execAsync(nutritionV5SequenceSql);
+    } catch {
+      // sqlite_sequence is only bookkeeping for the next autoincrement id.
+    }
+    await db.execAsync("PRAGMA foreign_keys = ON;");
+  }
+
+  if (!(await columnExists(db, "meal_logs", "operation_id"))) {
+    await db.execAsync("ALTER TABLE meal_logs ADD COLUMN operation_id TEXT;");
+  }
+
+  if (!(await columnExists(db, "meal_logs", "saved_meal_id"))) {
+    await db.execAsync(
+      "ALTER TABLE meal_logs ADD COLUMN saved_meal_id TEXT;",
+    );
+  }
+
+  await db.execAsync(nutritionV5TablesSql);
+}
+
+async function tableExists(db: SQLiteDatabase, name: string) {
+  const row = await db.getFirstAsync<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+    [name],
+  );
+  return row != null;
+}
+
+async function columnExists(
+  db: SQLiteDatabase,
+  table: "meal_items" | "meal_logs",
+  column: string,
+) {
+  const rows = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(${table})`,
+  );
+  return rows.some((row) => row.name === column);
 }
