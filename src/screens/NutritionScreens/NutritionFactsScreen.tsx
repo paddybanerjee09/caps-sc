@@ -116,6 +116,12 @@ export function NutritionFactsScreen() {
   const amountValid = Number.isFinite(amount) && amount > 0;
   const energy = serving?.nutrients.energyKcal ?? null;
   const caloriesCanDrive = energy !== null && energy > 0;
+  const calorieText =
+    facts.inputMode === "calories"
+      ? facts.calorieInput
+      : energy !== null && amountValid
+        ? formatCalorieInput(energy * amount)
+        : "";
   const scaled = serving && amountValid ? scaleSnapshot(serving.nutrients, amount) : null;
   const scaledExtras =
     serving && amountValid ? scaleExtras(serving.extras, amount) : [];
@@ -133,14 +139,9 @@ export function NutritionFactsScreen() {
       return;
     }
 
-    const quantity = Number(value);
     setFacts({
       ...session,
       amountInput: value,
-      calorieInput:
-        serving && energy !== null && Number.isFinite(quantity) && quantity > 0
-          ? formatCalorieInput(energy * quantity)
-          : session.calorieInput,
       inputMode: "amount",
     });
   }
@@ -318,14 +319,14 @@ export function NutritionFactsScreen() {
         placeholder={caloriesCanDrive ? undefined : "Unavailable"}
         placeholderTextColor={theme.colors.textMuted}
         style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.text }]}
-        value={facts.calorieInput}
+        value={calorieText}
       />
       <MacronutrientBreakdownCard
         energyInput={{
           editable: caloriesCanDrive,
           invalid: facts.inputMode === "calories" && !amountValid,
           onChangeText: changeCalories,
-          value: facts.calorieInput,
+          value: calorieText,
         }}
         incomplete={{
           carbohydratesG: scaled?.carbohydratesG == null,
