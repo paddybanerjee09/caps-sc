@@ -8,7 +8,9 @@ import {
 } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
+import { MicronutrientDisclosure } from "./nutrition/ExtraNutrients";
 import { NUTRITION_COLORS } from "../constants/nutrition";
+import type { ExtraTotal } from "../nutrition/calculations";
 import { useAppTheme } from "../theme/ThemeContext";
 import { appColorPalette, themes } from "../theme/theme";
 import type { NutrientSnapshot, NutrientTargets } from "../types/nutrition";
@@ -33,6 +35,7 @@ type MacronutrientBreakdownCardProps = {
   };
   values: NutrientSnapshot;
   incomplete: Record<NutrientKey, boolean>;
+  micronutrients?: readonly ExtraTotal[];
   targets: NutrientTargets;
   title?: string;
 };
@@ -100,6 +103,7 @@ const nutrientPresentations: {
 export function MacronutrientBreakdownCard({
   energyInput,
   incomplete,
+  micronutrients,
   targets,
   title,
   values,
@@ -318,6 +322,8 @@ export function MacronutrientBreakdownCard({
           + Some USDA nutrient values are unavailable.
         </Text>
       ) : null}
+
+      {micronutrients ? <MicronutrientDisclosure totals={micronutrients} /> : null}
     </View>
   );
 }

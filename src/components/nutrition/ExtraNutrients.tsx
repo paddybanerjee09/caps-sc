@@ -1,3 +1,5 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { PressOpacity } from "../PressOpacity";
@@ -8,34 +10,50 @@ import { themes } from "../../theme/theme";
 
 const tokens = themes.dark;
 
-export function ExtraNutrientSection({
+export function MicronutrientDisclosure({
   totals,
-  title = "Micronutrients",
 }: {
-  title?: string;
-  totals: ExtraTotal[];
+  totals: readonly ExtraTotal[];
 }) {
   const { theme } = useAppTheme();
+  const [expanded, setExpanded] = useState(false);
   const micros = totals.filter((total) => total.group === "micro");
   const others = totals.filter((total) => total.group === "other");
 
   return (
-    <View style={styles.section}>
-      <Text style={[styles.heading, { color: theme.colors.text }]}>{title}</Text>
-      <NutrientRows totals={micros} />
-      {others.some((total) => total.amount !== null) ? (
+    <View>
+      <PressOpacity
+        accessibilityLabel={`${expanded ? "Collapse" : "Expand"} micronutrients`}
+        onPress={() => setExpanded((current) => !current)}
+        style={[styles.toggle, { borderTopColor: theme.colors.border }]}
+      >
+        <Text style={[styles.toggleLabel, { color: theme.colors.text }]}>
+          Micronutrients
+        </Text>
+        <Ionicons
+          color={theme.colors.textMuted}
+          name={expanded ? "chevron-down" : "chevron-forward"}
+          size={18}
+        />
+      </PressOpacity>
+      {expanded ? (
         <>
-          <Text style={[styles.subheading, { color: theme.colors.textMuted }]}>
-            Other nutrients
-          </Text>
-          <NutrientRows totals={others} />
+          <NutrientRows totals={micros} />
+          {others.some((total) => total.amount !== null) ? (
+            <>
+              <Text style={[styles.subheading, { color: theme.colors.textMuted }]}>
+                Other nutrients
+              </Text>
+              <NutrientRows totals={others} />
+            </>
+          ) : null}
         </>
       ) : null}
     </View>
   );
 }
 
-function NutrientRows({ totals }: { totals: ExtraTotal[] }) {
+function NutrientRows({ totals }: { totals: readonly ExtraTotal[] }) {
   const { theme } = useAppTheme();
 
   return (
@@ -43,7 +61,7 @@ function NutrientRows({ totals }: { totals: ExtraTotal[] }) {
       {totals.map((total) => (
         <View
           key={total.id}
-          style={[styles.row, { borderBottomColor: theme.colors.border }]}
+          style={[styles.row, { borderTopColor: theme.colors.border }]}
         >
           <Text style={[styles.name, { color: theme.colors.text }]}>{total.name}</Text>
           <Text style={[styles.value, { color: theme.colors.textMuted }]}>
@@ -55,79 +73,44 @@ function NutrientRows({ totals }: { totals: ExtraTotal[] }) {
   );
 }
 
-export function MicronutrientSummary({
-  onPress,
-  selected,
-}: {
-  onPress: () => void;
-  selected: ExtraTotal | null;
-}) {
-  const { theme } = useAppTheme();
-
-  return (
-    <PressOpacity
-      accessibilityLabel="Choose a micronutrient"
-      onPress={onPress}
-      style={[styles.summary, { borderBottomColor: theme.colors.border }]}
-    >
-      <View>
-        <Text style={[styles.heading, { color: theme.colors.text }]}>
-          Micronutrients
-        </Text>
-        <Text style={[styles.name, { color: theme.colors.textMuted }]}>
-          {selected?.name ?? "None available"}
-        </Text>
-      </View>
-      <Text style={[styles.value, { color: theme.colors.text }]}>
-        {selected
-          ? `${formatAmount(selected.amount, selected.precision, selected.partial)} ${selected.unit}`
-          : "\u2014"}
-      </Text>
-    </PressOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
-  section: {
-    gap: tokens.spacing.xs,
-    paddingTop: tokens.spacing.md,
+  toggle: {
+    alignItems: "center",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    justifyContent: "space-between",
+    minHeight: 44,
   },
-  heading: {
-    fontSize: tokens.typography.sectionTitle.fontSize,
-    fontWeight: tokens.typography.sectionTitle.fontWeight,
-    lineHeight: tokens.typography.sectionTitle.lineHeight,
+  toggleLabel: {
+    fontSize: tokens.typography.body.fontSize,
+    fontWeight: "700",
+    lineHeight: tokens.typography.body.lineHeight,
   },
   subheading: {
     fontSize: tokens.typography.label.fontSize,
     fontWeight: "700",
     lineHeight: tokens.typography.label.lineHeight,
-    paddingTop: tokens.spacing.sm,
+    paddingBottom: tokens.spacing.xs,
+    paddingTop: tokens.spacing.md,
   },
   row: {
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
+    gap: tokens.spacing.md,
     justifyContent: "space-between",
-    minHeight: 44,
-    paddingVertical: tokens.spacing.sm,
-  },
-  summary: {
-    alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 56,
-    paddingVertical: tokens.spacing.sm,
+    minHeight: 32,
+    paddingVertical: tokens.spacing.xs,
   },
   name: {
     flex: 1,
-    fontSize: tokens.typography.body.fontSize,
-    lineHeight: tokens.typography.body.lineHeight,
-    paddingRight: tokens.spacing.md,
+    fontSize: tokens.typography.label.fontSize,
+    lineHeight: tokens.typography.label.lineHeight,
   },
   value: {
-    fontSize: tokens.typography.body.fontSize,
+    fontSize: tokens.typography.label.fontSize,
     fontVariant: ["tabular-nums"],
-    lineHeight: tokens.typography.body.lineHeight,
+    lineHeight: tokens.typography.label.lineHeight,
   },
 });

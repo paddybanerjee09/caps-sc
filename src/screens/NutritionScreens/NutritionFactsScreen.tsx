@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { NutritionActionBar, NutritionPage } from "../../components/nutrition/NutritionChrome";
-import { ExtraNutrientSection } from "../../components/nutrition/ExtraNutrients";
 import { MacronutrientBreakdownCard } from "../../components/MacronutrientBreakdownCard";
 import { PressOpacity } from "../../components/PressOpacity";
 import { DAILY_NUTRIENT_TARGETS } from "../../constants/nutrition";
@@ -334,6 +333,7 @@ export function NutritionFactsScreen() {
           fatG: scaled?.fatG == null,
           proteinG: scaled?.proteinG == null,
         }}
+        micronutrients={sumExtraTotals([{ extrasPerServing: scaledExtras, quantity: 1 }])}
         targets={DAILY_NUTRIENT_TARGETS}
         title="Nutrition for this amount"
         values={
@@ -345,7 +345,6 @@ export function NutritionFactsScreen() {
           }
         }
       />
-      <ExtraNutrientSection totals={sumExtraTotals([{ extrasPerServing: scaledExtras, quantity: 1 }])} />
     </NutritionPage>
   );
 }

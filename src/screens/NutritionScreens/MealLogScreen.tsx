@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { FoodMacroLine, NutritionActionBar, NutritionPage } from "../../components/nutrition/NutritionChrome";
-import { ExtraNutrientSection } from "../../components/nutrition/ExtraNutrients";
 import { LogTimeChanger } from "../../components/LogTimeChanger";
 import { MacronutrientBreakdownCard } from "../../components/MacronutrientBreakdownCard";
 import { PressOpacity } from "../../components/PressOpacity";
@@ -412,6 +411,7 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
       ) : null}
       <MacronutrientBreakdownCard
         incomplete={totals.incomplete}
+        micronutrients={extraTotals}
         targets={DAILY_NUTRIENT_TARGETS}
         title="Meal totals"
         values={{
@@ -421,7 +421,6 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
           proteinG: totals.proteinG,
         }}
       />
-      <ExtraNutrientSection totals={extraTotals} />
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Meal items</Text>
       <View style={[styles.items, { borderColor: theme.colors.border }]}>
         <PressOpacity

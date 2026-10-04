@@ -11,7 +11,6 @@ import {
 } from "react-native";
 
 import { MacronutrientBreakdownCard } from "../components/MacronutrientBreakdownCard";
-import { MicronutrientSummary } from "../components/nutrition/ExtraNutrients";
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
 import { DAILY_NUTRIENT_TARGETS } from "../constants/nutrition";
@@ -51,9 +50,7 @@ export function NutritionScreen() {
   const [resolvedFoods, setResolvedFoods] = useState<Record<string, CatalogFood>>({});
   const [loading, setLoading] = useState(true);
   const [databaseError, setDatabaseError] = useState<string | null>(null);
-  const [nutrientMenu, setNutrientMenu] = useState<{ id: string; top: number } | null>(null);
   const requestId = useRef(0);
-  const rootRef = useRef<View>(null);
 
   const { dayStart, dayEnd } = useMemo(
     () => localDayBounds(new Date(currentDayMs)),
@@ -159,32 +156,15 @@ export function NutritionScreen() {
     () => sumExtraTotals(displayMeals.flatMap((meal) => meal.items)),
     [displayMeals],
   );
-  const selectedNutrient =
-    extraTotals.find((total) => total.id === nutrientMenu?.id) ??
-    extraTotals.find((total) => total.group === "micro") ??
-    null;
   const catalogueHeight = clamp(height * 0.42, 240, 420);
   const previousDate = shiftLocalDate(currentDay, -1);
   const nextDate = shiftLocalDate(currentDay, 1);
-  const nutrientRef = useRef<View>(null);
 
   function changeDay(numberOfDays: number) {
     setDiaryDate(shiftLocalDate(currentDay, numberOfDays));
   }
 
-  function openNutrientMenu() {
-    nutrientRef.current?.measureInWindow((_x, y, _width, buttonHeight) => {
-      rootRef.current?.measureInWindow((_rootX, rootY) => {
-        setNutrientMenu({
-          id: selectedNutrient?.id ?? extraTotals[0]?.id ?? "sodium",
-          top: y + buttonHeight - rootY,
-        });
-      });
-    });
-  }
-
   return (
-    <View ref={rootRef} style={styles.workspace}>
     <Screen centerTitle title="Nutrition">
       {notice ? (
         <PressOpacity accessibilityLabel="Dismiss notice" onPress={clearNotice}>
@@ -341,9 +321,9 @@ export function NutritionScreen() {
             </Text>
           </View>
         ) : (
-          <>
           <MacronutrientBreakdownCard
             incomplete={dailyTotals.incomplete}
+            micronutrients={extraTotals}
             targets={DAILY_NUTRIENT_TARGETS}
             title="Daily totals"
             values={{
@@ -353,49 +333,9 @@ export function NutritionScreen() {
               proteinG: dailyTotals.proteinG,
             }}
           />
-          <View ref={nutrientRef}>
-            <MicronutrientSummary
-              onPress={openNutrientMenu}
-              selected={selectedNutrient}
-            />
-          </View>
-          </>
         )}
       </View>
     </Screen>
-      {nutrientMenu ? (
-        <View style={[styles.nutrientMenu, { top: nutrientMenu.top }]}>
-          <PressOpacity
-            accessibilityLabel="Dismiss micronutrients"
-            onPress={() => setNutrientMenu(null)}
-            style={styles.nutrientBackdrop}
-          />
-          <View
-            style={[
-              styles.nutrientList,
-              {
-                backgroundColor: theme.colors.background,
-                borderColor: theme.colors.border,
-                top: nutrientMenu.top,
-              },
-            ]}
-          >
-            {extraTotals
-              .filter((total) => total.group === "micro")
-              .map((total) => (
-                <PressOpacity
-                  accessibilityLabel={total.name}
-                  key={total.id}
-                  onPress={() => setNutrientMenu({ id: total.id, top: nutrientMenu.top })}
-                  style={styles.nutrientChoice}
-                >
-                  <Text style={{ color: theme.colors.text }}>{total.name}</Text>
-                </PressOpacity>
-              ))}
-          </View>
-        </View>
-      ) : null}
-    </View>
   );
 }
 
@@ -832,26 +772,5 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 48,
     zIndex: 10,
-  },
-  workspace: {
-    flex: 1,
-  },
-  nutrientMenu: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 20,
-  },
-  nutrientBackdrop: {
-    ...StyleSheet.absoluteFill,
-  },
-  nutrientList: {
-    borderWidth: StyleSheet.hairlineWidth,
-    left: tokens.spacing.lg,
-    position: "absolute",
-    right: tokens.spacing.lg,
-  },
-  nutrientChoice: {
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: tokens.spacing.md,
   },
 });
