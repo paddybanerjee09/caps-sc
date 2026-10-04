@@ -1,6 +1,8 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 4;
+import { nutritionV5MigrationSql } from "./nutritionMigration";
+
+const DATABASE_VERSION = 5;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -124,6 +126,12 @@ export async function migrateDatabase(db: SQLiteDatabase) {
       CREATE INDEX IF NOT EXISTS meal_items_meal_timeline_entry_id
       ON meal_items (meal_timeline_entry_id);
     `);
+  }
+
+  if (currentVersion < 5) {
+    await db.execAsync("PRAGMA foreign_keys = OFF;");
+    await db.execAsync(nutritionV5MigrationSql);
+    await db.execAsync("PRAGMA foreign_keys = ON;");
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
