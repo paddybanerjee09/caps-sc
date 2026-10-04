@@ -5,7 +5,7 @@ import { Pressable } from "react-native";
 import { themes } from "../theme/theme";
 
 type PressOpacityProps = {
-  children: ReactNode;
+  children?: ReactNode;
   disabled?: boolean;
   onPress?: () => void;
   pressedOpacity?: number;

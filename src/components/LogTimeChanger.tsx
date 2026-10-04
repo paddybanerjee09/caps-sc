@@ -20,6 +20,7 @@ import { PressOpacity } from "./PressOpacity";
 const tokens = themes.dark;
 
 type LogTimeChangerProps = {
+  iconOnly?: boolean;
   inline?: boolean;
   maximumDate?: Date;
   onChange: (date: Date) => void;
@@ -27,6 +28,7 @@ type LogTimeChangerProps = {
 };
 
 export function LogTimeChanger({
+  iconOnly = false,
   inline = false,
   maximumDate,
   onChange,
@@ -106,27 +108,31 @@ export function LogTimeChanger({
           value,
         )}`}
         onPress={openPicker}
-        style={styles.button}
+        style={[styles.button, iconOnly && styles.iconButton]}
       >
-        <View
-          style={[
-            styles.buttonPill,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
-          <Ionicons
-            color={theme.colors.textMuted}
-            name="time-outline"
-            size={15}
-          />
+        {iconOnly ? (
+          <Ionicons color={theme.colors.text} name="time-outline" size={22} />
+        ) : (
+          <View
+            style={[
+              styles.buttonPill,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Ionicons
+              color={theme.colors.textMuted}
+              name="time-outline"
+              size={15}
+            />
 
-          <Text style={[styles.time, { color: theme.colors.text }]}>
-            {formatTime(value)}
-          </Text>
-        </View>
+            <Text style={[styles.time, { color: theme.colors.text }]}>
+              {formatTime(value)}
+            </Text>
+          </View>
+        )}
       </PressOpacity>
 
       {Platform.OS === "ios" ? (
@@ -227,6 +233,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: 44,
+  },
+  iconButton: {
+    height: 44,
+    width: 44,
   },
   buttonPill: {
     alignItems: "center",
