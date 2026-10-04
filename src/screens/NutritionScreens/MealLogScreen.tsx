@@ -410,6 +410,7 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
         <Text style={[styles.feedback, { color: theme.colors.textMuted }]}>{templateMessage}</Text>
       ) : null}
       <MacronutrientBreakdownCard
+        compact
         incomplete={totals.incomplete}
         micronutrients={extraTotals}
         targets={DAILY_NUTRIENT_TARGETS}

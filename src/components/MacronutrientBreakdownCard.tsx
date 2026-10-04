@@ -27,6 +27,7 @@ type NutrientKey = keyof NutrientSnapshot;
 type MacroKey = Exclude<NutrientKey, "energyKcal">;
 
 type MacronutrientBreakdownCardProps = {
+  compact?: boolean;
   energyInput?: {
     editable: boolean;
     invalid: boolean;
@@ -45,6 +46,7 @@ type MacroPresentation = {
   color: string;
   key: MacroKey;
   label: string;
+  shortLabel: string;
 };
 
 const macroPresentations: MacroPresentation[] = [
@@ -53,18 +55,21 @@ const macroPresentations: MacroPresentation[] = [
     color: NUTRITION_COLORS.proteinG,
     key: "proteinG",
     label: "Protein",
+    shortLabel: "P",
   },
   {
     calorieFactor: 4,
     color: NUTRITION_COLORS.carbohydratesG,
     key: "carbohydratesG",
     label: "Carbohydrates",
+    shortLabel: "C",
   },
   {
     calorieFactor: 9,
     color: NUTRITION_COLORS.fatG,
     key: "fatG",
     label: "Fat",
+    shortLabel: "F",
   },
 ];
 
@@ -101,6 +106,7 @@ const nutrientPresentations: {
 ];
 
 export function MacronutrientBreakdownCard({
+  compact = false,
   energyInput,
   incomplete,
   micronutrients,
@@ -131,182 +137,222 @@ export function MacronutrientBreakdownCard({
       onLayout={handleLayout}
       style={[
         styles.card,
+        compact && styles.cardCompact,
         {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.border,
         },
       ]}
     >
-      {title ? (
-        <Text selectable style={[styles.title, { color: theme.colors.text }]}>
-          {title}
-        </Text>
-      ) : null}
-
-      <View style={[styles.breakdown, isStacked && styles.breakdownStacked]}>
-        <View
-          accessibilityLabel={
-            energyInput
-              ? undefined
-              : buildRingAccessibilityLabel(
-                  safeValues,
-                  resolvedIncomplete,
-                  macroSegments,
-                )
-          }
-          accessibilityRole={energyInput ? undefined : "image"}
-          accessible={!energyInput}
-          style={styles.ring}
-        >
-          <Svg
-            accessible={false}
-            height={RING_SIZE}
-            viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
-            width={RING_SIZE}
-          >
-            <Circle
-              cx={RING_CENTER}
-              cy={RING_CENTER}
-              fill="none"
-              r={RING_RADIUS}
-              stroke={theme.colors.surfaceMuted}
-              strokeWidth={RING_STROKE_WIDTH}
-            />
-            {macroSegments.map((segment) =>
-              segment.proportion > 0 ? (
-                <Circle
-                  cx={RING_CENTER}
-                  cy={RING_CENTER}
-                  fill="none"
-                  key={segment.key}
-                  origin={`${RING_CENTER}, ${RING_CENTER}`}
-                  r={RING_RADIUS}
-                  rotation="-90"
-                  stroke={segment.color}
-                  strokeDasharray={[
-                    segment.proportion * RING_CIRCUMFERENCE,
-                    (1 - segment.proportion) * RING_CIRCUMFERENCE,
-                  ]}
-                  strokeDashoffset={
-                    -segment.startProportion * RING_CIRCUMFERENCE
-                  }
-                  strokeLinecap="butt"
-                  strokeWidth={RING_STROKE_WIDTH}
-                />
-              ) : null,
-            )}
-          </Svg>
-
-          <View
-            pointerEvents={energyInput ? "box-none" : "none"}
-            style={styles.ringLabel}
-          >
-            {energyInput ? (
-              <TextInput
-                accessibilityLabel="Calories for configured food"
-                editable={energyInput.editable}
-                keyboardType="decimal-pad"
-                onChangeText={energyInput.onChangeText}
-                placeholder="\u2014"
-                placeholderTextColor={theme.colors.textMuted}
-                returnKeyType="done"
-                selectTextOnFocus
-                selectionColor={theme.colors.tertiary}
-                style={[
-                  styles.energyInput,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: energyInput.invalid
-                      ? appColorPalette.red
-                      : theme.colors.borderStrong,
-                    color: theme.colors.text,
-                  },
-                  !energyInput.editable && styles.energyInputDisabled,
-                ]}
-                value={energyInput.value}
-              />
-            ) : (
-              <Text
-                selectable
-                style={[styles.energyValue, { color: theme.colors.text }]}
-              >
-                {formatNullableValue(
-                  safeValues.energyKcal,
-                  resolvedIncomplete.energyKcal,
-                  0,
-                )}
-              </Text>
-            )}
-            <Text
-              selectable
-              style={[styles.energyUnit, { color: theme.colors.textMuted }]}
-            >
-              kcal
+      {compact ? (
+        <View style={styles.compactHeader}>
+          {title ? (
+            <Text selectable style={[styles.title, { color: theme.colors.text }]}>
+              {title}
             </Text>
-          </View>
-        </View>
-
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={[styles.macroList, isStacked && styles.macroListStacked]}
-        >
-          {macroSegments.map((segment) => (
-            <View key={segment.key} style={styles.macroRow}>
-              <View
-                style={[styles.colorDot, { backgroundColor: segment.color }]}
-              />
-              <Text
-                selectable
-                style={[styles.macroLabel, { color: theme.colors.text }]}
-              >
-                {segment.label}
-              </Text>
-              <View style={styles.macroValueGroup}>
+          ) : null}
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={styles.legend}
+          >
+            {macroSegments.map((segment) => (
+              <View key={segment.key} style={styles.legendItem}>
+                <View
+                  style={[styles.colorDot, { backgroundColor: segment.color }]}
+                />
                 <Text
                   selectable
-                  style={[styles.macroValue, { color: theme.colors.text }]}
+                  style={[styles.legendValue, { color: theme.colors.text }]}
                 >
+                  {segment.shortLabel}{" "}
                   {formatNullableValue(
                     segment.value,
                     resolvedIncomplete[segment.key],
                     1,
-                  )}{" "}
-                  {segment.value === null ? "" : "g"}
+                  )}
+                  {segment.value === null ? "" : " g"}
                 </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : (
+        <>
+          {title ? (
+            <Text selectable style={[styles.title, { color: theme.colors.text }]}>
+              {title}
+            </Text>
+          ) : null}
+
+          <View style={[styles.breakdown, isStacked && styles.breakdownStacked]}>
+            <View
+              accessibilityLabel={
+                energyInput
+                  ? undefined
+                  : buildRingAccessibilityLabel(
+                      safeValues,
+                      resolvedIncomplete,
+                      macroSegments,
+                    )
+              }
+              accessibilityRole={energyInput ? undefined : "image"}
+              accessible={!energyInput}
+              style={styles.ring}
+            >
+              <Svg
+                accessible={false}
+                height={RING_SIZE}
+                viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+                width={RING_SIZE}
+              >
+                <Circle
+                  cx={RING_CENTER}
+                  cy={RING_CENTER}
+                  fill="none"
+                  r={RING_RADIUS}
+                  stroke={theme.colors.surfaceMuted}
+                  strokeWidth={RING_STROKE_WIDTH}
+                />
+                {macroSegments.map((segment) =>
+                  segment.proportion > 0 ? (
+                    <Circle
+                      cx={RING_CENTER}
+                      cy={RING_CENTER}
+                      fill="none"
+                      key={segment.key}
+                      origin={`${RING_CENTER}, ${RING_CENTER}`}
+                      r={RING_RADIUS}
+                      rotation="-90"
+                      stroke={segment.color}
+                      strokeDasharray={[
+                        segment.proportion * RING_CIRCUMFERENCE,
+                        (1 - segment.proportion) * RING_CIRCUMFERENCE,
+                      ]}
+                      strokeDashoffset={
+                        -segment.startProportion * RING_CIRCUMFERENCE
+                      }
+                      strokeLinecap="butt"
+                      strokeWidth={RING_STROKE_WIDTH}
+                    />
+                  ) : null,
+                )}
+              </Svg>
+
+              <View
+                pointerEvents={energyInput ? "box-none" : "none"}
+                style={styles.ringLabel}
+              >
+                {energyInput ? (
+                  <TextInput
+                    accessibilityLabel="Calories for configured food"
+                    editable={energyInput.editable}
+                    keyboardType="decimal-pad"
+                    onChangeText={energyInput.onChangeText}
+                    placeholder="\u2014"
+                    placeholderTextColor={theme.colors.textMuted}
+                    returnKeyType="done"
+                    selectTextOnFocus
+                    selectionColor={theme.colors.tertiary}
+                    style={[
+                      styles.energyInput,
+                      {
+                        backgroundColor: theme.colors.surfaceMuted,
+                        borderColor: energyInput.invalid
+                          ? appColorPalette.red
+                          : theme.colors.borderStrong,
+                        color: theme.colors.text,
+                      },
+                      !energyInput.editable && styles.energyInputDisabled,
+                    ]}
+                    value={energyInput.value}
+                  />
+                ) : (
+                  <Text
+                    selectable
+                    style={[styles.energyValue, { color: theme.colors.text }]}
+                  >
+                    {formatNullableValue(
+                      safeValues.energyKcal,
+                      resolvedIncomplete.energyKcal,
+                      0,
+                    )}
+                  </Text>
+                )}
                 <Text
                   selectable
-                  style={[
-                    styles.macroPercentage,
-                    { color: theme.colors.textMuted },
-                  ]}
+                  style={[styles.energyUnit, { color: theme.colors.textMuted }]}
                 >
-                  {segment.value === null
-                    ? "\u2014"
-                    : `${formatNumber(segment.proportion * 100, 0)}%`}
+                  kcal
                 </Text>
               </View>
             </View>
-          ))}
-        </View>
-      </View>
 
-      {hasIncompleteMacro ? (
-        <Text
-          selectable
-          style={[styles.note, { color: theme.colors.textMuted }]}
-        >
-          Percentages use available macro data only.
-        </Text>
-      ) : null}
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={[styles.macroList, isStacked && styles.macroListStacked]}
+            >
+              {macroSegments.map((segment) => (
+                <View key={segment.key} style={styles.macroRow}>
+                  <View
+                    style={[styles.colorDot, { backgroundColor: segment.color }]}
+                  />
+                  <Text
+                    selectable
+                    style={[styles.macroLabel, { color: theme.colors.text }]}
+                  >
+                    {segment.label}
+                  </Text>
+                  <View style={styles.macroValueGroup}>
+                    <Text
+                      selectable
+                      style={[styles.macroValue, { color: theme.colors.text }]}
+                    >
+                      {formatNullableValue(
+                        segment.value,
+                        resolvedIncomplete[segment.key],
+                        1,
+                      )}{" "}
+                      {segment.value === null ? "" : "g"}
+                    </Text>
+                    <Text
+                      selectable
+                      style={[
+                        styles.macroPercentage,
+                        { color: theme.colors.textMuted },
+                      ]}
+                    >
+                      {segment.value === null
+                        ? "\u2014"
+                        : `${formatNumber(segment.proportion * 100, 0)}%`}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
 
-      <View style={styles.progressList}>
+          {hasIncompleteMacro ? (
+            <Text
+              selectable
+              style={[styles.note, { color: theme.colors.textMuted }]}
+            >
+              Percentages use available macro data only.
+            </Text>
+          ) : null}
+        </>
+      )}
+
+      <View style={[styles.progressList, compact && styles.progressListCompact]}>
         {nutrientPresentations.map((presentation) => (
           <NutrientProgressRow
             color={presentation.color}
+            compact={compact}
             incomplete={resolvedIncomplete[presentation.key]}
             key={presentation.key}
             label={presentation.label}
+            showValue={!compact || presentation.key === "energyKcal"}
             target={targets[presentation.key]}
             unit={presentation.unit}
             value={safeValues[presentation.key]}
@@ -330,15 +376,19 @@ export function MacronutrientBreakdownCard({
 
 function NutrientProgressRow({
   color,
+  compact,
   incomplete,
   label,
+  showValue,
   target,
   unit,
   value,
 }: {
   color: string;
+  compact: boolean;
   incomplete: boolean;
   label: string;
+  showValue: boolean;
   target: number;
   unit: "g" | "kcal";
   value: number | null;
@@ -364,7 +414,7 @@ function NutrientProgressRow({
         value,
       )}
       accessible
-      style={styles.progressRow}
+      style={[styles.progressRow, compact && styles.progressRowCompact]}
     >
       <View style={styles.progressLabels}>
         <Text
@@ -377,7 +427,9 @@ function NutrientProgressRow({
           selectable
           style={[styles.progressValue, { color: theme.colors.textMuted }]}
         >
-          {valueText} / {targetText} {unit}
+          {showValue
+            ? `${valueText} / ${targetText} ${unit}`
+            : `of ${targetText} ${unit}`}
         </Text>
       </View>
       <View
@@ -385,6 +437,7 @@ function NutrientProgressRow({
         importantForAccessibility="no-hide-descendants"
         style={[
           styles.progressTrack,
+          compact && styles.progressTrackCompact,
           { backgroundColor: theme.colors.surfaceMuted },
         ]}
       >
@@ -532,10 +585,40 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.lg,
     padding: tokens.spacing.lg,
   },
+  cardCompact: {
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.md,
+  },
   title: {
     fontSize: tokens.typography.sectionTitle.fontSize,
     fontWeight: tokens.typography.sectionTitle.fontWeight,
     lineHeight: tokens.typography.sectionTitle.lineHeight,
+  },
+  compactHeader: {
+    alignItems: "center",
+    columnGap: tokens.spacing.md,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: tokens.spacing.xs,
+  },
+  legend: {
+    alignItems: "center",
+    columnGap: tokens.spacing.md,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: tokens.spacing.xs,
+  },
+  legendItem: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.xs,
+  },
+  legendValue: {
+    fontSize: tokens.typography.label.fontSize,
+    fontVariant: ["tabular-nums"],
+    fontWeight: tokens.typography.label.fontWeight,
+    lineHeight: tokens.typography.label.lineHeight,
   },
   breakdown: {
     alignItems: "center",
@@ -631,8 +714,14 @@ const styles = StyleSheet.create({
   progressList: {
     gap: tokens.spacing.md,
   },
+  progressListCompact: {
+    gap: tokens.spacing.sm,
+  },
   progressRow: {
     gap: tokens.spacing.xs,
+  },
+  progressRowCompact: {
+    gap: 2,
   },
   progressLabels: {
     alignItems: "center",
@@ -655,6 +744,9 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.pill,
     height: 8,
     overflow: "hidden",
+  },
+  progressTrackCompact: {
+    height: 6,
   },
   progressFill: {
     borderRadius: tokens.radius.pill,
