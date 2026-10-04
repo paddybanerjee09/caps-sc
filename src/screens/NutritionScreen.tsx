@@ -46,6 +46,7 @@ export function NutritionScreen() {
     setExpandedMealId,
   } = useNutritionWorkspace();
   const currentDay = diaryDate;
+  const currentDayMs = currentDay.getTime();
   const [meals, setMeals] = useState<StoredMealLog[]>([]);
   const [resolvedFoods, setResolvedFoods] = useState<Record<string, CatalogFood>>({});
   const [loading, setLoading] = useState(true);
@@ -55,8 +56,8 @@ export function NutritionScreen() {
   const rootRef = useRef<View>(null);
 
   const { dayStart, dayEnd } = useMemo(
-    () => localDayBounds(currentDay),
-    [currentDay],
+    () => localDayBounds(new Date(currentDayMs)),
+    [currentDayMs],
   );
 
   const loadMeals = useCallback(async () => {
