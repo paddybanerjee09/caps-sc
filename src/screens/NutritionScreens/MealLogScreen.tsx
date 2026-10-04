@@ -388,7 +388,14 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
         }
         placeholder="Meal title"
         placeholderTextColor={theme.colors.textMuted}
-        style={[styles.titleInput, { borderBottomColor: theme.colors.border, color: theme.colors.text }]}
+        style={[
+          styles.titleInput,
+          {
+            backgroundColor: theme.colors.surfaceMuted,
+            borderColor: theme.colors.borderStrong,
+            color: theme.colors.text,
+          },
+        ]}
         value={mealDraft.title}
       />
       <View style={styles.titleActions}>
@@ -540,10 +547,12 @@ function scaleLine(item: DraftMealItem) {
 
 const styles = StyleSheet.create({
   titleInput: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
     fontSize: tokens.typography.body.fontSize,
     fontWeight: "700",
     minHeight: 48,
+    paddingHorizontal: tokens.spacing.md,
   },
   titleActions: {
     flexDirection: "row",

@@ -117,6 +117,7 @@ export function CreateCustomFoodScreen() {
         error={errors.name}
         label="Food name"
         onChangeText={(name) => updateCustomForm((form) => ({ ...form, name }))}
+        prominent
         value={customForm.name}
       />
       <Field
@@ -227,12 +228,14 @@ function Field({
   keyboardType,
   label,
   onChangeText,
+  prominent = false,
   value,
 }: {
   error?: string;
   keyboardType?: "decimal-pad" | "number-pad";
   label: string;
   onChangeText: (value: string) => void;
+  prominent?: boolean;
   value: string;
 }) {
   const { theme } = useAppTheme();
@@ -245,7 +248,17 @@ function Field({
         keyboardType={keyboardType}
         onChangeText={onChangeText}
         placeholderTextColor={theme.colors.textMuted}
-        style={[styles.input, { color: theme.colors.text }]}
+        style={[
+          styles.input,
+          { color: theme.colors.text },
+          prominent && [
+            styles.prominentInput,
+            {
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.borderStrong,
+            },
+          ],
+        ]}
         value={value}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -343,6 +356,13 @@ const styles = StyleSheet.create({
   input: {
     fontSize: tokens.typography.body.fontSize,
     minHeight: 44,
+  },
+  prominentInput: {
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    fontWeight: "700",
+    marginTop: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.md,
   },
   error: {
     color: "#D31516",
