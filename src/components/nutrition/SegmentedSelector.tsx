@@ -128,16 +128,21 @@ export function SlidingPanels({ children, index }: SlidingPanelsProps) {
 
   return (
     <View
-      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      style={styles.clip}
+      onLayout={(event) => {
+        const nextWidth = Math.round(event.nativeEvent.layout.width);
+        setWidth((currentWidth) => (currentWidth > 0 ? currentWidth : nextWidth));
+      }}
+      style={[styles.clip, width > 0 ? { width } : null]}
     >
-      <Animated.View style={[styles.row, { width: width * children.length }, style]}>
-        {children.map((child, childIndex) => (
-          <View key={childIndex} style={{ width }}>
-            {child}
-          </View>
-        ))}
-      </Animated.View>
+      {width > 0 ? (
+        <Animated.View style={[styles.row, { width: width * children.length }, style]}>
+          {children.map((child, childIndex) => (
+            <View key={childIndex} style={{ width }}>
+              {child}
+            </View>
+          ))}
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -170,6 +175,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   clip: {
+    alignSelf: "stretch",
     overflow: "hidden",
     width: "100%",
   },

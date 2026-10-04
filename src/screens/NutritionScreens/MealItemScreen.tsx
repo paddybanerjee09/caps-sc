@@ -70,15 +70,20 @@ export function MealItemScreen() {
   const listRef = useRef<FlatList<Row>>(null);
   const offsets = useRef(picker.scrollOffsets);
   const requestId = useRef(0);
+  const updatePickerRef = useRef(updatePicker);
+
+  useEffect(() => {
+    updatePickerRef.current = updatePicker;
+  });
 
   useEffect(() => {
     return () => {
-      updatePicker((current) => ({
+      updatePickerRef.current((current) => ({
         ...current,
         scrollOffsets: offsets.current,
       }));
     };
-  }, [updatePicker]);
+  }, []);
 
   useEffect(() => {
     return registerBackHandler(() => {
