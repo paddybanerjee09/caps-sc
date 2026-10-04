@@ -1,7 +1,15 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Keyboard,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import { NutritionActionBar, NutritionPage } from "../../components/nutrition/NutritionChrome";
 import { MacronutrientBreakdownCard } from "../../components/MacronutrientBreakdownCard";
@@ -36,6 +44,7 @@ export function NutritionFactsScreen() {
     activeDraft,
     facts,
     pop,
+    registerBackHandler,
     returnToMealLog,
     setFacts,
     transitioning,
@@ -102,6 +111,17 @@ export function NutritionFactsScreen() {
     };
   }, [db, facts, retry]);
 
+  useEffect(() => {
+    if (!selectorOpen) {
+      return;
+    }
+
+    return registerBackHandler(() => {
+      setSelectorOpen(false);
+      return true;
+    });
+  }, [registerBackHandler, selectorOpen]);
+
   if (!facts) {
     return null;
   }
@@ -161,6 +181,14 @@ export function NutritionFactsScreen() {
       calorieInput: value,
       inputMode: "calories",
     });
+  }
+
+  function toggleSelector() {
+    if (!selectorOpen) {
+      Keyboard.dismiss();
+    }
+
+    setSelectorOpen((open) => !open);
   }
 
   function selectServing(next: CatalogServing) {
@@ -286,27 +314,86 @@ export function NutritionFactsScreen() {
         value={facts.amountInput}
       />
       <Text style={[styles.label, { color: theme.colors.text }]}>Serving</Text>
-      <PressOpacity
-        accessibilityLabel="Choose serving"
-        onPress={() => setSelectorOpen((open) => !open)}
-        style={[styles.servingButton, { borderColor: theme.colors.border }]}
-      >
-        <Text style={{ color: theme.colors.text }}>{serving?.label ?? "Unavailable"}</Text>
-      </PressOpacity>
       {selectorOpen ? (
-        <View>
-          {food?.servings.map((option) => (
-            <PressOpacity
-              accessibilityLabel={option.label}
-              key={option.id}
-              onPress={() => selectServing(option)}
-              style={[styles.servingOption, { borderBottomColor: theme.colors.border }]}
-            >
-              <Text style={{ color: theme.colors.text }}>{option.label}</Text>
-            </PressOpacity>
-          ))}
-        </View>
+        <PressOpacity
+          accessibilityLabel="Close serving options"
+          onPress={() => setSelectorOpen(false)}
+          style={styles.servingBackdrop}
+        />
       ) : null}
+      <View style={styles.servingMenu}>
+        <PressOpacity
+          accessibilityLabel={`Serving, ${serving?.label ?? "unavailable"}`}
+          disabled={!food || food.servings.length === 0}
+          onPress={toggleSelector}
+          style={[styles.servingButton, { borderColor: theme.colors.border }]}
+        >
+          <Text
+            numberOfLines={1}
+            style={[styles.servingLabel, { color: theme.colors.text }]}
+          >
+            {serving?.label ?? "Unavailable"}
+          </Text>
+          <Ionicons
+            color={theme.colors.textMuted}
+            name={selectorOpen ? "chevron-up" : "chevron-down"}
+            size={16}
+          />
+        </PressOpacity>
+        {selectorOpen && food && food.servings.length > 0 ? (
+          <View
+            style={[
+              styles.servingDropdown,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              style={styles.servingOptions}
+            >
+              {food.servings.map((option, index) => {
+                const selected = option.id === serving?.id;
+
+                return (
+                  <PressOpacity
+                    accessibilityLabel={
+                      selected ? `${option.label}, selected` : option.label
+                    }
+                    key={option.id}
+                    onPress={() => selectServing(option)}
+                    style={[
+                      styles.servingOption,
+                      index > 0 && {
+                        borderTopColor: theme.colors.border,
+                        borderTopWidth: StyleSheet.hairlineWidth,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.servingOptionLabel, { color: theme.colors.text }]}
+                    >
+                      {option.label}
+                    </Text>
+                    {selected ? (
+                      <Ionicons
+                        color={theme.colors.tertiary}
+                        name="checkmark"
+                        size={20}
+                      />
+                    ) : (
+                      <View style={styles.checkmarkSpace} />
+                    )}
+                  </PressOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
+      </View>
       {description ? (
         <Text style={[styles.body, { color: theme.colors.textMuted }]}>{description}</Text>
       ) : null}
@@ -367,15 +454,54 @@ const styles = StyleSheet.create({
     fontSize: tokens.typography.body.fontSize,
     minHeight: 44,
   },
+  servingBackdrop: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 1,
+  },
+  servingMenu: {
+    zIndex: 2,
+  },
   servingButton: {
+    alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    justifyContent: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    justifyContent: "space-between",
     minHeight: 44,
   },
+  servingLabel: {
+    flex: 1,
+    fontSize: tokens.typography.body.fontSize,
+  },
+  servingDropdown: {
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.24)",
+    left: 0,
+    marginTop: tokens.spacing.xs,
+    position: "absolute",
+    right: 0,
+    top: "100%",
+  },
+  servingOptions: {
+    maxHeight: 240,
+  },
   servingOption: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    justifyContent: "space-between",
     minHeight: 44,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+  },
+  servingOptionLabel: {
+    flex: 1,
+    fontSize: tokens.typography.body.fontSize,
+    lineHeight: tokens.typography.body.lineHeight,
+  },
+  checkmarkSpace: {
+    width: 20,
   },
   body: {
     fontSize: tokens.typography.body.fontSize,
