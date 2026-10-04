@@ -13,7 +13,7 @@ import Animated, {
 import Ionicons from "@expo/vector-icons/Ionicons"; // Style Imports
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { DayTimeline } from "../components/DayTimeline";
-import { MealLogModal } from "../components/MealLogModal";
+import { SegmentedSelector, SlidingPanels } from "../components/nutrition/SegmentedSelector";
 import { PressOpacity } from "../components/PressOpacity";
 import { SleepLogModal } from "../components/SleepLogModal";
 import { WeightLogModal } from "../components/WeightLogModal";
@@ -29,6 +29,7 @@ import {
 import { Screen } from "../components/Screen"; // File imports
 import { timelineCategories } from "../constants/timelineCategories";
 import { useAppState, type UnitSystem } from "../state/AppStateContext";
+import { useNutritionWorkspace } from "../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
 import { formatWeight } from "../utils/weight";
@@ -55,6 +56,8 @@ const quickLogKinds: TimelineKind[] = [
 export function HomeScreen() {
   const { theme } = useAppTheme();
   const { athleteProfile, unitSettings, username } = useAppState();
+  const { dataRevision, homeDate, openNewMeal, setHomeDate } = useNutritionWorkspace();
+  const selectedDate = homeDate;
 
   const ageText =
     athleteProfile.age === null
@@ -92,11 +95,9 @@ export function HomeScreen() {
 
   const db = useSQLiteContext();
 
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(true);
   const [timelineError, setTimelineError] = useState<string | null>(null);
-  const [mealModalOpen, setMealModalOpen] = useState(false);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
   const [selectedWeightEntry, setSelectedWeightEntry] =
@@ -145,7 +146,7 @@ export function HomeScreen() {
       clearTimeout(timer);
       timelineRequestId.current += 1;
     };
-  }, [loadSelectedDateEntries]);
+  }, [loadSelectedDateEntries, dataRevision]);
 
   const previousDate = shiftLocalDate(selectedDate, -1);
   const nextDate = shiftLocalDate(selectedDate, 1);
@@ -158,7 +159,7 @@ export function HomeScreen() {
       return;
     }
 
-    setSelectedDate(loggedDate);
+    setHomeDate(loggedDate);
   }
 
   async function handleWeightDeleted() {
@@ -283,7 +284,12 @@ export function HomeScreen() {
                   kind === "weight"
                     ? openNewWeightLog
                     : kind === "meal"
-                      ? () => setMealModalOpen(true)
+                      ? () => {
+                          if (quickLogOpen) {
+                            toggleQuickLogMenu();
+                          }
+                          openNewMeal(selectedDate);
+                        }
                     : kind === "sleep"
                       ? () => setSleepModalOpen(true)
                       : undefined
@@ -294,47 +300,15 @@ export function HomeScreen() {
         </View>
       </Animated.View>
 
-      <View
-        style={[
-          styles.homeSelector,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        {homeSections.map((section) => {
-          const isSelected = selectedHomeSection === section.key;
-
-          return (
-            <PressOpacity
-              accessibilityLabel={`Show ${section.label}`}
-              accessibilityRole="tab"
-              key={section.key}
-              onPress={() => setSelectedHomeSection(section.key)}
-              style={[
-                styles.homeSelectorOption,
-                isSelected && {
-                  backgroundColor: theme.colors.surfaceMuted,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.homeSelectorText,
-                  {
-                    color: isSelected
-                      ? theme.colors.tertiary
-                      : theme.colors.textMuted,
-                  },
-                ]}
-              >
-                {section.label}
-              </Text>
-            </PressOpacity>
-          );
-        })}
-      </View>
+      <SegmentedSelector
+        accessibilityLabel="Home sections"
+        onChange={setSelectedHomeSection}
+        options={homeSections.map((section) => ({
+          label: section.label,
+          value: section.key,
+        }))}
+        value={selectedHomeSection}
+      />
 
       <View
         style={[
@@ -345,18 +319,16 @@ export function HomeScreen() {
           },
         ]}
       >
-        {selectedHomeSection === "today" && (
-          <>
+        <SlidingPanels
+          index={homeSections.findIndex((section) => section.key === selectedHomeSection)}
+        >
+          <View>
             <View style={styles.dateNavigator}>
               <PressOpacity
                 accessibilityLabel={`Show previous day, ${formatFullDate(
                   previousDate,
                 )}`}
-                onPress={() =>
-                  setSelectedDate((currentDate) =>
-                    shiftLocalDate(currentDate, -1),
-                  )
-                }
+                onPress={() => setHomeDate(shiftLocalDate(selectedDate, -1))}
                 style={styles.dateArrow}
               >
                 <Ionicons
@@ -377,11 +349,7 @@ export function HomeScreen() {
                 accessibilityLabel={`Show next day, ${formatFullDate(
                   nextDate,
                 )}`}
-                onPress={() =>
-                  setSelectedDate((currentDate) =>
-                    shiftLocalDate(currentDate, 1),
-                  )
-                }
+                onPress={() => setHomeDate(shiftLocalDate(selectedDate, 1))}
                 style={styles.dateArrow}
               >
                 <Ionicons
@@ -401,20 +369,14 @@ export function HomeScreen() {
               onWeightEntryPress={openWeightLog}
               onRetry={loadSelectedDateEntries}
             />
-          </>
-        )}
-
-        {selectedHomeSection === "recovery" && (
+          </View>
           <Text style={[styles.homeSectionText, { color: theme.colors.text }]}>
             Recovery information will go here
           </Text>
-        )}
-
-        {selectedHomeSection === "progress" && (
           <Text style={[styles.homeSectionText, { color: theme.colors.text }]}>
             Progress charts will go here
           </Text>
-        )}
+        </SlidingPanels>
       </View>
 
       <WeightLogModal
@@ -423,13 +385,6 @@ export function HomeScreen() {
         onDeleted={handleWeightDeleted}
         onSaved={handleLoggedEntrySaved}
         visible={weightModalOpen}
-      />
-
-      <MealLogModal
-        onClose={() => setMealModalOpen(false)}
-        onSaved={handleLoggedEntrySaved}
-        selectedDate={selectedDate}
-        visible={mealModalOpen}
       />
 
       <SleepLogModal

@@ -11,17 +11,22 @@ import {
 } from "react-native";
 
 import { MacronutrientBreakdownCard } from "../components/MacronutrientBreakdownCard";
-import { MealLogModal } from "../components/MealLogModal";
+import { MicronutrientSummary } from "../components/nutrition/ExtraNutrients";
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
 import { DAILY_NUTRIENT_TARGETS } from "../constants/nutrition";
 import {
   calculateNutrientTotals,
-  getMealLogsForDay,
-} from "../data/nutritionRepository";
+  foodIdentityKey,
+  localDayBounds,
+  sumExtraTotals,
+} from "../nutrition/calculations";
+import { getMealLogsForDay } from "../data/nutritionRepository";
+import { resolveCatalogFood } from "../services/foodCatalog";
+import { useNutritionWorkspace } from "../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
-import type { StoredMealItem, StoredMealLog } from "../types/nutrition";
+import type { CatalogFood, StoredMealItem, StoredMealLog } from "../types/nutrition";
 
 const tokens = themes.dark;
 
@@ -29,17 +34,28 @@ export function NutritionScreen() {
   const db = useSQLiteContext();
   const { height } = useWindowDimensions();
   const { theme } = useAppTheme();
-  const [currentDay, setCurrentDay] = useState(() => new Date());
+  const {
+    clearNotice,
+    dataRevision,
+    diaryDate,
+    expandedMealId,
+    notice,
+    openEditMeal,
+    openNewMeal,
+    setDiaryDate,
+    setExpandedMealId,
+  } = useNutritionWorkspace();
+  const currentDay = diaryDate;
   const [meals, setMeals] = useState<StoredMealLog[]>([]);
+  const [resolvedFoods, setResolvedFoods] = useState<Record<string, CatalogFood>>({});
   const [loading, setLoading] = useState(true);
   const [databaseError, setDatabaseError] = useState<string | null>(null);
-  const [mealModalOpen, setMealModalOpen] = useState(false);
-  const [selectedMeal, setSelectedMeal] = useState<StoredMealLog | null>(null);
-  const [expandedMealId, setExpandedMealId] = useState<number | null>(null);
+  const [nutrientMenu, setNutrientMenu] = useState<{ id: string; top: number } | null>(null);
   const requestId = useRef(0);
+  const rootRef = useRef<View>(null);
 
   const { dayStart, dayEnd } = useMemo(
-    () => getLocalDayBounds(currentDay),
+    () => localDayBounds(currentDay),
     [currentDay],
   );
 
@@ -79,7 +95,7 @@ export function NutritionScreen() {
       clearTimeout(timer);
       requestId.current += 1;
     };
-  }, [loadMeals]);
+  }, [loadMeals, dataRevision]);
 
   useEffect(() => {
     const today = new Date();
@@ -87,59 +103,93 @@ export function NutritionScreen() {
     tomorrow.setHours(0, 0, 0, 0);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const timer = setTimeout(() => {
-      setCurrentDay((selectedDate) =>
-        isSameLocalDay(selectedDate, today) ? new Date() : selectedDate,
-      );
+      if (isSameLocalDay(currentDay, today)) {
+        setDiaryDate(new Date());
+      }
     }, tomorrow.getTime() - today.getTime() + 250);
 
     return () => clearTimeout(timer);
-  }, [currentDay]);
+  }, [currentDay, setDiaryDate]);
 
-  const dailyTotals = useMemo(
-    () => calculateNutrientTotals(meals.flatMap((meal) => meal.items)),
-    [meals],
+  useEffect(() => {
+    const refs = meals.flatMap((meal) =>
+      meal.items.filter((item) => item.storagePolicy === "reference"),
+    );
+    let cancelled = false;
+
+    void (async () => {
+      for (const item of refs) {
+        if (cancelled) {
+          return;
+        }
+
+        const key = `${foodIdentityKey(item.food)}:${item.servingId}`;
+
+        try {
+          const food = await resolveCatalogFood(db, item.food);
+          const serving = food?.servings.find((candidate) => candidate.id === item.servingId);
+
+          if (!cancelled && food && serving) {
+            setResolvedFoods((current) => ({
+              ...current,
+              [key]: food,
+            }));
+          }
+        } catch {
+          // Leave the diary reference unresolved instead of inventing nutrients.
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [db, meals]);
+
+  const displayMeals = useMemo(
+    () => meals.map((meal) => hydrateMeal(meal, resolvedFoods)),
+    [meals, resolvedFoods],
   );
+  const dailyTotals = useMemo(
+    () => calculateNutrientTotals(displayMeals.flatMap((meal) => meal.items)),
+    [displayMeals],
+  );
+  const extraTotals = useMemo(
+    () => sumExtraTotals(displayMeals.flatMap((meal) => meal.items)),
+    [displayMeals],
+  );
+  const selectedNutrient =
+    extraTotals.find((total) => total.id === nutrientMenu?.id) ??
+    extraTotals.find((total) => total.group === "micro") ??
+    null;
   const catalogueHeight = clamp(height * 0.42, 240, 420);
   const previousDate = shiftLocalDate(currentDay, -1);
   const nextDate = shiftLocalDate(currentDay, 1);
-
-  function openNewMeal() {
-    setSelectedMeal(null);
-    setMealModalOpen(true);
-  }
-
-  function openMeal(meal: StoredMealLog) {
-    setSelectedMeal(meal);
-    setMealModalOpen(true);
-  }
-
-  function closeMealModal() {
-    setMealModalOpen(false);
-    setSelectedMeal(null);
-  }
+  const nutrientRef = useRef<View>(null);
 
   function changeDay(numberOfDays: number) {
-    setExpandedMealId(null);
-    setCurrentDay((selectedDate) => shiftLocalDate(selectedDate, numberOfDays));
+    setDiaryDate(shiftLocalDate(currentDay, numberOfDays));
   }
 
-  async function handleMealSaved(loggedAt: number) {
-    const loggedDate = new Date(loggedAt);
-
-    if (!isSameLocalDay(currentDay, loggedDate)) {
-      setCurrentDay(loggedDate);
-      return;
-    }
-
-    await loadMeals();
-  }
-
-  async function handleMealDeleted() {
-    await loadMeals();
+  function openNutrientMenu() {
+    nutrientRef.current?.measureInWindow((_x, y, _width, buttonHeight) => {
+      rootRef.current?.measureInWindow((_rootX, rootY) => {
+        setNutrientMenu({
+          id: selectedNutrient?.id ?? extraTotals[0]?.id ?? "sodium",
+          top: y + buttonHeight - rootY,
+        });
+      });
+    });
   }
 
   return (
+    <View ref={rootRef} style={styles.workspace}>
     <Screen centerTitle title="Nutrition">
+      {notice ? (
+        <PressOpacity accessibilityLabel="Dismiss notice" onPress={clearNotice}>
+          <Text style={[styles.stateText, { color: theme.colors.text }]}>{notice}</Text>
+        </PressOpacity>
+      ) : null}
       <View style={styles.dateNavigator}>
         <PressOpacity
           accessibilityLabel={`Show previous day, ${formatFullDate(
@@ -227,15 +277,15 @@ export function NutritionScreen() {
               nestedScrollEnabled
               showsVerticalScrollIndicator={false}
             >
-              {meals.map((meal) => (
+              {displayMeals.map((meal) => (
                 <MealCatalogueEntry
                   expanded={expandedMealId === meal.timelineEntryId}
                   key={meal.timelineEntryId}
                   meal={meal}
-                  onEdit={() => openMeal(meal)}
+                  onEdit={() => openEditMeal(meal)}
                   onToggle={() =>
-                    setExpandedMealId((currentId) =>
-                      currentId === meal.timelineEntryId
+                    setExpandedMealId(
+                      expandedMealId === meal.timelineEntryId
                         ? null
                         : meal.timelineEntryId,
                     )
@@ -248,7 +298,7 @@ export function NutritionScreen() {
 
         <PressOpacity
           accessibilityLabel="Log meal"
-          onPress={openNewMeal}
+          onPress={() => openNewMeal(currentDay)}
           style={[styles.addButton, { backgroundColor: theme.colors.tertiary }]}
         >
           <Ionicons color={theme.colors.background} name="add" size={28} />
@@ -290,6 +340,7 @@ export function NutritionScreen() {
             </Text>
           </View>
         ) : (
+          <>
           <MacronutrientBreakdownCard
             incomplete={dailyTotals.incomplete}
             targets={DAILY_NUTRIENT_TARGETS}
@@ -301,18 +352,49 @@ export function NutritionScreen() {
               proteinG: dailyTotals.proteinG,
             }}
           />
+          <View ref={nutrientRef}>
+            <MicronutrientSummary
+              onPress={openNutrientMenu}
+              selected={selectedNutrient}
+            />
+          </View>
+          </>
         )}
       </View>
-
-      <MealLogModal
-        mealToEdit={selectedMeal ?? undefined}
-        onClose={closeMealModal}
-        onDeleted={handleMealDeleted}
-        onSaved={handleMealSaved}
-        selectedDate={currentDay}
-        visible={mealModalOpen}
-      />
     </Screen>
+      {nutrientMenu ? (
+        <View style={[styles.nutrientMenu, { top: nutrientMenu.top }]}>
+          <PressOpacity
+            accessibilityLabel="Dismiss micronutrients"
+            onPress={() => setNutrientMenu(null)}
+            style={styles.nutrientBackdrop}
+          />
+          <View
+            style={[
+              styles.nutrientList,
+              {
+                backgroundColor: theme.colors.background,
+                borderColor: theme.colors.border,
+                top: nutrientMenu.top,
+              },
+            ]}
+          >
+            {extraTotals
+              .filter((total) => total.group === "micro")
+              .map((total) => (
+                <PressOpacity
+                  accessibilityLabel={total.name}
+                  key={total.id}
+                  onPress={() => setNutrientMenu({ id: total.id, top: nutrientMenu.top })}
+                  style={styles.nutrientChoice}
+                >
+                  <Text style={{ color: theme.colors.text }}>{total.name}</Text>
+                </PressOpacity>
+              ))}
+          </View>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -450,6 +532,41 @@ function StoredFoodRow({ item }: { item: StoredMealItem }) {
   );
 }
 
+function hydrateMeal(
+  meal: StoredMealLog,
+  resolved: Record<string, CatalogFood>,
+): StoredMealLog {
+  const items = meal.items.map((item) => {
+    if (item.storagePolicy !== "reference") {
+      return item;
+    }
+
+    const food = resolved[`${foodIdentityKey(item.food)}:${item.servingId}`];
+    const serving = food?.servings.find((candidate) => candidate.id === item.servingId);
+
+    if (!food || !serving) {
+      return item;
+    }
+
+    return {
+      ...item,
+      brandName: food.brandName,
+      description: food.name,
+      extrasPerServing: serving.extras,
+      nutrientsPerServing: serving.nutrients,
+      servingAmount: serving.amount,
+      servingDescription: serving.label,
+      servingUnit: serving.unit,
+    };
+  });
+
+  return {
+    ...meal,
+    items,
+    totals: calculateNutrientTotals(items),
+  };
+}
+
 function formatMealTabNutrition(meal: StoredMealLog) {
   return `${formatTotal(
     meal.totals.energyKcal,
@@ -469,30 +586,31 @@ function formatMealTabNutrition(meal: StoredMealLog) {
 function formatMealTotalsForAccessibility(meal: StoredMealLog) {
   const totals = meal.totals;
   const isIncomplete = Object.values(totals.incomplete).some(Boolean);
-  const energyPrefix = totals.incomplete.energyKcal ? "at least " : "";
-  const proteinPrefix = totals.incomplete.proteinG ? "at least " : "";
-  const carbohydratesPrefix = totals.incomplete.carbohydratesG
-    ? "at least "
-    : "";
-  const fatPrefix = totals.incomplete.fatG ? "at least " : "";
 
-  return `${energyPrefix}${formatNumber(
-    totals.energyKcal,
-    0,
-  )} kilocalories, ${proteinPrefix}${formatNumber(
-    totals.proteinG,
-  )} grams protein, ${carbohydratesPrefix}${formatNumber(
-    totals.carbohydratesG,
-  )} grams carbohydrates, and ${fatPrefix}${formatNumber(
-    totals.fatG,
-  )} grams fat.${isIncomplete ? " Incomplete nutrition data." : ""}`;
+  return `${formatAccessibleTotal("kilocalories", totals.energyKcal, totals.incomplete.energyKcal)}, ${formatAccessibleTotal("grams protein", totals.proteinG, totals.incomplete.proteinG)}, ${formatAccessibleTotal("grams carbohydrates", totals.carbohydratesG, totals.incomplete.carbohydratesG)}, and ${formatAccessibleTotal("grams fat", totals.fatG, totals.incomplete.fatG)}.${isIncomplete ? " Incomplete nutrition data." : ""}`;
+}
+
+function formatAccessibleTotal(
+  unit: string,
+  value: number | null,
+  incomplete: boolean,
+) {
+  if (value === null) {
+    return `${unit} unavailable`;
+  }
+
+  return `${incomplete ? "at least " : ""}${formatNumber(value, unit.startsWith("kilo") ? 0 : 1)} ${unit}`;
 }
 
 function formatNullableContribution(value: number | null, quantity: number) {
   return value === null ? "—" : formatNumber(value * quantity);
 }
 
-function formatTotal(value: number, incomplete: boolean) {
+function formatTotal(value: number | null, incomplete: boolean) {
+  if (value === null) {
+    return "\u2014";
+  }
+
   return `${formatNumber(value)}${incomplete ? "+" : ""}`;
 }
 
@@ -506,16 +624,6 @@ function formatTime(timestamp: number) {
     hour: "numeric",
     minute: "2-digit",
   });
-}
-
-function getLocalDayBounds(date: Date) {
-  const dayStart = new Date(date);
-  dayStart.setHours(0, 0, 0, 0);
-
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
-
-  return { dayEnd, dayStart };
 }
 
 function shiftLocalDate(date: Date, numberOfDays: number) {
@@ -723,5 +831,26 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 48,
     zIndex: 10,
+  },
+  workspace: {
+    flex: 1,
+  },
+  nutrientMenu: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 20,
+  },
+  nutrientBackdrop: {
+    ...StyleSheet.absoluteFill,
+  },
+  nutrientList: {
+    borderWidth: StyleSheet.hairlineWidth,
+    left: tokens.spacing.lg,
+    position: "absolute",
+    right: tokens.spacing.lg,
+  },
+  nutrientChoice: {
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: tokens.spacing.md,
   },
 });

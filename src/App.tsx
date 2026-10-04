@@ -4,6 +4,7 @@ import { migrateDatabase } from "./data/database";
 
 import { AppNavigator } from "./navigation/AppNavigator";
 import { AppStateProvider } from "./state/AppStateContext";
+import { NutritionWorkspaceProvider } from "./state/NutritionWorkspaceContext";
 import { AppThemeProvider } from "./theme/ThemeContext";
 
 export default function App() {
@@ -12,7 +13,9 @@ export default function App() {
       <SQLiteProvider databaseName="caps.db" onInit={migrateDatabase}>
         <AppThemeProvider>
           <AppStateProvider>
-            <AppNavigator />
+            <NutritionWorkspaceProvider>
+              <AppNavigator />
+            </NutritionWorkspaceProvider>
           </AppStateProvider>
         </AppThemeProvider>
       </SQLiteProvider>
