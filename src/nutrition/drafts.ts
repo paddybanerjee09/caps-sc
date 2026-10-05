@@ -158,6 +158,39 @@ export function createCustomFoodForm(): CustomFoodForm {
   };
 }
 
+export function customFoodToForm(food: {
+  barcode: string | null;
+  brand: string | null;
+  carbohydratesG: number;
+  energyKcal: number;
+  extras: ExtraNutrientValue[];
+  fatG: number;
+  id: string;
+  name: string;
+  proteinG: number;
+  servingAmount: number;
+  servingUnit: FoodUnit;
+}): CustomFoodForm {
+  return {
+    barcode: food.barcode ?? "",
+    brand: food.brand ?? "",
+    calories: String(food.energyKcal),
+    carbohydrates: String(food.carbohydratesG),
+    customFoodId: food.id,
+    extras: Object.fromEntries(
+      food.extras.flatMap((extra) =>
+        extra.amount === null ? [] : [[extra.id, String(extra.amount)]],
+      ),
+    ),
+    fat: String(food.fatG),
+    name: food.name,
+    operationId: createId(),
+    protein: String(food.proteinG),
+    servingAmount: String(food.servingAmount),
+    servingUnit: food.servingUnit,
+  };
+}
+
 export function initialLoggedAt(day: Date) {
   const now = new Date();
   const stamp = new Date(day);
@@ -747,7 +780,7 @@ function parseFacts(value: unknown): FactsSession | null {
   };
 }
 
-function parseCatalogFood(value: unknown): CatalogFood | null {
+export function parseCatalogFood(value: unknown): CatalogFood | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }

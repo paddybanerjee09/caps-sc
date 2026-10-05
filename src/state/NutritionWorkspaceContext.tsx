@@ -24,9 +24,12 @@ import {
   editMealDraftKey,
   newMealDraftKey,
 } from "../nutrition/calculations";
+import type { CustomFoodRecord } from "../data/nutritionCatalogRepository";
 import {
+  createCustomFoodForm,
   createEmptyWorkspace,
   createMealDraft,
+  customFoodToForm,
   draftFromStoredMeal,
   initialLoggedAt,
   restoreWorkspace,
@@ -52,6 +55,7 @@ type NutritionWorkspaceValue = {
   activeDraft: MealDraft | null;
   clearNotice: () => void;
   closeToRoot: () => void;
+  completeCustomFood: () => void;
   customForm: CustomFoodForm;
   dataRevision: number;
   diaryDate: Date;
@@ -85,6 +89,8 @@ type NutritionWorkspaceValue = {
   setNutritionTabHandler: (handler: (() => void) | null) => void;
   settleStack: (entryKey: string) => void;
   stack: StackEntry[];
+  startCustomFood: (barcode?: string) => void;
+  startEditCustomFood: (food: CustomFoodRecord) => void;
   transientEpoch: number;
   transitioning: boolean;
   updateCustomForm: (recipe: (form: CustomFoodForm) => CustomFoodForm) => void;
@@ -306,6 +312,65 @@ export function NutritionWorkspaceProvider({ children }: { children: ReactNode }
     commitStack([{ ...top, phase: "exit" }], true);
   }, [commitStack]);
 
+  const startCustomFood = useCallback(
+    (barcode = "") => {
+      if (lockRef.current) {
+        return;
+      }
+
+      commitModel({
+        ...modelRef.current,
+        customForm: { ...createCustomFoodForm(), barcode },
+      });
+      push({ screen: "customFood" });
+    },
+    [commitModel, push],
+  );
+
+  const startEditCustomFood = useCallback(
+    (food: CustomFoodRecord) => {
+      if (lockRef.current) {
+        return;
+      }
+
+      commitModel({
+        ...modelRef.current,
+        customForm: customFoodToForm(food),
+      });
+      push({ screen: "customFood" });
+    },
+    [commitModel, push],
+  );
+
+  const completeCustomFood = useCallback(() => {
+    if (lockRef.current) {
+      return;
+    }
+
+    const current = stackRef.current.filter((entry) => entry.phase !== "exit");
+    const pickerIndex = current.findIndex((entry) => entry.route.screen === "mealItem");
+    const top = current[current.length - 1];
+
+    if (pickerIndex < 0 || !top || current[pickerIndex].key === top.key) {
+      pop();
+      return;
+    }
+
+    commitModel({
+      ...modelRef.current,
+      customForm: createCustomFoodForm(),
+      picker: { ...modelRef.current.picker, tab: "custom" },
+    });
+    commitStack(
+      [
+        ...current.slice(0, pickerIndex),
+        { ...current[pickerIndex], phase: "idle" },
+        { ...top, phase: "exit" },
+      ],
+      true,
+    );
+  }, [commitModel, commitStack, pop]);
+
   const settleStack = useCallback(
     (entryKey: string) => {
       const current = stackRef.current;
@@ -526,6 +591,7 @@ export function NutritionWorkspaceProvider({ children }: { children: ReactNode }
       activeDraft: activeDraft(model, stack),
       clearNotice: () => commitModel({ ...modelRef.current, notice: null }),
       closeToRoot,
+      completeCustomFood,
       customForm: model.customForm,
       dataRevision,
       diaryDate: new Date(model.diaryDayMs),
@@ -597,6 +663,8 @@ export function NutritionWorkspaceProvider({ children }: { children: ReactNode }
       },
       settleStack,
       stack,
+      startCustomFood,
+      startEditCustomFood,
       transientEpoch,
       transitioning,
       updateCustomForm: (recipe) =>
@@ -619,6 +687,7 @@ export function NutritionWorkspaceProvider({ children }: { children: ReactNode }
     [
       closeToRoot,
       commitModel,
+      completeCustomFood,
       dataRevision,
       discardDraft,
       flush,
@@ -633,6 +702,8 @@ export function NutritionWorkspaceProvider({ children }: { children: ReactNode }
       returnToMealLog,
       settleStack,
       stack,
+      startCustomFood,
+      startEditCustomFood,
       transientEpoch,
       transitioning,
       updateDraft,
