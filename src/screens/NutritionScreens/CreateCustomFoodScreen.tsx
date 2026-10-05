@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
-import { NutritionPage } from "../../components/nutrition/NutritionChrome";
+import {
+  NutritionPage,
+  NutritionTextInput,
+  useDangerColors,
+} from "../../components/nutrition/NutritionChrome";
 import { PressOpacity } from "../../components/PressOpacity";
 import {
   createCustomFood,
@@ -18,17 +22,32 @@ import { NUTRIENT_REGISTRY } from "../../nutrition/nutrients";
 import { catalogFoodFromCustom } from "../../services/foodCatalog";
 import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
-import { themes } from "../../theme/theme";
+import { readableTextColor, themes } from "../../theme/theme";
 import type { ExtraNutrientValue, FoodUnit } from "../../types/nutrition";
 
 const tokens = themes.dark;
 const UNITS: FoodUnit[] = ["g", "ml", "tsp", "tbsp", "serving"];
+const MACRO_FIELDS = [
+  { key: "calories", label: "Calories", name: "Calories (kcal)", unit: "kcal" },
+  { key: "protein", label: "Protein", name: "Protein (g)", unit: "g" },
+  { key: "carbohydrates", label: "Carbs", name: "Carbohydrates (g)", unit: "g" },
+  { key: "fat", label: "Fat", name: "Fat (g)", unit: "g" },
+] as const;
+const NUTRIENT_ROWS = pairs(NUTRIENT_REGISTRY);
 
 export function CreateCustomFoodScreen() {
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
-  const { customForm, flush, pop, push, setFacts, transitioning, updateCustomForm } =
-    useNutritionWorkspace();
+  const {
+    customForm,
+    flush,
+    markNutritionChanged,
+    pop,
+    push,
+    setFacts,
+    transitioning,
+    updateCustomForm,
+  } = useNutritionWorkspace();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const calories = Number(customForm.calories);
@@ -52,6 +71,7 @@ export function CreateCustomFoodScreen() {
       return;
     }
 
+    setErrors({});
     setSaving(true);
     const extras = extrasFromForm(customForm.extras);
     const input = {
@@ -78,6 +98,7 @@ export function CreateCustomFoodScreen() {
       }
 
       updateCustomForm((form) => ({ ...form, customFoodId: id }));
+      markNutritionChanged();
       const food = catalogFoodFromCustom({ ...input, id });
       setFacts({
         amountInput: "1",
@@ -105,24 +126,26 @@ export function CreateCustomFoodScreen() {
           onPress={() => void saveAndContinue()}
           style={[styles.next, { backgroundColor: theme.colors.tertiary }]}
         >
-          <Text style={[styles.nextLabel, { color: theme.colors.background }]}>
+          <Text style={[styles.nextLabel, { color: readableTextColor(theme.colors.tertiary) }]}>
             {saving ? "Saving" : "Next"}
           </Text>
         </PressOpacity>
       }
       onClose={pop}
-      title="New Food"
+      title={customForm.customFoodId ? "Edit Food" : "New Food"}
     >
       <Field
         error={errors.name}
         label="Food name"
         onChangeText={(name) => updateCustomForm((form) => ({ ...form, name }))}
+        placeholder="Enter food name"
         prominent
         value={customForm.name}
       />
       <Field
         label="Brand"
         onChangeText={(brand) => updateCustomForm((form) => ({ ...form, brand }))}
+        placeholder="Enter brand (optional)"
         value={customForm.brand}
       />
       <Field
@@ -130,6 +153,7 @@ export function CreateCustomFoodScreen() {
         keyboardType="number-pad"
         label="Barcode"
         onChangeText={(barcode) => updateCustomForm((form) => ({ ...form, barcode }))}
+        placeholder="Enter barcode (optional)"
         value={customForm.barcode}
       />
       <Field
@@ -139,9 +163,12 @@ export function CreateCustomFoodScreen() {
         onChangeText={(servingAmount) =>
           updateCustomForm((form) => ({ ...form, servingAmount }))
         }
+        placeholder="Enter amount, e.g. 100"
         value={customForm.servingAmount}
       />
-      <Text style={[styles.label, { color: theme.colors.text }]}>Base serving unit</Text>
+      <Text style={[styles.label, styles.unitsLabel, { color: theme.colors.text }]}>
+        Base serving unit
+      </Text>
       <View style={styles.units}>
         {UNITS.map((unit) => (
           <PressOpacity
@@ -164,36 +191,25 @@ export function CreateCustomFoodScreen() {
           </PressOpacity>
         ))}
       </View>
-      <Field
-        error={errors.calories}
-        keyboardType="decimal-pad"
-        label="Calories (kcal)"
-        onChangeText={(value) => updateCustomForm((form) => ({ ...form, calories: value }))}
-        value={customForm.calories}
-      />
-      <Field
-        error={errors.fat}
-        keyboardType="decimal-pad"
-        label="Fat (g)"
-        onChangeText={(value) => updateCustomForm((form) => ({ ...form, fat: value }))}
-        value={customForm.fat}
-      />
-      <Field
-        error={errors.carbohydrates}
-        keyboardType="decimal-pad"
-        label="Carbohydrates (g)"
-        onChangeText={(value) =>
-          updateCustomForm((form) => ({ ...form, carbohydrates: value }))
-        }
-        value={customForm.carbohydrates}
-      />
-      <Field
-        error={errors.protein}
-        keyboardType="decimal-pad"
-        label="Protein (g)"
-        onChangeText={(value) => updateCustomForm((form) => ({ ...form, protein: value }))}
-        value={customForm.protein}
-      />
+      <Text style={[styles.section, { color: theme.colors.text }]}>
+        Nutrition per base serving
+      </Text>
+      <View style={styles.gridRow}>
+        {MACRO_FIELDS.map((field) => (
+          <GridField
+            accessibilityLabel={field.name}
+            invalid={Boolean(errors[field.key])}
+            key={field.key}
+            label={field.label}
+            onChangeText={(value) =>
+              updateCustomForm((form) => ({ ...form, [field.key]: value }))
+            }
+            placeholder={field.unit}
+            value={customForm[field.key]}
+          />
+        ))}
+      </View>
+      <FieldErrors messages={MACRO_FIELDS.map((field) => errors[field.key])} />
       {warning ? (
         <Text style={[styles.warning, { color: theme.colors.text }]}>
           Macronutrients estimate about {formatDisplayNumber(warning.estimate, 0)} kcal.
@@ -201,24 +217,31 @@ export function CreateCustomFoodScreen() {
         </Text>
       ) : null}
       <Text style={[styles.section, { color: theme.colors.text }]}>Optional nutrients</Text>
-      {NUTRIENT_REGISTRY.map((definition) => (
-        <Field
-          error={errors[definition.id]}
-          key={definition.id}
-          keyboardType="decimal-pad"
-          label={`${definition.name} (${definition.unit})`}
-          onChangeText={(value) =>
-            updateCustomForm((form) => ({
-              ...form,
-              extras: { ...form.extras, [definition.id]: value },
-            }))
-          }
-          value={customForm.extras[definition.id] ?? ""}
-        />
+      {NUTRIENT_ROWS.map((row) => (
+        <View key={row[0].id}>
+          <View style={styles.gridRow}>
+            {row.map((definition) => (
+              <GridField
+                accessibilityLabel={`${definition.name} (${definition.unit})`}
+                invalid={Boolean(errors[definition.id])}
+                key={definition.id}
+                label={`${definition.name} (${definition.unit})`}
+                onChangeText={(value) =>
+                  updateCustomForm((form) => ({
+                    ...form,
+                    extras: { ...form.extras, [definition.id]: value },
+                  }))
+                }
+                placeholder="Optional"
+                value={customForm.extras[definition.id] ?? ""}
+              />
+            ))}
+            {row.length === 1 ? <View style={styles.gridCell} /> : null}
+          </View>
+          <FieldErrors messages={row.map((definition) => errors[definition.id])} />
+        </View>
       ))}
-      {errors.form ? (
-        <Text style={[styles.warning, { color: theme.colors.text }]}>{errors.form}</Text>
-      ) : null}
+      <FieldErrors messages={[errors.form]} />
     </NutritionPage>
   );
 }
@@ -228,6 +251,7 @@ function Field({
   keyboardType,
   label,
   onChangeText,
+  placeholder,
   prominent = false,
   value,
 }: {
@@ -235,35 +259,91 @@ function Field({
   keyboardType?: "decimal-pad" | "number-pad";
   label: string;
   onChangeText: (value: string) => void;
+  placeholder: string;
   prominent?: boolean;
   value: string;
 }) {
   const { theme } = useAppTheme();
 
   return (
-    <View style={[styles.field, { borderBottomColor: theme.colors.border }]}>
+    <View style={styles.field}>
       <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
-      <TextInput
+      <NutritionTextInput
         accessibilityLabel={label}
+        invalid={Boolean(error)}
         keyboardType={keyboardType}
         onChangeText={onChangeText}
-        placeholderTextColor={theme.colors.textMuted}
-        style={[
-          styles.input,
-          { color: theme.colors.text },
-          prominent && [
-            styles.prominentInput,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.borderStrong,
-            },
-          ],
-        ]}
+        placeholder={placeholder}
+        style={prominent && styles.prominentInput}
         value={value}
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <FieldErrors messages={[error]} />
     </View>
   );
+}
+
+function GridField({
+  accessibilityLabel,
+  invalid,
+  label,
+  onChangeText,
+  placeholder,
+  value,
+}: {
+  accessibilityLabel: string;
+  invalid: boolean;
+  label: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  value: string;
+}) {
+  const { theme } = useAppTheme();
+
+  return (
+    <View style={styles.gridCell}>
+      <Text numberOfLines={2} style={[styles.label, { color: theme.colors.text }]}>
+        {label}
+      </Text>
+      <NutritionTextInput
+        accessibilityLabel={accessibilityLabel}
+        invalid={invalid}
+        keyboardType="decimal-pad"
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        style={styles.gridInput}
+        value={value}
+      />
+    </View>
+  );
+}
+
+function FieldErrors({ messages }: { messages: (string | undefined)[] }) {
+  const dangerColors = useDangerColors();
+  const visible = messages.filter((message): message is string => Boolean(message));
+
+  if (visible.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.errors}>
+      {visible.map((message) => (
+        <Text key={message} style={[styles.error, { color: dangerColors.text }]}>
+          {message}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
+function pairs<T>(items: readonly T[]) {
+  const rows: T[][] = [];
+
+  for (let index = 0; index < items.length; index += 2) {
+    rows.push(items.slice(index, index + 2));
+  }
+
+  return rows;
 }
 
 function validateForm(form: {
@@ -346,27 +426,42 @@ function extrasFromForm(values: Record<string, string>): ExtraNutrientValue[] {
 
 const styles = StyleSheet.create({
   field: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: tokens.spacing.xs,
     paddingVertical: tokens.spacing.sm,
   },
   label: {
     fontSize: tokens.typography.label.fontSize,
     fontWeight: "700",
+    lineHeight: tokens.typography.label.lineHeight,
   },
-  input: {
-    fontSize: tokens.typography.body.fontSize,
-    minHeight: 44,
+  unitsLabel: {
+    paddingTop: tokens.spacing.sm,
   },
   prominentInput: {
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
     fontWeight: "700",
-    marginTop: tokens.spacing.xs,
-    paddingHorizontal: tokens.spacing.md,
+    minHeight: 48,
+  },
+  gridRow: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    paddingTop: tokens.spacing.sm,
+  },
+  gridCell: {
+    flex: 1,
+    gap: tokens.spacing.xs,
+    minWidth: 0,
+  },
+  gridInput: {
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  errors: {
+    gap: 2,
+    paddingTop: tokens.spacing.xs,
   },
   error: {
-    color: "#D31516",
     fontSize: tokens.typography.label.fontSize,
+    lineHeight: tokens.typography.label.lineHeight,
   },
   warning: {
     fontSize: tokens.typography.body.fontSize,
@@ -390,6 +485,7 @@ const styles = StyleSheet.create({
   },
   next: {
     alignItems: "center",
+    borderRadius: tokens.radius.sm,
     justifyContent: "center",
     marginHorizontal: tokens.spacing.lg,
     marginVertical: tokens.spacing.sm,
