@@ -1,9 +1,15 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
 import { useEffect, useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 
-import { FoodMacroLine, NutritionActionBar, NutritionPage } from "../../components/nutrition/NutritionChrome";
+import {
+  FoodMacroLine,
+  NutritionActionBar,
+  NutritionPage,
+  NutritionTextInput,
+  useDangerColors,
+} from "../../components/nutrition/NutritionChrome";
 import { LogTimeChanger } from "../../components/LogTimeChanger";
 import { MacronutrientBreakdownCard } from "../../components/MacronutrientBreakdownCard";
 import { PressOpacity } from "../../components/PressOpacity";
@@ -30,7 +36,7 @@ import {
 import { resolveCatalogFood } from "../../services/foodCatalog";
 import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
-import { themes } from "../../theme/theme";
+import { readableTextColor, themes } from "../../theme/theme";
 import type { NewMealItem } from "../../types/nutrition";
 
 const tokens = themes.dark;
@@ -38,6 +44,7 @@ const tokens = themes.dark;
 export function MealLogScreen({ draftKey }: { draftKey: string }) {
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
+  const dangerColors = useDangerColors();
   const workspace = useNutritionWorkspace();
   const {
     closeToRoot,
@@ -55,7 +62,6 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
   const mealDraft = drafts[draftKey] ?? null;
   const [saving, setSaving] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
-  const [templateMessage, setTemplateMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mealDraft || mealDraft.mode !== "create" || mealDraft.titleTouched || mealDraft.title) {
@@ -234,7 +240,6 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
           savedSignature: compositionSignature(next),
         };
       });
-      setTemplateMessage("Meal template saved");
     } catch {
       Alert.alert("Couldn't save meal", "Please try again.");
     } finally {
@@ -304,16 +309,22 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
   }
 
   function confirmDiscard() {
-    Alert.alert("Discard draft?", "This clears the meal you are editing.", [
-      { style: "cancel", text: "Cancel" },
-      {
-        onPress: () => {
-          void discardDraft(draftKey);
+    Alert.alert(
+      editing ? "Discard changes?" : "Discard draft?",
+      editing
+        ? "This restores the meal as it was logged. The logged meal stays unchanged."
+        : "This clears the meal you are building.",
+      [
+        { style: "cancel", text: "Cancel" },
+        {
+          onPress: () => {
+            void discardDraft(draftKey);
+          },
+          style: "destructive",
+          text: "Discard",
         },
-        style: "destructive",
-        text: "Discard draft",
-      },
-    ]);
+      ],
+    );
   }
 
   function confirmDelete() {
@@ -321,7 +332,7 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
       return;
     }
 
-    Alert.alert("Delete meal?", "This cannot be undone.", [
+    Alert.alert("Delete meal?", "This removes the meal from your diary. It cannot be undone.", [
       { style: "cancel", text: "Cancel" },
       {
         style: "destructive",
@@ -343,10 +354,22 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
     ]);
   }
 
+  const addItemTextColor = readableTextColor(theme.colors.tertiary);
+
   return (
     <NutritionPage
       footer={
         <NutritionActionBar
+          danger={
+            editing
+              ? {
+                  accessibilityLabel: "Delete meal",
+                  disabled: saving,
+                  label: "Delete Meal",
+                  onPress: confirmDelete,
+                }
+              : undefined
+          }
           left={{
             accessibilityLabel: "Saved meals",
             label: "Saved Meals",
@@ -363,59 +386,66 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
       onClose={pop}
       right={
         <LogTimeChanger
-          iconOnly
+          inline
+          label="Change Log Time"
           onChange={(date) =>
             updateDraft(draftKey, (draft) => ({ ...draft, loggedAt: date.getTime() }))
           }
           value={new Date(mealDraft.loggedAt)}
         />
       }
+      sideWidth={120}
       title={editing ? "Edit Meal" : "Log Meal"}
     >
-      <TextInput
-        accessibilityLabel="Meal title"
-        maxLength={80}
-        onChangeText={(title) =>
-          updateDraft(draftKey, (draft) => ({
-            ...draft,
-            savedSignature:
-              draft.savedSignature === compositionSignature({ ...draft, title })
-                ? draft.savedSignature
-                : draft.savedSignature,
-            title,
-            titleTouched: true,
-          }))
-        }
-        placeholder="Meal title"
-        placeholderTextColor={theme.colors.textMuted}
-        style={[
-          styles.titleInput,
-          {
-            backgroundColor: theme.colors.surfaceMuted,
-            borderColor: theme.colors.borderStrong,
-            color: theme.colors.text,
-          },
-        ]}
-        value={mealDraft.title}
-      />
-      <View style={styles.titleActions}>
-        <PressOpacity
-          accessibilityLabel={templateSaved ? "Meal template saved" : "Save meal template"}
-          disabled={!canSaveTemplate}
-          onPress={() => void saveTemplate()}
-          style={styles.textButton}
-        >
-          <Text style={{ color: canSaveTemplate ? theme.colors.tertiary : theme.colors.textMuted }}>
-            {templateSaved ? "Saved" : savingTemplate ? "Saving" : "Save Meal"}
-          </Text>
-        </PressOpacity>
-        <PressOpacity accessibilityLabel="Discard draft" onPress={confirmDiscard} style={styles.textButton}>
-          <Text style={{ color: theme.colors.textMuted }}>Discard draft</Text>
-        </PressOpacity>
+      <View style={styles.titleRow}>
+        <NutritionTextInput
+          accessibilityLabel="Meal title"
+          maxLength={80}
+          onChangeText={(title) =>
+            updateDraft(draftKey, (draft) => ({
+              ...draft,
+              title,
+              titleTouched: true,
+            }))
+          }
+          placeholder="Enter meal title"
+          style={styles.titleInput}
+          value={mealDraft.title}
+        />
+        <View style={styles.titleActions}>
+          <PressOpacity
+            accessibilityLabel={templateSaved ? "Meal saved" : "Save meal"}
+            disabled={!canSaveTemplate}
+            onPress={() => void saveTemplate()}
+            style={[
+              styles.titleAction,
+              {
+                backgroundColor: theme.colors.accentMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.titleActionLabel, { color: theme.colors.text }]}>
+              {templateSaved ? "Saved" : savingTemplate ? "Saving" : "Save Meal"}
+            </Text>
+          </PressOpacity>
+          <PressOpacity
+            accessibilityLabel="Discard draft"
+            onPress={confirmDiscard}
+            style={[
+              styles.titleAction,
+              {
+                backgroundColor: dangerColors.background,
+                borderColor: dangerColors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.titleActionLabel, { color: dangerColors.text }]}>
+              Discard draft
+            </Text>
+          </PressOpacity>
+        </View>
       </View>
-      {templateMessage ? (
-        <Text style={[styles.feedback, { color: theme.colors.textMuted }]}>{templateMessage}</Text>
-      ) : null}
       <MacronutrientBreakdownCard
         compact
         incomplete={totals.incomplete}
@@ -430,14 +460,15 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
         }}
       />
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Meal items</Text>
+      <PressOpacity
+        accessibilityLabel="Add meal item"
+        onPress={() => push({ screen: "mealItem" })}
+        style={[styles.addItem, { backgroundColor: theme.colors.tertiary }]}
+      >
+        <Ionicons color={addItemTextColor} name="add-circle-outline" size={24} />
+        <Text style={[styles.addItemLabel, { color: addItemTextColor }]}>Add Meal Item</Text>
+      </PressOpacity>
       <View style={[styles.items, { borderColor: theme.colors.border }]}>
-        <PressOpacity
-          accessibilityLabel="Add meal item"
-          onPress={() => push({ screen: "mealItem" })}
-          style={styles.addItem}
-        >
-          <Text style={{ color: theme.colors.tertiary }}>Add Meal Item</Text>
-        </PressOpacity>
         {mealDraft.items.length === 0 ? (
           <Text style={[styles.empty, { color: theme.colors.textMuted }]}>
             Add a food to this meal. You can search, scan a barcode, or use a custom food.
@@ -477,11 +508,6 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
           ))
         )}
       </View>
-      {editing ? (
-        <PressOpacity accessibilityLabel="Delete meal" onPress={confirmDelete} style={styles.delete}>
-          <Text style={styles.deleteText}>Delete meal</Text>
-        </PressOpacity>
-      ) : null}
     </NutritionPage>
   );
 }
@@ -546,38 +572,60 @@ function scaleLine(item: DraftMealItem) {
 }
 
 const styles = StyleSheet.create({
+  titleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: tokens.spacing.sm,
+    marginBottom: tokens.spacing.sm,
+  },
   titleInput: {
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    fontSize: tokens.typography.body.fontSize,
+    flexBasis: 112,
+    flexGrow: 1,
     fontWeight: "700",
     minHeight: 48,
-    paddingHorizontal: tokens.spacing.md,
   },
   titleActions: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: tokens.spacing.sm,
+    marginLeft: "auto",
   },
-  textButton: {
+  titleAction: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.md,
   },
-  feedback: {
+  titleActionLabel: {
     fontSize: tokens.typography.label.fontSize,
+    fontWeight: "700",
+    lineHeight: tokens.typography.label.lineHeight,
   },
   sectionTitle: {
     fontSize: tokens.typography.sectionTitle.fontSize,
     fontWeight: "700",
     marginTop: tokens.spacing.lg,
   },
-  items: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    marginTop: tokens.spacing.sm,
-  },
   addItem: {
     alignItems: "center",
+    borderRadius: tokens.radius.md,
+    boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.28)",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
     justifyContent: "center",
-    minHeight: 48,
+    marginTop: tokens.spacing.sm,
+    minHeight: 56,
+    paddingHorizontal: tokens.spacing.lg,
+  },
+  addItemLabel: {
+    fontSize: tokens.typography.sectionTitle.fontSize,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  items: {
+    marginTop: tokens.spacing.md,
   },
   empty: {
     fontSize: tokens.typography.body.fontSize,
@@ -607,14 +655,5 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: "center",
     width: 44,
-  },
-  delete: {
-    alignItems: "center",
-    minHeight: 44,
-    justifyContent: "center",
-  },
-  deleteText: {
-    color: "#D31516",
-    fontWeight: "700",
   },
 });

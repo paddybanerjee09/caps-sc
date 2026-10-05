@@ -22,6 +22,7 @@ const tokens = themes.dark;
 type LogTimeChangerProps = {
   iconOnly?: boolean;
   inline?: boolean;
+  label?: string;
   maximumDate?: Date;
   onChange: (date: Date) => void;
   value: Date;
@@ -30,6 +31,7 @@ type LogTimeChangerProps = {
 export function LogTimeChanger({
   iconOnly = false,
   inline = false,
+  label,
   maximumDate,
   onChange,
   value,
@@ -108,9 +110,27 @@ export function LogTimeChanger({
           value,
         )}`}
         onPress={openPicker}
-        style={[styles.button, iconOnly && styles.iconButton]}
+        style={[styles.button, iconOnly && !label && styles.iconButton]}
       >
-        {iconOnly ? (
+        {label ? (
+          <View
+            style={[
+              styles.labelPill,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text
+              numberOfLines={2}
+              style={[styles.labelText, { color: theme.colors.text }]}
+            >
+              {label}
+            </Text>
+            <Ionicons color={theme.colors.text} name="time-outline" size={20} />
+          </View>
+        ) : iconOnly ? (
           <Ionicons color={theme.colors.text} name="time-outline" size={22} />
         ) : (
           <View
@@ -237,6 +257,23 @@ const styles = StyleSheet.create({
   iconButton: {
     height: 44,
     width: 44,
+  },
+  labelPill: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: tokens.spacing.xs,
+    minHeight: 44,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.xs,
+  },
+  labelText: {
+    flexShrink: 1,
+    fontSize: tokens.typography.label.fontSize,
+    fontWeight: tokens.typography.label.fontWeight,
+    lineHeight: 15,
+    textAlign: "right",
   },
   buttonPill: {
     alignItems: "center",
