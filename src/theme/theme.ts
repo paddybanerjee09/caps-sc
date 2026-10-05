@@ -133,3 +133,34 @@ export function createAppTheme(
 }
 
 export type AppTheme = ReturnType<typeof createAppTheme>;
+
+const DARK_TEXT = "#0B0B0C";
+const LIGHT_TEXT = "#FFFFFF";
+
+/** Picks near-black or white text for a #RRGGBB fill, whichever contrasts more. */
+export function readableTextColor(background: string) {
+  const fill = relativeLuminance(background);
+
+  if (fill === null) {
+    return LIGHT_TEXT;
+  }
+
+  const lightTextContrast = 1.05 / (fill + 0.05);
+  const darkTextContrast = (fill + 0.05) / (relativeLuminance(DARK_TEXT)! + 0.05);
+  return lightTextContrast >= darkTextContrast ? LIGHT_TEXT : DARK_TEXT;
+}
+
+function relativeLuminance(hex: string) {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex);
+
+  if (!match) {
+    return null;
+  }
+
+  const [red, green, blue] = [0, 2, 4].map((offset) => {
+    const channel = parseInt(match[1].slice(offset, offset + 2), 16) / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
