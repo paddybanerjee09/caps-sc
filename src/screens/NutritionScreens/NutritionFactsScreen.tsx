@@ -7,11 +7,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
-import { NutritionActionBar, NutritionPage } from "../../components/nutrition/NutritionChrome";
+import {
+  NutritionActionBar,
+  NutritionPage,
+  NutritionTextInput,
+} from "../../components/nutrition/NutritionChrome";
 import { MacronutrientBreakdownCard } from "../../components/MacronutrientBreakdownCard";
 import { PressOpacity } from "../../components/PressOpacity";
 import { DAILY_NUTRIENT_TARGETS } from "../../constants/nutrition";
@@ -23,7 +26,6 @@ import {
   formatDerivedQuantity,
   scaleExtras,
   scaleSnapshot,
-  servingTotalLabel,
   sumExtraTotals,
 } from "../../nutrition/calculations";
 import type { DraftMealItem } from "../../nutrition/drafts";
@@ -42,14 +44,21 @@ export function NutritionFactsScreen() {
   const { theme } = useAppTheme();
   const {
     activeDraft,
+    completeCustomFood,
     facts,
     pop,
     registerBackHandler,
     returnToMealLog,
     setFacts,
+    stack,
     transitioning,
     updateDraft,
   } = useNutritionWorkspace();
+  const [creatingCustomFood] = useState(() => {
+    const screens = stack.map((entry) => entry.route.screen);
+    const index = screens.lastIndexOf("facts");
+    return index > 0 && screens[index - 1] === "customFood";
+  });
   const [food, setFood] = useState<CatalogFood | null>(facts?.snapshot ?? null);
   const [loading, setLoading] = useState(facts?.snapshot == null);
   const [error, setError] = useState<string | null>(null);
@@ -150,9 +159,6 @@ export function NutritionFactsScreen() {
       ? favouriteConfigKey(food.ref, serving.id, amount)
       : null;
   const favourited = configKey !== null && favourites.includes(configKey);
-  const description = serving
-    ? servingTotalLabel(facts.amountInput, serving.amount, serving.unit, serving.label)
-    : null;
 
   function changeAmount(value: string) {
     if (!/^\d*\.?\d*$/.test(value)) {
@@ -216,6 +222,7 @@ export function NutritionFactsScreen() {
           configKey,
           food: food.ref,
           servingId: serving.id,
+          snapshot: food,
         });
       }
     } finally {
@@ -260,12 +267,20 @@ export function NutritionFactsScreen() {
       footer={
         <NutritionActionBar
           left={{ accessibilityLabel: "Back", label: "Back", onPress: pop }}
-          right={{
-            accessibilityLabel: facts.draftItemId ? "Update item" : "Add to meal",
-            disabled: !serving || !amountValid,
-            label: facts.draftItemId ? "Update Item" : "Add to Meal",
-            onPress: addToMeal,
-          }}
+          right={
+            creatingCustomFood
+              ? {
+                  accessibilityLabel: "Create custom food",
+                  label: "Create Custom Food",
+                  onPress: completeCustomFood,
+                }
+              : {
+                  accessibilityLabel: facts.draftItemId ? "Update item" : "Add to meal",
+                  disabled: !serving || !amountValid,
+                  label: facts.draftItemId ? "Update Item" : "Add to Meal",
+                  onPress: addToMeal,
+                }
+          }
         />
       }
       onClose={pop}
@@ -306,11 +321,12 @@ export function NutritionFactsScreen() {
         </Text>
       ) : null}
       <Text style={[styles.label, { color: theme.colors.text }]}>Amount</Text>
-      <TextInput
+      <NutritionTextInput
         accessibilityLabel="Serving amount"
         keyboardType="decimal-pad"
         onChangeText={changeAmount}
-        style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.text }]}
+        placeholder="Enter amount"
+        style={styles.input}
         value={facts.amountInput}
       />
       <Text style={[styles.label, { color: theme.colors.text }]}>Serving</Text>
@@ -326,7 +342,13 @@ export function NutritionFactsScreen() {
           accessibilityLabel={`Serving, ${serving?.label ?? "unavailable"}`}
           disabled={!food || food.servings.length === 0}
           onPress={toggleSelector}
-          style={[styles.servingButton, { borderColor: theme.colors.border }]}
+          style={[
+            styles.servingButton,
+            {
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
         >
           <Text
             numberOfLines={1}
@@ -394,18 +416,14 @@ export function NutritionFactsScreen() {
           </View>
         ) : null}
       </View>
-      {description ? (
-        <Text style={[styles.body, { color: theme.colors.textMuted }]}>{description}</Text>
-      ) : null}
       <Text style={[styles.label, { color: theme.colors.text }]}>Calories</Text>
-      <TextInput
+      <NutritionTextInput
         accessibilityLabel="Calories"
         editable={caloriesCanDrive}
         keyboardType="decimal-pad"
         onChangeText={changeCalories}
-        placeholder={caloriesCanDrive ? undefined : "Unavailable"}
-        placeholderTextColor={theme.colors.textMuted}
-        style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.text }]}
+        placeholder={caloriesCanDrive ? "Enter calories (kcal)" : "Unavailable for this food"}
+        style={[styles.input, !caloriesCanDrive && styles.inputDisabled]}
         value={calorieText}
       />
       <MacronutrientBreakdownCard
@@ -447,12 +465,14 @@ const styles = StyleSheet.create({
   label: {
     fontSize: tokens.typography.label.fontSize,
     fontWeight: "700",
+    paddingBottom: tokens.spacing.xs,
     paddingTop: tokens.spacing.md,
   },
   input: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    fontSize: tokens.typography.body.fontSize,
-    minHeight: 44,
+    minHeight: 48,
+  },
+  inputDisabled: {
+    opacity: tokens.opacity.disabled,
   },
   servingBackdrop: {
     ...StyleSheet.absoluteFill,
@@ -463,11 +483,13 @@ const styles = StyleSheet.create({
   },
   servingButton: {
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
     flexDirection: "row",
     gap: tokens.spacing.sm,
     justifyContent: "space-between",
-    minHeight: 44,
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.md,
   },
   servingLabel: {
     flex: 1,
