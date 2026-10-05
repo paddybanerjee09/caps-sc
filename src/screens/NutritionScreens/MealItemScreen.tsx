@@ -3,22 +3,30 @@ import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Keyboard,
   StyleSheet,
   Text,
-  TextInput,
   View,
+  type LayoutRectangle,
 } from "react-native";
 
-import { FoodMacroLine, WorkflowHeader } from "../../components/nutrition/NutritionChrome";
+import {
+  FoodMacroLine,
+  NutritionTextInput,
+  WorkflowHeader,
+} from "../../components/nutrition/NutritionChrome";
 import { SegmentedSelector } from "../../components/nutrition/SegmentedSelector";
 import { PressOpacity } from "../../components/PressOpacity";
 import {
+  deleteCustomFood,
+  getFoodUsage,
   hasCompletedFoodUsage,
   listCustomFoods,
   listFavourites,
   listKnownFoods,
-  getFoodUsage,
+  saveFavouriteSnapshot,
   type CustomFoodRecord,
   type FoodFavourite,
   type KnownFoodRow,
@@ -28,14 +36,19 @@ import {
   foodIdentityKey,
   type UsageRank,
 } from "../../nutrition/calculations";
-import type { PickerTab, UsageSort } from "../../nutrition/drafts";
-import { catalogFoodFromCustom, peekCatalogFood, rememberCatalogFood, resolveCatalogFood } from "../../services/foodCatalog";
+import { createCustomFoodForm, type PickerTab, type UsageSort } from "../../nutrition/drafts";
+import {
+  catalogFoodFromCustom,
+  peekCatalogFood,
+  rememberCatalogFood,
+  resolveCatalogFood,
+} from "../../services/foodCatalog";
 import { searchFatSecretFoods } from "../../services/fatsecretApi";
-import { ProviderError, providerErrorMessage } from "../../services/providerError";
+import { providerErrorMessage } from "../../services/providerError";
 import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
-import type { CatalogFood, FoodSearchHit, NutrientSnapshot } from "../../types/nutrition";
+import type { CatalogFood, FoodRef, FoodSearchHit, NutrientSnapshot } from "../../types/nutrition";
 
 const tokens = themes.dark;
 
@@ -44,15 +57,38 @@ type Row = {
   title: string;
   subtitle: string | null;
   nutrients: NutrientSnapshot | null;
+  onDelete?: () => void;
+  onEdit?: () => void;
   onPress: () => void;
 };
+
+type OpenFood = (
+  ref: FoodRef,
+  amount: string,
+  servingId: string | null,
+  food: CatalogFood | null,
+) => void;
+
+type SortChoice = { label: string; sort: UsageSort };
 
 export function MealItemScreen() {
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
   const workspace = useNutritionWorkspace();
-  const { picker, pop, push, registerBackHandler, setFacts, transientEpoch, updatePicker } =
-    workspace;
+  const {
+    customForm,
+    markNutritionChanged,
+    picker,
+    pop,
+    push,
+    registerBackHandler,
+    setFacts,
+    startCustomFood,
+    startEditCustomFood,
+    transientEpoch,
+    updateCustomForm,
+    updatePicker,
+  } = workspace;
   const [known, setKnown] = useState<KnownFoodRow[]>([]);
   const [customs, setCustoms] = useState<CustomFoodRecord[]>([]);
   const [favourites, setFavourites] = useState<FoodFavourite[]>([]);
@@ -65,12 +101,15 @@ export function MealItemScreen() {
   const [filterRequested, setFilterRequested] = useState(false);
   const [filterEpoch, setFilterEpoch] = useState(transientEpoch);
   const filterOpen = filterRequested && filterEpoch === transientEpoch;
+  const [rowFrame, setRowFrame] = useState<LayoutRectangle | null>(null);
+  const [filterFrame, setFilterFrame] = useState<LayoutRectangle | null>(null);
   const [resolvedNames, setResolvedNames] = useState<Record<string, CatalogFood | null>>({});
   const [retryNonce, setRetryNonce] = useState(0);
   const listRef = useRef<FlatList<Row>>(null);
   const offsets = useRef(picker.scrollOffsets);
   const requestId = useRef(0);
   const updatePickerRef = useRef(updatePicker);
+  const formCustomFoodId = customForm.customFoodId;
 
   useEffect(() => {
     updatePickerRef.current = updatePicker;
@@ -176,20 +215,41 @@ export function MealItemScreen() {
   }, [picker.query, picker.tab, retryNonce]);
 
   useEffect(() => {
-    const refs = [
-      ...known.filter((food) => food.storagePolicy === "reference"),
-      ...favourites.map((favourite) => ({ food: favourite.food, storagePolicy: "reference" as const })),
-    ].slice(0, 20);
+    const seen = new Set<string>();
+    const favouriteRefs: FoodRef[] = [];
+    const knownRefs: FoodRef[] = [];
+    const queue = (ref: FoodRef, target: FoodRef[]) => {
+      const key = foodIdentityKey(ref);
+
+      if (!seen.has(key)) {
+        seen.add(key);
+        target.push(ref);
+      }
+    };
+
+    for (const favourite of favourites) {
+      if (favourite.food.source !== "custom" && !favourite.snapshot) {
+        queue(favourite.food, favouriteRefs);
+      }
+    }
+
+    for (const food of known) {
+      if (food.storagePolicy === "reference") {
+        queue(food.food, knownRefs);
+      }
+    }
+
+    const refs = [...favouriteRefs, ...knownRefs.slice(0, 20)];
     let cancelled = false;
 
     void (async () => {
-      for (const entry of refs) {
+      for (const ref of refs) {
         if (cancelled) {
           return;
         }
 
-        const key = foodIdentityKey(entry.food);
-        const cached = peekCatalogFood(entry.food);
+        const key = foodIdentityKey(ref);
+        const cached = peekCatalogFood(ref);
 
         if (cached) {
           setResolvedNames((current) => ({ ...current, [key]: cached }));
@@ -197,13 +257,23 @@ export function MealItemScreen() {
         }
 
         try {
-          const food = await resolveCatalogFood(db, entry.food);
+          const food = await resolveCatalogFood(db, ref);
 
-          if (!cancelled) {
-            setResolvedNames((current) => ({ ...current, [key]: food }));
+          if (cancelled) {
+            return;
           }
-        } catch (error) {
-          if (!cancelled && !(error instanceof ProviderError && error.code === "timeout")) {
+
+          setResolvedNames((current) => ({ ...current, [key]: food }));
+
+          if (food && food.servings.length > 0) {
+            for (const favourite of favourites) {
+              if (!favourite.snapshot && foodIdentityKey(favourite.food) === key) {
+                void saveFavouriteSnapshot(db, favourite.id, food).catch(() => undefined);
+              }
+            }
+          }
+        } catch {
+          if (!cancelled) {
             setResolvedNames((current) => ({ ...current, [key]: null }));
           }
         }
@@ -216,22 +286,63 @@ export function MealItemScreen() {
   }, [db, favourites, known]);
 
   const sortLabel = effectiveSortLabel(picker.tab, picker.query, picker.sort, hasUsage);
-  const openFood = useCallback((food: CatalogFood, amount = "1", servingId?: string) => {
-    if (food.storagePolicy === "snapshot") {
-      rememberCatalogFood(food);
-    }
+  const choices = sortChoices(picker.tab, picker.query, hasUsage);
+  const filterMenuFrame =
+    rowFrame && filterFrame
+      ? {
+          left: rowFrame.x + filterFrame.x,
+          top: rowFrame.y + filterFrame.y + filterFrame.height + tokens.spacing.xs,
+          width: filterFrame.width,
+        }
+      : null;
 
-    setFacts({
-      amountInput: amount,
-      calorieInput: "",
-      draftItemId: null,
-      food: food.ref,
-      inputMode: "amount",
-      servingId: servingId ?? (food.defaultServingId || null),
-      snapshot: food.storagePolicy === "snapshot" ? food : null,
-    });
-    push({ screen: "facts" });
-  }, [push, setFacts]);
+  const openFood = useCallback<OpenFood>(
+    (ref, amount, servingId, food) => {
+      if (food) {
+        rememberCatalogFood(food);
+      }
+
+      setFacts({
+        amountInput: amount,
+        calorieInput: "",
+        draftItemId: null,
+        food: ref,
+        inputMode: "amount",
+        servingId,
+        snapshot: food,
+      });
+      push({ screen: "facts" });
+    },
+    [push, setFacts],
+  );
+
+  const confirmDeleteCustom = useCallback(
+    (food: CustomFoodRecord) => {
+      async function remove() {
+        try {
+          await deleteCustomFood(db, food.id);
+
+          if (formCustomFoodId === food.id) {
+            updateCustomForm(() => createCustomFoodForm());
+          }
+        } catch {
+          Alert.alert("Couldn't delete food", "Please try again.");
+        } finally {
+          markNutritionChanged();
+        }
+      }
+
+      Alert.alert(
+        "Delete custom food?",
+        `${food.name} will be removed from your custom foods. Meals you already logged keep their nutrition.`,
+        [
+          { style: "cancel", text: "Cancel" },
+          { onPress: () => void remove(), style: "destructive", text: "Delete" },
+        ],
+      );
+    },
+    [db, formCustomFoodId, markNutritionChanged, updateCustomForm],
+  );
 
   const rows = useMemo(
     () =>
@@ -240,13 +351,28 @@ export function MealItemScreen() {
         favourites,
         hasUsage,
         known,
+        onDeleteCustom: confirmDeleteCustom,
+        onEditCustom: startEditCustomFood,
         onOpen: openFood,
         picker,
         remote: remoteQuery === picker.query.trim() ? remote : [],
         resolvedNames,
         usage,
       }),
-    [customs, favourites, hasUsage, known, openFood, picker, remote, remoteQuery, resolvedNames, usage],
+    [
+      confirmDeleteCustom,
+      customs,
+      favourites,
+      hasUsage,
+      known,
+      openFood,
+      picker,
+      startEditCustomFood,
+      remote,
+      remoteQuery,
+      resolvedNames,
+      usage,
+    ],
   );
 
   const emptyMessage =
@@ -256,18 +382,35 @@ export function MealItemScreen() {
         ? "Create a custom food to use it here."
         : remoteError ?? "No foods found.";
 
+  function toggleFilter() {
+    if (filterOpen) {
+      setFilterRequested(false);
+      return;
+    }
+
+    Keyboard.dismiss();
+    setFilterEpoch(transientEpoch);
+    setFilterRequested(true);
+  }
+
+  function chooseSort(sort: UsageSort) {
+    updatePicker((current) => ({ ...current, sort }));
+    setFilterRequested(false);
+  }
+
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <WorkflowHeader
         center={
-          <TextInput
+          <NutritionTextInput
             accessibilityLabel="Search foods"
             autoCapitalize="none"
             autoCorrect={false}
+            containerStyle={styles.search}
+            icon="search"
             onChangeText={(query) => updatePicker((current) => ({ ...current, query }))}
-            placeholder="Search…"
-            placeholderTextColor={theme.colors.textMuted}
-            style={[styles.search, { color: theme.colors.text }]}
+            placeholder="Search foods"
+            returnKeyType="search"
             value={picker.query}
           />
         }
@@ -282,7 +425,10 @@ export function MealItemScreen() {
           </PressOpacity>
         }
       />
-      <View style={styles.selectorRow}>
+      <View
+        onLayout={(event) => setRowFrame(event.nativeEvent.layout)}
+        style={styles.selectorRow}
+      >
         <View style={styles.selector}>
           <SegmentedSelector
             accessibilityLabel="Food lists"
@@ -295,46 +441,33 @@ export function MealItemScreen() {
             value={picker.tab}
           />
         </View>
-        <PressOpacity
-          accessibilityLabel={`Sort foods, ${sortLabel}`}
-          onPress={() => {
-            if (filterOpen) {
-              setFilterRequested(false);
-              return;
-            }
-
-            setFilterEpoch(transientEpoch);
-            setFilterRequested(true);
-          }}
-          style={styles.filter}
-        >
-          <Text numberOfLines={2} style={[styles.filterText, { color: theme.colors.text }]}>
-            {sortLabel}
-          </Text>
-        </PressOpacity>
-      </View>
-      {filterOpen ? (
         <View
-          style={[
-            styles.filterMenu,
-            { backgroundColor: theme.colors.background, borderColor: theme.colors.border },
-          ]}
+          onLayout={(event) => setFilterFrame(event.nativeEvent.layout)}
+          style={styles.filterWrap}
         >
-          <FilterChoice
-            label="Most Frequent"
-            onPress={() => chooseSort("frequent")}
-          />
-          <FilterChoice label="Most Recent" onPress={() => chooseSort("recent")} />
-          <FilterChoice label="Reset to default" onPress={() => chooseSort("default")} />
           <PressOpacity
-            accessibilityLabel="Dismiss sort menu"
-            onPress={() => setFilterRequested(false)}
-            style={styles.filterChoice}
+            accessibilityLabel={`Sort foods, ${sortLabel}`}
+            onPress={toggleFilter}
+            style={[
+              styles.filter,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: filterOpen ? theme.colors.borderStrong : theme.colors.border,
+              },
+            ]}
           >
-            <Text style={{ color: theme.colors.textMuted }}>Dismiss</Text>
+            <Ionicons color={theme.colors.text} name="filter" size={14} />
+            <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+              numberOfLines={2}
+              style={[styles.filterText, { color: theme.colors.text }]}
+            >
+              {sortLabel}
+            </Text>
           </PressOpacity>
         </View>
-      ) : null}
+      </View>
       {remoteLoading ? (
         <ActivityIndicator color={theme.colors.tertiary} style={styles.loading} />
       ) : null}
@@ -362,7 +495,7 @@ export function MealItemScreen() {
             {picker.tab === "custom" ? (
               <PressOpacity
                 accessibilityLabel="Create custom food"
-                onPress={() => push({ screen: "customFood" })}
+                onPress={() => startCustomFood()}
                 style={styles.retry}
               >
                 <Text style={{ color: theme.colors.tertiary }}>Create Custom Food</Text>
@@ -377,19 +510,39 @@ export function MealItemScreen() {
           };
         }}
         renderItem={({ item }) => (
-          <PressOpacity
-            accessibilityLabel={item.title}
-            onPress={item.onPress}
-            style={[styles.row, { borderBottomColor: theme.colors.border }]}
-          >
-            <Text style={[styles.name, { color: theme.colors.text }]}>{item.title}</Text>
-            {item.subtitle ? (
-              <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-                {item.subtitle}
-              </Text>
+          <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
+            <PressOpacity
+              accessibilityLabel={item.title}
+              onPress={item.onPress}
+              style={styles.rowMain}
+            >
+              <Text style={[styles.name, { color: theme.colors.text }]}>{item.title}</Text>
+              {item.subtitle ? (
+                <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
+                  {item.subtitle}
+                </Text>
+              ) : null}
+              <FoodMacroLine nutrients={item.nutrients} />
+            </PressOpacity>
+            {item.onEdit ? (
+              <PressOpacity
+                accessibilityLabel={`Edit ${item.title}`}
+                onPress={item.onEdit}
+                style={styles.rowDelete}
+              >
+                <Ionicons color={theme.colors.textMuted} name="create-outline" size={20} />
+              </PressOpacity>
             ) : null}
-            <FoodMacroLine nutrients={item.nutrients} />
-          </PressOpacity>
+            {item.onDelete ? (
+              <PressOpacity
+                accessibilityLabel={`Delete ${item.title}`}
+                onPress={item.onDelete}
+                style={styles.rowDelete}
+              >
+                <Ionicons color={theme.colors.textMuted} name="close" size={20} />
+              </PressOpacity>
+            ) : null}
+          </View>
         )}
         scrollEventThrottle={80}
         style={styles.list}
@@ -397,29 +550,103 @@ export function MealItemScreen() {
       {picker.tab === "custom" && rows.length > 0 ? (
         <PressOpacity
           accessibilityLabel="Create custom food"
-          onPress={() => push({ screen: "customFood" })}
+          onPress={() => startCustomFood()}
           style={[styles.createRow, { borderTopColor: theme.colors.border }]}
         >
           <Text style={{ color: theme.colors.tertiary }}>Create Custom Food</Text>
         </PressOpacity>
       ) : null}
+      {filterOpen ? (
+        <PressOpacity
+          accessibilityLabel="Close sort options"
+          onPress={() => setFilterRequested(false)}
+          pressedOpacity={1}
+          style={styles.filterBackdrop}
+        />
+      ) : null}
+      {filterOpen && filterMenuFrame ? (
+        <View
+          style={[
+            styles.filterMenu,
+            filterMenuFrame,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          {choices.map((choice, index) => (
+            <FilterChoice
+              first={index === 0}
+              key={choice.label}
+              label={choice.label}
+              onPress={() => chooseSort(choice.sort)}
+              selected={choice.label === sortLabel}
+            />
+          ))}
+        </View>
+      ) : null}
     </View>
   );
-
-  function chooseSort(sort: UsageSort) {
-    updatePicker((current) => ({ ...current, sort }));
-    setFilterRequested(false);
-  }
 }
 
-function FilterChoice({ label, onPress }: { label: string; onPress: () => void }) {
+function FilterChoice({
+  first,
+  label,
+  onPress,
+  selected,
+}: {
+  first: boolean;
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+}) {
   const { theme } = useAppTheme();
 
   return (
-    <PressOpacity accessibilityLabel={label} onPress={onPress} style={styles.filterChoice}>
-      <Text style={{ color: theme.colors.text }}>{label}</Text>
+    <PressOpacity
+      accessibilityLabel={selected ? `${label}, selected` : label}
+      onPress={onPress}
+      style={[
+        styles.filterChoice,
+        selected && { backgroundColor: theme.colors.accentMuted },
+        !first && {
+          borderTopColor: theme.colors.border,
+          borderTopWidth: StyleSheet.hairlineWidth,
+        },
+      ]}
+    >
+      <Text
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+        numberOfLines={1}
+        style={[
+          styles.filterChoiceText,
+          selected
+            ? { color: theme.colors.text, fontWeight: "700" }
+            : { color: theme.colors.textMuted },
+        ]}
+      >
+        {label}
+      </Text>
     </PressOpacity>
   );
+}
+
+function sortChoices(tab: PickerTab, query: string, hasUsage: boolean): SortChoice[] {
+  const choices: SortChoice[] = [];
+
+  if (tab === "all" && query.trim()) {
+    choices.push({ label: "Relevance", sort: "default" });
+  } else if (!hasUsage) {
+    choices.push({ label: "Alphabetical", sort: "default" });
+  }
+
+  choices.push(
+    { label: "Most Frequent", sort: "frequent" },
+    { label: "Most Recent", sort: "recent" },
+  );
+  return choices;
 }
 
 function effectiveSortLabel(
@@ -448,13 +675,16 @@ function buildRows(input: {
   favourites: FoodFavourite[];
   hasUsage: boolean;
   known: KnownFoodRow[];
-  onOpen: (food: CatalogFood, amount?: string, servingId?: string) => void;
+  onDeleteCustom: (food: CustomFoodRecord) => void;
+  onEditCustom: (food: CustomFoodRecord) => void;
+  onOpen: OpenFood;
   picker: { query: string; tab: PickerTab; sort: UsageSort };
   remote: FoodSearchHit[];
   resolvedNames: Record<string, CatalogFood | null>;
   usage: Map<string, UsageRank>;
 }): Row[] {
   const query = input.picker.query.trim().toLowerCase();
+  const customById = new Map(input.customs.map((food) => [food.id, food]));
 
   if (input.picker.tab === "all" && query) {
     const ranked = input.remote.map((hit, index) => ({ hit, index }));
@@ -479,39 +709,38 @@ function buildRows(input: {
     return ranked.map(({ hit }) => ({
       key: foodIdentityKey(hit.ref),
       nutrients: hit.preview,
-      onPress: () =>
-        input.onOpen({
-          attribution: "fatsecret",
-          brandName: hit.brandName,
-          defaultServingId: "",
-          name: hit.name,
-          ref: hit.ref,
-          servings: [],
-          storagePolicy: "reference",
-        }),
+      onPress: () => input.onOpen(hit.ref, "1", null, null),
       subtitle: hit.brandName ?? hit.previewLabel,
       title: hit.name,
     }));
   }
 
   if (input.picker.tab === "favourites") {
+    const knownByKey = new Map(input.known.map((food) => [foodIdentityKey(food.food), food]));
+
     return input.favourites
       .map((favourite) => {
-        const resolved = input.resolvedNames[foodIdentityKey(favourite.food)] ?? null;
-        const serving = resolved?.servings.find((item) => item.id === favourite.servingId);
-        const title = resolved?.name ?? "Food details unavailable";
+        const key = foodIdentityKey(favourite.food);
+        const food = favouriteFood(favourite, customById, knownByKey, input.resolvedNames);
+        const serving = food?.servings.find((item) => item.id === favourite.servingId);
+        const title =
+          food?.name ??
+          (favourite.food.source !== "custom" && !(key in input.resolvedNames)
+            ? "Loading food…"
+            : "Food details unavailable");
 
         return {
           favourite,
-          resolved,
           row: {
             key: favourite.configKey,
             nutrients: serving?.nutrients ?? null,
-            onPress: () => {
-              if (resolved) {
-                input.onOpen(resolved, String(favourite.amount), favourite.servingId);
-              }
-            },
+            onPress: () =>
+              input.onOpen(
+                favourite.food,
+                String(favourite.amount),
+                favourite.servingId,
+                food ?? null,
+              ),
             subtitle: serving ? `${favourite.amount} × ${serving.label}` : null,
             title,
           } satisfies Row,
@@ -550,13 +779,10 @@ function buildRows(input: {
       )
       .map((food) => ({
         key: food.id,
-        nutrients: {
-          carbohydratesG: food.carbohydratesG,
-          energyKcal: food.energyKcal,
-          fatG: food.fatG,
-          proteinG: food.proteinG,
-        },
-        onPress: () => input.onOpen(catalogFoodFromCustom(food)),
+        nutrients: customNutrients(food),
+        onDelete: () => input.onDeleteCustom(food),
+        onEdit: () => input.onEditCustom(food),
+        onPress: () => openCustom(food, input.onOpen),
         subtitle: food.brand,
         title: food.name,
       }));
@@ -568,13 +794,8 @@ function buildRows(input: {
     local.set(`custom:${food.id}`, {
       id: food.id,
       key: `custom:${food.id}`,
-      nutrients: {
-        carbohydratesG: food.carbohydratesG,
-        energyKcal: food.energyKcal,
-        fatG: food.fatG,
-        proteinG: food.proteinG,
-      },
-      onPress: () => input.onOpen(catalogFoodFromCustom(food)),
+      nutrients: customNutrients(food),
+      onPress: () => openCustom(food, input.onOpen),
       subtitle: food.brand,
       title: food.name,
       usage: input.usage.get(`custom:${food.id}`) ?? null,
@@ -584,7 +805,7 @@ function buildRows(input: {
   for (const food of input.known) {
     const key = foodIdentityKey(food.food);
 
-    if (local.has(key)) {
+    if (local.has(key) || (food.food.source === "custom" && !customById.has(food.food.externalId))) {
       continue;
     }
 
@@ -597,11 +818,13 @@ function buildRows(input: {
       id: food.food.externalId,
       key,
       nutrients: food.nutrients ?? resolved?.servings[0]?.nutrients ?? null,
-      onPress: () => {
-        if (catalog && catalog.servings.length > 0) {
-          input.onOpen(catalog, "1", food.servingId);
-        }
-      },
+      onPress: () =>
+        input.onOpen(
+          food.food,
+          "1",
+          food.servingId,
+          catalog && catalog.servings.length > 0 ? catalog : null,
+        ),
       subtitle: food.brandName ?? food.servingDescription,
       title,
       usage: input.usage.get(key) ?? null,
@@ -622,6 +845,49 @@ function buildRows(input: {
         input.hasUsage,
       ),
     );
+}
+
+function favouriteFood(
+  favourite: FoodFavourite,
+  customById: ReadonlyMap<string, CustomFoodRecord>,
+  knownByKey: ReadonlyMap<string, KnownFoodRow>,
+  resolvedNames: Record<string, CatalogFood | null>,
+) {
+  if (favourite.food.source === "custom") {
+    const custom = customById.get(favourite.food.externalId);
+    return custom ? catalogFoodFromCustom(custom) : favourite.snapshot;
+  }
+
+  if (favourite.snapshot) {
+    return favourite.snapshot;
+  }
+
+  const key = foodIdentityKey(favourite.food);
+  const known = knownByKey.get(key);
+
+  if (known?.storagePolicy === "snapshot" && known.servingId === favourite.servingId) {
+    const snapshot = knownSnapshot(known);
+
+    if (snapshot) {
+      return snapshot;
+    }
+  }
+
+  return resolvedNames[key] ?? null;
+}
+
+function openCustom(food: CustomFoodRecord, onOpen: OpenFood) {
+  const catalog = catalogFoodFromCustom(food);
+  onOpen(catalog.ref, "1", catalog.defaultServingId, catalog);
+}
+
+function customNutrients(food: CustomFoodRecord): NutrientSnapshot {
+  return {
+    carbohydratesG: food.carbohydratesG,
+    energyKcal: food.energyKcal,
+    fatG: food.fatG,
+    proteinG: food.proteinG,
+  };
 }
 
 function knownSnapshot(food: KnownFoodRow): CatalogFood | null {
@@ -678,9 +944,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   search: {
-    fontSize: tokens.typography.body.fontSize,
-    minHeight: 44,
-    textAlign: "center",
     width: "100%",
   },
   iconButton: {
@@ -697,39 +960,73 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.spacing.sm,
   },
   selector: {
+    flex: 7,
+  },
+  filterWrap: {
     flex: 3,
   },
   filter: {
     alignItems: "center",
-    flex: 1,
+    borderRadius: tokens.radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    gap: tokens.spacing.xs,
     justifyContent: "center",
     minHeight: 44,
+    paddingHorizontal: tokens.spacing.xs,
   },
   filterText: {
+    flexShrink: 1,
     fontSize: 12,
     fontWeight: "700",
+    lineHeight: 15,
     textAlign: "center",
   },
+  filterBackdrop: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 10,
+  },
   filterMenu: {
-    borderWidth: StyleSheet.hairlineWidth,
-    marginHorizontal: tokens.spacing.lg,
-    zIndex: 2,
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.24)",
+    overflow: "hidden",
+    position: "absolute",
+    zIndex: 11,
   },
   filterChoice: {
     justifyContent: "center",
     minHeight: 44,
-    paddingHorizontal: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.xs,
+  },
+  filterChoiceText: {
+    fontSize: 11,
+    lineHeight: 14,
+    textAlign: "center",
   },
   list: {
     flex: 1,
   },
   row: {
+    alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    minHeight: 64,
+    paddingLeft: tokens.spacing.lg,
+    paddingRight: tokens.spacing.sm,
+  },
+  rowMain: {
+    flex: 1,
     gap: 2,
     justifyContent: "center",
     minHeight: 64,
-    paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.sm,
+  },
+  rowDelete: {
+    alignItems: "center",
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
   name: {
     fontSize: tokens.typography.body.fontSize,
@@ -754,9 +1051,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: 44,
-  },
-  emptyList: {
-    flexGrow: 1,
   },
   emptyWrap: {
     alignItems: "center",
