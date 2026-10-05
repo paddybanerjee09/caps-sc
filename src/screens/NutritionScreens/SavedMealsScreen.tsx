@@ -29,10 +29,22 @@ const sortLabels: Record<SavedSort, string> = {
 export function SavedMealsScreen() {
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
-  const { activeDraft, pop, returnToMealLog, updateDraft } = useNutritionWorkspace();
+  const { activeDraft, pop, registerBackHandler, returnToMealLog, updateDraft } =
+    useNutritionWorkspace();
   const [meals, setMeals] = useState<SavedMealSummary[]>([]);
   const [sort, setSort] = useState<SavedSort>("alpha");
   const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+
+    return registerBackHandler(() => {
+      setMenuOpen(false);
+      return true;
+    });
+  }, [menuOpen, registerBackHandler]);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,13 +151,6 @@ export function SavedMealsScreen() {
                   <Text style={{ color: theme.colors.text }}>{sortLabels[option]}</Text>
                 </PressOpacity>
               ))}
-              <PressOpacity
-                accessibilityLabel="Dismiss sort menu"
-                onPress={() => setMenuOpen(false)}
-                style={styles.menuRow}
-              >
-                <Text style={{ color: theme.colors.textMuted }}>Dismiss</Text>
-              </PressOpacity>
             </View>
           ) : null}
         </View>
@@ -187,6 +192,14 @@ export function SavedMealsScreen() {
           }}
         />
       )}
+      {menuOpen ? (
+        <PressOpacity
+          accessibilityLabel="Close sort options"
+          onPress={() => setMenuOpen(false)}
+          pressedOpacity={1}
+          style={styles.backdrop}
+        />
+      ) : null}
     </NutritionPage>
   );
 }
@@ -245,6 +258,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 44,
     paddingHorizontal: tokens.spacing.md,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 1,
   },
   empty: {
     fontSize: tokens.typography.body.fontSize,

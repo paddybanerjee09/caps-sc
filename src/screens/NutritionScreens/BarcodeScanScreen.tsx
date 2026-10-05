@@ -6,7 +6,6 @@ import {
   Linking,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import Animated, {
@@ -15,7 +14,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { NutritionPage } from "../../components/nutrition/NutritionChrome";
+import { NutritionPage, NutritionTextInput } from "../../components/nutrition/NutritionChrome";
 import { PressOpacity } from "../../components/PressOpacity";
 import { normalizeBarcode } from "../../nutrition/calculations";
 import { NUTRITION_TRANSITION } from "../../nutrition/motion";
@@ -23,7 +22,7 @@ import { lookupOpenFoodFactsBarcode } from "../../services/openFoodFactsApi";
 import { providerErrorMessage, ProviderError } from "../../services/providerError";
 import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
-import { themes } from "../../theme/theme";
+import { readableTextColor, themes } from "../../theme/theme";
 
 const tokens = themes.dark;
 const PRODUCT_BARCODES = ["ean13", "ean8", "upc_a", "upc_e", "itf14"] as const;
@@ -36,7 +35,7 @@ type ScanStatus =
 
 export function BarcodeScanScreen({ active }: { active: boolean }) {
   const { theme } = useAppTheme();
-  const { pop, push, scanner, setFacts, updateCustomForm, updateScanner } =
+  const { pop, push, scanner, setFacts, startCustomFood, updateScanner } =
     useNutritionWorkspace();
   const [permission, requestPermission] = useCameraPermissions();
   const [foreground, setForeground] = useState(AppState.currentState === "active");
@@ -143,9 +142,9 @@ export function BarcodeScanScreen({ active }: { active: boolean }) {
     void lookup(barcode);
   }
 
-  function createFromBarcode(barcode: string) {
-    updateCustomForm((form) => ({ ...form, barcode }));
-    push({ screen: "customFood" });
+  function lookUpTypedBarcode() {
+    latched.current = true;
+    void lookup(scanner.typedBarcode);
   }
 
   return (
@@ -164,7 +163,7 @@ export function BarcodeScanScreen({ active }: { active: boolean }) {
             />
           </PressOpacity>
           <PressOpacity
-            accessibilityLabel="Type barcode"
+            accessibilityLabel={scanner.manualEntryOpen ? "Hide barcode entry" : "Type barcode"}
             onPress={() =>
               updateScanner((current) => ({
                 ...current,
@@ -173,8 +172,14 @@ export function BarcodeScanScreen({ active }: { active: boolean }) {
             }
             style={styles.typeButton}
           >
-            <Ionicons color={theme.colors.text} name="barcode-outline" size={22} />
-            <Text style={{ color: theme.colors.text }}>Type Barcode</Text>
+            <Ionicons
+              color={theme.colors.text}
+              name={scanner.manualEntryOpen ? "chevron-down" : "barcode-outline"}
+              size={22}
+            />
+            <Text style={{ color: theme.colors.text }}>
+              {scanner.manualEntryOpen ? "Hide Barcode Entry" : "Type Barcode"}
+            </Text>
           </PressOpacity>
         </View>
       }
@@ -262,7 +267,7 @@ export function BarcodeScanScreen({ active }: { active: boolean }) {
             </PressOpacity>
             <PressOpacity
               accessibilityLabel="Create custom food"
-              onPress={() => createFromBarcode(status.barcode)}
+              onPress={() => startCustomFood(status.barcode)}
               style={styles.action}
             >
               <Text style={{ color: theme.colors.tertiary }}>Create Custom Food</Text>
@@ -270,36 +275,30 @@ export function BarcodeScanScreen({ active }: { active: boolean }) {
           </View>
         ) : null}
         <Animated.View style={[styles.manual, panelStyle]}>
-          <TextInput
-            accessibilityLabel="Barcode number"
-            keyboardType="number-pad"
-            onChangeText={(typedBarcode) =>
-              updateScanner((current) => ({ ...current, typedBarcode }))
-            }
-            placeholder="Barcode"
-            placeholderTextColor={theme.colors.textMuted}
-            style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.text }]}
-            value={scanner.typedBarcode}
-          />
-          <View style={styles.manualActions}>
-            <PressOpacity
-              accessibilityLabel="Dismiss barcode entry"
-              onPress={() =>
-                updateScanner((current) => ({ ...current, manualEntryOpen: false }))
+          <View style={styles.manualRow}>
+            <NutritionTextInput
+              accessibilityLabel="Barcode number"
+              keyboardType="number-pad"
+              onChangeText={(typedBarcode) =>
+                updateScanner((current) => ({ ...current, typedBarcode }))
               }
-              style={styles.action}
-            >
-              <Text style={{ color: theme.colors.textMuted }}>Dismiss</Text>
-            </PressOpacity>
+              onSubmitEditing={lookUpTypedBarcode}
+              placeholder="Enter barcode"
+              returnKeyType="search"
+              style={styles.input}
+              value={scanner.typedBarcode}
+            />
             <PressOpacity
               accessibilityLabel="Look up barcode"
-              onPress={() => {
-                latched.current = true;
-                void lookup(scanner.typedBarcode);
-              }}
-              style={styles.action}
+              disabled={!scanner.typedBarcode.trim() || status.kind === "loading"}
+              onPress={lookUpTypedBarcode}
+              style={[styles.lookUp, { backgroundColor: theme.colors.tertiary }]}
             >
-              <Text style={{ color: theme.colors.tertiary }}>Look Up</Text>
+              <Text
+                style={[styles.lookUpLabel, { color: readableTextColor(theme.colors.tertiary) }]}
+              >
+                Look Up
+              </Text>
             </PressOpacity>
           </View>
         </Animated.View>
@@ -337,14 +336,26 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     paddingHorizontal: tokens.spacing.lg,
   },
+  manualRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.md,
+  },
   input: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    fontSize: tokens.typography.body.fontSize,
+    flex: 1,
     minHeight: 48,
   },
-  manualActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  lookUp: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.lg,
+  },
+  lookUpLabel: {
+    fontSize: tokens.typography.body.fontSize,
+    fontWeight: "700",
   },
   bar: {
     alignItems: "center",
