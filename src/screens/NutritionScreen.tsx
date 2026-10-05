@@ -1,8 +1,16 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentRef,
+} from "react";
 import {
   ActivityIndicator,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,10 +36,14 @@ import { themes } from "../theme/theme";
 import type { CatalogFood, StoredMealItem, StoredMealLog } from "../types/nutrition";
 
 const tokens = themes.dark;
+const MEAL_MENU_HEIGHT = 50;
+
+type MenuAnchor = { height: number; width: number; x: number; y: number };
+type MealMenu = { meal: StoredMealLog; right: number; top: number };
 
 export function NutritionScreen() {
   const db = useSQLiteContext();
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const { theme } = useAppTheme();
   const {
     clearNotice,
@@ -50,6 +62,7 @@ export function NutritionScreen() {
   const [resolvedFoods, setResolvedFoods] = useState<Record<string, CatalogFood>>({});
   const [loading, setLoading] = useState(true);
   const [databaseError, setDatabaseError] = useState<string | null>(null);
+  const [mealMenu, setMealMenu] = useState<MealMenu | null>(null);
   const requestId = useRef(0);
 
   const { dayStart, dayEnd } = useMemo(
@@ -164,6 +177,27 @@ export function NutritionScreen() {
     setDiaryDate(shiftLocalDate(currentDay, numberOfDays));
   }
 
+  function openMealMenu(meal: StoredMealLog, anchor: MenuAnchor) {
+    const below = anchor.y + anchor.height + tokens.spacing.xs;
+    const fitsBelow = below + MEAL_MENU_HEIGHT <= height - tokens.spacing.lg;
+
+    setMealMenu({
+      meal,
+      right: Math.max(tokens.spacing.md, width - (anchor.x + anchor.width)),
+      top: fitsBelow ? below : anchor.y - MEAL_MENU_HEIGHT - tokens.spacing.xs,
+    });
+  }
+
+  function editFromMenu() {
+    if (!mealMenu) {
+      return;
+    }
+
+    const meal = mealMenu.meal;
+    setMealMenu(null);
+    openEditMeal(meal);
+  }
+
   return (
     <Screen centerTitle title="Nutrition">
       {notice ? (
@@ -264,6 +298,7 @@ export function NutritionScreen() {
                   key={meal.timelineEntryId}
                   meal={meal}
                   onEdit={() => openEditMeal(meal)}
+                  onMenu={(anchor) => openMealMenu(meal, anchor)}
                   onToggle={() =>
                     setExpandedMealId(
                       expandedMealId === meal.timelineEntryId
@@ -335,6 +370,44 @@ export function NutritionScreen() {
           />
         )}
       </View>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setMealMenu(null)}
+        transparent
+        visible={mealMenu !== null}
+      >
+        <PressOpacity
+          accessibilityLabel="Close meal actions"
+          onPress={() => setMealMenu(null)}
+          pressedOpacity={1}
+          style={StyleSheet.absoluteFill}
+        />
+        {mealMenu ? (
+          <View
+            style={[
+              styles.mealMenu,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.borderStrong,
+                right: mealMenu.right,
+                top: mealMenu.top,
+              },
+            ]}
+          >
+            <PressOpacity
+              accessibilityLabel={`Edit ${mealMenu.meal.title}`}
+              onPress={editFromMenu}
+              style={styles.mealMenuItem}
+            >
+              <Ionicons color={theme.colors.text} name="create-outline" size={18} />
+              <Text style={[styles.mealMenuLabel, { color: theme.colors.text }]}>
+                Edit Meal
+              </Text>
+            </PressOpacity>
+          </View>
+        ) : null}
+      </Modal>
     </Screen>
   );
 }
@@ -343,15 +416,24 @@ function MealCatalogueEntry({
   expanded,
   meal,
   onEdit,
+  onMenu,
   onToggle,
 }: {
   expanded: boolean;
   meal: StoredMealLog;
   onEdit: () => void;
+  onMenu: (anchor: MenuAnchor) => void;
   onToggle: () => void;
 }) {
   const { theme } = useAppTheme();
+  const menuAnchor = useRef<ComponentRef<typeof View>>(null);
   const nutritionSummary = formatMealTabNutrition(meal);
+
+  function openMenu() {
+    menuAnchor.current?.measureInWindow((x, y, width, height) => {
+      onMenu({ height, width, x, y });
+    });
+  }
 
   return (
     <View
@@ -363,40 +445,51 @@ function MealCatalogueEntry({
         },
       ]}
     >
-      <PressOpacity
-        accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${
-          meal.title
-        }, ${formatTime(meal.loggedAt)}. ${formatMealTotalsForAccessibility(
-          meal,
-        )}`}
-        onPress={onToggle}
-        style={styles.mealTab}
-      >
-        <View style={styles.mealTabMain}>
-          <Text
-            numberOfLines={1}
-            style={[styles.mealTitle, { color: theme.colors.text }]}
-          >
-            {meal.title}
-          </Text>
-          <Text
-            style={[styles.mealTabNutrition, { color: theme.colors.textMuted }]}
-          >
-            {nutritionSummary}
-          </Text>
-        </View>
+      <View style={styles.mealTabRow}>
+        <PressOpacity
+          accessibilityLabel={`${expanded ? "Collapse" : "Expand"} ${
+            meal.title
+          }, ${formatTime(meal.loggedAt)}. ${formatMealTotalsForAccessibility(
+            meal,
+          )}`}
+          onPress={onToggle}
+          style={styles.mealTab}
+        >
+          <View style={styles.mealTabMain}>
+            <Text
+              numberOfLines={1}
+              style={[styles.mealTitle, { color: theme.colors.text }]}
+            >
+              {meal.title}
+            </Text>
+            <Text
+              style={[styles.mealTabNutrition, { color: theme.colors.textMuted }]}
+            >
+              {nutritionSummary}
+            </Text>
+          </View>
 
-        <View style={styles.mealTabEnd}>
-          <Text style={[styles.mealTime, { color: theme.colors.textMuted }]}>
-            {formatTime(meal.loggedAt)}
-          </Text>
-          <Ionicons
-            color={theme.colors.textMuted}
-            name={expanded ? "chevron-up" : "chevron-down"}
-            size={18}
-          />
+          <View style={styles.mealTabEnd}>
+            <Text style={[styles.mealTime, { color: theme.colors.textMuted }]}>
+              {formatTime(meal.loggedAt)}
+            </Text>
+            <Ionicons
+              color={theme.colors.textMuted}
+              name={expanded ? "chevron-up" : "chevron-down"}
+              size={18}
+            />
+          </View>
+        </PressOpacity>
+        <View collapsable={false} ref={menuAnchor}>
+          <PressOpacity
+            accessibilityLabel={`Actions for ${meal.title}`}
+            onPress={openMenu}
+            style={styles.mealMenuButton}
+          >
+            <Ionicons color={theme.colors.text} name="ellipsis-horizontal" size={20} />
+          </PressOpacity>
         </View>
-      </PressOpacity>
+      </View>
 
       {expanded ? (
         <View
@@ -675,14 +768,45 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: "hidden",
   },
+  mealTabRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    paddingRight: tokens.spacing.xs,
+  },
   mealTab: {
     alignItems: "center",
+    flex: 1,
     flexDirection: "row",
     gap: tokens.spacing.md,
     justifyContent: "space-between",
     minHeight: 44,
-    paddingHorizontal: tokens.spacing.md,
+    paddingLeft: tokens.spacing.md,
+    paddingRight: tokens.spacing.xs,
     paddingVertical: tokens.spacing.sm,
+  },
+  mealMenuButton: {
+    alignItems: "center",
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  mealMenu: {
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.24)",
+    minWidth: 160,
+    position: "absolute",
+  },
+  mealMenuItem: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.md,
+  },
+  mealMenuLabel: {
+    fontSize: tokens.typography.body.fontSize,
+    fontWeight: "700",
   },
   mealContent: {
     borderTopWidth: 1,
