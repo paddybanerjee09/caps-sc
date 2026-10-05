@@ -3,12 +3,13 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { getCustomFood } from "../data/nutritionCatalogRepository";
 import type { CatalogFood, CatalogServing, FoodRef } from "../types/nutrition";
 import { getFatSecretFood } from "./fatsecretApi";
+import { lookupOpenFoodFactsBarcode } from "./openFoodFactsApi";
 import { foodIdentityKey } from "../nutrition/calculations";
 
 const sessionFoods = new Map<string, CatalogFood>();
 
 export function rememberCatalogFood(food: CatalogFood) {
-  if (food.storagePolicy === "reference") {
+  if (food.servings.length > 0) {
     sessionFoods.set(foodIdentityKey(food.ref), food);
   }
 }
@@ -81,6 +82,10 @@ export async function resolveCatalogFood(
     const food = await getFatSecretFood(ref.externalId, signal);
     rememberCatalogFood(food);
     return food;
+  }
+
+  if (ref.source === "openfoodfacts") {
+    return lookupOpenFoodFactsBarcode(ref.externalId, signal);
   }
 
   return null;

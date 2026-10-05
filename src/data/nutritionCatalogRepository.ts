@@ -1,5 +1,7 @@
 import { createId, calculateNutrientTotals, isFoodUnit, parseExtraNutrients, serializeExtraNutrients } from "../nutrition/calculations";
+import { parseCatalogFood } from "../nutrition/drafts";
 import type {
+  CatalogFood,
   ExtraNutrientValue,
   FoodRef,
   FoodSource,
@@ -37,6 +39,7 @@ export type FoodFavourite = {
   amount: number;
   configKey: string;
   createdAt: number;
+  snapshot: CatalogFood | null;
 };
 
 export type SavedMealSummary = {
@@ -233,6 +236,23 @@ export async function updateCustomFood(
   }
 }
 
+export async function deleteCustomFood(db: SQLiteDatabase, id: string) {
+  let deleted = 0;
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `DELETE FROM food_favourites WHERE source = 'custom' AND external_id = ?`,
+      [id],
+    );
+    const result = await db.runAsync(`DELETE FROM custom_foods WHERE id = ?`, [id]);
+    deleted = result.changes;
+  });
+
+  if (deleted !== 1) {
+    throw new Error("Custom food not found");
+  }
+}
+
 export async function getCustomFood(db: SQLiteDatabase, id: string) {
   const row = await db.getFirstAsync<CustomFoodRow>(
     `SELECT * FROM custom_foods WHERE id = ?`,
@@ -259,6 +279,7 @@ export async function listFavourites(db: SQLiteDatabase) {
     amount: number;
     config_key: string;
     created_at: number;
+    snapshot_json: string | null;
   }>(
     `SELECT * FROM food_favourites ORDER BY created_at DESC, id ASC`,
   );
@@ -268,14 +289,17 @@ export async function listFavourites(db: SQLiteDatabase) {
       return [];
     }
 
+    const food = { source: row.source, externalId: row.external_id };
+
     return [
       {
         id: row.id,
-        food: { source: row.source, externalId: row.external_id },
+        food,
         servingId: row.serving_id,
         amount: row.amount,
         configKey: row.config_key,
         createdAt: row.created_at,
+        snapshot: parseFavouriteSnapshot(row.snapshot_json, food),
       } satisfies FoodFavourite,
     ];
   });
@@ -287,8 +311,9 @@ export async function setFavourite(
 ) {
   await db.runAsync(
     `INSERT OR IGNORE INTO food_favourites (
-      id, source, external_id, serving_id, amount, config_key, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      id, source, external_id, serving_id, amount, config_key, created_at,
+      snapshot_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       createId(),
       favourite.food.source,
@@ -297,7 +322,27 @@ export async function setFavourite(
       favourite.amount,
       favourite.configKey,
       Date.now(),
+      serializeFavouriteSnapshot(favourite.snapshot),
     ],
+  );
+}
+
+export async function saveFavouriteSnapshot(
+  db: SQLiteDatabase,
+  id: string,
+  snapshot: CatalogFood,
+) {
+  const json = serializeFavouriteSnapshot(snapshot);
+
+  if (!json) {
+    return;
+  }
+
+  await db.runAsync(
+    `UPDATE food_favourites
+     SET snapshot_json = ?
+     WHERE id = ? AND snapshot_json IS NULL`,
+    [json, id],
   );
 }
 
@@ -713,6 +758,35 @@ function validateCustomFood(input: CustomFoodInput): CustomFoodInput {
     brand: input.brand?.trim() || null,
     barcode: input.barcode?.trim() || null,
   };
+}
+
+function serializeFavouriteSnapshot(snapshot: CatalogFood | null) {
+  if (!snapshot || snapshot.servings.length === 0) {
+    return null;
+  }
+
+  return JSON.stringify({
+    ...snapshot,
+    storagePolicy: "snapshot",
+  });
+}
+
+function parseFavouriteSnapshot(json: string | null, food: FoodRef) {
+  if (!json) {
+    return null;
+  }
+
+  try {
+    const snapshot = parseCatalogFood(JSON.parse(json));
+
+    return snapshot &&
+      snapshot.ref.source === food.source &&
+      snapshot.ref.externalId === food.externalId
+      ? snapshot
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function isFoodSource(value: string): value is FoodSource {

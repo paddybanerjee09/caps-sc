@@ -201,3 +201,7 @@ ALTER TABLE meal_logs ADD COLUMN operation_id TEXT;
 ALTER TABLE meal_logs ADD COLUMN saved_meal_id TEXT;
 ${nutritionV5TablesSql}
 `;
+
+export const nutritionV6FavouriteSnapshotSql = `
+ALTER TABLE food_favourites ADD COLUMN snapshot_json TEXT;
+`;

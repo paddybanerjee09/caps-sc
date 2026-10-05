@@ -4,9 +4,10 @@ import {
   nutritionV5RebuildSql,
   nutritionV5SequenceSql,
   nutritionV5TablesSql,
+  nutritionV6FavouriteSnapshotSql,
 } from "./nutritionMigration";
 
-const DATABASE_VERSION = 5;
+const DATABASE_VERSION = 6;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -137,6 +138,13 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     await applyNutritionV5(db);
   }
 
+  if (
+    (currentVersion < 6 || !workspaceReady) &&
+    !(await columnExists(db, "food_favourites", "snapshot_json"))
+  ) {
+    await db.execAsync(nutritionV6FavouriteSnapshotSql);
+  }
+
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
 
@@ -175,7 +183,7 @@ async function tableExists(db: SQLiteDatabase, name: string) {
 
 async function columnExists(
   db: SQLiteDatabase,
-  table: "meal_items" | "meal_logs",
+  table: "food_favourites" | "meal_items" | "meal_logs",
   column: string,
 ) {
   const rows = await db.getAllAsync<{ name: string }>(
