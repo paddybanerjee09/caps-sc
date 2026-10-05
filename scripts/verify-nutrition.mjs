@@ -1,17 +1,37 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 
+import { migrateDatabase } from "../src/data/database.ts";
+import {
+  createCustomFood,
+  deleteCustomFood,
+  listCustomFoods,
+  listFavourites,
+  saveFavouriteSnapshot,
+  setFavourite,
+} from "../src/data/nutritionCatalogRepository.ts";
 import { nutritionV5MigrationSql } from "../src/data/nutritionMigration.ts";
-import { createMealLog } from "../src/data/nutritionRepository.ts";
+import {
+  createMealLog,
+  deleteMealLog,
+  getMealLogsForDay,
+  updateMealLog,
+} from "../src/data/nutritionRepository.ts";
 import {
   calculateNutrientTotals,
   calorieCrossCheck,
   convertAmount,
   favouriteConfigKey,
+  localDayBounds,
   normalizeBarcode,
   sumExtraTotals,
 } from "../src/nutrition/calculations.ts";
-import { restoreWorkspace } from "../src/nutrition/drafts.ts";
+import {
+  createCustomFoodForm,
+  customFoodToForm,
+  draftFromStoredMeal,
+  restoreWorkspace,
+} from "../src/nutrition/drafts.ts";
 import {
   FATSECRET_DETAILS_METHOD,
   normalizeFatSecretFood,
@@ -140,6 +160,16 @@ const adapter = {
     }
   },
 };
+
+await migrateDatabase(adapter);
+assert.equal(db.prepare("PRAGMA user_version").get().user_version, 6);
+assert.ok(
+  db
+    .prepare("PRAGMA table_info(food_favourites)")
+    .all()
+    .some((column) => column.name === "snapshot_json"),
+);
+await migrateDatabase(adapter);
 
 const meal = {
   items: [
@@ -345,5 +375,165 @@ assert.equal(restored.drafts["new:2026-04-02"].title, "Later");
 assert.equal(restored.stack.length, 1);
 assert.equal(restored.stack[0].draftKey, "new:2026-04-02");
 assert.equal(restored.picker.query, "oats");
+
+const mealCount = () =>
+  db.prepare(`SELECT COUNT(*) AS count FROM timeline_entries WHERE kind = 'meal'`).get().count;
+const { dayStart, dayEnd } = localDayBounds(new Date(meal.loggedAt));
+const findLunch = async () =>
+  (await getMealLogsForDay(adapter, dayStart.getTime(), dayEnd.getTime())).find(
+    (candidate) => candidate.timelineEntryId === firstId,
+  );
+
+const editDraft = draftFromStoredMeal(await findLunch());
+assert.equal(editDraft.mode, "edit");
+assert.equal(editDraft.timelineEntryId, firstId);
+assert.equal(editDraft.title, "Lunch");
+assert.equal(editDraft.loggedAt, meal.loggedAt);
+assert.equal(editDraft.items.length, 1);
+assert.equal(editDraft.items[0].quantityInput, "1");
+assert.equal(editDraft.items[0].servingId, "base");
+assert.equal(editDraft.items[0].servingDescription, "100 g");
+
+const editedLoggedAt = Math.max(dayStart.getTime(), meal.loggedAt - 60_000);
+await updateMealLog(adapter, firstId, {
+  ...meal,
+  items: [
+    { ...meal.items[0], quantity: 2 },
+    { ...meal.items[0], description: "Beans", food: { externalId: "beans", source: "custom" } },
+  ],
+  loggedAt: editedLoggedAt,
+  title: "Late lunch",
+});
+assert.equal(mealCount(), 2);
+const editedLunch = await findLunch();
+assert.equal(editedLunch.title, "Late lunch");
+assert.equal(editedLunch.loggedAt, editedLoggedAt);
+assert.deepEqual(
+  editedLunch.items.map((item) => [item.description, item.quantity]),
+  [
+    ["Rice", 2],
+    ["Beans", 1],
+  ],
+);
+
+const discardedDraft = draftFromStoredMeal(editedLunch);
+discardedDraft.title = "Never saved";
+discardedDraft.items = [];
+assert.deepEqual(draftFromStoredMeal(await findLunch()), draftFromStoredMeal(editedLunch));
+assert.equal(mealCount(), 2);
+
+await deleteMealLog(adapter, firstId);
+assert.equal(await findLunch(), undefined);
+assert.equal(mealCount(), 1);
+assert.equal(
+  db.prepare(`SELECT COUNT(*) AS count FROM meal_items WHERE meal_timeline_entry_id = ?`).get(firstId)
+    .count,
+  0,
+);
+assert.equal(db.prepare(`SELECT title FROM timeline_entries WHERE id = 7`).get().title, "Breakfast");
+await assert.rejects(deleteMealLog(adapter, firstId));
+
+const firstForm = createCustomFoodForm();
+const secondForm = createCustomFoodForm();
+assert.notEqual(firstForm.operationId, secondForm.operationId);
+assert.equal(secondForm.customFoodId, null);
+assert.equal(secondForm.name, "");
+const customInput = {
+  barcode: null,
+  brand: null,
+  carbohydratesG: 10,
+  energyKcal: 100,
+  extras: [],
+  fatG: 2,
+  name: "Wrap",
+  proteinG: 5,
+  servingAmount: 1,
+  servingUnit: "serving",
+};
+const wrapId = await createCustomFood(adapter, firstForm.operationId, customInput);
+assert.equal(await createCustomFood(adapter, firstForm.operationId, customInput), wrapId);
+const saladId = await createCustomFood(adapter, secondForm.operationId, {
+  ...customInput,
+  name: "Salad",
+});
+assert.notEqual(saladId, wrapId);
+const editForm = customFoodToForm({
+  ...customInput,
+  extras: [],
+  id: wrapId,
+});
+assert.equal(editForm.customFoodId, wrapId);
+assert.equal(editForm.name, "Wrap");
+assert.notEqual(editForm.operationId, firstForm.operationId);
+const freshCreate = createCustomFoodForm();
+assert.equal(freshCreate.customFoodId, null);
+assert.equal(freshCreate.name, "");
+assert.notEqual(freshCreate.operationId, firstForm.operationId);
+assert.notEqual(freshCreate.operationId, editForm.operationId);
+assert.deepEqual(
+  (await listCustomFoods(adapter)).map((custom) => [custom.id, custom.name]),
+  [
+    [saladId, "Salad"],
+    [wrapId, "Wrap"],
+  ],
+);
+
+const wrapRef = { externalId: wrapId, source: "custom" };
+await setFavourite(adapter, {
+  amount: 1,
+  configKey: favouriteConfigKey(wrapRef, "base", 1),
+  food: wrapRef,
+  servingId: "base",
+  snapshot: null,
+});
+await deleteCustomFood(adapter, wrapId);
+assert.deepEqual(
+  (await listCustomFoods(adapter)).map((custom) => custom.id),
+  [saladId],
+);
+assert.equal(
+  (await listFavourites(adapter)).some((favourite) => favourite.food.externalId === wrapId),
+  false,
+);
+await assert.rejects(deleteCustomFood(adapter, wrapId));
+
+const productKey = favouriteConfigKey(product.ref, "100g", 2);
+await setFavourite(adapter, {
+  amount: 2,
+  configKey: productKey,
+  food: product.ref,
+  servingId: "100g",
+  snapshot: product,
+});
+await setFavourite(adapter, {
+  amount: 1,
+  configKey: favouriteConfigKey(food.ref, "7", 1),
+  food: food.ref,
+  servingId: "7",
+  snapshot: food,
+});
+db.prepare(
+  `INSERT INTO food_favourites (
+    id, source, external_id, serving_id, amount, config_key, created_at
+  ) VALUES ('legacy', 'openfoodfacts', '0123456789012', '100g', 1, 'legacy-key', 1)`,
+).run();
+let favouriteRows = await listFavourites(adapter);
+const productFavourite = favouriteRows.find((favourite) => favourite.configKey === productKey);
+assert.equal(productFavourite.snapshot.name, "Beans");
+assert.deepEqual(productFavourite.snapshot.ref, product.ref);
+assert.equal(productFavourite.snapshot.servings[0].id, "100g");
+assert.equal(
+  favouriteRows.find((favourite) => favourite.food.source === "fatsecret").snapshot.name,
+  "Milk",
+);
+assert.equal(
+  favouriteRows.find((favourite) => favourite.food.source === "fatsecret").snapshot.ref.externalId,
+  "42",
+);
+assert.equal(favouriteRows.find((favourite) => favourite.id === "legacy").snapshot, null);
+await saveFavouriteSnapshot(adapter, "legacy", product);
+await saveFavouriteSnapshot(adapter, "legacy", { ...product, name: "Overwritten" });
+favouriteRows = await listFavourites(adapter);
+assert.equal(favouriteRows.find((favourite) => favourite.id === "legacy").snapshot.name, "Beans");
 
 console.log("nutrition verification passed");
