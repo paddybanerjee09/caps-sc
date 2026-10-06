@@ -44,6 +44,7 @@ export function NutritionFactsScreen() {
   const { theme } = useAppTheme();
   const {
     activeDraft,
+    closeToRoot,
     completeCustomFood,
     facts,
     pop,
@@ -283,7 +284,7 @@ export function NutritionFactsScreen() {
           }
         />
       }
-      onClose={pop}
+      onClose={closeToRoot}
       right={
         <PressOpacity
           accessibilityLabel={favourited ? "Remove favourite" : "Save favourite"}
@@ -426,7 +427,9 @@ export function NutritionFactsScreen() {
         style={[styles.input, !caloriesCanDrive && styles.inputDisabled]}
         value={calorieText}
       />
+      <View style={styles.macroCard}>
       <MacronutrientBreakdownCard
+        compact
         energyInput={{
           editable: caloriesCanDrive,
           invalid: facts.inputMode === "calories" && !amountValid,
@@ -451,6 +454,7 @@ export function NutritionFactsScreen() {
           }
         }
       />
+      </View>
     </NutritionPage>
   );
 }
@@ -470,6 +474,9 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 48,
+  },
+  macroCard: {
+    marginTop: tokens.spacing.lg,
   },
   inputDisabled: {
     opacity: tokens.opacity.disabled,
