@@ -35,7 +35,7 @@ type ScanStatus =
 
 export function BarcodeScanScreen({ active }: { active: boolean }) {
   const { theme } = useAppTheme();
-  const { pop, push, scanner, setFacts, startCustomFood, updateScanner } =
+  const { closeToRoot, push, scanner, setFacts, startCustomFood, updateScanner } =
     useNutritionWorkspace();
   const [permission, requestPermission] = useCameraPermissions();
   const [foreground, setForeground] = useState(AppState.currentState === "active");
@@ -186,7 +186,7 @@ export function BarcodeScanScreen({ active }: { active: boolean }) {
       onClose={() => {
         requestId.current += 1;
         setTorch(false);
-        pop();
+        closeToRoot();
       }}
       scroll={false}
       title="Scan Barcode"

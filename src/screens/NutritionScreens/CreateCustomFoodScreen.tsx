@@ -40,9 +40,9 @@ export function CreateCustomFoodScreen() {
   const { theme } = useAppTheme();
   const {
     customForm,
+    closeToRoot,
     flush,
     markNutritionChanged,
-    pop,
     push,
     setFacts,
     transitioning,
@@ -131,7 +131,7 @@ export function CreateCustomFoodScreen() {
           </Text>
         </PressOpacity>
       }
-      onClose={pop}
+      onClose={closeToRoot}
       title={customForm.customFoodId ? "Edit Food" : "New Food"}
     >
       <Field
