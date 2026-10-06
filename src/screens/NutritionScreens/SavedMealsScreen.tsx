@@ -1,11 +1,16 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
 
-import { FoodMacroLine, NutritionPage } from "../../components/nutrition/NutritionChrome";
+import {
+  FoodMacroLine,
+  NutritionActionBar,
+  NutritionPage,
+} from "../../components/nutrition/NutritionChrome";
 import { PressOpacity } from "../../components/PressOpacity";
 import {
+  deleteSavedMeal,
   listSavedMeals,
   totalsForItems,
   type SavedMealSummary,
@@ -29,11 +34,24 @@ const sortLabels: Record<SavedSort, string> = {
 export function SavedMealsScreen() {
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
-  const { activeDraft, pop, registerBackHandler, returnToMealLog, updateDraft } =
-    useNutritionWorkspace();
+  const {
+    activeDraft,
+    closeToRoot,
+    dataRevision,
+    markNutritionChanged,
+    openEditSavedMeal,
+    pop,
+    registerBackHandler,
+    returnToMealLog,
+    updateDraft,
+  } = useNutritionWorkspace();
   const [meals, setMeals] = useState<SavedMealSummary[]>([]);
   const [sort, setSort] = useState<SavedSort>("alpha");
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const loadMeals = useCallback(() => {
+    void listSavedMeals(db).then(setMeals);
+  }, [db]);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -47,18 +65,8 @@ export function SavedMealsScreen() {
   }, [menuOpen, registerBackHandler]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    void listSavedMeals(db).then((loaded) => {
-      if (!cancelled) {
-        setMeals(loaded);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [db]);
+    loadMeals();
+  }, [dataRevision, loadMeals]);
 
   const ordered = useMemo(() => {
     return [...meals].sort((left, right) => {
@@ -113,6 +121,31 @@ export function SavedMealsScreen() {
     );
   }
 
+  function confirmDelete(meal: SavedMealSummary) {
+    Alert.alert(
+      "Delete saved meal?",
+      `${meal.title} will be removed from your saved meals. Meals you already logged keep their nutrition.`,
+      [
+        { style: "cancel", text: "Cancel" },
+        {
+          onPress: () => {
+            void (async () => {
+              try {
+                await deleteSavedMeal(db, meal.id);
+                markNutritionChanged();
+                loadMeals();
+              } catch {
+                Alert.alert("Couldn't delete meal", "Please try again.");
+              }
+            })();
+          },
+          style: "destructive",
+          text: "Delete",
+        },
+      ],
+    );
+  }
+
   return (
     <NutritionPage
       controls={
@@ -155,7 +188,17 @@ export function SavedMealsScreen() {
           ) : null}
         </View>
       }
-      onClose={pop}
+      footer={
+        <NutritionActionBar
+          left={{ accessibilityLabel: "Back", label: "Back", onPress: pop }}
+          right={{
+            accessibilityLabel: "Back to meal",
+            label: "Back to Meal",
+            onPress: returnToMealLog,
+          }}
+        />
+      }
+      onClose={closeToRoot}
       scroll={false}
       title="Saved Meals"
     >
@@ -172,22 +215,47 @@ export function SavedMealsScreen() {
             const partial = Object.values(totals.incomplete).some(Boolean);
 
             return (
-              <PressOpacity
-                accessibilityLabel={`Use ${item.title}`}
-                onPress={() => confirmUse(item)}
-                style={[styles.row, { borderBottomColor: theme.colors.border }]}
-              >
-                <Text style={[styles.name, { color: theme.colors.text }]}>{item.title}</Text>
-                <FoodMacroLine
-                  nutrients={{
-                    carbohydratesG: totals.carbohydratesG,
-                    energyKcal: totals.energyKcal,
-                    fatG: totals.fatG,
-                    proteinG: totals.proteinG,
-                  }}
-                  partial={partial}
-                />
-              </PressOpacity>
+              <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
+                <PressOpacity
+                  accessibilityLabel={`Edit ${item.title}`}
+                  onPress={() => openEditSavedMeal(item)}
+                  style={styles.rowMain}
+                >
+                  <Text style={[styles.name, { color: theme.colors.text }]}>{item.title}</Text>
+                  <FoodMacroLine
+                    nutrients={{
+                      carbohydratesG: totals.carbohydratesG,
+                      energyKcal: totals.energyKcal,
+                      fatG: totals.fatG,
+                      proteinG: totals.proteinG,
+                    }}
+                    partial={partial}
+                  />
+                </PressOpacity>
+                {activeDraft && activeDraft.mode !== "savedTemplate" ? (
+                  <PressOpacity
+                    accessibilityLabel={`Use ${item.title} in current meal`}
+                    onPress={() => confirmUse(item)}
+                    style={styles.rowAction}
+                  >
+                    <Ionicons color={theme.colors.tertiary} name="download-outline" size={20} />
+                  </PressOpacity>
+                ) : null}
+                <PressOpacity
+                  accessibilityLabel={`Edit ${item.title}`}
+                  onPress={() => openEditSavedMeal(item)}
+                  style={styles.rowAction}
+                >
+                  <Ionicons color={theme.colors.textMuted} name="create-outline" size={20} />
+                </PressOpacity>
+                <PressOpacity
+                  accessibilityLabel={`Delete ${item.title}`}
+                  onPress={() => confirmDelete(item)}
+                  style={styles.rowAction}
+                >
+                  <Ionicons color={theme.colors.textMuted} name="close" size={20} />
+                </PressOpacity>
+              </View>
             );
           }}
         />
@@ -270,12 +338,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   row: {
+    alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    minHeight: 64,
+    paddingLeft: tokens.spacing.lg,
+    paddingRight: tokens.spacing.sm,
+  },
+  rowMain: {
+    flex: 1,
     gap: 2,
     justifyContent: "center",
     minHeight: 64,
-    paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.sm,
+  },
+  rowAction: {
+    alignItems: "center",
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
   name: {
     fontSize: tokens.typography.body.fontSize,
