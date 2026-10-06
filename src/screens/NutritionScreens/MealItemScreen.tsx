@@ -14,6 +14,7 @@ import {
 
 import {
   FoodMacroLine,
+  NutritionActionBar,
   NutritionTextInput,
   WorkflowHeader,
 } from "../../components/nutrition/NutritionChrome";
@@ -47,7 +48,7 @@ import { searchFatSecretFoods } from "../../services/fatsecretApi";
 import { providerErrorMessage } from "../../services/providerError";
 import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
-import { themes } from "../../theme/theme";
+import { readableTextColor, themes } from "../../theme/theme";
 import type { CatalogFood, FoodRef, FoodSearchHit, NutrientSnapshot } from "../../types/nutrition";
 
 const tokens = themes.dark;
@@ -76,6 +77,7 @@ export function MealItemScreen() {
   const { theme } = useAppTheme();
   const workspace = useNutritionWorkspace();
   const {
+    closeToRoot,
     customForm,
     markNutritionChanged,
     picker,
@@ -398,6 +400,8 @@ export function MealItemScreen() {
     setFilterRequested(false);
   }
 
+  const addFoodTextColor = readableTextColor(theme.colors.tertiary);
+
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <WorkflowHeader
@@ -414,7 +418,7 @@ export function MealItemScreen() {
             value={picker.query}
           />
         }
-        onClose={pop}
+        onClose={closeToRoot}
         right={
           <PressOpacity
             accessibilityLabel="Scan barcode"
@@ -496,9 +500,16 @@ export function MealItemScreen() {
               <PressOpacity
                 accessibilityLabel="Create custom food"
                 onPress={() => startCustomFood()}
-                style={styles.retry}
+                style={[
+                  styles.createCustomFood,
+                  styles.createCustomFoodEmpty,
+                  { backgroundColor: theme.colors.tertiary },
+                ]}
               >
-                <Text style={{ color: theme.colors.tertiary }}>Create Custom Food</Text>
+                <Ionicons color={addFoodTextColor} name="add-circle-outline" size={24} />
+                <Text style={[styles.createCustomFoodLabel, { color: addFoodTextColor }]}>
+                  Create Custom Food
+                </Text>
               </PressOpacity>
             ) : null}
           </View>
@@ -547,15 +558,29 @@ export function MealItemScreen() {
         scrollEventThrottle={80}
         style={styles.list}
       />
-      {picker.tab === "custom" && rows.length > 0 ? (
+      {picker.tab === "custom" ? (
         <PressOpacity
           accessibilityLabel="Create custom food"
           onPress={() => startCustomFood()}
-          style={[styles.createRow, { borderTopColor: theme.colors.border }]}
+          style={[
+            styles.createCustomFood,
+            { backgroundColor: theme.colors.tertiary, borderTopColor: theme.colors.border },
+          ]}
         >
-          <Text style={{ color: theme.colors.tertiary }}>Create Custom Food</Text>
+          <Ionicons color={addFoodTextColor} name="add-circle-outline" size={24} />
+          <Text style={[styles.createCustomFoodLabel, { color: addFoodTextColor }]}>
+            Create Custom Food
+          </Text>
         </PressOpacity>
       ) : null}
+      <NutritionActionBar
+        left={{ accessibilityLabel: "Back", label: "Back", onPress: pop }}
+        right={{
+          accessibilityLabel: "Scan barcode",
+          label: "Scan Barcode",
+          onPress: () => push({ screen: "barcode" }),
+        }}
+      />
       {filterOpen ? (
         <PressOpacity
           accessibilityLabel="Close sort options"
@@ -1058,10 +1083,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: tokens.spacing.lg,
   },
-  createRow: {
+  createCustomFoodEmpty: {
+    borderTopWidth: 0,
+    marginTop: tokens.spacing.md,
+  },
+  createCustomFood: {
     alignItems: "center",
     borderTopWidth: StyleSheet.hairlineWidth,
+    boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.28)",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
     justifyContent: "center",
-    minHeight: 48,
+    marginHorizontal: tokens.spacing.lg,
+    marginVertical: tokens.spacing.sm,
+    minHeight: 56,
+    paddingHorizontal: tokens.spacing.lg,
+  },
+  createCustomFoodLabel: {
+    fontSize: tokens.typography.sectionTitle.fontSize,
+    fontWeight: "700",
+    lineHeight: 20,
   },
 });
