@@ -296,6 +296,10 @@ export function editMealDraftKey(timelineEntryId: number) {
   return `edit:${timelineEntryId}`;
 }
 
+export function savedMealDraftKey(savedMealId: string) {
+  return `saved:${savedMealId}`;
+}
+
 export function startOfLocalDay(date: Date) {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);

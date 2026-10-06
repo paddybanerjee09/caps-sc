@@ -6,6 +6,7 @@ import {
   formatLocalDateKey,
   isFoodUnit,
   newMealDraftKey,
+  savedMealDraftKey,
   startOfLocalDay,
 } from "./calculations";
 import { NUTRIENT_REGISTRY } from "./nutrients";
@@ -15,6 +16,7 @@ import type {
   FoodRef,
   FoodSource,
   FoodUnit,
+  NewMealItem,
   NutrientSnapshot,
   StoragePolicy,
   StoredMealLog,
@@ -38,7 +40,7 @@ export type DraftMealItem = {
 
 export type MealDraft = {
   key: string;
-  mode: "create" | "edit";
+  mode: "create" | "edit" | "savedTemplate";
   timelineEntryId: number | null;
   operationId: string | null;
   dayKey: string;
@@ -200,7 +202,7 @@ export function initialLoggedAt(day: Date) {
 
 export function createMealDraft(input: {
   key: string;
-  mode: "create" | "edit";
+  mode: "create" | "edit" | "savedTemplate";
   day: Date;
   operationId: string | null;
   timelineEntryId?: number | null;
@@ -239,6 +241,56 @@ export function draftFromStoredMeal(meal: StoredMealLog): MealDraft {
   draft.items = meal.items.map(storedItemToDraft);
   draft.savedSignature = meal.savedMealId ? compositionSignature(draft) : null;
   return draft;
+}
+
+export function draftFromSavedMeal(meal: {
+  id: string;
+  items: readonly NewMealItem[];
+  title: string;
+}): MealDraft {
+  const day = new Date();
+  const draft: MealDraft = {
+    key: savedMealDraftKey(meal.id),
+    mode: "savedTemplate",
+    timelineEntryId: null,
+    operationId: null,
+    dayKey: formatLocalDateKey(day),
+    title: meal.title,
+    titleTouched: true,
+    loggedAt: initialLoggedAt(day),
+    items: meal.items.map(savedTemplateItemToDraft),
+    savedMealId: meal.id,
+    savedSignature: null,
+    pendingTemplateOperationId: null,
+  };
+  draft.savedSignature = compositionSignature(draft);
+  return draft;
+}
+
+function savedTemplateItemToDraft(item: NewMealItem): DraftMealItem {
+  return {
+    brandName: item.storagePolicy === "reference" ? null : item.brandName,
+    clientId: createId(),
+    description: item.storagePolicy === "reference" ? null : item.description,
+    extrasPerServing: item.storagePolicy === "reference" ? [] : item.extrasPerServing,
+    food: item.food,
+    nutrientsPerServing:
+      item.storagePolicy === "reference"
+        ? {
+            carbohydratesG: null,
+            energyKcal: null,
+            fatG: null,
+            proteinG: null,
+          }
+        : item.nutrientsPerServing,
+    quantityInput: String(item.quantity),
+    resolved: item.storagePolicy === "snapshot",
+    servingAmount: item.servingAmount,
+    servingDescription: item.servingDescription,
+    servingId: item.servingId,
+    servingUnit: item.servingUnit,
+    storagePolicy: item.storagePolicy,
+  };
 }
 
 export function storedItemToDraft(
@@ -489,7 +541,14 @@ function parseDraft(key: string, value: unknown): MealDraft | null {
   }
 
   const record = value as Record<string, unknown>;
-  const mode = record.mode === "edit" ? "edit" : record.mode === "create" ? "create" : null;
+  const mode =
+    record.mode === "edit"
+      ? "edit"
+      : record.mode === "create"
+        ? "create"
+        : record.mode === "savedTemplate"
+          ? "savedTemplate"
+          : null;
 
   if (!mode || record.key !== key) {
     return null;
@@ -499,9 +558,14 @@ function parseDraft(key: string, value: unknown): MealDraft | null {
     return null;
   }
 
-  const expectedPrefix = mode === "create" ? "new:" : "edit:";
+  const expectedPrefix =
+    mode === "create" ? "new:" : mode === "edit" ? "edit:" : "saved:";
 
   if (!key.startsWith(expectedPrefix)) {
+    return null;
+  }
+
+  if (mode === "savedTemplate" && key.slice(6).length === 0) {
     return null;
   }
 
