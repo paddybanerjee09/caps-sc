@@ -430,6 +430,46 @@ export async function createSavedMeal(
   return savedMealId;
 }
 
+export async function updateSavedMeal(
+  db: SQLiteDatabase,
+  savedMealId: string,
+  title: string,
+  items: NewMealItem[],
+) {
+  const trimmed = title.trim();
+
+  if (!trimmed || items.length === 0) {
+    throw new Error("A saved meal needs a title and at least one food");
+  }
+
+  await db.withTransactionAsync(async () => {
+    const existing = await db.getFirstAsync<{ id: string }>(
+      `SELECT id FROM saved_meals WHERE id = ?`,
+      [savedMealId],
+    );
+
+    if (!existing) {
+      throw new Error("Saved meal not found");
+    }
+
+    await db.runAsync(
+      `UPDATE saved_meals SET title = ?, updated_at = ? WHERE id = ?`,
+      [trimmed, Date.now(), savedMealId],
+    );
+    await db.runAsync(`DELETE FROM saved_meal_items WHERE saved_meal_id = ?`, [
+      savedMealId,
+    ]);
+
+    for (const [index, item] of items.entries()) {
+      await insertSavedMealItem(db, savedMealId, index, item);
+    }
+  });
+}
+
+export async function deleteSavedMeal(db: SQLiteDatabase, savedMealId: string) {
+  await db.runAsync(`DELETE FROM saved_meals WHERE id = ?`, [savedMealId]);
+}
+
 export async function listSavedMeals(db: SQLiteDatabase, now = Date.now()) {
   const meals = await db.getAllAsync<{
     id: string;
