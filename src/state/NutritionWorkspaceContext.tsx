@@ -23,13 +23,18 @@ import {
   startOfLocalDay,
   editMealDraftKey,
   newMealDraftKey,
+  savedMealDraftKey,
 } from "../nutrition/calculations";
-import type { CustomFoodRecord } from "../data/nutritionCatalogRepository";
+import type {
+  CustomFoodRecord,
+  SavedMealSummary,
+} from "../data/nutritionCatalogRepository";
 import {
   createCustomFoodForm,
   createEmptyWorkspace,
   createMealDraft,
   customFoodToForm,
+  draftFromSavedMeal,
   draftFromStoredMeal,
   initialLoggedAt,
   restoreWorkspace,
@@ -71,6 +76,7 @@ type NutritionWorkspaceValue = {
   markNutritionChanged: () => void;
   notice: string | null;
   openEditMeal: (meal: StoredMealLog) => void;
+  openEditSavedMeal: (meal: SavedMealSummary) => void;
   openNewMeal: (day: Date) => void;
   picker: PickerState;
   pop: () => void;
@@ -502,6 +508,24 @@ export function NutritionWorkspaceProvider({ children }: { children: ReactNode }
     [commitModel, revealMealLog],
   );
 
+  const openEditSavedMeal = useCallback(
+    (meal: SavedMealSummary) => {
+      const key = savedMealDraftKey(meal.id);
+      const current = modelRef.current;
+      const drafts = { ...current.drafts };
+
+      drafts[key] = draftFromSavedMeal(meal);
+
+      commitModel({
+        ...current,
+        activeDraftKey: key,
+        drafts,
+      });
+      push({ screen: "mealLog", draftKey: key });
+    },
+    [commitModel, push],
+  );
+
   const removeDraft = useCallback(
     (key: string) => {
       const drafts = { ...modelRef.current.drafts };
@@ -628,6 +652,7 @@ export function NutritionWorkspaceProvider({ children }: { children: ReactNode }
       markNutritionChanged: () => setDataRevision((revision) => revision + 1),
       notice: model.notice,
       openEditMeal,
+      openEditSavedMeal,
       openNewMeal,
       picker: model.picker,
       pop,
@@ -694,6 +719,7 @@ export function NutritionWorkspaceProvider({ children }: { children: ReactNode }
       keyboardVisible,
       model,
       openEditMeal,
+      openEditSavedMeal,
       openNewMeal,
       pop,
       push,
