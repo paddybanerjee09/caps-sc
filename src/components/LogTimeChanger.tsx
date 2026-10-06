@@ -20,6 +20,7 @@ import { PressOpacity } from "./PressOpacity";
 const tokens = themes.dark;
 
 type LogTimeChangerProps = {
+  compact?: boolean;
   iconOnly?: boolean;
   inline?: boolean;
   label?: string;
@@ -29,6 +30,7 @@ type LogTimeChangerProps = {
 };
 
 export function LogTimeChanger({
+  compact = false,
   iconOnly = false,
   inline = false,
   label,
@@ -104,18 +106,29 @@ export function LogTimeChanger({
   }
 
   return (
-    <View style={[styles.container, inline && styles.inlineContainer]}>
+    <View
+      style={[
+        styles.container,
+        inline && styles.inlineContainer,
+        inline && compact && styles.inlineContainerCompact,
+      ]}
+    >
       <PressOpacity
         accessibilityLabel={`Change log time. Currently ${formatFullDateTime(
           value,
         )}`}
         onPress={openPicker}
-        style={[styles.button, iconOnly && !label && styles.iconButton]}
+        style={[
+          styles.button,
+          compact && styles.buttonCompact,
+          iconOnly && !label && styles.iconButton,
+        ]}
       >
         {label ? (
           <View
             style={[
               styles.labelPill,
+              compact && styles.labelPillCompact,
               {
                 backgroundColor: theme.colors.surfaceMuted,
                 borderColor: theme.colors.borderStrong,
@@ -123,12 +136,20 @@ export function LogTimeChanger({
             ]}
           >
             <Text
-              numberOfLines={2}
-              style={[styles.labelText, { color: theme.colors.text }]}
+              numberOfLines={1}
+              style={[
+                styles.labelText,
+                compact && styles.labelTextCompact,
+                { color: theme.colors.text },
+              ]}
             >
               {label}
             </Text>
-            <Ionicons color={theme.colors.text} name="time-outline" size={20} />
+            <Ionicons
+              color={theme.colors.text}
+              name="time-outline"
+              size={compact ? 14 : 20}
+            />
           </View>
         ) : iconOnly ? (
           <Ionicons color={theme.colors.text} name="time-outline" size={22} />
@@ -249,10 +270,18 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     width: "auto",
   },
+  inlineContainerCompact: {
+    marginBottom: tokens.spacing.xs,
+    marginTop: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.xs,
+  },
   button: {
     alignItems: "center",
     justifyContent: "center",
     minHeight: 44,
+  },
+  buttonCompact: {
+    minHeight: 32,
   },
   iconButton: {
     height: 44,
@@ -268,12 +297,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.sm,
     paddingVertical: tokens.spacing.xs,
   },
+  labelPillCompact: {
+    gap: 4,
+    minHeight: 30,
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: 4,
+  },
   labelText: {
     flexShrink: 1,
     fontSize: tokens.typography.label.fontSize,
     fontWeight: tokens.typography.label.fontWeight,
     lineHeight: 15,
     textAlign: "right",
+  },
+  labelTextCompact: {
+    fontSize: 10,
+    lineHeight: 12,
   },
   buttonPill: {
     alignItems: "center",
