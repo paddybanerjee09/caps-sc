@@ -150,38 +150,59 @@ export function MacronutrientBreakdownCard({
       {compact ? (
         <>
           <View style={styles.compactTitleBlock}>
-            {title ? (
+            <View style={styles.compactTitleRow}>
+              {title ? (
+                <Text
+                  numberOfLines={1}
+                  selectable
+                  style={[styles.compactTitle, { color: theme.colors.text }]}
+                >
+                  {title}
+                </Text>
+              ) : null}
+              <Text
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+                numberOfLines={1}
+                selectable
+                style={[styles.compactMacroInline, { color: theme.colors.text }]}
+              >
+                {macroPresentations.map((macro, index) => {
+                  const value = safeValues[macro.key];
+
+                  return (
+                    <Text key={macro.key}>
+                      {index > 0 ? "  " : null}
+                      <Text style={{ color: macro.color }}>{macro.shortLabel}: </Text>
+                      {formatNullableValue(
+                        value,
+                        resolvedIncomplete[macro.key],
+                        1,
+                      )}
+                      {value === null ? "" : "g"}
+                    </Text>
+                  );
+                })}
+              </Text>
+            </View>
+            <View style={styles.compactCaloriesRow}>
               <Text
                 selectable
-                style={[styles.compactTitle, { color: theme.colors.text }]}
+                style={[styles.compactTotalLabel, { color: theme.colors.textMuted }]}
               >
-                {title}
+                Calories
               </Text>
-            ) : null}
-            <View style={styles.compactTotalsRow}>
-              {nutrientPresentations.map((presentation) => (
-                <View key={presentation.key} style={styles.compactTotalItem}>
-                  <Text
-                    selectable
-                    style={[styles.compactTotalLabel, { color: theme.colors.textMuted }]}
-                  >
-                    {presentation.label}
-                  </Text>
-                  <Text
-                    selectable
-                    style={[styles.compactTotalValue, { color: theme.colors.text }]}
-                  >
-                    {formatNullableValue(
-                      safeValues[presentation.key],
-                      resolvedIncomplete[presentation.key],
-                      presentation.unit === "kcal" ? 0 : 1,
-                    )}
-                    {safeValues[presentation.key] === null
-                      ? ""
-                      : ` ${presentation.unit}`}
-                  </Text>
-                </View>
-              ))}
+              <Text
+                selectable
+                style={[styles.compactTotalValue, { color: theme.colors.text }]}
+              >
+                {formatNullableValue(
+                  safeValues.energyKcal,
+                  resolvedIncomplete.energyKcal,
+                  0,
+                )}
+                {safeValues.energyKcal === null ? "" : " kcal"}
+              </Text>
             </View>
           </View>
 
@@ -679,23 +700,36 @@ const styles = StyleSheet.create({
     lineHeight: tokens.typography.sectionTitle.lineHeight,
   },
   compactTitleBlock: {
-    gap: tokens.spacing.sm,
+    gap: tokens.spacing.xs,
+  },
+  compactTitleRow: {
+    alignItems: "center",
+    columnGap: tokens.spacing.sm,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: tokens.spacing.xs,
   },
   compactTitle: {
+    flexShrink: 1,
     fontSize: tokens.typography.label.fontSize,
     fontWeight: "700",
     lineHeight: tokens.typography.label.lineHeight,
   },
-  compactTotalsRow: {
+  compactMacroInline: {
+    flexGrow: 1,
+    flexShrink: 0,
+    fontSize: tokens.typography.label.fontSize,
+    fontVariant: ["tabular-nums"],
+    fontWeight: tokens.typography.label.fontWeight,
+    lineHeight: tokens.typography.label.lineHeight,
+    textAlign: "right",
+  },
+  compactCaloriesRow: {
+    alignItems: "center",
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: tokens.spacing.sm,
     justifyContent: "space-between",
-  },
-  compactTotalItem: {
-    flexBasis: "47%",
-    flexGrow: 1,
-    gap: 2,
   },
   compactTotalLabel: {
     fontSize: 10,
