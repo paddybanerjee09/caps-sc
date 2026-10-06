@@ -14,7 +14,10 @@ import { LogTimeChanger } from "../../components/LogTimeChanger";
 import { MacronutrientBreakdownCard } from "../../components/MacronutrientBreakdownCard";
 import { PressOpacity } from "../../components/PressOpacity";
 import { DAILY_NUTRIENT_TARGETS } from "../../constants/nutrition";
-import { createSavedMeal } from "../../data/nutritionCatalogRepository";
+import {
+  createSavedMeal,
+  updateSavedMeal,
+} from "../../data/nutritionCatalogRepository";
 import {
   createMealLog,
   deleteMealLog,
@@ -64,7 +67,12 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
   const [savingTemplate, setSavingTemplate] = useState(false);
 
   useEffect(() => {
-    if (!mealDraft || mealDraft.mode !== "create" || mealDraft.titleTouched || mealDraft.title) {
+    if (
+      !mealDraft ||
+      mealDraft.mode !== "create" ||
+      mealDraft.titleTouched ||
+      mealDraft.title
+    ) {
       return;
     }
 
@@ -150,6 +158,7 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
   }
 
   const editing = mealDraft.mode === "edit";
+  const editingSavedTemplate = mealDraft.mode === "savedTemplate";
   const contributions = mealDraft.items.map((item) => ({
     quantity: Number(item.quantityInput),
     nutrientsPerServing: item.nutrientsPerServing,
@@ -223,12 +232,14 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
 
     try {
       await flush();
-      const savedMealId = await createSavedMeal(
-        db,
-        operationId,
-        mealDraft.title,
-        itemsValid,
-      );
+      const savedMealId = mealDraft.savedMealId
+        ? mealDraft.savedMealId
+        : await createSavedMeal(db, operationId, mealDraft.title, itemsValid);
+
+      if (mealDraft.savedMealId) {
+        await updateSavedMeal(db, savedMealId, mealDraft.title, itemsValid);
+      }
+
       updateDraft(draftKey, (draft) => {
         const next = {
           ...draft,
@@ -240,6 +251,10 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
           savedSignature: compositionSignature(next),
         };
       });
+      if (editingSavedTemplate) {
+        markNutritionChanged();
+        pop();
+      }
     } catch {
       Alert.alert("Couldn't save meal", "Please try again.");
     } finally {
@@ -370,32 +385,60 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
                 }
               : undefined
           }
-          left={{
-            accessibilityLabel: "Saved meals",
-            label: "Saved Meals",
-            onPress: () => push({ screen: "savedMeals" }),
-          }}
-          right={{
-            accessibilityLabel: editing ? "Save changes" : "Log meal",
-            disabled: saving,
-            label: editing ? "Save Changes" : "Log Meal",
-            onPress: () => void submitMeal(),
-          }}
-        />
-      }
-      onClose={pop}
-      right={
-        <LogTimeChanger
-          inline
-          label="Change Log Time"
-          onChange={(date) =>
-            updateDraft(draftKey, (draft) => ({ ...draft, loggedAt: date.getTime() }))
+          left={
+            editingSavedTemplate
+              ? {
+                  accessibilityLabel: "Back",
+                  label: "Back",
+                  onPress: pop,
+                }
+              : {
+                  accessibilityLabel: "Saved meals",
+                  label: "Saved Meals",
+                  onPress: () => push({ screen: "savedMeals" }),
+                }
           }
-          value={new Date(mealDraft.loggedAt)}
+          right={
+            editingSavedTemplate
+              ? {
+                  accessibilityLabel: "Save saved meal",
+                  disabled: !canSaveTemplate || savingTemplate,
+                  label: savingTemplate ? "Saving" : "Save Changes",
+                  onPress: () => void saveTemplate(),
+                }
+              : {
+                  accessibilityLabel: editing ? "Save changes" : "Log meal",
+                  disabled: saving,
+                  label: editing ? "Save Changes" : "Log Meal",
+                  onPress: () => void submitMeal(),
+                }
+          }
         />
       }
-      sideWidth={120}
-      title={editing ? "Edit Meal" : "Log Meal"}
+      onClose={closeToRoot}
+      right={
+        editingSavedTemplate
+          ? undefined
+          : (
+            <LogTimeChanger
+              compact
+              inline
+              label="Change Log Time"
+              onChange={(date) =>
+                updateDraft(draftKey, (draft) => ({ ...draft, loggedAt: date.getTime() }))
+              }
+              value={new Date(mealDraft.loggedAt)}
+            />
+          )
+      }
+      sideWidth={108}
+      title={
+        editingSavedTemplate
+          ? "Edit Saved Meal"
+          : editing
+            ? "Edit Meal"
+            : "Log Meal"
+      }
     >
       <View style={styles.titleRow}>
         <NutritionTextInput
@@ -429,37 +472,28 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
               {templateSaved ? "Saved" : savingTemplate ? "Saving" : "Save Meal"}
             </Text>
           </PressOpacity>
-          <PressOpacity
-            accessibilityLabel="Discard draft"
-            onPress={confirmDiscard}
-            style={[
-              styles.titleAction,
-              {
-                backgroundColor: dangerColors.background,
-                borderColor: dangerColors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.titleActionLabel, { color: dangerColors.text }]}>
-              Discard draft
-            </Text>
-          </PressOpacity>
+          {editingSavedTemplate ? null : (
+            <PressOpacity
+              accessibilityLabel="Discard draft"
+              onPress={confirmDiscard}
+              style={[
+                styles.titleAction,
+                {
+                  backgroundColor: dangerColors.background,
+                  borderColor: dangerColors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.titleActionLabel, { color: dangerColors.text }]}>
+                Discard draft
+              </Text>
+            </PressOpacity>
+          )}
         </View>
       </View>
-      <MacronutrientBreakdownCard
-        compact
-        incomplete={totals.incomplete}
-        micronutrients={extraTotals}
-        targets={DAILY_NUTRIENT_TARGETS}
-        title="Meal totals"
-        values={{
-          carbohydratesG: totals.carbohydratesG,
-          energyKcal: totals.energyKcal,
-          fatG: totals.fatG,
-          proteinG: totals.proteinG,
-        }}
-      />
-      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Meal items</Text>
+      <Text style={[styles.sectionTitle, styles.sectionTitleFirst, { color: theme.colors.text }]}>
+        Meal items
+      </Text>
       <PressOpacity
         accessibilityLabel="Add meal item"
         onPress={() => push({ screen: "mealItem" })}
@@ -507,6 +541,21 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
             </View>
           ))
         )}
+      </View>
+      <View style={styles.totalsSection}>
+      <MacronutrientBreakdownCard
+        compact
+        incomplete={totals.incomplete}
+        micronutrients={extraTotals}
+        targets={DAILY_NUTRIENT_TARGETS}
+        title="Meal totals"
+        values={{
+          carbohydratesG: totals.carbohydratesG,
+          energyKcal: totals.energyKcal,
+          fatG: totals.fatG,
+          proteinG: totals.proteinG,
+        }}
+      />
       </View>
     </NutritionPage>
   );
@@ -606,6 +655,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: tokens.typography.sectionTitle.fontSize,
     fontWeight: "700",
+    marginTop: tokens.spacing.lg,
+  },
+  sectionTitleFirst: {
+    marginTop: tokens.spacing.sm,
+  },
+  totalsSection: {
     marginTop: tokens.spacing.lg,
   },
   addItem: {
