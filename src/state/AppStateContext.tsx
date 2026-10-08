@@ -95,8 +95,21 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
   }, [db]);
 
   useEffect(() => {
-    void refreshLatestWeight();
-  }, [refreshLatestWeight]);
+    let cancelled = false;
+
+    void getLatestWeightKg(db).then((latestWeightKg) => {
+      if (!cancelled) {
+        setAthleteProfile((current) => ({
+          ...current,
+          weightKg: latestWeightKg,
+        }));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [db]);
 
   const logWeight = useCallback(
     async (weightKg: number, loggedAt = Date.now()) => {
