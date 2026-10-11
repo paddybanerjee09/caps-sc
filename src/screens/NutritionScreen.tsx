@@ -18,6 +18,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 
+import { scheduleIdleTask } from "../utils/scheduleIdleTask";
 import { MacronutrientBreakdownCard } from "../components/MacronutrientBreakdownCard";
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
@@ -98,12 +99,12 @@ export function NutritionScreen() {
   }, [dayEnd, dayStart, db]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const task = scheduleIdleTask(() => {
       void loadMeals();
-    }, 0);
+    });
 
     return () => {
-      clearTimeout(timer);
+      task.cancel();
       requestId.current += 1;
     };
   }, [loadMeals, dataRevision]);

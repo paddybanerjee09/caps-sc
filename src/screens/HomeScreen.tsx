@@ -20,6 +20,7 @@ import { WeightLogModal } from "../components/WeightLogModal";
 
 import { useSQLiteContext } from "expo-sqlite"; // Database imports
 
+import { scheduleIdleTask } from "../utils/scheduleIdleTask";
 import {
   getTimelineEntriesForDay,
   type TimelineEntry,
@@ -138,12 +139,12 @@ export function HomeScreen() {
   }, [dayEnd, dayStart, db]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const task = scheduleIdleTask(() => {
       void loadSelectedDateEntries();
-    }, 0);
+    });
 
     return () => {
-      clearTimeout(timer);
+      task.cancel();
       timelineRequestId.current += 1;
     };
   }, [loadSelectedDateEntries, dataRevision]);
