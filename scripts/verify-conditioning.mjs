@@ -40,6 +40,7 @@ import {
   yardsToMeters,
 } from "../src/conditioning/units.ts";
 import { estimateElevation } from "../src/conditioning/elevation.ts";
+import { syncConditioningBundle } from "../src/data/conditioningSync.ts";
 import {
   createGpsState,
   pauseGps,
@@ -415,6 +416,63 @@ const gapSplits = buildSplits([
   { activeMs: 300_000, cumulativeMeters: 1600, segmentSequence: 1 },
 ]);
 assert.equal(gapSplits.kilometer[0].complete, false);
+
+const calls = [];
+const transport = {
+  async finalize(sessionId) {
+    calls.push(["finalize", sessionId]);
+  },
+  async uploadOccurrences(sessionId, occurrences) {
+    calls.push(["occurrences", sessionId, occurrences.length]);
+  },
+  async uploadPoints(sessionId, points) {
+    calls.push(["points", sessionId, points.map((point) => point.sequence).join(",")]);
+  },
+  async uploadSplits() {},
+  async upsertSession(session) {
+    calls.push(["session", session.id]);
+  },
+};
+const syncPoint = (sequence) => ({
+  acceptance: "accepted",
+  altitude: null,
+  altitudeAccuracy: null,
+  distanceDeltaMeters: 1,
+  horizontalAccuracy: 5,
+  latitude: 1,
+  longitude: 1,
+  recordedAt: sequence,
+  rejectionReason: null,
+  segmentId: null,
+  sequence,
+});
+const bundle = {
+  job: {
+    acknowledgedOccurrenceCount: 0,
+    acknowledgedPointSequence: 1,
+    acknowledgedSplitCount: 0,
+    expectedOccurrenceCount: 0,
+    expectedPointCount: 2,
+    expectedSplitCount: 0,
+    lastError: null,
+    retryCount: 0,
+    sessionId: "session-1",
+    status: "pending",
+    updatedAt: 1,
+  },
+  occurrences: [],
+  points: [syncPoint(1), syncPoint(2)],
+  session: { id: "session-1" },
+  splits: [],
+};
+const synced = await syncConditioningBundle(bundle, transport);
+assert.equal(synced.status, "synced");
+assert.deepEqual(calls[0], ["session", "session-1"]);
+assert.deepEqual(calls[1], ["points", "session-1", "2"]);
+assert.equal(calls.filter((call) => call[0] === "session").length, 1);
+const again = await syncConditioningBundle({ ...bundle, job: synced }, transport);
+assert.equal(again.status, "synced");
+assert.equal(again.acknowledgedPointSequence, 2);
 
 const leapFebruary = buildMonthGrid({
   events: [
