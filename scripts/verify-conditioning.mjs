@@ -39,6 +39,13 @@ import {
   poundsToKilograms,
   yardsToMeters,
 } from "../src/conditioning/units.ts";
+import { estimateElevation } from "../src/conditioning/elevation.ts";
+import {
+  createGpsState,
+  pauseGps,
+  processLocationBatch,
+} from "../src/conditioning/gps.ts";
+import { buildSplits } from "../src/conditioning/splits.ts";
 import {
   buildMonthGrid,
   eventsOnDate,
@@ -332,6 +339,82 @@ assert.equal(ended.completedOccurrenceIds.length, 1);
 assert.ok(ended.partialOccurrenceId);
 assert.equal(ended.occurrenceWorkMs[ended.partialOccurrenceId], 2_000);
 assert.equal(completeCurrentWork(manual, manual.phaseStartedAt + 4_000).totals.workMs, 4_000);
+
+function gpsSample(recordedAt, latitude, longitude) {
+  return {
+    altitude: null,
+    altitudeAccuracy: null,
+    horizontalAccuracy: 5,
+    latitude,
+    longitude,
+    recordedAt,
+  };
+}
+
+const origin = processLocationBatch(createGpsState("run", 0), [gpsSample(0, 51, 0)]);
+const moved = processLocationBatch(origin.state, [gpsSample(2_000, 51.0001, 0)], origin.seen);
+assert.equal(moved.points[0].acceptance, "accepted");
+const duplicate = processLocationBatch(moved.state, [gpsSample(2_000, 51.0001, 0)], moved.seen);
+assert.equal(duplicate.points[0].rejectionReason, "duplicate");
+assert.equal(duplicate.state.cumulativeMeters, moved.state.cumulativeMeters);
+const delayed = processLocationBatch(createGpsState("run", 0), [
+  gpsSample(7_000, 51.0001, 0),
+  gpsSample(5_000, 51, 0),
+]);
+assert.equal(delayed.points[0].rejectionReason, null);
+assert.equal(delayed.points[1].acceptance, "accepted");
+const established = processLocationBatch(createGpsState("run", 0), [gpsSample(10_000, 51, 0)]);
+assert.equal(
+  processLocationBatch(established.state, [gpsSample(1_000, 51.0001, 0)], established.seen).points[0]
+    .rejectionReason,
+  "out_of_order",
+);
+const gap = processLocationBatch(origin.state, [gpsSample(40_000, 51.001, 0)], origin.seen);
+assert.equal(gap.points[0].distanceDeltaMeters, 0);
+assert.equal(gap.state.segmentSequence, 1);
+const pausedGps = processLocationBatch(pauseGps(origin.state), [gpsSample(2_000, 51.001, 0)], origin.seen);
+assert.equal(pausedGps.points[0].rejectionReason, "paused");
+assert.equal(pausedGps.state.cumulativeMeters, 0);
+const drift = processLocationBatch(origin.state, [gpsSample(1_000, 51.00001, 0)], origin.seen);
+assert.equal(drift.points[0].rejectionReason, "stationary_drift");
+const afterDrift = processLocationBatch(drift.state, [gpsSample(2_000, 51.0001, 0)], drift.seen);
+assert.equal(afterDrift.points[0].acceptance, "accepted");
+assert.ok(afterDrift.state.cumulativeMeters > 8);
+
+const noisy = estimateElevation([
+  Array.from({ length: 12 }, (_, index) => ({
+    altitude: 100 + (index % 2 === 0 ? 0.4 : -0.4),
+    altitudeAccuracy: 5,
+  })),
+]);
+assert.equal(noisy.gainMeters, 0);
+const climbed = estimateElevation([
+  [100, 100, 101, 102, 104, 106, 108, 110, 111, 112].map((altitude) => ({
+    altitude,
+    altitudeAccuracy: 5,
+  })),
+]);
+assert.ok((climbed.gainMeters ?? 0) > 5);
+assert.ok((climbed.gainMeters ?? 0) < 20);
+
+const route = [0, 500, 1000, 1500, 2000, 2500].map((cumulativeMeters, index) => ({
+  activeMs: index * 100_000,
+  cumulativeMeters,
+  segmentSequence: 0,
+}));
+const routeSplits = buildSplits(route);
+assert.equal(routeSplits.kilometer[0].complete, true);
+assert.equal(routeSplits.kilometer[0].activeSeconds, 200);
+assert.equal(routeSplits.kilometer[2].partial, true);
+assert.equal(routeSplits.kilometer[2].distanceMeters, 500);
+assert.equal(routeSplits.mile[0].distanceMeters, 1609.344);
+const gapSplits = buildSplits([
+  { activeMs: 0, cumulativeMeters: 0, segmentSequence: 0 },
+  { activeMs: 100_000, cumulativeMeters: 800, segmentSequence: 0 },
+  { activeMs: 200_000, cumulativeMeters: 800, segmentSequence: 1 },
+  { activeMs: 300_000, cumulativeMeters: 1600, segmentSequence: 1 },
+]);
+assert.equal(gapSplits.kilometer[0].complete, false);
 
 const leapFebruary = buildMonthGrid({
   events: [
