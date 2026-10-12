@@ -8,7 +8,8 @@
     "ios": "expo start --ios",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "verify:nutrition": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-nutrition.mjs"
+    "verify:nutrition": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-nutrition.mjs",
+    "verify:conditioning": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-conditioning.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

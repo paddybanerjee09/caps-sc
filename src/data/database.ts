@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
+import { conditioningMigrationSql } from "./conditioningMigration";
 import {
   nutritionV5RebuildSql,
   nutritionV5SequenceSql,
@@ -7,7 +8,7 @@ import {
   nutritionV6FavouriteSnapshotSql,
 } from "./nutritionMigration";
 
-const DATABASE_VERSION = 6;
+const DATABASE_VERSION = 7;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -143,6 +144,10 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     !(await columnExists(db, "food_favourites", "snapshot_json"))
   ) {
     await db.execAsync(nutritionV6FavouriteSnapshotSql);
+  }
+
+  if (currentVersion < 7) {
+    await db.execAsync(conditioningMigrationSql);
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
