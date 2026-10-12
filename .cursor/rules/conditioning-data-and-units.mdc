@@ -1,0 +1,13 @@
+---
+description: Conditioning records, units, and snapshots.
+globs: src/conditioning/**/*.ts,src/data/conditioning*.ts
+alwaysApply: false
+---
+
+# Conditioning data and units
+
+Keep templates, planned sessions, recordings, and local drafts distinct. A template save does not log a session. Plans and logs store their own snapshot, including station order and targets. Editing a template does not change those snapshots.
+
+Store time in seconds, distance and elevation in meters, and load in kilograms. Convert only for display. One mile is 1609.344 m, one yard is 0.9144 m, one foot is 0.3048 m, and one pound is 0.45359237 kg. Do not rewrite stored values when the unit setting changes.
+
+Omitted RPE is null, never zero. Do not copy a target RPE into the session RPE. Reject future performed times. Cap a workout at 2000 work occurrences.

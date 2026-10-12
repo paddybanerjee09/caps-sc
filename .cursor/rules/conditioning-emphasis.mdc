@@ -1,0 +1,15 @@
+---
+description: Provisional conditioning emphasis stays inside conditioning views.
+globs: src/conditioning/emphasis.ts,src/screens/conditioning/ConditioningAdaptationsScreen.tsx
+alwaysApply: false
+---
+
+# Training emphasis
+
+The screen title is Estimated Training Emphasis. The file remains `ConditioningAdaptationsScreen.tsx`.
+
+`heuristic-v0.1` returns six independent 0–100 indexes. They are not energy percentages, fitness, or measured adaptation. All v0.1 results are low confidence. Do not rewrite saved estimates when the algorithm changes.
+
+Missing work duration or RPE yields null scores and `insufficient_data`. Do not invent durations for distance, reps, or calories.
+
+Use the emphasis colors only inside conditioning views. The home timeline keeps `timelineCategories.conditioning.color`.

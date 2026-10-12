@@ -1,0 +1,20 @@
+---
+description: Conditioning navigation uses screens, with a few explicit overlays.
+globs: src/screens/conditioning/**/*.tsx,src/screens/ConditioningScreen.tsx,src/components/conditioning/**/*.tsx
+alwaysApply: false
+---
+
+# Conditioning navigation
+
+Open destinations as screens on the conditioning stack. Do not add another navigation library.
+
+These are the only overlay exceptions:
+
+- Create Session chooser
+- One workout editor at a time
+- Training-emphasis explanation popover
+- Discard and end confirmations
+
+The Saved Workouts expander is the only control that may push content down. Other dropdowns stay overlays.
+
+Phone editors fill the space between the header and tabs. Tablet editors are centered, about 90% of the height, with a readable max width. Keep the form scrolling above a fixed footer. Back, Cancel, X, and system Back use the same unsaved-change guard. Visiting a station or emphasis screen must leave the editor draft intact.

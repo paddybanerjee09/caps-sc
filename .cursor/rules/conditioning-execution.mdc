@@ -1,0 +1,13 @@
+---
+description: Conditioning timer and GPS recording limits.
+globs: src/conditioning/runner.ts,src/conditioning/gps.ts,src/conditioning/splits.ts,src/conditioning/elevation.ts,src/services/conditioningLocationTask.ts,src/screens/conditioning/FreeConditioningSessionScreen.tsx,src/screens/conditioning/WorkoutRunnerScreen.tsx
+alwaysApply: false
+---
+
+# Conditioning execution
+
+Use `runner.ts` for interval, sprint, and circuit playback. Preparation is five seconds and is not part of workout time. Derive remaining time from deadlines. Pause must not restart preparation.
+
+Reconcile expired timer phases when the app returns to the foreground. Stop at a manual or GPS work phase. After process death, restore the last saved state and do not invent the missed work. Do not replay a backlog of cues.
+
+`expo-background-task` is not a per-second timer. Keep-awake only applies while the timer is on screen. GPS uses the task in `conditioningLocationTask.ts`, which must stay imported from `index.ts`. Filtering defaults live in `gps-v0.1` and are not accuracy guarantees. Do not count paused movement or distance across a gap. Manual completion must not store the prescribed distance as measured distance.

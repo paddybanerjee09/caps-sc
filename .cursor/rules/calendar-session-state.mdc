@@ -1,0 +1,15 @@
+---
+description: Calendar events and conditioning session status stay explicit.
+globs: src/components/MonthlyTimelineComponent.tsx,src/components/monthGrid.ts,src/conditioning/**/*.ts,src/data/conditioningRepository.ts
+alwaysApply: false
+---
+
+# Calendar and session state
+
+`MonthlyTimelineComponent` takes events from its parent. It must not query conditioning tables.
+
+Week start defaults to Monday because CAPS has no week-start setting. Today uses the tertiary token. Selection is a separate border. Planned markers are outlined and logged markers are filled. Show at most three markers, then `+N`. The selected day lists every session.
+
+Statuses are `planned`, `in_progress`, `finished_draft`, `completed`, `ended_early`, and `cancelled`. A date never changes status. Past plans stay planned. Sync status is separate: `local_only`, `pending`, `uploading`, `synced`, `failed`.
+
+Store scheduled dates as `YYYY-MM-DD` with an IANA timezone. Store performed calendar placement as the local date captured when the session is saved.
