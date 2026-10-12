@@ -56,7 +56,7 @@ const quickLogKinds: TimelineKind[] = [
 
 export function HomeScreen() {
   const { theme } = useAppTheme();
-  const { athleteProfile, unitSettings, username } = useAppState();
+  const { athleteProfile, timelineRevision, unitSettings, username } = useAppState();
   const { dataRevision, homeDate, openNewMeal, setHomeDate } = useNutritionWorkspace();
   const selectedDate = homeDate;
 
@@ -147,7 +147,7 @@ export function HomeScreen() {
       task.cancel();
       timelineRequestId.current += 1;
     };
-  }, [loadSelectedDateEntries, dataRevision]);
+  }, [loadSelectedDateEntries, dataRevision, timelineRevision]);
 
   const previousDate = shiftLocalDate(selectedDate, -1);
   const nextDate = shiftLocalDate(selectedDate, 1);

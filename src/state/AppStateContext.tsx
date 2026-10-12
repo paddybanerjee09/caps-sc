@@ -40,6 +40,7 @@ export type AthleteProfile = {
 export type UnitSystem = "metric" | "imperial";
 
 type UnitSettings = {
+  distance: UnitSystem;
   height: UnitSystem;
   weight: UnitSystem;
 };
@@ -52,8 +53,11 @@ type AppStateContextValue = {
   username: string;
   setUsername: (username: string) => void;
   unitSettings: UnitSettings;
+  setDistanceUnit: (unit: UnitSystem) => void;
   setHeightUnit: (unit: UnitSystem) => void;
   setWeightUnit: (unit: UnitSystem) => void;
+  timelineRevision: number;
+  bumpTimeline: () => void;
   updateWeightLog: (
     timelineEntryId: number,
     weightKg: number,
@@ -81,9 +85,11 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
   const [athleteProfile, setAthleteProfile] = useState(defaultAthleteProfile);
   const [username, setUsername] = useState("Paddy");
   const [unitSettings, setUnitSettings] = useState<UnitSettings>({
+    distance: "metric",
     height: "metric",
     weight: "metric",
   });
+  const [timelineRevision, setTimelineRevision] = useState(0);
 
   const refreshLatestWeight = useCallback(async () => {
     const latestWeightKg = await getLatestWeightKg(db);
@@ -144,16 +150,21 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
       username,
       setUsername,
       unitSettings,
+      setDistanceUnit: (unit: UnitSystem) =>
+        setUnitSettings((current) => ({ ...current, distance: unit })),
       setHeightUnit: (unit: UnitSystem) =>
         setUnitSettings((current) => ({ ...current, height: unit })),
       setWeightUnit: (unit: UnitSystem) =>
         setUnitSettings((current) => ({ ...current, weight: unit })),
+      timelineRevision,
+      bumpTimeline: () => setTimelineRevision((current) => current + 1),
       updateWeightLog,
     }),
     [
       athleteProfile,
       deleteWeightLog,
       logWeight,
+      timelineRevision,
       unitSettings,
       updateWeightLog,
       username,
