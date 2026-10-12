@@ -6,6 +6,7 @@ import {
   ErrorText,
   ScreenHeading,
 } from "../../components/conditioning/ConditioningFields";
+import { RouteMap } from "../../components/conditioning/RouteMap";
 import { deviceTimeZone, formatLocalDate } from "../../conditioning/dates";
 import { draftFromTemplate } from "../../conditioning/drafts";
 import { formatClock, formatName } from "../../conditioning/summaries";
@@ -15,6 +16,7 @@ import {
   cancelPlannedConditioningSession,
   discardConditioningRecording,
   getConditioningSession,
+  listConditioningLocationPoints,
   startConditioningSession,
   type ConditioningSessionRecord,
 } from "../../data/conditioningRepository";
@@ -33,6 +35,7 @@ export function ConditioningSessionDetailScreen({ sessionId }: { sessionId: stri
   const workspace = useConditioningWorkspace();
   const { db, ownerId } = useConditioningOwner();
   const [session, setSession] = useState<ConditioningSessionRecord | null>(null);
+  const [route, setRoute] = useState<{ latitude: number; longitude: number; segmentId: string | null }[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,6 +46,19 @@ export function ConditioningSessionDetailScreen({ sessionId }: { sessionId: stri
     void getConditioningSession(db, ownerId, sessionId).then((loaded) => {
       if (!cancelled) {
         setSession(loaded);
+      }
+    });
+    void listConditioningLocationPoints(db, ownerId, sessionId).then((points) => {
+      if (!cancelled) {
+        setRoute(
+          points
+            .filter((point) => point.acceptance === "accepted")
+            .map((point) => ({
+              latitude: point.latitude,
+              longitude: point.longitude,
+              segmentId: point.segmentId,
+            })),
+        );
       }
     });
     return () => {
@@ -77,6 +93,7 @@ export function ConditioningSessionDetailScreen({ sessionId }: { sessionId: stri
             <Metric label="Target RPE" value={session.targetRpe === null ? UNAVAILABLE_METRIC : String(session.targetRpe)} />
             <Metric label="Session RPE" value={session.sessionRpe === null ? UNAVAILABLE_METRIC : String(session.sessionRpe)} />
             {session.notes ? <Text style={{ color: theme.colors.text }}>{session.notes}</Text> : null}
+            {route.length > 0 ? <RouteMap points={route} /> : null}
             {session.status === "planned" && session.format !== "free" ? (
               <View style={styles.actions}>
                 <ActionButton
