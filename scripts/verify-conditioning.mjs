@@ -437,7 +437,6 @@ assert.deepEqual(
   }).scores.aerobic_endurance,
   null,
 );
-
 const calls = [];
 const transport = {
   async finalize(sessionId) {
