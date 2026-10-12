@@ -297,6 +297,17 @@ export function CreateConditioningSessionScreen() {
             tone="secondary"
           />
           <ActionButton
+            label="Emphasis"
+            onPress={() =>
+              workspace.push({
+                key: `emphasis-draft-${Date.now()}`,
+                name: "emphasis",
+                sessionId: null,
+              })
+            }
+            tone="quiet"
+          />
+          <ActionButton
             disabled={saving}
             label={editor.templateId ? "Save changes" : "Save workout"}
             onPress={() =>

@@ -94,6 +94,19 @@ export function ConditioningSessionDetailScreen({ sessionId }: { sessionId: stri
             <Metric label="Session RPE" value={session.sessionRpe === null ? UNAVAILABLE_METRIC : String(session.sessionRpe)} />
             {session.notes ? <Text style={{ color: theme.colors.text }}>{session.notes}</Text> : null}
             {route.length > 0 ? <RouteMap points={route} /> : null}
+            {(session.status === "completed" || session.status === "ended_early") ? (
+              <ActionButton
+                label="Emphasis"
+                onPress={() =>
+                  workspace.push({
+                    key: `emphasis-${session.id}`,
+                    name: "emphasis",
+                    sessionId: session.id,
+                  })
+                }
+                tone="secondary"
+              />
+            ) : null}
             {session.status === "planned" && session.format !== "free" ? (
               <View style={styles.actions}>
                 <ActionButton
@@ -119,6 +132,17 @@ export function ConditioningSessionDetailScreen({ sessionId }: { sessionId: stri
                 <ActionButton
                   label="Edit"
                   onPress={() => openPlanEditor(session, workspace)}
+                  tone="secondary"
+                />
+                <ActionButton
+                  label="Emphasis"
+                  onPress={() =>
+                    workspace.push({
+                      key: `emphasis-${session.id}`,
+                      name: "emphasis",
+                      sessionId: session.id,
+                    })
+                  }
                   tone="secondary"
                 />
                 <ActionButton

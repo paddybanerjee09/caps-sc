@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 
 import { ConfirmDialog } from "../../components/conditioning/ConfirmDialog";
 import { useConditioningWorkspace } from "../../state/ConditioningWorkspaceContext";
+import { ConditioningAdaptationsScreen } from "./ConditioningAdaptationsScreen";
 import { CreateConditioningSessionScreen } from "./CreateConditioningSessionScreen";
 import { ConditioningSessionDetailScreen } from "./ConditioningSessionDetailScreen";
 import { FreeConditioningSessionScreen } from "./FreeConditioningSessionScreen";
@@ -28,6 +29,9 @@ function StackScreen() {
       {top.name === "log" ? <LogConditioningSessionScreen /> : null}
       {top.name === "station" ? <StationEditorScreen stationId={top.stationId} /> : null}
       {top.name === "runner" ? <WorkoutRunnerScreen sessionId={top.sessionId} /> : null}
+      {top.name === "emphasis" ? (
+        <ConditioningAdaptationsScreen sessionId={top.sessionId} />
+      ) : null}
     </View>
   );
 }

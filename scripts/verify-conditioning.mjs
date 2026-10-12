@@ -39,6 +39,7 @@ import {
   poundsToKilograms,
   yardsToMeters,
 } from "../src/conditioning/units.ts";
+import { estimateEmphasis } from "../src/conditioning/emphasis.ts";
 import { estimateElevation } from "../src/conditioning/elevation.ts";
 import { syncConditioningBundle } from "../src/data/conditioningSync.ts";
 import {
@@ -416,6 +417,26 @@ const gapSplits = buildSplits([
   { activeMs: 300_000, cumulativeMeters: 1600, segmentSequence: 1 },
 ]);
 assert.equal(gapSplits.kilometer[0].complete, false);
+
+const emphasis = estimateEmphasis({
+  bouts: [{ workRpe: 9, workSeconds: 8 }],
+  recoverySeconds: 50,
+  sessionRpe: null,
+  source: "target_preview",
+});
+assert.equal(emphasis.version, "heuristic-v0.1");
+assert.equal(emphasis.confidence, "low");
+assert.equal(emphasis.scores.alactic_power, 90);
+assert.equal(emphasis.labels.primary, "alactic_power");
+assert.deepEqual(
+  estimateEmphasis({
+    bouts: [{ workRpe: null, workSeconds: null }],
+    recoverySeconds: null,
+    sessionRpe: null,
+    source: "actual",
+  }).scores.aerobic_endurance,
+  null,
+);
 
 const calls = [];
 const transport = {
