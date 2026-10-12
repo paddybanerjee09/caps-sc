@@ -1,3 +1,4 @@
+import * as Location from "expo-location";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -16,10 +17,15 @@ import {
   findInProgressConditioningSession,
   finishConditioningSession,
   getConditioningRunnerState,
-  saveConditioningRunnerState,
+  getConditioningSession,
+  mergeConditioningRunnerState,
   saveConditioningSession,
   startConditioningSession,
 } from "../../data/conditioningRepository";
+import {
+  CONDITIONING_LOCATION_TASK,
+  ingestConditioningLocations,
+} from "../../services/conditioningLocationTask";
 import { useAppState } from "../../state/AppStateContext";
 import { useConditioningWorkspace } from "../../state/ConditioningWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
@@ -46,7 +52,8 @@ export function FreeConditioningSessionScreen() {
   const [timer, setTimer] = useState<FreeTimer | null>(null);
   const [now, setNow] = useState(Date.now());
   const [error, setError] = useState<string | null>(null);
-  const [notes] = useState("");
+  const [locationMode, setLocationMode] = useState<"checking" | "gps" | "foreground" | "timer">("checking");
+  const [distanceMeters, setDistanceMeters] = useState<number | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -65,8 +72,10 @@ export function FreeConditioningSessionScreen() {
       }
       const stored = await getConditioningRunnerState(db, ownerId, active.id);
       if (stored && !cancelled) {
-        setTimer(JSON.parse(stored.stateJson) as FreeTimer);
+        const parsed = JSON.parse(stored.stateJson) as { timer?: FreeTimer };
+        setTimer(parsed.timer ?? (parsed as FreeTimer));
         setActivity(active.activityType ?? "run");
+        setDistanceMeters(active.distanceMeters);
       }
     })();
     return () => {
@@ -79,8 +88,44 @@ export function FreeConditioningSessionScreen() {
       return;
     }
     setTimer(next);
-    await saveConditioningRunnerState(db, ownerId, next.sessionId, JSON.stringify(next));
+    await mergeConditioningRunnerState(db, ownerId, next.sessionId, { timer: next });
   }
+
+  useEffect(() => {
+    if (locationMode !== "foreground" || !timer || timer.status === "finished") {
+      return;
+    }
+    let subscription: Location.LocationSubscription | null = null;
+    let cancelled = false;
+    void Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.High, distanceInterval: 3, timeInterval: 2000 },
+      (location) => {
+        void ingestConditioningLocations(db, [location]);
+      },
+    ).then((next) => {
+      if (cancelled) {
+        next.remove();
+        return;
+      }
+      subscription = next;
+    });
+    return () => {
+      cancelled = true;
+      subscription?.remove();
+    };
+  }, [db, locationMode, timer]);
+
+  useEffect(() => {
+    if (!timer || !ownerId) {
+      return;
+    }
+    const refresh = setInterval(() => {
+      void getConditioningSession(db, ownerId, timer.sessionId).then((loaded) => {
+        setDistanceMeters(loaded?.distanceMeters ?? null);
+      });
+    }, 2000);
+    return () => clearInterval(refresh);
+  }, [db, ownerId, timer]);
 
   async function start() {
     if (!ownerId) {
@@ -93,6 +138,8 @@ export function FreeConditioningSessionScreen() {
         snapshot: buildFreeSnapshot(activity),
         timezone: deviceTimeZone(),
       });
+      const mode = await beginLocationTracking(activity);
+      setLocationMode(mode);
       await persist({
         accumulatedPausedMs: 0,
         pauseStartedAt: null,
@@ -138,7 +185,16 @@ export function FreeConditioningSessionScreen() {
         <Text style={{ color: theme.colors.textMuted }}>
           Elapsed {timer ? formatClock(Math.max(0, elapsedMs) / 1000) : UNAVAILABLE_METRIC}
         </Text>
-        <Text style={{ color: theme.colors.textMuted }}>Distance {UNAVAILABLE_METRIC}</Text>
+        <Text style={{ color: theme.colors.textMuted }}>
+          {locationMode === "gps"
+            ? "GPS recording is on. A locked phone can continue only while the system keeps the location service alive."
+            : locationMode === "foreground"
+              ? "Foreground only. The route pauses when the screen locks."
+              : "Timer only. Distance, pace, route, and elevation are unavailable."}
+        </Text>
+        <Text style={{ color: theme.colors.textMuted }}>
+          Distance {distanceMeters === null ? UNAVAILABLE_METRIC : `${distanceMeters.toFixed(0)} m`}
+        </Text>
         {!timer ? <ActionButton label="Start" onPress={() => void start()} /> : null}
         {timer?.status === "running" ? (
           <ActionButton
@@ -176,6 +232,7 @@ export function FreeConditioningSessionScreen() {
                 const paused =
                   timer.accumulatedPausedMs +
                   (timer.pauseStartedAt ? finishedAt - timer.pauseStartedAt : 0);
+                await Location.stopLocationUpdatesAsync(CONDITIONING_LOCATION_TASK).catch(() => undefined);
                 await finishConditioningSession(db, ownerId, timer.sessionId, {
                   activeSeconds: Math.max(0, (finishedAt - timer.startedAt - paused) / 1000),
                   elapsedSeconds: (finishedAt - timer.startedAt) / 1000,
@@ -202,7 +259,7 @@ export function FreeConditioningSessionScreen() {
                     return;
                   }
                   await saveConditioningSession(db, ownerId, timer.sessionId, {
-                    notes,
+                    notes: null,
                     sessionRpe: null,
                     status: "completed",
                   });
@@ -220,6 +277,7 @@ export function FreeConditioningSessionScreen() {
                     if (!ownerId) {
                       return;
                     }
+                    await Location.stopLocationUpdatesAsync(CONDITIONING_LOCATION_TASK).catch(() => undefined);
                     await discardConditioningRecording(db, ownerId, timer.sessionId);
                     workspace.bumpRevision();
                     workspace.pop();
@@ -234,6 +292,40 @@ export function FreeConditioningSessionScreen() {
       </View>
     </View>
   );
+}
+
+async function beginLocationTracking(activity: "run" | "bike") {
+  const services = await Location.hasServicesEnabledAsync();
+  if (!services) {
+    return "timer" as const;
+  }
+
+  const current = await Location.getForegroundPermissionsAsync();
+  const foreground =
+    current.status === "granted" ? current : await Location.requestForegroundPermissionsAsync();
+  if (foreground.status !== "granted") {
+    return "timer" as const;
+  }
+
+  const background = await Location.requestBackgroundPermissionsAsync();
+  if (background.status !== "granted") {
+    return "foreground" as const;
+  }
+
+  await Location.startLocationUpdatesAsync(CONDITIONING_LOCATION_TASK, {
+    accuracy: Location.Accuracy.High,
+    activityType:
+      activity === "bike" ? Location.ActivityType.OtherNavigation : Location.ActivityType.Fitness,
+    distanceInterval: 3,
+    foregroundService: {
+      notificationBody: "CAPS is recording your conditioning route.",
+      notificationTitle: "Recording conditioning",
+    },
+    pausesUpdatesAutomatically: false,
+    showsBackgroundLocationIndicator: true,
+    timeInterval: 2000,
+  });
+  return "gps" as const;
 }
 
 const styles = StyleSheet.create({

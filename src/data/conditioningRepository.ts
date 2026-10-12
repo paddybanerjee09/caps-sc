@@ -970,6 +970,35 @@ export async function listConditioningOccurrences(
   return rows.map(mapOccurrence);
 }
 
+export function mergeConditioningRunnerState(
+  db: SQLiteDatabase,
+  ownerId: string,
+  sessionId: string,
+  patch: Record<string, unknown>,
+) {
+  return enqueueConditioningWrite(() =>
+    inTransaction(db, async () => {
+      await requireDeviceOwner(db, ownerId);
+      await requiredSession(db, ownerId, sessionId);
+      const existing = await db.getFirstAsync<{ state_json: string }>(
+        "SELECT state_json FROM conditioning_runner_state WHERE session_id = ?",
+        [sessionId],
+      );
+      const current = existing ? (JSON.parse(existing.state_json) as Record<string, unknown>) : {};
+      const next = { ...current, ...patch };
+      await db.runAsync(
+        `INSERT INTO conditioning_runner_state (session_id, state_json, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(session_id) DO UPDATE SET
+           state_json = excluded.state_json,
+           updated_at = excluded.updated_at`,
+        [sessionId, JSON.stringify(next), Date.now()],
+      );
+      return next;
+    }),
+  );
+}
+
 export function saveConditioningRunnerState(
   db: SQLiteDatabase,
   ownerId: string,

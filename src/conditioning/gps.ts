@@ -108,7 +108,7 @@ function processOne(state: GpsState, sample: GeoSample, seen: ReadonlySet<string
   const reject = (reason: string, next = state): { point: ProcessedFix; state: GpsState } => ({
     point: {
       ...sample,
-      acceptance: "rejected",
+      acceptance: "rejected" as const,
       distanceDeltaMeters: 0,
       rejectionReason: reason,
       segmentSequence: next.segmentSequence,
@@ -161,7 +161,7 @@ function processOne(state: GpsState, sample: GeoSample, seen: ReadonlySet<string
     return {
       point: {
         ...sample,
-        acceptance: "accepted",
+        acceptance: "accepted" as const,
         distanceDeltaMeters: 0,
         rejectionReason: null,
         segmentSequence,
@@ -188,7 +188,7 @@ function processOne(state: GpsState, sample: GeoSample, seen: ReadonlySet<string
   return {
     point: {
       ...sample,
-      acceptance: "accepted",
+      acceptance: "accepted" as const,
       distanceDeltaMeters: distance,
       rejectionReason: null,
       segmentSequence: stamped.segmentSequence,

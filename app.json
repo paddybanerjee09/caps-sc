@@ -20,6 +20,16 @@
       "@react-native-community/datetimepicker",
       "expo-sqlite",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "CAPS uses your location to record distance and route during conditioning.",
+          "locationAlwaysAndWhenInUsePermission": "CAPS records your conditioning route, including while the screen is locked.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
         "expo-camera",
         {
           "barcodeScannerEnabled": true,
