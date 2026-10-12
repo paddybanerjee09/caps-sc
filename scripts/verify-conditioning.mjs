@@ -14,6 +14,17 @@ import {
 } from "../src/conditioning/phases.ts";
 import { createId } from "../src/conditioning/ids.ts";
 import {
+  completeCurrentWork,
+  createReadyRunner,
+  endRunnerEarly,
+  pauseRunner,
+  reconcileRunner,
+  remainingWholeSeconds,
+  restoreAfterProcessTermination,
+  resumeRunner,
+  startRunner,
+} from "../src/conditioning/runner.ts";
+import {
   applyStationCompletionType,
   effectiveStationRpe,
   incompatibleStationFields,
@@ -249,6 +260,78 @@ assert.equal(effectiveStationRpe(station, 7), 7);
 assert.equal(effectiveStationRpe({ ...station, targetRpe: 9 }, 7), 9);
 assert.equal(effectiveStationRpe(station, null), null);
 assert.equal(moveStation([station, { ...station, id: "station-2", position: 1 }], 1, -1)[0].id, "station-2");
+
+const intervalPhases = buildIntervalPhases(intervalConfig(), ids());
+let runner = startRunner(createReadyRunner(intervalPhases, 0), 0, "process-a");
+const finishedRun = reconcileRunner(runner, 620_000).state;
+assert.equal(finishedRun.status, "finished");
+assert.equal(finishedRun.totals.workMs, 360_000);
+assert.equal(finishedRun.totals.prescribedRecoveryMs, 255_000);
+assert.equal(finishedRun.totals.preparationMs, 5_000);
+assert.equal(finishedRun.phases.at(-1).type, "work");
+assert.equal(reconcileRunner(runner, 620_000).cuePhaseId !== null, true);
+
+runner = startRunner(createReadyRunner(intervalPhases, 0), 0, "process-a");
+assert.equal(remainingWholeSeconds(reconcileRunner(runner, 2_000).state, 2_000), 3);
+const paused = pauseRunner(reconcileRunner(runner, 2_000).state, 2_000);
+assert.equal(paused.remainingMs, 3_000);
+const resumed = resumeRunner(paused, 10_000);
+assert.equal(resumed.status, "preparing");
+assert.equal(resumed.phaseIndex, 0);
+assert.equal(remainingWholeSeconds(resumed, 10_000), 3);
+assert.equal(resumed.totals.preparationMs, 0);
+
+const manualPhases = buildSprintPhases(
+  {
+    betweenSetRestSeconds: 30,
+    completionMode: "manual",
+    distanceMeters: 100,
+    restSeconds: 20,
+    sets: 1,
+    sprintsPerSet: 1,
+    targetElevationGainMeters: null,
+    targetWorkRpe: null,
+  },
+  ids(),
+);
+const manual = reconcileRunner(
+  startRunner(createReadyRunner(manualPhases, 0), 0, "process-a"),
+  100_000,
+).state;
+assert.equal(manual.status, "running");
+assert.equal(manual.phases[manual.phaseIndex].completion, "manual");
+assert.equal(manual.completedOccurrenceIds.length, 0);
+assert.equal(manual.totals.workMs, 0);
+
+const killed = restoreAfterProcessTermination(
+  startRunner(createReadyRunner(intervalPhases, 1_000), 1_000, "process-a"),
+);
+assert.equal(killed.uncertainInterruption, true);
+assert.equal(killed.status, "paused");
+assert.equal(killed.totals.workMs, 0);
+assert.equal(killed.totals.preparationMs, 0);
+assert.equal(reconcileRunner(killed, 999_000).state.totals.workMs, 0);
+
+const shortPhases = buildIntervalPhases(
+  intervalConfig({
+    betweenRoundRestSeconds: 0,
+    intervalsPerRound: 2,
+    restSeconds: 0,
+    rounds: 1,
+    workSeconds: 10,
+  }),
+  ids(),
+);
+const mid = reconcileRunner(
+  startRunner(createReadyRunner(shortPhases, 0), 0, "process-a"),
+  15_000,
+).state;
+const ended = endRunnerEarly(mid, 17_000);
+assert.equal(ended.status, "ended_early");
+assert.equal(ended.completedOccurrenceIds.length, 1);
+assert.ok(ended.partialOccurrenceId);
+assert.equal(ended.occurrenceWorkMs[ended.partialOccurrenceId], 2_000);
+assert.equal(completeCurrentWork(manual, manual.phaseStartedAt + 4_000).totals.workMs, 4_000);
 
 const leapFebruary = buildMonthGrid({
   events: [
