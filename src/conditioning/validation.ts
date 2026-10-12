@@ -28,6 +28,18 @@ export class ConditioningValidationError extends Error {
   }
 }
 
+export function messageFromUnknown(error: unknown) {
+  if (error instanceof ConditioningValidationError) {
+    return error.errors[0]?.message ?? error.message;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Something went wrong";
+}
+
 export function throwIfInvalid(errors: FieldError[]) {
   if (errors.length > 0) {
     throw new ConditioningValidationError(errors);
