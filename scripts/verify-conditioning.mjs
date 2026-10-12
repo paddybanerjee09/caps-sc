@@ -28,6 +28,11 @@ import {
   poundsToKilograms,
   yardsToMeters,
 } from "../src/conditioning/units.ts";
+import {
+  buildMonthGrid,
+  eventsOnDate,
+  shiftMonth,
+} from "../src/components/monthGrid.ts";
 import { migrateDatabase } from "../src/data/database.ts";
 import {
   discardConditioningRecording,
@@ -244,6 +249,55 @@ assert.equal(effectiveStationRpe(station, 7), 7);
 assert.equal(effectiveStationRpe({ ...station, targetRpe: 9 }, 7), 9);
 assert.equal(effectiveStationRpe(station, null), null);
 assert.equal(moveStation([station, { ...station, id: "station-2", position: 1 }], 1, -1)[0].id, "station-2");
+
+const leapFebruary = buildMonthGrid({
+  events: [
+    { color: "#D3C615", id: "a", localDate: "2024-02-29", status: "planned", title: "Plan" },
+    { color: "#D3C615", id: "b", localDate: "2024-02-29", status: "logged", title: "Log 1" },
+    { color: "#D3C615", id: "c", localDate: "2024-02-29", status: "logged", title: "Log 2" },
+    { color: "#D3C615", id: "d", localDate: "2024-02-29", status: "logged", title: "Log 3" },
+  ],
+  monthIndex: 1,
+  selectedDate: "2024-02-29",
+  today: "2024-02-29",
+  year: 2024,
+});
+const leapDay = leapFebruary.cells.find((cell) => cell.isoDate === "2024-02-29");
+assert.equal(leapDay.inMonth, true);
+assert.equal(leapDay.dayNumber, 29);
+assert.equal(leapDay.isToday, true);
+assert.equal(leapDay.isSelected, true);
+assert.equal(leapDay.markers.length, 3);
+assert.equal(leapDay.overflow, 1);
+assert.equal(eventsOnDate(leapFebruary, "2024-02-29").length, 4);
+assert.equal(leapFebruary.weekCount >= 4 && leapFebruary.weekCount <= 6, true);
+assert.ok(leapFebruary.cells.some((cell) => !cell.inMonth));
+
+const fourWeekFebruary = buildMonthGrid({
+  events: [],
+  monthIndex: 1,
+  selectedDate: "2021-02-01",
+  today: "2021-02-15",
+  year: 2021,
+});
+assert.equal(fourWeekFebruary.weekCount, 4);
+assert.equal(fourWeekFebruary.cells[0].isoDate, "2021-02-01");
+assert.equal(fourWeekFebruary.cells.at(-1).isoDate, "2021-02-28");
+
+assert.deepEqual(shiftMonth(2024, 0, 1), { monthIndex: 1, year: 2024 });
+assert.deepEqual(shiftMonth(2024, 11, 1), { monthIndex: 0, year: 2025 });
+const sundayStart = buildMonthGrid({
+  events: [],
+  monthIndex: 0,
+  selectedDate: "2024-01-01",
+  today: "2024-01-02",
+  weekStartsOn: 0,
+  year: 2024,
+});
+assert.equal(sundayStart.cells[0].isoDate, "2023-12-31");
+assert.equal(sundayStart.cells[0].inMonth, false);
+assert.equal(sundayStart.cells[1].isSelected, true);
+assert.equal(sundayStart.cells[2].isToday, true);
 
 await migrateDatabase(adapter);
 assert.equal(db.prepare("PRAGMA user_version").get().user_version, 7);

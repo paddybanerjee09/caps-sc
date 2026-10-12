@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { StyleProp, ViewStyle } from "react-native";
+import type { AccessibilityState, StyleProp, ViewStyle } from "react-native";
 import { Pressable } from "react-native";
 
 import { themes } from "../theme/theme";
@@ -12,6 +12,7 @@ type PressOpacityProps = {
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   accessibilityRole?: "button" | "tab";
+  accessibilityState?: AccessibilityState;
 };
 
 export function PressOpacity({
@@ -22,11 +23,13 @@ export function PressOpacity({
   style,
   accessibilityLabel,
   accessibilityRole = "button",
+  accessibilityState,
 }: PressOpacityProps) {
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
+      accessibilityState={accessibilityState}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
