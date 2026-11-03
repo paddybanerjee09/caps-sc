@@ -1,0 +1,30 @@
+---
+description: Consult and update the CAPS feature-tree site before and after changing a feature, so prior modes, guardrails, and version history are not repeated.
+alwaysApply: true
+---
+
+# Feature tree
+
+Static working tree of every screen, component, table, and architectural piece: `docs/feature-tree/`. Open `docs/feature-tree/<tree>.html` (or `index.html`) in a browser. Trees: home, nutrition, conditioning, strength, skill, settings, database, architecture.
+
+## Before changing a feature
+
+1. Open the matching tree page and click the node (or use `page.html#node-id`).
+2. Read **Guardrails**, **Modes**, **Version history**, and encapsulated children. Do not repeat a reverted approach, a recorded bug, or a user correction.
+3. Shared pieces live in Architecture (or the owning tree) and appear elsewhere as refs. Do not duplicate them.
+
+## After the change is committed
+
+1. `npm run feature-tree` (regenerates `docs/feature-tree/data/commits.js` and validates).
+2. Add a version on the node in `docs/feature-tree/data/<tree>.js`:
+   - `n`: next integer
+   - `name`: the feature's title at this iteration (`Feature 1` → `Feature 2`)
+   - `date`: latest commit timestamp from `commits.js` (`YYYY-MM-DD HH:MM ±HHMM`)
+   - `commits`: 7-char hashes (or `uncommitted: true` before commit)
+   - `request`: paraphrase the user ask when known
+   - `changes`: 1–6 concrete bullets from the diff
+3. New screens/cards/tables become children of whatever encapsulates or opens them. Siblings that do not contain each other sit side by side.
+4. Record a new **guardrail** (imperative + source) when a mistake was corrected.
+5. Cross-tree links/refs use canonical ids (`nutrition:meal-log-screen`, `architecture:log-time-changer`, `database:table-meal-logs`). Aim for zero unmapped main commits.
+
+Schema, kinds, and statuses: see the exemplar `docs/feature-tree/data/skill.js` and the checker's errors from `npm run feature-tree -- --check`.
