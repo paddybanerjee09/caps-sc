@@ -1,6 +1,6 @@
 import * as Location from "expo-location";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import {
   ActionButton,
@@ -30,6 +30,7 @@ import { useAppState } from "../../state/AppStateContext";
 import { useConditioningWorkspace } from "../../state/ConditioningWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
+import { feedbackConfirm, feedbackPhaseCue } from "../../utils/feedback";
 import type { FreeActivity } from "../../conditioning/types";
 import { useConditioningOwner } from "./useConditioningOwner";
 
@@ -52,7 +53,9 @@ export function FreeConditioningSessionScreen() {
   const [timer, setTimer] = useState<FreeTimer | null>(null);
   const [now, setNow] = useState(Date.now());
   const [error, setError] = useState<string | null>(null);
-  const [locationMode, setLocationMode] = useState<"checking" | "gps" | "foreground" | "timer">("checking");
+  const [locationMode, setLocationMode] = useState<
+    "checking" | "gps" | "foreground" | "timer"
+  >("checking");
   const [distanceMeters, setDistanceMeters] = useState<number | null>(null);
 
   useEffect(() => {
@@ -88,17 +91,27 @@ export function FreeConditioningSessionScreen() {
       return;
     }
     setTimer(next);
-    await mergeConditioningRunnerState(db, ownerId, next.sessionId, { timer: next });
+    await mergeConditioningRunnerState(db, ownerId, next.sessionId, {
+      timer: next,
+    });
   }
 
   useEffect(() => {
-    if (locationMode !== "foreground" || !timer || timer.status === "finished") {
+    if (
+      locationMode !== "foreground" ||
+      !timer ||
+      timer.status === "finished"
+    ) {
       return;
     }
     let subscription: Location.LocationSubscription | null = null;
     let cancelled = false;
     void Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.High, distanceInterval: 3, timeInterval: 2000 },
+      {
+        accuracy: Location.Accuracy.High,
+        distanceInterval: 3,
+        timeInterval: 2000,
+      },
       (location) => {
         void ingestConditioningLocations(db, [location]);
       },
@@ -120,9 +133,11 @@ export function FreeConditioningSessionScreen() {
       return;
     }
     const refresh = setInterval(() => {
-      void getConditioningSession(db, ownerId, timer.sessionId).then((loaded) => {
-        setDistanceMeters(loaded?.distanceMeters ?? null);
-      });
+      void getConditioningSession(db, ownerId, timer.sessionId).then(
+        (loaded) => {
+          setDistanceMeters(loaded?.distanceMeters ?? null);
+        },
+      );
     }, 2000);
     return () => clearInterval(refresh);
   }, [db, ownerId, timer]);
@@ -140,6 +155,7 @@ export function FreeConditioningSessionScreen() {
       });
       const mode = await beginLocationTracking(activity);
       setLocationMode(mode);
+      feedbackPhaseCue();
       await persist({
         accumulatedPausedMs: 0,
         pauseStartedAt: null,
@@ -154,7 +170,8 @@ export function FreeConditioningSessionScreen() {
   }
 
   const activeMs = timer
-    ? (timer.pauseStartedAt ?? (timer.status === "finished" ? timer.startedAt : now)) -
+    ? (timer.pauseStartedAt ??
+        (timer.status === "finished" ? timer.startedAt : now)) -
       timer.startedAt -
       timer.accumulatedPausedMs
     : 0;
@@ -163,133 +180,237 @@ export function FreeConditioningSessionScreen() {
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <ScreenHeading onBack={workspace.pop} title="Free session" />
-      <View style={styles.content}>
-        <Text style={{ color: theme.colors.textMuted }}>
-          Timer only. Distance, pace, route, and elevation stay unavailable until GPS recording is running.
-        </Text>
-        <View style={styles.row}>
-          <ActionButton
-            label="Run"
-            onPress={() => setActivity("run")}
-            tone={activity === "run" ? "primary" : "secondary"}
-          />
-          <ActionButton
-            label="Bike"
-            onPress={() => setActivity("bike")}
-            tone={activity === "bike" ? "primary" : "secondary"}
-          />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Card 1: Activity Mode */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+              MODALITY & GPS STATUS
+            </Text>
+            <Text style={[styles.cardBadge, { color: theme.colors.tertiary }]}>
+              {locationMode.toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <View style={styles.cell}>
+              <ActionButton
+                label="Run"
+                onPress={() => setActivity("run")}
+                tone={activity === "run" ? "primary" : "secondary"}
+              />
+            </View>
+            <View style={styles.cell}>
+              <ActionButton
+                label="Bike"
+                onPress={() => setActivity("bike")}
+                tone={activity === "bike" ? "primary" : "secondary"}
+              />
+            </View>
+          </View>
+          <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
+            {locationMode === "gps"
+              ? "GPS recording is on. A locked phone can continue only while the system keeps the location service alive."
+              : locationMode === "foreground"
+                ? "Foreground only. The route pauses when the screen locks."
+                : "Timer only. Distance, pace, route, and elevation stay unavailable until GPS recording is running."}
+          </Text>
         </View>
-        <Text style={[styles.clock, { color: theme.colors.text }]}>
-          {formatClock(Math.max(0, activeMs) / 1000)}
-        </Text>
-        <Text style={{ color: theme.colors.textMuted }}>
-          Elapsed {timer ? formatClock(Math.max(0, elapsedMs) / 1000) : UNAVAILABLE_METRIC}
-        </Text>
-        <Text style={{ color: theme.colors.textMuted }}>
-          {locationMode === "gps"
-            ? "GPS recording is on. A locked phone can continue only while the system keeps the location service alive."
-            : locationMode === "foreground"
-              ? "Foreground only. The route pauses when the screen locks."
-              : "Timer only. Distance, pace, route, and elevation are unavailable."}
-        </Text>
-        <Text style={{ color: theme.colors.textMuted }}>
-          Distance {distanceMeters === null ? UNAVAILABLE_METRIC : `${distanceMeters.toFixed(0)} m`}
-        </Text>
-        {!timer ? <ActionButton label="Start" onPress={() => void start()} /> : null}
-        {timer?.status === "running" ? (
-          <ActionButton
-            label="Pause"
-            onPress={() =>
-              void persist({ ...timer, pauseStartedAt: Date.now(), status: "paused" })
-            }
-            tone="secondary"
-          />
-        ) : null}
-        {timer?.status === "paused" ? (
-          <ActionButton
-            label="Resume"
-            onPress={() =>
-              void persist({
-                ...timer,
-                accumulatedPausedMs:
-                  timer.accumulatedPausedMs +
-                  (Date.now() - (timer.pauseStartedAt ?? Date.now())),
-                pauseStartedAt: null,
-                status: "running",
-              })
-            }
-          />
-        ) : null}
-        {timer && timer.status !== "finished" ? (
-          <ActionButton
-            label="Finish"
-            onPress={() =>
-              void (async () => {
-                if (!ownerId) {
-                  return;
-                }
-                const finishedAt = Date.now();
-                const paused =
-                  timer.accumulatedPausedMs +
-                  (timer.pauseStartedAt ? finishedAt - timer.pauseStartedAt : 0);
-                await Location.stopLocationUpdatesAsync(CONDITIONING_LOCATION_TASK).catch(() => undefined);
-                await finishConditioningSession(db, ownerId, timer.sessionId, {
-                  activeSeconds: Math.max(0, (finishedAt - timer.startedAt - paused) / 1000),
-                  elapsedSeconds: (finishedAt - timer.startedAt) / 1000,
-                  finishedAt,
-                });
-                await persist({
-                  ...timer,
-                  accumulatedPausedMs: paused,
-                  pauseStartedAt: null,
-                  status: "finished",
-                });
-              })()
-            }
-            tone="secondary"
-          />
-        ) : null}
-        {timer?.status === "finished" ? (
-          <>
+
+        {/* Card 2: Stopwatch & Distance Telemetry */}
+        <View
+          style={[
+            styles.heroCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+            ACTIVE DURATION
+          </Text>
+          <Text style={[styles.clock, { color: theme.colors.text }]}>
+            {formatClock(Math.max(0, activeMs) / 1000)}
+          </Text>
+
+          <View style={styles.telemetryGrid}>
+            <View
+              style={[
+                styles.telemetryTile,
+                {
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.telemetryLabel, { color: theme.colors.textMuted }]}>
+                ELAPSED
+              </Text>
+              <Text style={[styles.telemetryValue, { color: theme.colors.text }]}>
+                {timer
+                  ? formatClock(Math.max(0, elapsedMs) / 1000)
+                  : UNAVAILABLE_METRIC}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.telemetryTile,
+                {
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.telemetryLabel, { color: theme.colors.textMuted }]}>
+                DISTANCE
+              </Text>
+              <Text style={[styles.telemetryValue, { color: theme.colors.text }]}>
+                {distanceMeters === null
+                  ? UNAVAILABLE_METRIC
+                  : `${distanceMeters.toFixed(0)} m`}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Card 3: Control Actions */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          {!timer ? (
+            <ActionButton label="Start" onPress={() => void start()} />
+          ) : null}
+          {timer?.status === "running" ? (
             <ActionButton
-              label="Save session"
+              label="Pause"
+              onPress={() =>
+                void persist({
+                  ...timer,
+                  pauseStartedAt: Date.now(),
+                  status: "paused",
+                })
+              }
+              tone="secondary"
+            />
+          ) : null}
+          {timer?.status === "paused" ? (
+            <ActionButton
+              label="Resume"
+              onPress={() =>
+                void persist({
+                  ...timer,
+                  accumulatedPausedMs:
+                    timer.accumulatedPausedMs +
+                    (Date.now() - (timer.pauseStartedAt ?? Date.now())),
+                  pauseStartedAt: null,
+                  status: "running",
+                })
+              }
+            />
+          ) : null}
+          {timer && timer.status !== "finished" ? (
+            <ActionButton
+              label="Finish"
               onPress={() =>
                 void (async () => {
                   if (!ownerId) {
                     return;
                   }
-                  await saveConditioningSession(db, ownerId, timer.sessionId, {
-                    notes: null,
-                    sessionRpe: null,
-                    status: "completed",
+                  const finishedAt = Date.now();
+                  const paused =
+                    timer.accumulatedPausedMs +
+                    (timer.pauseStartedAt
+                      ? finishedAt - timer.pauseStartedAt
+                      : 0);
+                  await Location.stopLocationUpdatesAsync(
+                    CONDITIONING_LOCATION_TASK,
+                  ).catch(() => undefined);
+                  await finishConditioningSession(db, ownerId, timer.sessionId, {
+                    activeSeconds: Math.max(
+                      0,
+                      (finishedAt - timer.startedAt - paused) / 1000,
+                    ),
+                    elapsedSeconds: (finishedAt - timer.startedAt) / 1000,
+                    finishedAt,
                   });
-                  workspace.bumpRevision();
-                  bumpTimeline();
-                  workspace.pop();
+                  feedbackPhaseCue();
+                  await persist({
+                    ...timer,
+                    accumulatedPausedMs: paused,
+                    pauseStartedAt: null,
+                    status: "finished",
+                  });
                 })()
               }
+              tone="secondary"
             />
-            <ActionButton
-              label="Discard"
-              onPress={() =>
-                workspace.confirmDiscard(() =>
+          ) : null}
+          {timer?.status === "finished" ? (
+            <>
+              <ActionButton
+                label="Save session"
+                onPress={() =>
                   void (async () => {
                     if (!ownerId) {
                       return;
                     }
-                    await Location.stopLocationUpdatesAsync(CONDITIONING_LOCATION_TASK).catch(() => undefined);
-                    await discardConditioningRecording(db, ownerId, timer.sessionId);
+                    await saveConditioningSession(db, ownerId, timer.sessionId, {
+                      notes: null,
+                      sessionRpe: null,
+                      status: "completed",
+                    });
+                    feedbackConfirm();
                     workspace.bumpRevision();
+                    bumpTimeline();
                     workspace.pop();
-                  })(),
-                )
-              }
-              tone="quiet"
-            />
-          </>
-        ) : null}
-        <ErrorText>{error}</ErrorText>
-      </View>
+                  })()
+                }
+              />
+              <ActionButton
+                label="Discard"
+                onPress={() =>
+                  workspace.confirmDiscard(() =>
+                    void (async () => {
+                      if (!ownerId) {
+                        return;
+                      }
+                      await Location.stopLocationUpdatesAsync(
+                        CONDITIONING_LOCATION_TASK,
+                      ).catch(() => undefined);
+                      await discardConditioningRecording(
+                        db,
+                        ownerId,
+                        timer.sessionId,
+                      );
+                      workspace.bumpRevision();
+                      workspace.pop();
+                    })(),
+                  )
+                }
+                tone="quiet"
+              />
+            </>
+          ) : null}
+          <ErrorText>{error}</ErrorText>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -302,7 +423,9 @@ async function beginLocationTracking(activity: "run" | "bike") {
 
   const current = await Location.getForegroundPermissionsAsync();
   const foreground =
-    current.status === "granted" ? current : await Location.requestForegroundPermissionsAsync();
+    current.status === "granted"
+      ? current
+      : await Location.requestForegroundPermissionsAsync();
   if (foreground.status !== "granted") {
     return "timer" as const;
   }
@@ -315,7 +438,9 @@ async function beginLocationTracking(activity: "run" | "bike") {
   await Location.startLocationUpdatesAsync(CONDITIONING_LOCATION_TASK, {
     accuracy: Location.Accuracy.High,
     activityType:
-      activity === "bike" ? Location.ActivityType.OtherNavigation : Location.ActivityType.Fitness,
+      activity === "bike"
+        ? Location.ActivityType.OtherNavigation
+        : Location.ActivityType.Fitness,
     distanceInterval: 3,
     foregroundService: {
       notificationBody: "CAPS is recording your conditioning route.",
@@ -330,7 +455,73 @@ async function beginLocationTracking(activity: "run" | "bike") {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: { gap: tokens.spacing.md, padding: tokens.spacing.md },
-  row: { flexDirection: "row", gap: tokens.spacing.sm },
-  clock: { fontSize: 42, fontWeight: "700" },
+  content: {
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.md,
+    paddingBottom: tokens.spacing.xxl,
+  },
+  card: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.lg,
+  },
+  heroCard: {
+    alignItems: "center",
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.lg,
+  },
+  cardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cardHeaderLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  cardBadge: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  row: {
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+  },
+  cell: {
+    flex: 1,
+  },
+  clock: {
+    fontSize: 56,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+    lineHeight: 64,
+  },
+  telemetryGrid: {
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    width: "100%",
+  },
+  telemetryTile: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    flex: 1,
+    gap: 2,
+    paddingVertical: tokens.spacing.sm,
+  },
+  telemetryLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  telemetryValue: {
+    fontSize: 16,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
 });

@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useState } from "react";
 import { Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -11,44 +12,59 @@ import {
   type EmphasisCategory,
   type EmphasisResult,
 } from "../../conditioning/emphasis";
-import { getConditioningSession } from "../../data/conditioningRepository";
 import { templateConfigFromDraft } from "../../conditioning/drafts";
 import { buildWorkoutSnapshot } from "../../conditioning/phases";
+import { getConditioningSession } from "../../data/conditioningRepository";
 import { useConditioningWorkspace } from "../../state/ConditioningWorkspaceContext";
-import { useConditioningOwner } from "./useConditioningOwner";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { readableTextColor, themes } from "../../theme/theme";
+import { useConditioningOwner } from "./useConditioningOwner";
 
 const tokens = themes.dark;
 
-const explanations: Record<EmphasisCategory, { example: string; meaning: string }> = {
+const explanations: Record<
+  EmphasisCategory,
+  { example: string; meaning: string }
+> = {
   aerobic_endurance: {
-    example: "A long road run or a steady pad round that stays conversational.",
-    meaning: "Sustained work capacity. Power is about rate; capacity is about how much work can be supplied.",
+    example:
+      "A long road run or a steady pad round that stays conversational.",
+    meaning:
+      "Sustained work capacity. Power is about rate; capacity is about how much work can be supplied.",
   },
   aerobic_power: {
     example: "Hard three-minute rounds with incomplete recovery.",
-    meaning: "A faster aerobic energy rate. It overlaps endurance when the bout is long.",
+    meaning:
+      "A faster aerobic energy rate. It overlaps endurance when the bout is long.",
   },
   alactic_capacity: {
     example: "Repeated short bursts with enough rest to keep each one sharp.",
-    meaning: "Repeated brief efforts. Alactic work overlaps lactic work as rests get shorter.",
+    meaning:
+      "Repeated brief efforts. Alactic work overlaps lactic work as rests get shorter.",
   },
   alactic_power: {
     example: "A single explosive shot or sprawl with a long recovery.",
-    meaning: "The highest short burst rate. It is not a separate fuel tank from the other systems.",
+    meaning:
+      "The highest short burst rate. It is not a separate fuel tank from the other systems.",
   },
   lactic_capacity: {
-    example: "A 60–90 second all-out effort, such as a long combination chain.",
+    example:
+      "A 60–90 second all-out effort, such as a long combination chain.",
     meaning: "Hard work that lasts long enough to draw on fast glycolysis.",
   },
   lactic_power: {
-    example: "A 20–40 second burst with substantial recovery before the next one.",
-    meaning: "A high rate of hard work. Repeated bursts cross several systems.",
+    example:
+      "A 20–40 second burst with substantial recovery before the next one.",
+    meaning:
+      "A high rate of hard work. Repeated bursts cross several systems.",
   },
 };
 
-export function ConditioningAdaptationsScreen({ sessionId }: { sessionId: string | null }) {
+export function ConditioningAdaptationsScreen({
+  sessionId,
+}: {
+  sessionId: string | null;
+}) {
   const { theme } = useAppTheme();
   const workspace = useConditioningWorkspace();
   const { db, ownerId } = useConditioningOwner();
@@ -65,7 +81,11 @@ export function ConditioningAdaptationsScreen({ sessionId }: { sessionId: string
         }
         const stored = session.emphasisJson
           ? (JSON.parse(session.emphasisJson) as EmphasisResult)
-          : estimateFromSnapshot(session.snapshot, session.sessionRpe, "actual");
+          : estimateFromSnapshot(
+              session.snapshot,
+              session.sessionRpe,
+              "actual",
+            );
         if (!cancelled) {
           setResult(stored);
         }
@@ -95,56 +115,171 @@ export function ConditioningAdaptationsScreen({ sessionId }: { sessionId: string
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
-      <ScreenHeading onBack={workspace.pop} title="Estimated Training Emphasis" />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={{ color: theme.colors.text }}>
-          A provisional estimate of this session’s training emphasis; it does not measure physiological adaptation.
-        </Text>
-        <Text style={{ color: theme.colors.textMuted }}>
-          {result
-            ? `${result.version} · ${result.coverage.replaceAll("_", " ")} · ${result.confidence} confidence · ${result.source.replaceAll("_", " ")}`
-            : "Not enough information to estimate this session."}
-        </Text>
+      <ScreenHeading
+        onBack={workspace.pop}
+        title="Estimated Training Emphasis"
+      />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          style={[
+            styles.metaCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Text style={[styles.metaHeader, { color: theme.colors.tertiary }]}>
+            PROVISIONAL HEURISTIC ESTIMATE
+          </Text>
+          <Text style={{ color: theme.colors.text, fontSize: 13, lineHeight: 19 }}>
+            A provisional estimate of this session’s training emphasis; it does
+            not measure physiological adaptation.
+          </Text>
+          <Text
+            style={{
+              color: theme.colors.textMuted,
+              fontSize: 11,
+              fontVariant: ["tabular-nums"],
+              fontWeight: "700",
+            }}
+          >
+            {result
+              ? `${result.version} · ${result.coverage.replaceAll("_", " ")} · ${result.confidence} confidence · ${result.source.replaceAll("_", " ")}`
+              : "Not enough information to estimate this session."}
+          </Text>
+        </View>
+
         {emphasisCategories.map((category) => {
           const score = result?.scores[category];
+          const isPrimary = result?.labels.primary === category;
+          const isSecondary = result?.labels.secondary.includes(category);
           return (
-            <View key={category}>
-              <PressOpacity accessibilityLabel={emphasisLabels[category]} onPress={() => setSelected(category)}>
-                <Text style={{ color: theme.colors.text, fontWeight: "700" }}>
-                  {emphasisLabels[category]}
-                  {result?.labels.primary === category ? " · Primary" : ""}
-                  {result?.labels.secondary.includes(category) ? " · Secondary" : ""}
-                </Text>
-              </PressOpacity>
-              <View style={[styles.track, { backgroundColor: theme.colors.surfaceMuted }]}>
+            <PressOpacity
+              accessibilityLabel={emphasisLabels[category]}
+              key={category}
+              onPress={() => setSelected(category)}
+              style={[
+                styles.categoryCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: isPrimary
+                    ? emphasisColors[category]
+                    : theme.colors.borderStrong,
+                },
+              ]}
+            >
+              <View style={styles.categoryTopRow}>
+                <View style={styles.categoryLabelWrap}>
+                  <View
+                    style={[
+                      styles.colorDot,
+                      { backgroundColor: emphasisColors[category] },
+                    ]}
+                  />
+                  <Text style={[styles.categoryTitle, { color: theme.colors.text }]}>
+                    {emphasisLabels[category]}
+                    {isPrimary ? " · Primary" : ""}
+                    {isSecondary ? " · Secondary" : ""}
+                  </Text>
+                </View>
+                <View style={styles.scoreWrap}>
+                  <Text
+                    style={[
+                      styles.scoreText,
+                      {
+                        color:
+                          readableTextColor(emphasisColors[category]) ===
+                          "#FFFFFF"
+                            ? theme.colors.text
+                            : theme.colors.text,
+                      },
+                    ]}
+                  >
+                    {score == null ? "Unavailable" : `${score} / 100`}
+                  </Text>
+                  <Ionicons
+                    color={theme.colors.textMuted}
+                    name="information-circle-outline"
+                    size={18}
+                  />
+                </View>
+              </View>
+              <View
+                style={[
+                  styles.track,
+                  { backgroundColor: theme.colors.surfaceMuted },
+                ]}
+              >
                 <View
                   style={{
-                    backgroundColor: score == null ? theme.colors.border : emphasisColors[category],
+                    backgroundColor:
+                      score == null
+                        ? theme.colors.border
+                        : emphasisColors[category],
+                    borderRadius: 999,
                     height: 12,
                     width: `${score ?? 0}%`,
                   }}
                 />
               </View>
-              <Text style={{ color: readableTextColor(emphasisColors[category]) === "#FFFFFF" ? theme.colors.text : theme.colors.text }}>
-                {score == null ? "Unavailable" : `${score} / 100`}
-              </Text>
-            </View>
+            </PressOpacity>
           );
         })}
       </ScrollView>
-      <Modal animationType="fade" onRequestClose={() => setSelected(null)} transparent visible={selected != null}>
-        <PressOpacity accessibilityLabel="Close explanation" onPress={() => setSelected(null)} style={styles.overlay}>
-          <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setSelected(null)}
+        transparent
+        visible={selected != null}
+      >
+        <PressOpacity
+          accessibilityLabel="Close explanation"
+          onPress={() => setSelected(null)}
+          style={[styles.overlay, { backgroundColor: theme.colors.overlay }]}
+        >
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
             <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
               {selected ? emphasisLabels[selected] : ""}
             </Text>
-            <Text style={{ color: theme.colors.text }}>{explanation?.meaning}</Text>
-            <Text style={{ color: theme.colors.textMuted }}>{explanation?.example}</Text>
-            <Text style={{ color: theme.colors.textMuted }}>
-              Timing and RPE cannot establish measured energy contributions. Training response also depends on history and recovery.
+            <Text style={{ color: theme.colors.text, fontSize: 14, lineHeight: 20 }}>
+              {explanation?.meaning}
             </Text>
-            <PressOpacity accessibilityLabel="Close" onPress={() => setSelected(null)}>
-              <Text style={{ color: theme.colors.tertiary, fontWeight: "700" }}>Close</Text>
+            <Text style={{ color: theme.colors.textMuted, fontSize: 13 }}>
+              Example: {explanation?.example}
+            </Text>
+            <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
+              Timing and RPE cannot establish measured energy contributions.
+              Training response also depends on history and recovery.
+            </Text>
+            <PressOpacity
+              accessibilityLabel="Close"
+              onPress={() => setSelected(null)}
+              style={[
+                styles.closeModalBtn,
+                { backgroundColor: theme.colors.tertiary },
+              ]}
+            >
+              <Text
+                style={{
+                  color: readableTextColor(theme.colors.tertiary),
+                  fontWeight: "800",
+                }}
+              >
+                Close
+              </Text>
             </PressOpacity>
           </View>
         </PressOpacity>
@@ -154,7 +289,13 @@ export function ConditioningAdaptationsScreen({ sessionId }: { sessionId: string
 }
 
 function estimateFromSnapshot(
-  snapshot: { phases: { durationSeconds: number; target: { rpe: number | null } | null; type: string }[] },
+  snapshot: {
+    phases: {
+      durationSeconds: number;
+      target: { rpe: number | null } | null;
+      type: string;
+    }[];
+  },
   sessionRpe: number | null,
   source: "actual" | "target_preview",
 ) {
@@ -175,15 +316,87 @@ function estimateFromSnapshot(
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: { gap: tokens.spacing.md, padding: tokens.spacing.md },
-  track: { borderRadius: 999, height: 12, overflow: "hidden" },
+  content: {
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.md,
+    paddingBottom: tokens.spacing.xxl,
+  },
+  metaCard: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: 6,
+    padding: tokens.spacing.lg,
+  },
+  metaHeader: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.7,
+  },
+  categoryCard: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.sm,
+    padding: tokens.spacing.lg,
+  },
+  categoryTopRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  categoryLabelWrap: {
+    alignItems: "center",
+    flex: 1,
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+  },
+  colorDot: {
+    borderRadius: 999,
+    height: 10,
+    width: 10,
+  },
+  categoryTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  scoreWrap: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  scoreText: {
+    fontSize: 13,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  track: {
+    borderRadius: 999,
+    height: 12,
+    overflow: "hidden",
+  },
   overlay: {
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.45)",
     flex: 1,
     justifyContent: "center",
     padding: tokens.spacing.lg,
   },
-  card: { borderRadius: tokens.radius.lg, gap: tokens.spacing.sm, padding: tokens.spacing.lg },
-  cardTitle: { fontSize: 18, fontWeight: "700" },
+  card: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.md,
+    maxWidth: 420,
+    padding: tokens.spacing.lg,
+    width: "100%",
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  closeModalBtn: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.md,
+  },
 });

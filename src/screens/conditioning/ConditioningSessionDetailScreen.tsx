@@ -29,13 +29,19 @@ import { useConditioningOwner } from "./useConditioningOwner";
 
 const tokens = themes.dark;
 
-export function ConditioningSessionDetailScreen({ sessionId }: { sessionId: string }) {
+export function ConditioningSessionDetailScreen({
+  sessionId,
+}: {
+  sessionId: string;
+}) {
   const { theme } = useAppTheme();
   const { bumpTimeline } = useAppState();
   const workspace = useConditioningWorkspace();
   const { db, ownerId } = useConditioningOwner();
   const [session, setSession] = useState<ConditioningSessionRecord | null>(null);
-  const [route, setRoute] = useState<{ latitude: number; longitude: number; segmentId: string | null }[]>([]);
+  const [route, setRoute] = useState<
+    { latitude: number; longitude: number; segmentId: string | null }[]
+  >([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,19 +54,21 @@ export function ConditioningSessionDetailScreen({ sessionId }: { sessionId: stri
         setSession(loaded);
       }
     });
-    void listConditioningLocationPoints(db, ownerId, sessionId).then((points) => {
-      if (!cancelled) {
-        setRoute(
-          points
-            .filter((point) => point.acceptance === "accepted")
-            .map((point) => ({
-              latitude: point.latitude,
-              longitude: point.longitude,
-              segmentId: point.segmentId,
-            })),
-        );
-      }
-    });
+    void listConditioningLocationPoints(db, ownerId, sessionId).then(
+      (points) => {
+        if (!cancelled) {
+          setRoute(
+            points
+              .filter((point) => point.acceptance === "accepted")
+              .map((point) => ({
+                latitude: point.latitude,
+                longitude: point.longitude,
+                segmentId: point.segmentId,
+              })),
+          );
+        }
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -77,63 +85,164 @@ export function ConditioningSessionDetailScreen({ sessionId }: { sessionId: stri
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
-      <ScreenHeading onBack={workspace.pop} title={session?.title ?? "Session"} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScreenHeading
+        onBack={workspace.pop}
+        title={session?.title ?? "Session"}
+      />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {session ? (
           <>
-            <Text style={{ color: theme.colors.textMuted }}>
-              {formatName(session.format)} · {session.status.replaceAll("_", " ")}
-            </Text>
-            <Text style={{ color: theme.colors.text }}>
-              {session.performedLocalDate ?? session.scheduledLocalDate}
-              {session.scheduledLocalStartTime ? ` · ${session.scheduledLocalStartTime}` : ""}
-            </Text>
-            <Metric label="Distance" value={session.distanceMeters === null ? UNAVAILABLE_METRIC : `${session.distanceMeters.toFixed(0)} m`} />
-            <Metric label="Active time" value={session.activeSeconds === null ? UNAVAILABLE_METRIC : formatClock(session.activeSeconds)} />
-            <Metric label="Target RPE" value={session.targetRpe === null ? UNAVAILABLE_METRIC : String(session.targetRpe)} />
-            <Metric label="Session RPE" value={session.sessionRpe === null ? UNAVAILABLE_METRIC : String(session.sessionRpe)} />
-            {session.notes ? <Text style={{ color: theme.colors.text }}>{session.notes}</Text> : null}
-            {route.length > 0 ? <RouteMap points={route} /> : null}
-            {(session.status === "completed" || session.status === "ended_early") ? (
-              <ActionButton
-                label="Emphasis"
-                onPress={() =>
-                  workspace.push({
-                    key: `emphasis-${session.id}`,
-                    name: "emphasis",
-                    sessionId: session.id,
-                  })
-                }
-                tone="secondary"
-              />
-            ) : null}
-            {session.status === "planned" && session.format !== "free" ? (
-              <View style={styles.actions}>
-                <ActionButton
-                  label="Start"
-                  onPress={() =>
-                    void run(async () => {
-                      const started = await startConditioningSession(db, ownerId!, {
-                        performedAt: Date.now(),
-                        planSessionId: session.id,
-                        timezone: deviceTimeZone(),
-                      });
-                      workspace.bumpRevision();
-                      bumpTimeline();
-                      workspace.pop();
-                      workspace.push({
-                        key: `runner-${started.id}`,
-                        name: "runner",
-                        sessionId: started.id,
-                      });
-                    })
+            {/* Card 1: Session Identity & Status */}
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.borderStrong,
+                },
+              ]}
+            >
+              <View style={styles.cardHeader}>
+                <Text
+                  style={[
+                    styles.cardHeaderLabel,
+                    { color: theme.colors.textMuted },
+                  ]}
+                >
+                  {formatName(session.format).toUpperCase()}
+                </Text>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor: theme.colors.surfaceMuted,
+                      borderColor: theme.colors.borderStrong,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusBadgeText,
+                      { color: theme.colors.tertiary },
+                    ]}
+                  >
+                    {session.status.replaceAll("_", " ").toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.dateText, { color: theme.colors.text }]}>
+                {session.performedLocalDate ?? session.scheduledLocalDate}
+                {session.scheduledLocalStartTime
+                  ? ` · ${session.scheduledLocalStartTime}`
+                  : ""}
+              </Text>
+              {session.notes ? (
+                <Text style={[styles.notes, { color: theme.colors.textMuted }]}>
+                  {session.notes}
+                </Text>
+              ) : null}
+            </View>
+
+            {/* Card 2: Telemetry Grid */}
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.borderStrong,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.cardHeaderLabel,
+                  { color: theme.colors.textMuted },
+                ]}
+              >
+                SESSION METRICS
+              </Text>
+              <View style={styles.metricGrid}>
+                <MetricTile
+                  label="DISTANCE"
+                  value={
+                    session.distanceMeters === null
+                      ? UNAVAILABLE_METRIC
+                      : `${session.distanceMeters.toFixed(0)} m`
                   }
                 />
-                <ActionButton
-                  label="Edit"
-                  onPress={() => openPlanEditor(session, workspace)}
-                  tone="secondary"
+                <MetricTile
+                  label="ACTIVE TIME"
+                  value={
+                    session.activeSeconds === null
+                      ? UNAVAILABLE_METRIC
+                      : formatClock(session.activeSeconds)
+                  }
                 />
+                <MetricTile
+                  label="TARGET RPE"
+                  value={
+                    session.targetRpe === null
+                      ? UNAVAILABLE_METRIC
+                      : String(session.targetRpe)
+                  }
+                />
+                <MetricTile
+                  label="SESSION RPE"
+                  value={
+                    session.sessionRpe === null
+                      ? UNAVAILABLE_METRIC
+                      : String(session.sessionRpe)
+                  }
+                />
+              </View>
+            </View>
+
+            {/* Card 3: Route Map (if recorded) */}
+            {route.length > 0 ? (
+              <View
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.borderStrong,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.cardHeaderLabel,
+                    { color: theme.colors.textMuted },
+                  ]}
+                >
+                  RECORDED GPS ROUTE
+                </Text>
+                <RouteMap points={route} />
+              </View>
+            ) : null}
+
+            {/* Card 4: Actions */}
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.borderStrong,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.cardHeaderLabel,
+                  { color: theme.colors.textMuted },
+                ]}
+              >
+                SESSION FLOW
+              </Text>
+              {session.status === "completed" ||
+              session.status === "ended_early" ? (
                 <ActionButton
                   label="Emphasis"
                   onPress={() =>
@@ -145,65 +254,121 @@ export function ConditioningSessionDetailScreen({ sessionId }: { sessionId: stri
                   }
                   tone="secondary"
                 />
-                <ActionButton
-                  label="Log"
-                  onPress={() => openLog(session, workspace)}
-                  tone="secondary"
-                />
-                <ActionButton
-                  label="Cancel plan"
-                  onPress={() =>
-                    workspace.requestConfirm({
-                      confirmLabel: "Cancel plan",
-                      message: "This removes the plan from the calendar.",
-                      onConfirm: () =>
+              ) : null}
+              {session.status === "planned" && session.format !== "free" ? (
+                <View style={styles.actions}>
+                  <ActionButton
+                    label="Start"
+                    onPress={() =>
+                      void run(async () => {
+                        const started = await startConditioningSession(
+                          db,
+                          ownerId!,
+                          {
+                            performedAt: Date.now(),
+                            planSessionId: session.id,
+                            timezone: deviceTimeZone(),
+                          },
+                        );
+                        workspace.bumpRevision();
+                        bumpTimeline();
+                        workspace.pop();
+                        workspace.push({
+                          key: `runner-${started.id}`,
+                          name: "runner",
+                          sessionId: started.id,
+                        });
+                      })
+                    }
+                  />
+                  <ActionButton
+                    label="Edit"
+                    onPress={() => openPlanEditor(session, workspace)}
+                    tone="secondary"
+                  />
+                  <ActionButton
+                    label="Emphasis"
+                    onPress={() =>
+                      workspace.push({
+                        key: `emphasis-${session.id}`,
+                        name: "emphasis",
+                        sessionId: session.id,
+                      })
+                    }
+                    tone="secondary"
+                  />
+                  <ActionButton
+                    label="Log"
+                    onPress={() => openLog(session, workspace)}
+                    tone="secondary"
+                  />
+                  <ActionButton
+                    label="Cancel plan"
+                    onPress={() =>
+                      workspace.requestConfirm({
+                        confirmLabel: "Cancel plan",
+                        message: "This removes the plan from the calendar.",
+                        onConfirm: () =>
+                          void run(async () => {
+                            await cancelPlannedConditioningSession(
+                              db,
+                              ownerId!,
+                              session.id,
+                            );
+                            workspace.bumpRevision();
+                            bumpTimeline();
+                            workspace.pop();
+                          }),
+                        title: "Cancel this plan?",
+                      })
+                    }
+                    tone="quiet"
+                  />
+                </View>
+              ) : null}
+              {session.status === "in_progress" ||
+              session.status === "finished_draft" ? (
+                <View style={styles.actions}>
+                  {session.status === "in_progress" ? (
+                    <ActionButton
+                      label="Resume"
+                      onPress={() => {
+                        if (session.format === "free") {
+                          workspace.push({
+                            key: `free-${session.id}`,
+                            name: "free",
+                          });
+                          return;
+                        }
+                        workspace.push({
+                          key: `runner-${session.id}`,
+                          name: "runner",
+                          sessionId: session.id,
+                        });
+                      }}
+                    />
+                  ) : null}
+                  <ActionButton
+                    label="Discard"
+                    onPress={() =>
+                      workspace.confirmDiscard(() =>
                         void run(async () => {
-                          await cancelPlannedConditioningSession(db, ownerId!, session.id);
+                          await discardConditioningRecording(
+                            db,
+                            ownerId!,
+                            session.id,
+                          );
                           workspace.bumpRevision();
                           bumpTimeline();
                           workspace.pop();
                         }),
-                      title: "Cancel this plan?",
-                    })
-                  }
-                  tone="quiet"
-                />
-              </View>
-            ) : null}
-            {session.status === "in_progress" || session.status === "finished_draft" ? (
-              <View style={styles.actions}>
-                {session.status === "in_progress" ? (
-                  <ActionButton
-                    label="Resume"
-                    onPress={() => {
-                      if (session.format === "free") {
-                        workspace.push({ key: `free-${session.id}`, name: "free" });
-                        return;
-                      }
-                      workspace.push({
-                        key: `runner-${session.id}`,
-                        name: "runner",
-                        sessionId: session.id,
-                      });
-                    }}
+                      )
+                    }
+                    tone="quiet"
                   />
-                ) : null}
-                <ActionButton
-                  label="Discard"
-                  onPress={() =>
-                    workspace.confirmDiscard(() =>
-                      void run(async () => {
-                        await discardConditioningRecording(db, ownerId!, session.id);
-                        workspace.bumpRevision();
-                        bumpTimeline();
-                        workspace.pop();
-                      }),
-                    )
-                  }
-                  tone="quiet"
-                />
-              </View>
-            ) : null}
+                </View>
+              ) : null}
+            </View>
           </>
         ) : (
           <Text style={{ color: theme.colors.textMuted }}>Loading session</Text>
@@ -221,9 +386,14 @@ function openPlanEditor(
   if (session.format === "free") {
     return;
   }
-  const draft = draftFromTemplate(snapshotConfig(session.snapshot), session.scheduledLocalDate ?? formatLocalDate(new Date()));
+  const draft = draftFromTemplate(
+    snapshotConfig(session.snapshot),
+    session.scheduledLocalDate ?? formatLocalDate(new Date()),
+  );
   if (session.scheduledLocalStartTime) {
-    const [hour, minute] = session.scheduledLocalStartTime.split(":").map(Number);
+    const [hour, minute] = session.scheduledLocalStartTime
+      .split(":")
+      .map(Number);
     const time = new Date();
     time.setHours(hour, minute, 0, 0);
     draft.scheduledTime = time;
@@ -248,13 +418,18 @@ function openLog(
     templateId: session.templateId,
     time: new Date(),
   });
-  workspace.push({ key: `log-${session.id}`, name: "log", planSessionId: session.id });
+  workspace.push({
+    key: `log-${session.id}`,
+    name: "log",
+    planSessionId: session.id,
+  });
 }
 
 function snapshotConfig(snapshot: WorkoutSnapshot) {
   return {
     circuit: snapshot.circuit,
-    format: snapshot.format === "free" ? "circuit" as const : snapshot.format,
+    format:
+      snapshot.format === "free" ? ("circuit" as const) : snapshot.format,
     interval: snapshot.interval,
     notes: snapshot.notes,
     sprint: snapshot.sprint,
@@ -264,17 +439,96 @@ function snapshotConfig(snapshot: WorkoutSnapshot) {
   };
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function MetricTile({ label, value }: { label: string; value: string }) {
   const { theme } = useAppTheme();
   return (
-    <Text style={{ color: theme.colors.text }}>
-      {label}: {value}
-    </Text>
+    <View
+      style={[
+        styles.metricTile,
+        {
+          backgroundColor: theme.colors.surfaceMuted,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <Text style={[styles.metricLabel, { color: theme.colors.textMuted }]}>
+        {label}
+      </Text>
+      <Text style={[styles.metricValue, { color: theme.colors.text }]}>
+        {value}
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: { gap: tokens.spacing.sm, padding: tokens.spacing.md },
-  actions: { gap: tokens.spacing.sm, marginTop: tokens.spacing.md },
+  content: {
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.md,
+    paddingBottom: tokens.spacing.xxl,
+  },
+  card: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.sm,
+    padding: tokens.spacing.lg,
+  },
+  cardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cardHeaderLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  statusBadge: {
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  statusBadgeText: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  dateText: {
+    fontSize: 16,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  notes: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  metricGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: tokens.spacing.sm,
+  },
+  metricTile: {
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    gap: 2,
+    minWidth: "47%",
+    flex: 1,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+  },
+  metricLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  metricValue: {
+    fontSize: 18,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  actions: {
+    gap: tokens.spacing.sm,
+  },
 });
