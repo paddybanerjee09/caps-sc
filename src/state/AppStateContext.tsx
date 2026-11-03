@@ -15,6 +15,7 @@ import {
   getLatestWeightKg,
   updateWeightLog as updateStoredWeightLog,
 } from "../data/timelineRepository";
+import { setSensoryPreferences } from "../utils/feedback";
 
 export type CombatSport =
   | "Muay Thai"
@@ -47,6 +48,10 @@ type UnitSettings = {
 
 type AppStateContextValue = {
   athleteProfile: AthleteProfile;
+  audioCuesEnabled: boolean;
+  setAudioCuesEnabled: (enabled: boolean) => void;
+  hapticsEnabled: boolean;
+  setHapticsEnabled: (enabled: boolean) => void;
   deleteWeightLog: (timelineEntryId: number) => Promise<void>;
   logWeight: (weightKg: number, loggedAt?: number) => Promise<void>;
   setAthleteProfile: (profile: AthleteProfile) => void;
@@ -84,12 +89,24 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
   const db = useSQLiteContext();
   const [athleteProfile, setAthleteProfile] = useState(defaultAthleteProfile);
   const [username, setUsername] = useState("Paddy");
+  const [audioCuesEnabled, setAudioCuesEnabledState] = useState(true);
+  const [hapticsEnabled, setHapticsEnabledState] = useState(true);
   const [unitSettings, setUnitSettings] = useState<UnitSettings>({
     distance: "metric",
     height: "metric",
     weight: "metric",
   });
   const [timelineRevision, setTimelineRevision] = useState(0);
+
+  const setAudioCuesEnabled = useCallback((enabled: boolean) => {
+    setSensoryPreferences({ audioCuesEnabled: enabled });
+    setAudioCuesEnabledState(enabled);
+  }, []);
+
+  const setHapticsEnabled = useCallback((enabled: boolean) => {
+    setSensoryPreferences({ hapticsEnabled: enabled });
+    setHapticsEnabledState(enabled);
+  }, []);
 
   const refreshLatestWeight = useCallback(async () => {
     const latestWeightKg = await getLatestWeightKg(db);
@@ -144,6 +161,10 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
   const value = useMemo(
     () => ({
       athleteProfile,
+      audioCuesEnabled,
+      setAudioCuesEnabled,
+      hapticsEnabled,
+      setHapticsEnabled,
       deleteWeightLog,
       logWeight,
       setAthleteProfile,
@@ -162,6 +183,10 @@ export function AppStateProvider({ children }: AppStateProviderProps) {
     }),
     [
       athleteProfile,
+      audioCuesEnabled,
+      setAudioCuesEnabled,
+      hapticsEnabled,
+      setHapticsEnabled,
       deleteWeightLog,
       logWeight,
       timelineRevision,

@@ -3,9 +3,10 @@ import { Animated, Easing, Pressable, StyleSheet } from "react-native";
 
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
+import { feedbackToggle } from "../utils/feedback";
 
 const tokens = themes.dark;
-const thumbTravel = 20;
+const thumbTravel = 24;
 
 type SimpleSwitchProps = {
   onValueChange: (value: boolean) => void;
@@ -18,8 +19,8 @@ export function SimpleSwitch({ onValueChange, value }: SimpleSwitchProps) {
 
   useEffect(() => {
     Animated.timing(position, {
-      duration: 120,
-      easing: Easing.out(Easing.quad),
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
       toValue: value ? 1 : 0,
       useNativeDriver: true,
     }).start();
@@ -33,12 +34,25 @@ export function SimpleSwitch({ onValueChange, value }: SimpleSwitchProps) {
     outputRange: [0, thumbTravel],
   });
 
+  function toggle() {
+    const next = !value;
+    feedbackToggle(next);
+    onValueChange(next);
+  }
+
   return (
     <Pressable
       accessibilityRole="switch"
       accessibilityState={{ checked: value }}
-      onPress={() => onValueChange(!value)}
-      style={[styles.track, { backgroundColor: trackColor }]}
+      hitSlop={8}
+      onPress={toggle}
+      style={[
+        styles.track,
+        {
+          backgroundColor: trackColor,
+          borderColor: value ? theme.colors.tertiary : theme.colors.borderStrong,
+        },
+      ]}
     >
       <Animated.View
         style={[
@@ -56,14 +70,15 @@ export function SimpleSwitch({ onValueChange, value }: SimpleSwitchProps) {
 const styles = StyleSheet.create({
   track: {
     borderRadius: tokens.radius.pill,
-    height: 28,
+    borderWidth: 1,
+    height: 32,
     justifyContent: "center",
     padding: 3,
-    width: 48,
+    width: 56,
   },
   thumb: {
     borderRadius: tokens.radius.pill,
-    height: 22,
-    width: 22,
+    height: 24,
+    width: 24,
   },
 });

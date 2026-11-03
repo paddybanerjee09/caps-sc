@@ -53,19 +53,31 @@ export function Header({ onMenuPress, topInset }: HeaderProps) {
       style={[
         styles.header,
         {
-          backgroundColor: theme.colors.background,
-          borderBottomColor: theme.colors.border,
-          paddingTop: topInset + theme.spacing.sm,
+          backgroundColor: theme.colors.surface,
+          borderBottomColor: theme.colors.borderStrong,
+          paddingTop: topInset + theme.spacing.xs,
         },
       ]}
     >
       <PressOpacity
         accessibilityLabel="Open sidebar"
         onPress={onMenuPress}
-        style={styles.iconButton}
+        style={[
+          styles.iconButton,
+          {
+            backgroundColor: theme.colors.surfaceMuted,
+            borderColor: theme.colors.border,
+          },
+        ]}
       >
         <View style={[styles.menuLine, { backgroundColor: theme.colors.text }]} />
-        <View style={[styles.menuLine, { backgroundColor: theme.colors.text }]} />
+        <View
+          style={[
+            styles.menuLine,
+            styles.menuLineShort,
+            { backgroundColor: theme.colors.tertiary },
+          ]}
+        />
         <View style={[styles.menuLine, { backgroundColor: theme.colors.text }]} />
       </PressOpacity>
 
@@ -74,9 +86,8 @@ export function Header({ onMenuPress, topInset }: HeaderProps) {
         accessibilityLabel="CAPS"
         resizeMode="cover"
         source={logos[colorScheme][tertiaryColor]}
-        style={[styles.logo, { top: topInset + theme.spacing.sm + 3 }]}
+        style={[styles.logo, { top: topInset + theme.spacing.sm + 4 }]}
       />
-
     </View>
   );
 }
@@ -84,18 +95,19 @@ export function Header({ onMenuPress, topInset }: HeaderProps) {
 const styles = StyleSheet.create({
   header: {
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     flexDirection: "row",
     justifyContent: "flex-start",
-    paddingBottom: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.lg,
+    paddingBottom: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.md,
   },
   iconButton: {
     alignItems: "center",
-    borderRadius: 999,
-    height: 40,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    height: 48,
     justifyContent: "center",
-    width: 40,
+    width: 48,
   },
   logo: {
     height: 34,
@@ -107,7 +119,10 @@ const styles = StyleSheet.create({
   menuLine: {
     borderRadius: 999,
     height: 2,
-    marginVertical: 2,
-    width: 17,
+    marginVertical: 2.5,
+    width: 18,
+  },
+  menuLineShort: {
+    width: 14,
   },
 });

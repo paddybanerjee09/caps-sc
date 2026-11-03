@@ -9,10 +9,11 @@ const tokens = themes.dark;
 type ScreenProps = {
   centerTitle?: boolean;
   children?: ReactNode;
+  subtitle?: string;
   title: string;
 };
 
-export function Screen({ centerTitle, children, title }: ScreenProps) {
+export function Screen({ centerTitle, children, subtitle, title }: ScreenProps) {
   const { theme } = useAppTheme();
 
   return (
@@ -23,20 +24,42 @@ export function Screen({ centerTitle, children, title }: ScreenProps) {
           backgroundColor: theme.colors.background,
         },
       ]}
+      keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Text
+      <View
         style={[
-          styles.title,
-          centerTitle && styles.centerTitle,
-          { color: theme.colors.text },
+          styles.headerBanner,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
         ]}
       >
-        {title}
-      </Text>
-      <View
-        style={[styles.titleLine, { backgroundColor: theme.colors.border }]}
-      />
+        <View style={[styles.accentBar, { backgroundColor: theme.colors.tertiary }]} />
+        <View style={[styles.headerTextWrap, centerTitle && styles.centerHeaderWrap]}>
+          <Text
+            style={[
+              styles.title,
+              centerTitle && styles.centerTitle,
+              { color: theme.colors.text },
+            ]}
+          >
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text
+              style={[
+                styles.subtitle,
+                centerTitle && styles.centerTitle,
+                { color: theme.colors.textMuted },
+              ]}
+            >
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+      </View>
       {children ? <View style={styles.content}>{children}</View> : null}
     </ScrollView>
   );
@@ -47,21 +70,48 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: tokens.spacing.xxl,
     paddingHorizontal: tokens.spacing.md,
-    paddingTop: tokens.spacing.xxl,
+    paddingTop: tokens.spacing.md,
+  },
+  headerBanner: {
+    alignItems: "center",
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: tokens.spacing.md,
+    minHeight: 60,
+    overflow: "hidden",
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.md,
+  },
+  accentBar: {
+    borderRadius: 999,
+    height: 28,
+    width: 4,
+  },
+  headerTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  centerHeaderWrap: {
+    alignItems: "center",
+    marginRight: 16,
   },
   title: {
-    fontSize: tokens.typography.title.fontSize,
-    fontWeight: tokens.typography.title.fontWeight,
-    lineHeight: tokens.typography.title.lineHeight,
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    lineHeight: 26,
+  },
+  subtitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 16,
   },
   centerTitle: {
     textAlign: "center",
   },
-  titleLine: {
-    height: StyleSheet.hairlineWidth,
-    marginTop: tokens.spacing.md,
-  },
   content: {
-    marginTop: tokens.spacing.xl,
+    gap: tokens.spacing.md,
+    marginTop: tokens.spacing.md,
   },
 });

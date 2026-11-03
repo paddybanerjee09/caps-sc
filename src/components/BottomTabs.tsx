@@ -39,9 +39,9 @@ export function BottomTabs({
       style={[
         styles.container,
         {
-          backgroundColor: theme.colors.background,
-          borderTopColor: theme.colors.border,
-          paddingBottom: Math.max(bottomInset, theme.spacing.sm),
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.borderStrong,
+          paddingBottom: Math.max(bottomInset, theme.spacing.xs),
         },
       ]}
     >
@@ -53,9 +53,16 @@ export function BottomTabs({
           <PressOpacity
             accessibilityLabel={tab.title}
             accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
             key={tab.key}
             onPress={() => onSelect(tab.key)}
-            style={styles.tab}
+            style={[
+              styles.tab,
+              isActive && {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
           >
             <View
               style={[
@@ -67,9 +74,18 @@ export function BottomTabs({
                 },
               ]}
             />
-            <TabIcon color={color} route={tab.key} />
+            <TabIcon
+              color={isActive ? theme.colors.tertiary : color}
+              route={tab.key}
+            />
             <View style={styles.labelFrame}>
-              <Text numberOfLines={2} style={[styles.tabText, { color }]}>
+              <Text
+                numberOfLines={2}
+                style={[
+                  styles.tabText,
+                  { color, fontWeight: isActive ? "800" : "700" },
+                ]}
+              >
                 {tab.title}
               </Text>
             </View>
@@ -96,35 +112,39 @@ function TabIcon({ color, route }: { color: string; route: TabRoute }) {
 
 const styles = StyleSheet.create({
   container: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
     flexDirection: "row",
-    paddingHorizontal: tokens.spacing.sm,
+    gap: 4,
+    paddingHorizontal: tokens.spacing.xs,
     paddingTop: tokens.spacing.xs,
   },
   tab: {
     alignItems: "center",
+    borderColor: "transparent",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
     flex: 1,
     gap: 2,
     justifyContent: "center",
     minHeight: 62,
-    paddingHorizontal: tokens.spacing.xs,
+    paddingHorizontal: 2,
   },
   labelFrame: {
     alignItems: "center",
-    height: 26,
+    height: 24,
     justifyContent: "center",
     width: "100%",
   },
   tabText: {
     fontSize: 10,
-    fontWeight: tokens.typography.label.fontWeight,
+    letterSpacing: 0.2,
     lineHeight: 12,
     textAlign: "center",
   },
   activeLine: {
     borderRadius: 999,
-    height: 2,
+    height: 3,
     marginBottom: 2,
-    width: 18,
+    width: 24,
   },
 });

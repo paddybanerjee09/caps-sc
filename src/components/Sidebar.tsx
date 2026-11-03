@@ -24,6 +24,7 @@ import {
 } from "../navigation/routes";
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
+import { feedbackSelection } from "../utils/feedback";
 import { PressOpacity } from "./PressOpacity";
 
 const tokens = themes.dark;
@@ -55,13 +56,13 @@ export function Sidebar({
   const { width } = useWindowDimensions();
   const { theme } = useAppTheme();
   const progress = useSharedValue(open ? 1 : 0);
-  const panelWidth = Math.round(width * 0.55);
+  const panelWidth = Math.min(340, Math.round(width * 0.76));
 
   useEffect(() => {
     progress.set(
       withTiming(open ? 1 : 0, {
-        duration: 300,
-        easing: Easing.bezier(0.23, 1, 0.32, 1),
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
         reduceMotion: ReduceMotion.System,
       }),
     );
@@ -77,6 +78,11 @@ export function Sidebar({
       },
     ],
   }));
+
+  function handleClose() {
+    feedbackSelection();
+    onClose();
+  }
 
   return (
     <View
@@ -96,7 +102,7 @@ export function Sidebar({
       >
         <Pressable
           accessibilityLabel="Close sidebar"
-          onPress={onClose}
+          onPress={handleClose}
           style={styles.scrimPress}
         />
       </Animated.View>
@@ -104,45 +110,91 @@ export function Sidebar({
         style={[
           styles.panel,
           {
-            backgroundColor: theme.colors.background,
-            borderRightColor: theme.colors.border,
+            backgroundColor: theme.colors.surface,
+            borderRightColor: theme.colors.borderStrong,
             paddingBottom: bottomInset + theme.spacing.xl,
-            paddingTop: topInset + theme.spacing.xl,
+            paddingTop: topInset + theme.spacing.lg,
             width: panelWidth,
           },
           panelStyle,
         ]}
       >
-        {sidebarItems.map((item) => {
-          const isActive = activeRoute === item.key;
+        <View style={[styles.panelHeader, { borderBottomColor: theme.colors.border }]}>
+          <Text style={[styles.panelTitle, { color: theme.colors.textMuted }]}>
+            NAVIGATION & PROFILE
+          </Text>
+          <PressOpacity
+            accessibilityLabel="Close sidebar"
+            onPress={onClose}
+            style={[
+              styles.closeButton,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Ionicons color={theme.colors.text} name="close" size={20} />
+          </PressOpacity>
+        </View>
+        <View style={styles.cardList}>
+          {sidebarItems.map((item) => {
+            const isActive = activeRoute === item.key;
 
-          return (
-            <PressOpacity
-              accessibilityLabel={item.title}
-              key={item.key}
-              onPress={() => onSelect(item.key)}
-              style={[styles.item, { borderBottomColor: theme.colors.border }]}
-            >
-              <Ionicons
-                color={isActive ? theme.colors.text : theme.colors.textMuted}
-                name={sidebarIcons[item.key]}
-                size={21}
-              />
-              <Text
+            return (
+              <PressOpacity
+                accessibilityLabel={item.title}
+                accessibilityState={{ selected: isActive }}
+                key={item.key}
+                onPress={() => onSelect(item.key)}
                 style={[
-                  styles.itemText,
+                  styles.itemCard,
                   {
-                    color: isActive
-                      ? theme.colors.text
-                      : theme.colors.textMuted,
+                    backgroundColor: isActive
+                      ? theme.colors.surfaceMuted
+                      : theme.colors.background,
+                    borderColor: isActive
+                      ? theme.colors.tertiary
+                      : theme.colors.border,
                   },
                 ]}
               >
-                {item.title}
-              </Text>
-            </PressOpacity>
-          );
-        })}
+                <View
+                  style={[
+                    styles.iconBadge,
+                    {
+                      backgroundColor: isActive
+                        ? theme.colors.tertiary
+                        : theme.colors.surfaceMuted,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    color={isActive ? "#FFFFFF" : theme.colors.text}
+                    name={sidebarIcons[item.key]}
+                    size={20}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.itemText,
+                    {
+                      color: theme.colors.text,
+                      fontWeight: isActive ? "800" : "700",
+                    },
+                  ]}
+                >
+                  {item.title}
+                </Text>
+                <Ionicons
+                  color={isActive ? theme.colors.tertiary : theme.colors.textMuted}
+                  name="chevron-forward"
+                  size={18}
+                />
+              </PressOpacity>
+            );
+          })}
+        </View>
       </Animated.View>
     </View>
   );
@@ -151,8 +203,8 @@ export function Sidebar({
 const styles = StyleSheet.create({
   overlay: {
     bottom: 0,
-    flexDirection: "row",
     elevation: 1000,
+    flexDirection: "row",
     left: 0,
     position: "absolute",
     right: 0,
@@ -170,24 +222,56 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   panel: {
-    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: 1,
     elevation: 1001,
     height: "100%",
-    paddingHorizontal: tokens.spacing.lg,
+    paddingHorizontal: tokens.spacing.md,
     zIndex: 1,
   },
-  item: {
+  panelHeader: {
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: tokens.spacing.md,
+    paddingBottom: tokens.spacing.sm,
+  },
+  panelTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.9,
+  },
+  closeButton: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  cardList: {
+    gap: tokens.spacing.sm,
+  },
+  itemCard: {
+    alignItems: "center",
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
     flexDirection: "row",
     gap: tokens.spacing.md,
-    minHeight: 52,
-    paddingVertical: tokens.spacing.md,
+    minHeight: 60,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+  },
+  iconBadge: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
   },
   itemText: {
     flex: 1,
     fontSize: tokens.typography.body.fontSize,
-    fontWeight: tokens.typography.body.fontWeight,
     lineHeight: tokens.typography.body.lineHeight,
   },
 });

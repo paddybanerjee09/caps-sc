@@ -1,4 +1,3 @@
-import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
 import {
   BackHandler,
@@ -39,10 +38,6 @@ export function AppNavigator() {
   const previousRoute = useRef<RouteKey>(initialRoute);
 
   const selectTab = (route: TabRoute) => {
-    if (route !== activeRoute) {
-      void Haptics.selectionAsync();
-    }
-
     setActiveRoute(route);
     setSidebarOpen(false);
   };
