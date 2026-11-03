@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { LogTimeChanger } from "../../components/LogTimeChanger";
+import { PressOpacity } from "../../components/PressOpacity";
 import {
   ActionButton,
   ErrorText,
@@ -12,6 +13,7 @@ import {
 import {
   combineLocalDateAndTime,
   deviceTimeZone,
+  formatLocalDate,
   isLocalDateString,
 } from "../../conditioning/dates";
 import { messageFromUnknown } from "../../conditioning/validation";
@@ -19,11 +21,16 @@ import { logConditioningSession } from "../../data/conditioningRepository";
 import { useAppState } from "../../state/AppStateContext";
 import { useConditioningWorkspace } from "../../state/ConditioningWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
-import { themes } from "../../theme/theme";
-import type { OccurrenceActual, PhaseDefinition } from "../../conditioning/types";
+import { readableTextColor, themes } from "../../theme/theme";
+import { feedbackConfirm, feedbackStep } from "../../utils/feedback";
+import type {
+  OccurrenceActual,
+  PhaseDefinition,
+} from "../../conditioning/types";
 import { useConditioningOwner } from "./useConditioningOwner";
 
 const tokens = themes.dark;
+const RPE_SCALE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 export function LogConditioningSessionScreen() {
   const { theme } = useAppTheme();
@@ -47,7 +54,19 @@ export function LogConditioningSessionScreen() {
     );
   }
 
-  const workPhases = request.snapshot.phases.filter((phase) => phase.type === "work");
+  const workPhases = request.snapshot.phases.filter(
+    (phase) => phase.type === "work",
+  );
+  const activeText = readableTextColor(theme.colors.tertiary);
+
+  function stepDate(deltaDays: number) {
+    feedbackStep(deltaDays > 0 ? "up" : "down");
+    const base = isLocalDateString(date)
+      ? new Date(`${date}T12:00:00`)
+      : new Date();
+    base.setDate(base.getDate() + deltaDays);
+    setDate(formatLocalDate(base));
+  }
 
   async function save() {
     if (!request || !ownerId || saving) {
@@ -91,6 +110,7 @@ export function LogConditioningSessionScreen() {
         templateId: request.templateId,
         timezone: deviceTimeZone(),
       });
+      feedbackConfirm();
       workspace.bumpRevision();
       bumpTimeline();
       workspace.setLogRequest(null);
@@ -106,37 +126,182 @@ export function LogConditioningSessionScreen() {
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <ScreenHeading onBack={workspace.pop} title="Log session" />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={{ color: theme.colors.textMuted }}>
-          Targets stay separate from what you actually did.
-        </Text>
-        <FieldLabel>Performed date</FieldLabel>
-        <FormInput accessibilityLabel="Performed date" onChangeText={setDate} value={date} />
-        <LogTimeChanger
-          label="Log time"
-          maximumDate={isToday(date) ? new Date() : undefined}
-          onChange={setTime}
-          value={time}
-        />
-        <FieldLabel>Notes</FieldLabel>
-        <FormInput accessibilityLabel="Session notes" multiline onChangeText={setNotes} value={notes} />
-        <FieldLabel>Session RPE (optional)</FieldLabel>
-        <FormInput
-          accessibilityLabel="Session RPE"
-          keyboardType="number-pad"
-          onChangeText={setSessionRpe}
-          value={sessionRpe}
-        />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Card 1: Performed Timestamp & Session RPE */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+              PERFORMED TIMESTAMP & EFFORT
+            </Text>
+            <Text style={[styles.cardBadge, { color: theme.colors.tertiary }]}>
+              MANUAL LOG
+            </Text>
+          </View>
+          <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
+            Targets stay separate from what you actually did.
+          </Text>
+
+          <FieldLabel>Performed date</FieldLabel>
+          <View style={styles.dateRow}>
+            <PressOpacity
+              accessibilityLabel="Previous day"
+              onPress={() => stepDate(-1)}
+              silent
+              style={[
+                styles.stepBtn,
+                {
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderColor: theme.colors.borderStrong,
+                },
+              ]}
+            >
+              <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+                -1d
+              </Text>
+            </PressOpacity>
+            <FormInput
+              accessibilityLabel="Performed date"
+              onChangeText={setDate}
+              style={styles.centerInput}
+              value={date}
+            />
+            <PressOpacity
+              accessibilityLabel="Next day"
+              onPress={() => stepDate(1)}
+              silent
+              style={[
+                styles.stepBtn,
+                {
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderColor: theme.colors.borderStrong,
+                },
+              ]}
+            >
+              <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+                +1d
+              </Text>
+            </PressOpacity>
+          </View>
+
+          <LogTimeChanger
+            label="Log time"
+            maximumDate={isToday(date) ? new Date() : undefined}
+            onChange={setTime}
+            value={time}
+          />
+
+          <View style={styles.cardHeader}>
+            <FieldLabel>Session RPE (optional)</FieldLabel>
+            {sessionRpe.trim() ? (
+              <PressOpacity
+                accessibilityLabel="Omit session RPE"
+                onPress={() => {
+                  feedbackStep("down");
+                  setSessionRpe("");
+                }}
+                silent
+                style={[
+                  styles.clearPill,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.clearPillText, { color: theme.colors.textMuted }]}>
+                  OMIT
+                </Text>
+              </PressOpacity>
+            ) : null}
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.presetStrip}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+          >
+            {RPE_SCALE.map((rpe) => {
+              const selected = Number(sessionRpe) === rpe && sessionRpe.trim().length > 0;
+              return (
+                <PressOpacity
+                  accessibilityLabel={`Set session RPE ${rpe}`}
+                  key={rpe}
+                  onPress={() => {
+                    feedbackStep("up");
+                    setSessionRpe(String(rpe));
+                  }}
+                  silent
+                  style={[
+                    styles.presetChip,
+                    {
+                      backgroundColor: selected
+                        ? theme.colors.tertiary
+                        : theme.colors.surfaceMuted,
+                      borderColor: selected
+                        ? theme.colors.tertiary
+                        : theme.colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.presetChipText,
+                      { color: selected ? activeText : theme.colors.text },
+                    ]}
+                  >
+                    RPE {rpe}
+                  </Text>
+                </PressOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <FormInput
+            accessibilityLabel="Session RPE"
+            keyboardType="number-pad"
+            onChangeText={setSessionRpe}
+            placeholder="Omitted (null)"
+            value={sessionRpe}
+          />
+
+          <FieldLabel>Notes</FieldLabel>
+          <FormInput
+            accessibilityLabel="Session notes"
+            multiline
+            onChangeText={setNotes}
+            value={notes}
+          />
+        </View>
+
+        {/* Card-by-Card Work Occurrences */}
         {workPhases.map((phase) => (
           <WorkResult
             key={phase.id}
-            onChange={(actual) => setActuals((current) => ({ ...current, [phase.id]: actual }))}
+            onChange={(actual) =>
+              setActuals((current) => ({ ...current, [phase.id]: actual }))
+            }
             phase={phase}
             value={actuals[phase.id] ?? emptyActual()}
           />
         ))}
         <ErrorText>{error}</ErrorText>
-        <ActionButton disabled={saving} label="Save session" onPress={() => void save()} />
+        <ActionButton
+          disabled={saving}
+          label="Save session"
+          onPress={() => void save()}
+        />
       </ScrollView>
     </View>
   );
@@ -151,14 +316,26 @@ function WorkResult({
   phase: PhaseDefinition;
   value: OccurrenceActual;
 }) {
+  const { theme } = useAppTheme();
   const kind = phase.target?.completionType;
   return (
-    <View>
-      <Text style={styles.phase}>{phase.label}</Text>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.borderStrong,
+        },
+      ]}
+    >
+      <Text style={[styles.phase, { color: theme.colors.text }]}>
+        {phase.label}
+      </Text>
       {kind === "repetitions" ? (
         <OptionalNumber
           label="Actual reps"
           onChange={(reps) => onChange({ ...value, reps })}
+          step={1}
           value={value.reps}
         />
       ) : null}
@@ -166,6 +343,7 @@ function WorkResult({
         <OptionalNumber
           label="Actual load kg"
           onChange={(loadKg) => onChange({ ...value, loadKg })}
+          step={2}
           value={value.loadKg}
         />
       ) : null}
@@ -173,13 +351,17 @@ function WorkResult({
         <OptionalNumber
           label="Actual distance m"
           onChange={(distanceMeters) => onChange({ ...value, distanceMeters })}
+          step={10}
           value={value.distanceMeters}
         />
       ) : null}
       {kind === "machine_calories" ? (
         <OptionalNumber
           label="Actual machine calories"
-          onChange={(machineCalories) => onChange({ ...value, machineCalories })}
+          onChange={(machineCalories) =>
+            onChange({ ...value, machineCalories })
+          }
+          step={2}
           value={value.machineCalories}
         />
       ) : null}
@@ -190,25 +372,71 @@ function WorkResult({
 function OptionalNumber({
   label,
   onChange,
+  step = 1,
   value,
 }: {
   label: string;
   onChange: (value: number | null) => void;
+  step?: number;
   value: number | null;
 }) {
+  const { theme } = useAppTheme();
+  function adjust(delta: number) {
+    feedbackStep(delta > 0 ? "up" : "down");
+    const base = value ?? 0;
+    const next = Math.max(0, Math.round((base + delta) * 10) / 10);
+    onChange(next === 0 ? null : next);
+  }
+
   return (
-    <>
+    <View style={styles.optionalBlock}>
       <FieldLabel>{label}</FieldLabel>
-      <FormInput
-        accessibilityLabel={label}
-        keyboardType="decimal-pad"
-        onChangeText={(text) => {
-          const trimmed = text.trim();
-          onChange(trimmed ? Number(trimmed) : null);
-        }}
-        value={value === null ? "" : String(value)}
-      />
-    </>
+      <View style={styles.dateRow}>
+        <PressOpacity
+          accessibilityLabel={`Decrease ${label}`}
+          onPress={() => adjust(-step)}
+          silent
+          style={[
+            styles.stepBtn,
+            {
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+            -{step}
+          </Text>
+        </PressOpacity>
+        <FormInput
+          accessibilityLabel={label}
+          keyboardType="decimal-pad"
+          onChangeText={(text) => {
+            const trimmed = text.trim();
+            onChange(trimmed ? Number(trimmed) : null);
+          }}
+          placeholder="—"
+          style={styles.centerInput}
+          value={value === null ? "" : String(value)}
+        />
+        <PressOpacity
+          accessibilityLabel={`Increase ${label}`}
+          onPress={() => adjust(step)}
+          silent
+          style={[
+            styles.stepBtn,
+            {
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+            +{step}
+          </Text>
+        </PressOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -229,6 +457,88 @@ function isToday(date: string) {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: { gap: tokens.spacing.sm, padding: tokens.spacing.md },
-  phase: { fontWeight: "700", marginTop: tokens.spacing.md },
+  content: {
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.md,
+    paddingBottom: tokens.spacing.xxl,
+  },
+  card: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.sm,
+    padding: tokens.spacing.lg,
+  },
+  cardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cardHeaderLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  cardBadge: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  dateRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  stepBtn: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 52,
+    paddingHorizontal: 8,
+  },
+  stepBtnText: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  centerInput: {
+    flex: 1,
+    textAlign: "center",
+  },
+  presetStrip: {
+    gap: 6,
+  },
+  presetChip: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    minWidth: 58,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  presetChipText: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  clearPill: {
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  clearPillText: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  phase: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  optionalBlock: {
+    gap: 4,
+  },
 });
