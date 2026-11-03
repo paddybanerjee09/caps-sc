@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ScreenHeading } from "../../components/conditioning/ConditioningFields";
@@ -12,7 +13,6 @@ import { useConditioningWorkspace } from "../../state/ConditioningWorkspaceConte
 import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
 import { useConditioningOwner } from "./useConditioningOwner";
-import { useEffect, useState } from "react";
 
 const tokens = themes.dark;
 
@@ -67,16 +67,34 @@ export function SavedConditioningSessionScreen() {
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <ScreenHeading onBack={workspace.pop} title="Saved Workouts" />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={{ color: theme.colors.textMuted }}>
-          Opening a workout does not log it.
-        </Text>
-        <SavedWorkoutGrid
-          error={error}
-          loading={loading}
-          onPress={openTemplate}
-          onRetry={() => workspace.bumpRevision()}
-          templates={templates}
-        />
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+              SAVED TEMPLATES LIBRARY
+            </Text>
+            <Text style={[styles.countBadge, { color: theme.colors.tertiary }]}>
+              {templates.length} TOTAL
+            </Text>
+          </View>
+          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+            Opening a workout loads it into the composer—it does not log a session.
+          </Text>
+          <SavedWorkoutGrid
+            error={error}
+            loading={loading}
+            onPress={openTemplate}
+            onRetry={() => workspace.bumpRevision()}
+            templates={templates}
+          />
+        </View>
       </ScrollView>
     </View>
   );
@@ -87,6 +105,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    gap: tokens.spacing.md,
     padding: tokens.spacing.md,
+  },
+  card: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.lg,
+  },
+  cardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cardHeaderLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  countBadge: {
+    fontSize: 11,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  hint: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
