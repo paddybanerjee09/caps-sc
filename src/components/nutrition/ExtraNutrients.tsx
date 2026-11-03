@@ -7,6 +7,7 @@ import { formatAmount } from "../../nutrition/calculations";
 import type { ExtraTotal } from "../../nutrition/calculations";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
+import { feedbackToggle } from "../../utils/feedback";
 
 const tokens = themes.dark;
 
@@ -21,33 +22,53 @@ export function MicronutrientDisclosure({
   const others = totals.filter((total) => total.group === "other");
 
   return (
-    <View>
+    <View style={styles.container}>
       <PressOpacity
         accessibilityLabel={`${expanded ? "Collapse" : "Expand"} micronutrients`}
-        onPress={() => setExpanded((current) => !current)}
-        style={[styles.toggle, { borderTopColor: theme.colors.border }]}
+        accessibilityState={{ expanded }}
+        onPress={() => {
+          const next = !expanded;
+          feedbackToggle(next);
+          setExpanded(next);
+        }}
+        silent
+        style={[
+          styles.toggle,
+          {
+            backgroundColor: theme.colors.surfaceMuted,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
       >
         <Text style={[styles.toggleLabel, { color: theme.colors.text }]}>
-          Micronutrients
+          MICRONUTRIENTS & TRACE TOTALS
         </Text>
         <Ionicons
-          color={theme.colors.textMuted}
-          name={expanded ? "chevron-down" : "chevron-forward"}
+          color={theme.colors.tertiary}
+          name={expanded ? "chevron-up" : "chevron-down"}
           size={18}
         />
       </PressOpacity>
       {expanded ? (
-        <>
+        <View
+          style={[
+            styles.panel,
+            {
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
           <NutrientRows totals={micros} />
           {others.some((total) => total.amount !== null) ? (
             <>
-              <Text style={[styles.subheading, { color: theme.colors.textMuted }]}>
-                Other nutrients
+              <Text style={[styles.subheading, { color: theme.colors.tertiary }]}>
+                OTHER NUTRIENTS
               </Text>
               <NutrientRows totals={others} />
             </>
           ) : null}
-        </>
+        </View>
       ) : null}
     </View>
   );
@@ -58,14 +79,23 @@ function NutrientRows({ totals }: { totals: readonly ExtraTotal[] }) {
 
   return (
     <View>
-      {totals.map((total) => (
+      {totals.map((total, index) => (
         <View
           key={total.id}
-          style={[styles.row, { borderTopColor: theme.colors.border }]}
+          style={[
+            styles.row,
+            index > 0 && {
+              borderTopColor: theme.colors.border,
+              borderTopWidth: 1,
+            },
+          ]}
         >
-          <Text style={[styles.name, { color: theme.colors.text }]}>{total.name}</Text>
+          <Text style={[styles.name, { color: theme.colors.text }]}>
+            {total.name}
+          </Text>
           <Text style={[styles.value, { color: theme.colors.textMuted }]}>
-            {formatAmount(total.amount, total.precision, total.partial)} {total.unit}
+            {formatAmount(total.amount, total.precision, total.partial)}{" "}
+            {total.unit}
           </Text>
         </View>
       ))}
@@ -74,43 +104,53 @@ function NutrientRows({ totals }: { totals: readonly ExtraTotal[] }) {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    gap: tokens.spacing.xs,
+  },
   toggle: {
     alignItems: "center",
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
     flexDirection: "row",
     gap: tokens.spacing.sm,
     justifyContent: "space-between",
-    minHeight: 44,
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.md,
   },
   toggleLabel: {
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
-    lineHeight: tokens.typography.body.lineHeight,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.7,
+  },
+  panel: {
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
   },
   subheading: {
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: "700",
-    lineHeight: tokens.typography.label.lineHeight,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.7,
     paddingBottom: tokens.spacing.xs,
     paddingTop: tokens.spacing.md,
   },
   row: {
     alignItems: "center",
-    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     gap: tokens.spacing.md,
     justifyContent: "space-between",
-    minHeight: 32,
+    minHeight: 36,
     paddingVertical: tokens.spacing.xs,
   },
   name: {
     flex: 1,
-    fontSize: tokens.typography.label.fontSize,
-    lineHeight: tokens.typography.label.lineHeight,
+    fontSize: 12,
+    fontWeight: "700",
   },
   value: {
-    fontSize: tokens.typography.label.fontSize,
+    fontSize: 12,
     fontVariant: ["tabular-nums"],
-    lineHeight: tokens.typography.label.lineHeight,
+    fontWeight: "800",
   },
 });

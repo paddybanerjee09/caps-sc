@@ -6,16 +6,13 @@ import {
   useMemo,
   useRef,
   useState,
-  type ComponentRef,
 } from "react";
 import {
   ActivityIndicator,
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
 
 import { scheduleIdleTask } from "../utils/scheduleIdleTask";
@@ -33,18 +30,18 @@ import { getMealLogsForDay } from "../data/nutritionRepository";
 import { resolveCatalogFood } from "../services/foodCatalog";
 import { useNutritionWorkspace } from "../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../theme/ThemeContext";
-import { themes } from "../theme/theme";
-import type { CatalogFood, StoredMealItem, StoredMealLog } from "../types/nutrition";
+import { readableTextColor, themes } from "../theme/theme";
+import { feedbackStep, feedbackToggle } from "../utils/feedback";
+import type {
+  CatalogFood,
+  StoredMealItem,
+  StoredMealLog,
+} from "../types/nutrition";
 
 const tokens = themes.dark;
-const MEAL_MENU_HEIGHT = 50;
-
-type MenuAnchor = { height: number; width: number; x: number; y: number };
-type MealMenu = { meal: StoredMealLog; right: number; top: number };
 
 export function NutritionScreen() {
   const db = useSQLiteContext();
-  const { height, width } = useWindowDimensions();
   const { theme } = useAppTheme();
   const {
     clearNotice,
@@ -60,10 +57,11 @@ export function NutritionScreen() {
   const currentDay = diaryDate;
   const currentDayMs = currentDay.getTime();
   const [meals, setMeals] = useState<StoredMealLog[]>([]);
-  const [resolvedFoods, setResolvedFoods] = useState<Record<string, CatalogFood>>({});
+  const [resolvedFoods, setResolvedFoods] = useState<
+    Record<string, CatalogFood>
+  >({});
   const [loading, setLoading] = useState(true);
   const [databaseError, setDatabaseError] = useState<string | null>(null);
-  const [mealMenu, setMealMenu] = useState<MealMenu | null>(null);
   const requestId = useRef(0);
 
   const { dayStart, dayEnd } = useMemo(
@@ -139,7 +137,9 @@ export function NutritionScreen() {
 
         try {
           const food = await resolveCatalogFood(db, item.food);
-          const serving = food?.servings.find((candidate) => candidate.id === item.servingId);
+          const serving = food?.servings.find(
+            (candidate) => candidate.id === item.servingId,
+          );
 
           if (!cancelled && food && serving) {
             setResolvedFoods((current) => ({
@@ -170,159 +170,231 @@ export function NutritionScreen() {
     () => sumExtraTotals(displayMeals.flatMap((meal) => meal.items)),
     [displayMeals],
   );
-  const catalogueHeight = clamp(height * 0.42, 240, 420);
   const previousDate = shiftLocalDate(currentDay, -1);
   const nextDate = shiftLocalDate(currentDay, 1);
+  const primaryText = readableTextColor(theme.colors.tertiary);
 
   function changeDay(numberOfDays: number) {
+    feedbackStep(numberOfDays > 0 ? "up" : "down");
     setDiaryDate(shiftLocalDate(currentDay, numberOfDays));
   }
 
-  function openMealMenu(meal: StoredMealLog, anchor: MenuAnchor) {
-    const below = anchor.y + anchor.height + tokens.spacing.xs;
-    const fitsBelow = below + MEAL_MENU_HEIGHT <= height - tokens.spacing.lg;
-
-    setMealMenu({
-      meal,
-      right: Math.max(tokens.spacing.md, width - (anchor.x + anchor.width)),
-      top: fitsBelow ? below : anchor.y - MEAL_MENU_HEIGHT - tokens.spacing.xs,
-    });
-  }
-
-  function editFromMenu() {
-    if (!mealMenu) {
-      return;
-    }
-
-    const meal = mealMenu.meal;
-    setMealMenu(null);
-    openEditMeal(meal);
-  }
-
   return (
-    <Screen centerTitle title="Nutrition">
+    <Screen
+      centerTitle
+      subtitle="Daily macro targets, meal diary cards, and micronutrient tracking"
+      title="Nutrition"
+    >
       {notice ? (
-        <PressOpacity accessibilityLabel="Dismiss notice" onPress={clearNotice}>
-          <Text style={[styles.stateText, { color: theme.colors.text }]}>{notice}</Text>
-        </PressOpacity>
-      ) : null}
-      <View style={styles.dateNavigator}>
         <PressOpacity
-          accessibilityLabel={`Show previous day, ${formatFullDate(
-            previousDate,
-          )}`}
-          onPress={() => changeDay(-1)}
-          style={styles.dateArrow}
-        >
-          <Ionicons
-            color={theme.colors.text}
-            name="chevron-back"
-            size={22}
-          />
-        </PressOpacity>
-
-        <Text
-          numberOfLines={1}
-          style={[styles.selectedDateText, { color: theme.colors.text }]}
-        >
-          {formatSelectedDate(currentDay)}
-        </Text>
-
-        <PressOpacity
-          accessibilityLabel={`Show next day, ${formatFullDate(nextDate)}`}
-          onPress={() => changeDay(1)}
-          style={styles.dateArrow}
-        >
-          <Ionicons
-            color={theme.colors.text}
-            name="chevron-forward"
-            size={22}
-          />
-        </PressOpacity>
-      </View>
-
-      <View style={styles.catalogueContainer}>
-        <View
+          accessibilityLabel="Dismiss notice"
+          onPress={clearNotice}
           style={[
-            styles.catalogue,
+            styles.noticeCard,
             {
               backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.border,
-              height: catalogueHeight,
+              borderColor: theme.colors.tertiary,
             },
           ]}
         >
-          {loading ? (
-            <View style={styles.catalogueState}>
-              <ActivityIndicator color={theme.colors.tertiary} />
-            </View>
-          ) : databaseError ? (
-            <View style={styles.catalogueState}>
-              <Text style={[styles.stateText, { color: theme.colors.text }]}>
-                {databaseError}
-              </Text>
-              <PressOpacity
-                accessibilityLabel="Retry loading meals"
-                onPress={() => void loadMeals()}
-                style={[
-                  styles.retryButton,
-                  { borderColor: theme.colors.borderStrong },
-                ]}
-              >
-                <Text style={{ color: theme.colors.tertiary }}>Retry</Text>
-              </PressOpacity>
-            </View>
-          ) : meals.length === 0 ? (
-            <View style={styles.catalogueState}>
-              <Ionicons
-                color={theme.colors.textMuted}
-                name="restaurant-outline"
-                size={28}
-              />
-              <Text
-                style={[styles.stateText, { color: theme.colors.textMuted }]}
-              >
-                {isSameLocalDay(currentDay, new Date())
-                  ? "No meals logged today"
-                  : "No meals for this date"}
-              </Text>
-            </View>
-          ) : (
-            <ScrollView
-              contentContainerStyle={styles.mealList}
-              nestedScrollEnabled
-              showsVerticalScrollIndicator={false}
+          <Text style={[styles.stateText, { color: theme.colors.text }]}>
+            {notice}
+          </Text>
+        </PressOpacity>
+      ) : null}
+
+      {/* Card 1: Date Stepper Card */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <View style={styles.dateNavigator}>
+          <PressOpacity
+            accessibilityLabel={`Show previous day, ${formatFullDate(
+              previousDate,
+            )}`}
+            onPress={() => changeDay(-1)}
+            silent
+            style={[
+              styles.dateStepButton,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Ionicons color={theme.colors.text} name="chevron-back" size={20} />
+            <Text style={[styles.dateStepLabel, { color: theme.colors.text }]}>
+              -1d
+            </Text>
+          </PressOpacity>
+
+          <PressOpacity
+            accessibilityLabel="Jump to today"
+            onPress={() => {
+              feedbackStep("up");
+              setDiaryDate(new Date());
+            }}
+            silent
+            style={[
+              styles.selectedDatePill,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text
+              numberOfLines={1}
+              style={[styles.selectedDateText, { color: theme.colors.text }]}
             >
-              {displayMeals.map((meal) => (
-                <MealCatalogueEntry
-                  expanded={expandedMealId === meal.timelineEntryId}
-                  key={meal.timelineEntryId}
-                  meal={meal}
-                  onEdit={() => openEditMeal(meal)}
-                  onMenu={(anchor) => openMealMenu(meal, anchor)}
-                  onToggle={() =>
-                    setExpandedMealId(
-                      expandedMealId === meal.timelineEntryId
-                        ? null
-                        : meal.timelineEntryId,
-                    )
-                  }
-                />
-              ))}
-            </ScrollView>
-          )}
+              {formatSelectedDate(currentDay)}
+            </Text>
+          </PressOpacity>
+
+          <PressOpacity
+            accessibilityLabel={`Show next day, ${formatFullDate(nextDate)}`}
+            onPress={() => changeDay(1)}
+            silent
+            style={[
+              styles.dateStepButton,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.dateStepLabel, { color: theme.colors.text }]}>
+              +1d
+            </Text>
+            <Ionicons
+              color={theme.colors.text}
+              name="chevron-forward"
+              size={20}
+            />
+          </PressOpacity>
         </View>
+      </View>
+
+      {/* Card 2: Meal Diary Card & Log Meal CTA */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+            LOGGED MEALS DIARY
+          </Text>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.badgeText, { color: theme.colors.tertiary }]}>
+              {meals.length} {meals.length === 1 ? "MEAL" : "MEALS"}
+            </Text>
+          </View>
+        </View>
+
+        {loading ? (
+          <View style={styles.catalogueState}>
+            <ActivityIndicator color={theme.colors.tertiary} />
+          </View>
+        ) : databaseError ? (
+          <View style={styles.catalogueState}>
+            <Text style={[styles.stateText, { color: theme.colors.text }]}>
+              {databaseError}
+            </Text>
+            <PressOpacity
+              accessibilityLabel="Retry loading meals"
+              onPress={() => void loadMeals()}
+              style={[
+                styles.retryButton,
+                { borderColor: theme.colors.borderStrong },
+              ]}
+            >
+              <Text style={{ color: theme.colors.tertiary, fontWeight: "800" }}>
+                Retry
+              </Text>
+            </PressOpacity>
+          </View>
+        ) : meals.length === 0 ? (
+          <View
+            style={[
+              styles.emptyStateWell,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Ionicons
+              color={theme.colors.textMuted}
+              name="restaurant-outline"
+              size={26}
+            />
+            <Text style={[styles.stateText, { color: theme.colors.textMuted }]}>
+              {isSameLocalDay(currentDay, new Date())
+                ? "No meals logged today"
+                : "No meals for this date"}
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.mealList}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator={false}
+            style={styles.mealScroll}
+          >
+            {displayMeals.map((meal) => (
+              <MealCatalogueEntry
+                expanded={expandedMealId === meal.timelineEntryId}
+                key={meal.timelineEntryId}
+                meal={meal}
+                onEdit={() => openEditMeal(meal)}
+                onToggle={() => {
+                  const willExpand = expandedMealId !== meal.timelineEntryId;
+                  feedbackToggle(willExpand);
+                  setExpandedMealId(
+                    willExpand ? meal.timelineEntryId : null,
+                  );
+                }}
+              />
+            ))}
+          </ScrollView>
+        )}
 
         <PressOpacity
           accessibilityLabel="Log meal"
           onPress={() => openNewMeal(currentDay)}
-          style={[styles.addButton, { backgroundColor: theme.colors.tertiary }]}
+          style={[
+            styles.logMealFlowButton,
+            { backgroundColor: theme.colors.tertiary },
+          ]}
         >
-          <Ionicons color={theme.colors.background} name="add" size={28} />
+          <Ionicons color={primaryText} name="add-circle" size={22} />
+          <Text style={[styles.logMealFlowText, { color: primaryText }]}>
+            Log Meal
+          </Text>
         </PressOpacity>
       </View>
 
-      <View style={styles.summarySection}>
+      {/* Card 3: Daily Totals Breakdown */}
+      <View>
         {loading ? (
           <View
             accessibilityLabel="Loading daily nutrition totals"
@@ -330,7 +402,7 @@ export function NutritionScreen() {
               styles.summary,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
+                borderColor: theme.colors.borderStrong,
               },
             ]}
           >
@@ -345,7 +417,7 @@ export function NutritionScreen() {
               styles.summary,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
+                borderColor: theme.colors.borderStrong,
               },
             ]}
           >
@@ -371,44 +443,6 @@ export function NutritionScreen() {
           />
         )}
       </View>
-
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setMealMenu(null)}
-        transparent
-        visible={mealMenu !== null}
-      >
-        <PressOpacity
-          accessibilityLabel="Close meal actions"
-          onPress={() => setMealMenu(null)}
-          pressedOpacity={1}
-          style={StyleSheet.absoluteFill}
-        />
-        {mealMenu ? (
-          <View
-            style={[
-              styles.mealMenu,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.borderStrong,
-                right: mealMenu.right,
-                top: mealMenu.top,
-              },
-            ]}
-          >
-            <PressOpacity
-              accessibilityLabel={`Edit ${mealMenu.meal.title}`}
-              onPress={editFromMenu}
-              style={styles.mealMenuItem}
-            >
-              <Ionicons color={theme.colors.text} name="create-outline" size={18} />
-              <Text style={[styles.mealMenuLabel, { color: theme.colors.text }]}>
-                Edit Meal
-              </Text>
-            </PressOpacity>
-          </View>
-        ) : null}
-      </Modal>
     </Screen>
   );
 }
@@ -417,24 +451,15 @@ function MealCatalogueEntry({
   expanded,
   meal,
   onEdit,
-  onMenu,
   onToggle,
 }: {
   expanded: boolean;
   meal: StoredMealLog;
   onEdit: () => void;
-  onMenu: (anchor: MenuAnchor) => void;
   onToggle: () => void;
 }) {
   const { theme } = useAppTheme();
-  const menuAnchor = useRef<ComponentRef<typeof View>>(null);
   const nutritionSummary = formatMealTabNutrition(meal);
-
-  function openMenu() {
-    menuAnchor.current?.measureInWindow((x, y, width, height) => {
-      onMenu({ height, width, x, y });
-    });
-  }
 
   return (
     <View
@@ -442,7 +467,9 @@ function MealCatalogueEntry({
         styles.meal,
         {
           backgroundColor: theme.colors.surfaceMuted,
-          borderColor: theme.colors.border,
+          borderColor: expanded
+            ? theme.colors.tertiary
+            : theme.colors.borderStrong,
         },
       ]}
     >
@@ -454,42 +481,55 @@ function MealCatalogueEntry({
             meal,
           )}`}
           onPress={onToggle}
+          silent
           style={styles.mealTab}
         >
           <View style={styles.mealTabMain}>
+            <View style={styles.mealTitleLine}>
+              <Text
+                numberOfLines={1}
+                style={[styles.mealTitle, { color: theme.colors.text }]}
+              >
+                {meal.title}
+              </Text>
+              <Text style={[styles.mealTime, { color: theme.colors.textMuted }]}>
+                {formatTime(meal.loggedAt)}
+              </Text>
+            </View>
             <Text
-              numberOfLines={1}
-              style={[styles.mealTitle, { color: theme.colors.text }]}
-            >
-              {meal.title}
-            </Text>
-            <Text
-              style={[styles.mealTabNutrition, { color: theme.colors.textMuted }]}
+              style={[
+                styles.mealTabNutrition,
+                { color: theme.colors.textMuted },
+              ]}
             >
               {nutritionSummary}
             </Text>
           </View>
 
-          <View style={styles.mealTabEnd}>
-            <Text style={[styles.mealTime, { color: theme.colors.textMuted }]}>
-              {formatTime(meal.loggedAt)}
-            </Text>
-            <Ionicons
-              color={theme.colors.textMuted}
-              name={expanded ? "chevron-up" : "chevron-down"}
-              size={18}
-            />
-          </View>
+          <Ionicons
+            color={theme.colors.textMuted}
+            name={expanded ? "chevron-up" : "chevron-down"}
+            size={18}
+          />
         </PressOpacity>
-        <View collapsable={false} ref={menuAnchor}>
-          <PressOpacity
-            accessibilityLabel={`Actions for ${meal.title}`}
-            onPress={openMenu}
-            style={styles.mealMenuButton}
-          >
-            <Ionicons color={theme.colors.text} name="ellipsis-horizontal" size={20} />
-          </PressOpacity>
-        </View>
+
+        <PressOpacity
+          accessibilityLabel={`Edit ${meal.title}`}
+          onPress={onEdit}
+          style={[
+            styles.inlineEditBtn,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Ionicons
+            color={theme.colors.tertiary}
+            name="create-outline"
+            size={18}
+          />
+        </PressOpacity>
       </View>
 
       {expanded ? (
@@ -506,19 +546,36 @@ function MealCatalogueEntry({
             accessible
             style={styles.mealDetails}
           >
-            <Text
-              style={[
-                styles.mealStatus,
-                {
-                  color:
-                    meal.status === "planned"
-                      ? theme.colors.tertiary
-                      : theme.colors.textMuted,
-                },
-              ]}
-            >
-              {meal.status === "planned" ? "Planned" : "Completed"}
-            </Text>
+            <View style={styles.mealExpandedTop}>
+              <Text
+                style={[
+                  styles.mealStatus,
+                  {
+                    color:
+                      meal.status === "planned"
+                        ? theme.colors.tertiary
+                        : theme.colors.textMuted,
+                  },
+                ]}
+              >
+                {meal.status === "planned" ? "PLANNED" : "COMPLETED"}
+              </Text>
+              <PressOpacity
+                accessibilityLabel={`Edit ${meal.title}`}
+                onPress={onEdit}
+                style={[
+                  styles.editMealPill,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.borderStrong,
+                  },
+                ]}
+              >
+                <Text style={{ color: theme.colors.tertiary, fontSize: 12, fontWeight: "800" }}>
+                  Edit Meal
+                </Text>
+              </PressOpacity>
+            </View>
 
             <View style={styles.foodList}>
               {meal.items.map((item) => (
@@ -526,14 +583,6 @@ function MealCatalogueEntry({
               ))}
             </View>
           </View>
-
-          <PressOpacity
-            accessibilityLabel={`Edit ${meal.title}`}
-            onPress={onEdit}
-            style={styles.editMealButton}
-          >
-            <Text style={{ color: theme.colors.tertiary }}>Edit Meal</Text>
-          </PressOpacity>
         </View>
       ) : null}
     </View>
@@ -546,17 +595,26 @@ function StoredFoodRow({ item }: { item: StoredMealItem }) {
 
   return (
     <View
-      style={[styles.foodRow, { borderLeftColor: theme.colors.borderStrong }]}
+      style={[
+        styles.foodRow,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+          borderLeftColor: theme.colors.tertiary,
+        },
+      ]}
     >
-      <Text
-        numberOfLines={1}
-        style={[styles.foodName, { color: theme.colors.text }]}
-      >
-        {item.description}
-      </Text>
-      <Text style={[styles.foodDetail, { color: theme.colors.textMuted }]}>
-        {formatNumber(item.quantity)} × {item.servingDescription}
-      </Text>
+      <View style={styles.foodTopRow}>
+        <Text
+          numberOfLines={1}
+          style={[styles.foodName, { color: theme.colors.text }]}
+        >
+          {item.description}
+        </Text>
+        <Text style={[styles.foodDetail, { color: theme.colors.textMuted }]}>
+          {formatNumber(item.quantity)} × {item.servingDescription}
+        </Text>
+      </View>
       <Text style={[styles.foodNutrients, { color: theme.colors.textMuted }]}>
         {formatNullableContribution(nutrients.energyKcal, item.quantity)} kcal ·
         P {formatNullableContribution(nutrients.proteinG, item.quantity)} g · C{" "}
@@ -577,7 +635,9 @@ function hydrateMeal(
     }
 
     const food = resolved[`${foodIdentityKey(item.food)}:${item.servingId}`];
-    const serving = food?.servings.find((candidate) => candidate.id === item.servingId);
+    const serving = food?.servings.find(
+      (candidate) => candidate.id === item.servingId,
+    );
 
     if (!food || !serving) {
       return item;
@@ -680,14 +740,14 @@ function formatSelectedDate(date: Date) {
 
   if (isSameLocalDay(date, today)) {
     return `Today, ${date.toLocaleDateString([], {
-      month: "long",
+      month: "short",
       day: "numeric",
     })}`;
   }
 
   return date.toLocaleDateString([], {
-    weekday: "long",
-    month: "long",
+    weekday: "short",
+    month: "short",
     day: "numeric",
     year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
   });
@@ -702,27 +762,73 @@ function formatFullDate(date: Date) {
   });
 }
 
-function clamp(value: number, minimum: number, maximum: number) {
-  return Math.min(Math.max(value, minimum), maximum);
-}
-
 const styles = StyleSheet.create({
+  noticeCard: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1.5,
+    padding: tokens.spacing.md,
+  },
+  card: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.lg,
+  },
+  cardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cardHeaderLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  badge: {
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
   dateNavigator: {
     alignItems: "center",
     flexDirection: "row",
-    marginBottom: tokens.spacing.sm,
+    gap: tokens.spacing.xs,
   },
-  dateArrow: {
+  dateStepButton: {
     alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 2,
     justifyContent: "center",
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: 48,
+    minWidth: 68,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  dateStepLabel: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  selectedDatePill: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.sm,
   },
   selectedDateText: {
-    flex: 1,
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
-    lineHeight: tokens.typography.body.lineHeight,
+    fontSize: 14,
+    fontWeight: "800",
     textAlign: "center",
   },
   sectionTitle: {
@@ -730,39 +836,42 @@ const styles = StyleSheet.create({
     fontWeight: tokens.typography.sectionTitle.fontWeight,
     lineHeight: tokens.typography.sectionTitle.lineHeight,
   },
-  catalogue: {
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  catalogueContainer: {
-    position: "relative",
-    zIndex: 10,
-  },
   catalogueState: {
     alignItems: "center",
-    flex: 1,
     gap: tokens.spacing.md,
     justifyContent: "center",
-    padding: tokens.spacing.lg,
+    minHeight: 120,
+    padding: tokens.spacing.md,
+  },
+  emptyStateWell: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    gap: tokens.spacing.xs,
+    justifyContent: "center",
+    minHeight: 112,
+    padding: tokens.spacing.md,
   },
   stateText: {
     fontSize: tokens.typography.body.fontSize,
+    fontWeight: "700",
     lineHeight: tokens.typography.body.lineHeight,
     textAlign: "center",
   },
   retryButton: {
     alignItems: "center",
-    borderRadius: tokens.radius.sm,
+    borderRadius: tokens.radius.md,
     borderWidth: 1,
     justifyContent: "center",
-    minHeight: 44,
-    minWidth: 88,
+    minHeight: 48,
+    minWidth: 96,
     paddingHorizontal: tokens.spacing.md,
+  },
+  mealScroll: {
+    maxHeight: 340,
   },
   mealList: {
     gap: tokens.spacing.sm,
-    padding: tokens.spacing.sm,
   },
   meal: {
     borderRadius: tokens.radius.md,
@@ -772,42 +881,27 @@ const styles = StyleSheet.create({
   mealTabRow: {
     alignItems: "center",
     flexDirection: "row",
+    gap: tokens.spacing.xs,
     paddingRight: tokens.spacing.xs,
   },
   mealTab: {
     alignItems: "center",
     flex: 1,
     flexDirection: "row",
-    gap: tokens.spacing.md,
+    gap: tokens.spacing.sm,
     justifyContent: "space-between",
-    minHeight: 44,
+    minHeight: 56,
     paddingLeft: tokens.spacing.md,
     paddingRight: tokens.spacing.xs,
     paddingVertical: tokens.spacing.sm,
   },
-  mealMenuButton: {
+  inlineEditBtn: {
     alignItems: "center",
-    height: 44,
-    justifyContent: "center",
-    width: 44,
-  },
-  mealMenu: {
-    borderRadius: tokens.radius.sm,
+    borderRadius: tokens.radius.md,
     borderWidth: 1,
-    boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.24)",
-    minWidth: 160,
-    position: "absolute",
-  },
-  mealMenuItem: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-    minHeight: 48,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  mealMenuLabel: {
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
+    height: 48,
+    justifyContent: "center",
+    width: 48,
   },
   mealContent: {
     borderTopWidth: 1,
@@ -817,63 +911,100 @@ const styles = StyleSheet.create({
   mealDetails: {
     gap: tokens.spacing.sm,
   },
+  mealExpandedTop: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  editMealPill: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 36,
+    paddingHorizontal: tokens.spacing.sm,
+  },
   mealTabMain: {
     flex: 1,
     gap: 2,
     minWidth: 0,
   },
-  mealTabEnd: {
+  mealTitleLine: {
     alignItems: "center",
     flexDirection: "row",
     gap: tokens.spacing.sm,
+    justifyContent: "space-between",
   },
   mealTabNutrition: {
-    fontSize: 10,
+    fontSize: 11,
     fontVariant: ["tabular-nums"],
-    lineHeight: 14,
+    fontWeight: "700",
+    lineHeight: 15,
   },
   mealTitle: {
+    flex: 1,
     fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
+    fontWeight: "800",
     lineHeight: tokens.typography.body.lineHeight,
   },
   mealTime: {
-    fontSize: tokens.typography.label.fontSize,
-    lineHeight: tokens.typography.label.lineHeight,
+    fontSize: 11,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
   },
   mealStatus: {
     fontSize: 10,
-    fontWeight: "700",
-    lineHeight: 12,
+    fontWeight: "800",
+    letterSpacing: 0.6,
   },
   foodList: {
-    gap: tokens.spacing.sm,
-    paddingTop: tokens.spacing.md,
+    gap: tokens.spacing.xs,
   },
   foodRow: {
-    borderLeftWidth: 2,
-    paddingLeft: tokens.spacing.sm,
+    borderLeftWidth: 3,
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    gap: 2,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: 6,
+  },
+  foodTopRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   foodName: {
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
-    lineHeight: tokens.typography.label.lineHeight,
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "800",
+    paddingRight: 8,
   },
   foodDetail: {
     fontSize: 11,
-    lineHeight: 15,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
   },
   foodNutrients: {
-    fontSize: 10,
+    fontSize: 11,
     fontVariant: ["tabular-nums"],
-    lineHeight: 14,
+    fontWeight: "600",
+    lineHeight: 15,
   },
-  editMealButton: {
+  logMealFlowButton: {
     alignItems: "center",
-    alignSelf: "flex-end",
+    borderRadius: tokens.radius.md,
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
     justifyContent: "center",
-    minHeight: 44,
-    minWidth: 72,
+    minHeight: 52,
+    paddingHorizontal: tokens.spacing.lg,
+    width: "100%",
+  },
+  logMealFlowText: {
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
   },
   summary: {
     borderRadius: tokens.radius.lg,
@@ -881,21 +1012,5 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.lg,
     minHeight: 144,
     padding: tokens.spacing.lg,
-  },
-  summarySection: {
-    marginTop: tokens.spacing.xxl,
-  },
-  addButton: {
-    alignItems: "center",
-    bottom: -24,
-    borderRadius: tokens.radius.pill,
-    elevation: 10,
-    height: 48,
-    justifyContent: "center",
-    left: "50%",
-    marginLeft: -24,
-    position: "absolute",
-    width: 48,
-    zIndex: 10,
   },
 });

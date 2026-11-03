@@ -3,7 +3,6 @@ import { useSQLiteContext } from "expo-sqlite";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Keyboard,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,7 +17,11 @@ import {
 import { MacronutrientBreakdownCard } from "../../components/MacronutrientBreakdownCard";
 import { PressOpacity } from "../../components/PressOpacity";
 import { DAILY_NUTRIENT_TARGETS } from "../../constants/nutrition";
-import { listFavourites, removeFavourite, setFavourite } from "../../data/nutritionCatalogRepository";
+import {
+  listFavourites,
+  removeFavourite,
+  setFavourite,
+} from "../../data/nutritionCatalogRepository";
 import {
   createId,
   favouriteConfigKey,
@@ -33,11 +36,14 @@ import { resolveCatalogFood } from "../../services/foodCatalog";
 import { providerErrorMessage } from "../../services/providerError";
 import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
-import { themes } from "../../theme/theme";
+import { readableTextColor, themes } from "../../theme/theme";
+import { feedbackConfirm, feedbackStep, feedbackToggle } from "../../utils/feedback";
 import type { CatalogFood, CatalogServing } from "../../types/nutrition";
 
 const tokens = themes.dark;
-const FAVOURITE_GOLD = "#C9A227";
+const FAVOURITE_GOLD = "#EAB308";
+const AMOUNT_PRESETS = [0.5, 1, 1.5, 2, 3, 4] as const;
+const CALORIE_PRESETS = [100, 200, 300, 400, 500, 750] as const;
 
 export function NutritionFactsScreen() {
   const db = useSQLiteContext();
@@ -48,7 +54,6 @@ export function NutritionFactsScreen() {
     completeCustomFood,
     facts,
     pop,
-    registerBackHandler,
     returnToMealLog,
     setFacts,
     stack,
@@ -66,7 +71,6 @@ export function NutritionFactsScreen() {
   const [retry, setRetry] = useState(0);
   const [favourites, setFavourites] = useState<string[]>([]);
   const [favouritePending, setFavouritePending] = useState(false);
-  const [selectorOpen, setSelectorOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,26 +125,18 @@ export function NutritionFactsScreen() {
     };
   }, [db, facts, retry]);
 
-  useEffect(() => {
-    if (!selectorOpen) {
-      return;
-    }
-
-    return registerBackHandler(() => {
-      setSelectorOpen(false);
-      return true;
-    });
-  }, [registerBackHandler, selectorOpen]);
-
   if (!facts) {
     return null;
   }
 
   const session = facts;
+  const activeText = readableTextColor(theme.colors.tertiary);
 
   const serving =
     food?.servings.find((candidate) => candidate.id === facts.servingId) ??
-    food?.servings.find((candidate) => candidate.id === food.defaultServingId) ??
+    food?.servings.find(
+      (candidate) => candidate.id === food.defaultServingId,
+    ) ??
     null;
   const amount = Number(facts.amountInput);
   const amountValid = Number.isFinite(amount) && amount > 0;
@@ -152,7 +148,8 @@ export function NutritionFactsScreen() {
       : energy !== null && amountValid
         ? formatCalorieInput(energy * amount)
         : "";
-  const scaled = serving && amountValid ? scaleSnapshot(serving.nutrients, amount) : null;
+  const scaled =
+    serving && amountValid ? scaleSnapshot(serving.nutrients, amount) : null;
   const scaledExtras =
     serving && amountValid ? scaleExtras(serving.extras, amount) : [];
   const configKey =
@@ -173,8 +170,20 @@ export function NutritionFactsScreen() {
     });
   }
 
+  function stepAmount(delta: number) {
+    feedbackStep(delta > 0 ? "up" : "down");
+    const base = amountValid ? amount : 1;
+    const next = Math.max(0.25, Math.round((base + delta) * 100) / 100);
+    changeAmount(String(next));
+  }
+
   function changeCalories(value: string) {
-    if (!caloriesCanDrive || !/^\d*\.?\d*$/.test(value) || !serving || energy === null) {
+    if (
+      !caloriesCanDrive ||
+      !/^\d*\.?\d*$/.test(value) ||
+      !serving ||
+      energy === null
+    ) {
       return;
     }
 
@@ -190,16 +199,18 @@ export function NutritionFactsScreen() {
     });
   }
 
-  function toggleSelector() {
-    if (!selectorOpen) {
-      Keyboard.dismiss();
+  function stepCalories(delta: number) {
+    if (!caloriesCanDrive) {
+      return;
     }
-
-    setSelectorOpen((open) => !open);
+    feedbackStep(delta > 0 ? "up" : "down");
+    const currentCals = Number(calorieText) || 100;
+    const nextCals = Math.max(25, Math.round(currentCals + delta));
+    changeCalories(String(nextCals));
   }
 
   function selectServing(next: CatalogServing) {
-    setSelectorOpen(false);
+    feedbackStep("up");
     setFacts({
       ...session,
       inputMode: "amount",
@@ -213,6 +224,7 @@ export function NutritionFactsScreen() {
     }
 
     setFavouritePending(true);
+    feedbackToggle(!favourited);
 
     try {
       if (favourited) {
@@ -252,6 +264,7 @@ export function NutritionFactsScreen() {
       storagePolicy: food.storagePolicy,
     };
 
+    feedbackConfirm();
     updateDraft(activeDraft.key, (draft) => ({
       ...draft,
       items: session.draftItemId
@@ -273,10 +286,15 @@ export function NutritionFactsScreen() {
               ? {
                   accessibilityLabel: "Create custom food",
                   label: "Create Custom Food",
-                  onPress: completeCustomFood,
+                  onPress: () => {
+                    feedbackConfirm();
+                    completeCustomFood();
+                  },
                 }
               : {
-                  accessibilityLabel: facts.draftItemId ? "Update item" : "Add to meal",
+                  accessibilityLabel: facts.draftItemId
+                    ? "Update item"
+                    : "Add to meal",
                   disabled: !serving || !amountValid,
                   label: facts.draftItemId ? "Update Item" : "Add to Meal",
                   onPress: addToMeal,
@@ -287,10 +305,19 @@ export function NutritionFactsScreen() {
       onClose={closeToRoot}
       right={
         <PressOpacity
-          accessibilityLabel={favourited ? "Remove favourite" : "Save favourite"}
+          accessibilityLabel={
+            favourited ? "Remove favourite" : "Save favourite"
+          }
           disabled={!configKey || favouritePending}
           onPress={() => void toggleFavourite()}
-          style={styles.star}
+          silent
+          style={[
+            styles.star,
+            {
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.border,
+            },
+          ]}
         >
           <Ionicons
             color={FAVOURITE_GOLD}
@@ -303,131 +330,360 @@ export function NutritionFactsScreen() {
     >
       {loading ? <ActivityIndicator color={theme.colors.tertiary} /> : null}
       {error ? (
-        <View>
-          <Text style={[styles.body, { color: theme.colors.text }]}>{error}</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Text style={[styles.body, { color: theme.colors.text }]}>
+            {error}
+          </Text>
           <PressOpacity
             accessibilityLabel="Retry loading food"
             onPress={() => setRetry((value) => value + 1)}
             style={styles.retry}
           >
-            <Text style={{ color: theme.colors.tertiary }}>Retry</Text>
+            <Text style={{ color: theme.colors.tertiary, fontWeight: "800" }}>
+              Retry
+            </Text>
           </PressOpacity>
         </View>
       ) : null}
-      {food?.attribution ? (
-        <Text style={[styles.attribution, { color: theme.colors.textMuted }]}>
-          {food.attribution === "fatsecret"
-            ? "Nutrition information from fatsecret"
-            : `Product data from ${food.attribution}`}
-        </Text>
-      ) : null}
-      <Text style={[styles.label, { color: theme.colors.text }]}>Amount</Text>
-      <NutritionTextInput
-        accessibilityLabel="Serving amount"
-        keyboardType="decimal-pad"
-        onChangeText={changeAmount}
-        placeholder="Enter amount"
-        style={styles.input}
-        value={facts.amountInput}
-      />
-      <Text style={[styles.label, { color: theme.colors.text }]}>Serving</Text>
-      {selectorOpen ? (
-        <PressOpacity
-          accessibilityLabel="Close serving options"
-          onPress={() => setSelectorOpen(false)}
-          style={styles.servingBackdrop}
-        />
-      ) : null}
-      <View style={styles.servingMenu}>
-        <PressOpacity
-          accessibilityLabel={`Serving, ${serving?.label ?? "unavailable"}`}
-          disabled={!food || food.servings.length === 0}
-          onPress={toggleSelector}
-          style={[
-            styles.servingButton,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <Text
-            numberOfLines={1}
-            style={[styles.servingLabel, { color: theme.colors.text }]}
-          >
-            {serving?.label ?? "Unavailable"}
+
+      {/* Card 1: Serving Unit ScrollView & Amount Steppers */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+            SERVING UNIT & QUANTITY
           </Text>
-          <Ionicons
-            color={theme.colors.textMuted}
-            name={selectorOpen ? "chevron-up" : "chevron-down"}
-            size={16}
-          />
-        </PressOpacity>
-        {selectorOpen && food && food.servings.length > 0 ? (
-          <View
+          {food?.attribution ? (
+            <Text style={[styles.attribution, { color: theme.colors.textMuted }]}>
+              {food.attribution === "fatsecret"
+                ? "fatsecret"
+                : food.attribution}
+            </Text>
+          ) : null}
+        </View>
+
+        <Text style={[styles.subLabel, { color: theme.colors.textMuted }]}>
+          SERVING SIZE (SWIPE)
+        </Text>
+        <ScrollView
+          contentContainerStyle={styles.presetStrip}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+        >
+          {(food?.servings ?? []).map((option) => {
+            const selected = option.id === serving?.id;
+            return (
+              <PressOpacity
+                accessibilityLabel={
+                  selected ? `${option.label}, selected` : option.label
+                }
+                accessibilityState={{ selected }}
+                key={option.id}
+                onPress={() => selectServing(option)}
+                silent
+                style={[
+                  styles.servingPill,
+                  {
+                    backgroundColor: selected
+                      ? theme.colors.tertiary
+                      : theme.colors.surfaceMuted,
+                    borderColor: selected
+                      ? theme.colors.tertiary
+                      : theme.colors.borderStrong,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.servingPillText,
+                    { color: selected ? activeText : theme.colors.text },
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </PressOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <Text style={[styles.subLabel, { color: theme.colors.textMuted }]}>
+          AMOUNT MULTIPLIER
+        </Text>
+        <View style={styles.stepperRow}>
+          <PressOpacity
+            accessibilityLabel="Decrease amount by 1"
+            onPress={() => stepAmount(-1)}
+            silent
             style={[
-              styles.servingDropdown,
+              styles.stepBtn,
               {
-                backgroundColor: theme.colors.surface,
+                backgroundColor: theme.colors.surfaceMuted,
                 borderColor: theme.colors.borderStrong,
               },
             ]}
           >
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled
-              style={styles.servingOptions}
-            >
-              {food.servings.map((option, index) => {
-                const selected = option.id === serving?.id;
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              -1
+            </Text>
+          </PressOpacity>
+          <PressOpacity
+            accessibilityLabel="Decrease amount by 0.25"
+            onPress={() => stepAmount(-0.25)}
+            silent
+            style={[
+              styles.stepBtn,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              -.25
+            </Text>
+          </PressOpacity>
 
-                return (
-                  <PressOpacity
-                    accessibilityLabel={
-                      selected ? `${option.label}, selected` : option.label
-                    }
-                    key={option.id}
-                    onPress={() => selectServing(option)}
-                    style={[
-                      styles.servingOption,
-                      index > 0 && {
-                        borderTopColor: theme.colors.border,
-                        borderTopWidth: StyleSheet.hairlineWidth,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.servingOptionLabel, { color: theme.colors.text }]}
-                    >
-                      {option.label}
-                    </Text>
-                    {selected ? (
-                      <Ionicons
-                        color={theme.colors.tertiary}
-                        name="checkmark"
-                        size={20}
-                      />
-                    ) : (
-                      <View style={styles.checkmarkSpace} />
-                    )}
-                  </PressOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
+          <NutritionTextInput
+            accessibilityLabel="Serving amount"
+            keyboardType="decimal-pad"
+            onChangeText={changeAmount}
+            placeholder="1"
+            style={styles.centerInput}
+            value={facts.amountInput}
+          />
+
+          <PressOpacity
+            accessibilityLabel="Increase amount by 0.25"
+            onPress={() => stepAmount(0.25)}
+            silent
+            style={[
+              styles.stepBtn,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              +.25
+            </Text>
+          </PressOpacity>
+          <PressOpacity
+            accessibilityLabel="Increase amount by 1"
+            onPress={() => stepAmount(1)}
+            silent
+            style={[
+              styles.stepBtn,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              +1
+            </Text>
+          </PressOpacity>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.presetStrip}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+        >
+          {AMOUNT_PRESETS.map((preset) => {
+            const selected = amountValid && Math.abs(amount - preset) < 0.01;
+            return (
+              <PressOpacity
+                accessibilityLabel={`Set amount ${preset}`}
+                key={preset}
+                onPress={() => {
+                  feedbackStep("up");
+                  changeAmount(String(preset));
+                }}
+                silent
+                style={[
+                  styles.presetChip,
+                  {
+                    backgroundColor: selected
+                      ? theme.colors.tertiary
+                      : theme.colors.surfaceMuted,
+                    borderColor: selected
+                      ? theme.colors.tertiary
+                      : theme.colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.presetChipText,
+                    { color: selected ? activeText : theme.colors.text },
+                  ]}
+                >
+                  {preset}×
+                </Text>
+              </PressOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Card 2: Target Calories Stepper */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+            CALORIE-DRIVEN PORTION
+          </Text>
+          <Text style={[styles.attribution, { color: theme.colors.tertiary }]}>
+            {calorieText ? `${calorieText} KCAL` : "—"}
+          </Text>
+        </View>
+
+        <View style={styles.stepperRow}>
+          <PressOpacity
+            accessibilityLabel="Decrease calories by 100"
+            disabled={!caloriesCanDrive}
+            onPress={() => stepCalories(-100)}
+            silent
+            style={[
+              styles.stepBtn,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              -100
+            </Text>
+          </PressOpacity>
+          <PressOpacity
+            accessibilityLabel="Decrease calories by 25"
+            disabled={!caloriesCanDrive}
+            onPress={() => stepCalories(-25)}
+            silent
+            style={[
+              styles.stepBtn,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              -25
+            </Text>
+          </PressOpacity>
+
+          <NutritionTextInput
+            accessibilityLabel="Calories"
+            editable={caloriesCanDrive}
+            keyboardType="decimal-pad"
+            onChangeText={changeCalories}
+            placeholder={
+              caloriesCanDrive
+                ? "Calories"
+                : "Unavailable"
+            }
+            style={[
+              styles.centerInput,
+              !caloriesCanDrive && styles.inputDisabled,
+            ]}
+            value={calorieText}
+          />
+
+          <PressOpacity
+            accessibilityLabel="Increase calories by 25"
+            disabled={!caloriesCanDrive}
+            onPress={() => stepCalories(25)}
+            silent
+            style={[
+              styles.stepBtn,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              +25
+            </Text>
+          </PressOpacity>
+          <PressOpacity
+            accessibilityLabel="Increase calories by 100"
+            disabled={!caloriesCanDrive}
+            onPress={() => stepCalories(100)}
+            silent
+            style={[
+              styles.stepBtn,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              +100
+            </Text>
+          </PressOpacity>
+        </View>
+
+        {caloriesCanDrive ? (
+          <ScrollView
+            contentContainerStyle={styles.presetStrip}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+          >
+            {CALORIE_PRESETS.map((preset) => (
+              <PressOpacity
+                accessibilityLabel={`Set calories to ${preset}`}
+                key={preset}
+                onPress={() => {
+                  feedbackStep("up");
+                  changeCalories(String(preset));
+                }}
+                silent
+                style={[
+                  styles.presetChip,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.presetChipText, { color: theme.colors.text }]}>
+                  {preset} kcal
+                </Text>
+              </PressOpacity>
+            ))}
+          </ScrollView>
         ) : null}
       </View>
-      <Text style={[styles.label, { color: theme.colors.text }]}>Calories</Text>
-      <NutritionTextInput
-        accessibilityLabel="Calories"
-        editable={caloriesCanDrive}
-        keyboardType="decimal-pad"
-        onChangeText={changeCalories}
-        placeholder={caloriesCanDrive ? "Enter calories (kcal)" : "Unavailable for this food"}
-        style={[styles.input, !caloriesCanDrive && styles.inputDisabled]}
-        value={calorieText}
-      />
-      <View style={styles.macroCard}>
+
+      {/* Card 3: Macronutrient Breakdown */}
       <MacronutrientBreakdownCard
         compact
         energyInput={{
@@ -442,7 +698,9 @@ export function NutritionFactsScreen() {
           fatG: scaled?.fatG == null,
           proteinG: scaled?.proteinG == null,
         }}
-        micronutrients={sumExtraTotals([{ extrasPerServing: scaledExtras, quantity: 1 }])}
+        micronutrients={sumExtraTotals([
+          { extrasPerServing: scaledExtras, quantity: 1 },
+        ])}
         targets={DAILY_NUTRIENT_TARGETS}
         title="Nutrition for this amount"
         values={
@@ -454,7 +712,6 @@ export function NutritionFactsScreen() {
           }
         }
       />
-      </View>
     </NutritionPage>
   );
 }
@@ -462,88 +719,104 @@ export function NutritionFactsScreen() {
 const styles = StyleSheet.create({
   star: {
     alignItems: "center",
-    height: 44,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    height: 48,
     justifyContent: "center",
-    width: 44,
+    width: 48,
   },
-  label: {
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: "700",
-    paddingBottom: tokens.spacing.xs,
-    paddingTop: tokens.spacing.md,
+  card: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.sm,
+    padding: tokens.spacing.lg,
   },
-  input: {
+  cardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cardHeaderLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  subLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.7,
+    marginTop: 2,
+  },
+  servingPill: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    justifyContent: "center",
     minHeight: 48,
+    paddingHorizontal: tokens.spacing.md,
   },
-  macroCard: {
-    marginTop: tokens.spacing.lg,
+  servingPillText: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  stepperRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  stepBtn: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 46,
+    paddingHorizontal: 6,
+  },
+  stepBtnText: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  centerInput: {
+    flex: 1,
+    fontVariant: ["tabular-nums"],
+    minHeight: 48,
+    textAlign: "center",
+  },
+  presetStrip: {
+    gap: 6,
+  },
+  presetChip: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    minWidth: 52,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  presetChipText: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
   },
   inputDisabled: {
     opacity: tokens.opacity.disabled,
   },
-  servingBackdrop: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 1,
-  },
-  servingMenu: {
-    zIndex: 2,
-  },
-  servingButton: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-    justifyContent: "space-between",
-    minHeight: 48,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  servingLabel: {
-    flex: 1,
-    fontSize: tokens.typography.body.fontSize,
-  },
-  servingDropdown: {
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.24)",
-    left: 0,
-    marginTop: tokens.spacing.xs,
-    position: "absolute",
-    right: 0,
-    top: "100%",
-  },
-  servingOptions: {
-    maxHeight: 240,
-  },
-  servingOption: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-    justifyContent: "space-between",
-    minHeight: 44,
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-  },
-  servingOptionLabel: {
-    flex: 1,
-    fontSize: tokens.typography.body.fontSize,
-    lineHeight: tokens.typography.body.lineHeight,
-  },
-  checkmarkSpace: {
-    width: 20,
-  },
   body: {
     fontSize: tokens.typography.body.fontSize,
     lineHeight: tokens.typography.body.lineHeight,
-    paddingTop: tokens.spacing.sm,
   },
   attribution: {
-    fontSize: tokens.typography.label.fontSize,
-    paddingTop: tokens.spacing.sm,
+    fontSize: 10,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
   retry: {
     alignItems: "flex-start",
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 48,
   },
 });

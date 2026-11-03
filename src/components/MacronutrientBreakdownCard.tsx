@@ -143,7 +143,7 @@ export function MacronutrientBreakdownCard({
         compact && styles.cardCompact,
         {
           backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.border,
+          borderColor: theme.colors.borderStrong,
         },
       ]}
     >

@@ -521,7 +521,15 @@ export function MealItemScreen() {
           };
         }}
         renderItem={({ item }) => (
-          <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
+          <View
+            style={[
+              styles.row,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
             <PressOpacity
               accessibilityLabel={item.title}
               onPress={item.onPress}
@@ -539,16 +547,28 @@ export function MealItemScreen() {
               <PressOpacity
                 accessibilityLabel={`Edit ${item.title}`}
                 onPress={item.onEdit}
-                style={styles.rowDelete}
+                style={[
+                  styles.rowDelete,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
               >
-                <Ionicons color={theme.colors.textMuted} name="create-outline" size={20} />
+                <Ionicons color={theme.colors.text} name="create-outline" size={20} />
               </PressOpacity>
             ) : null}
             {item.onDelete ? (
               <PressOpacity
                 accessibilityLabel={`Delete ${item.title}`}
                 onPress={item.onDelete}
-                style={styles.rowDelete}
+                style={[
+                  styles.rowDelete,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
               >
                 <Ionicons color={theme.colors.textMuted} name="close" size={20} />
               </PressOpacity>
@@ -1031,14 +1051,18 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+    paddingHorizontal: tokens.spacing.md,
   },
   row: {
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
     flexDirection: "row",
-    minHeight: 64,
-    paddingLeft: tokens.spacing.lg,
-    paddingRight: tokens.spacing.sm,
+    gap: 6,
+    marginBottom: tokens.spacing.sm,
+    minHeight: 68,
+    paddingLeft: tokens.spacing.md,
+    paddingRight: tokens.spacing.xs,
   },
   rowMain: {
     flex: 1,
@@ -1049,9 +1073,11 @@ const styles = StyleSheet.create({
   },
   rowDelete: {
     alignItems: "center",
-    height: 44,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    height: 48,
     justifyContent: "center",
-    width: 44,
+    width: 48,
   },
   name: {
     fontSize: tokens.typography.body.fontSize,

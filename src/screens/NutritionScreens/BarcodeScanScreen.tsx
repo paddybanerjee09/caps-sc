@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   },
   bar: {
     alignItems: "center",
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
     minHeight: 64,
@@ -367,14 +367,14 @@ const styles = StyleSheet.create({
   },
   barButton: {
     alignItems: "center",
-    height: 44,
+    height: 48,
     justifyContent: "center",
-    width: 44,
+    width: 48,
   },
   typeButton: {
     alignItems: "center",
     flexDirection: "row",
     gap: tokens.spacing.sm,
-    minHeight: 44,
+    minHeight: 48,
   },
 });

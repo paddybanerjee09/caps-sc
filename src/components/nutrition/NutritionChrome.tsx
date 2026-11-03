@@ -20,21 +20,21 @@ import { appColorPalette, readableTextColor, themes } from "../../theme/theme";
 import type { NutrientSnapshot } from "../../types/nutrition";
 
 const tokens = themes.dark;
-const SIDE_WIDTH = 72;
+const SIDE_WIDTH = 76;
 
 export function useDangerColors() {
   const { colorScheme } = useAppTheme();
 
   return colorScheme === "dark"
     ? {
-        background: "rgba(211, 21, 22, 0.18)",
-        border: "rgba(211, 21, 22, 0.6)",
-        text: "#FF8A8A",
+        background: "rgba(225, 29, 36, 0.2)",
+        border: "rgba(225, 29, 36, 0.7)",
+        text: "#FF9494",
       }
     : {
-        background: "rgba(211, 21, 22, 0.1)",
-        border: "rgba(211, 21, 22, 0.45)",
-        text: "#A30F10",
+        background: "rgba(225, 29, 36, 0.12)",
+        border: "rgba(225, 29, 36, 0.55)",
+        text: "#9E0B12",
       };
 }
 
@@ -59,7 +59,14 @@ export function NutritionTextInput({
 
   if (icon) {
     return (
-      <View style={[styles.textInput, styles.iconTextInput, frame, containerStyle]}>
+      <View
+        style={[
+          styles.textInput,
+          styles.iconTextInput,
+          frame,
+          containerStyle,
+        ]}
+      >
         <Ionicons color={theme.colors.textMuted} name={icon} size={18} />
         <TextInput
           placeholderTextColor={theme.colors.textMuted}
@@ -104,8 +111,8 @@ export function WorkflowHeader({
       style={[
         styles.header,
         {
-          backgroundColor: theme.colors.background,
-          borderBottomColor: theme.colors.border,
+          backgroundColor: theme.colors.surface,
+          borderBottomColor: theme.colors.borderStrong,
           paddingTop: insets.top,
         },
       ]}
@@ -114,7 +121,13 @@ export function WorkflowHeader({
         <PressOpacity
           accessibilityLabel="Close"
           onPress={onClose}
-          style={styles.iconButton}
+          style={[
+            styles.iconButton,
+            {
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.border,
+            },
+          ]}
         >
           <Ionicons color={theme.colors.text} name="close" size={22} />
         </PressOpacity>
@@ -130,7 +143,9 @@ export function WorkflowHeader({
           </Text>
         )}
       </View>
-      <View style={[styles.side, styles.sideRight, { width: sideWidth }]}>{right}</View>
+      <View style={[styles.side, styles.sideRight, { width: sideWidth }]}>
+        {right}
+      </View>
     </View>
   );
 }
@@ -174,6 +189,7 @@ export function NutritionPage({
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
           style={styles.body}
         >
           {children}
@@ -210,8 +226,8 @@ export function NutritionActionBar({
       style={[
         styles.actionBar,
         {
-          backgroundColor: theme.colors.background,
-          borderTopColor: theme.colors.border,
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.borderStrong,
         },
       ]}
     >
@@ -219,7 +235,14 @@ export function NutritionActionBar({
         accessibilityLabel={left.accessibilityLabel}
         disabled={left.disabled}
         onPress={left.onPress}
-        style={styles.actionSlot}
+        style={[
+          styles.actionSlot,
+          {
+            backgroundColor: theme.colors.surfaceMuted,
+            borderColor: theme.colors.borderStrong,
+            borderWidth: 1,
+          },
+        ]}
       >
         <Text
           numberOfLines={2}
@@ -236,7 +259,10 @@ export function NutritionActionBar({
       >
         <Text
           numberOfLines={2}
-          style={[styles.actionLabel, { color: readableTextColor(theme.colors.tertiary) }]}
+          style={[
+            styles.actionLabel,
+            { color: readableTextColor(theme.colors.tertiary) },
+          ]}
         >
           {right.label}
         </Text>
@@ -255,7 +281,10 @@ export function NutritionActionBar({
             },
           ]}
         >
-          <Text numberOfLines={2} style={[styles.actionLabel, { color: dangerColors.text }]}>
+          <Text
+            numberOfLines={2}
+            style={[styles.actionLabel, { color: dangerColors.text }]}
+          >
             {danger.label}
           </Text>
         </PressOpacity>
@@ -280,19 +309,30 @@ export function FoodMacroLine({
 
   return (
     <Text style={styles.macroLine}>
-      <Text style={{ color: NUTRITION_COLORS.energyKcal }}>
-        {formatAmount(values.energyKcal, 0, partial && values.energyKcal !== null)} kcal
+      <Text style={{ color: NUTRITION_COLORS.energyKcal, fontWeight: "800" }}>
+        {formatAmount(
+          values.energyKcal,
+          0,
+          partial && values.energyKcal !== null,
+        )}{" "}
+        kcal
       </Text>
       <Text> · </Text>
-      <Text style={{ color: NUTRITION_COLORS.proteinG }}>
+      <Text style={{ color: NUTRITION_COLORS.proteinG, fontWeight: "700" }}>
         P {formatAmount(values.proteinG, 1, partial && values.proteinG !== null)} g
       </Text>
       <Text> · </Text>
-      <Text style={{ color: NUTRITION_COLORS.carbohydratesG }}>
-        C {formatAmount(values.carbohydratesG, 1, partial && values.carbohydratesG !== null)} g
+      <Text style={{ color: NUTRITION_COLORS.carbohydratesG, fontWeight: "700" }}>
+        C{" "}
+        {formatAmount(
+          values.carbohydratesG,
+          1,
+          partial && values.carbohydratesG !== null,
+        )}{" "}
+        g
       </Text>
       <Text> · </Text>
-      <Text style={{ color: NUTRITION_COLORS.fatG }}>
+      <Text style={{ color: NUTRITION_COLORS.fatG, fontWeight: "700" }}>
         F {formatAmount(values.fatG, 1, partial && values.fatG !== null)} g
       </Text>
     </Text>
@@ -305,10 +345,11 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     flexDirection: "row",
-    minHeight: 56,
+    minHeight: 60,
     paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: 6,
   },
   side: {
     alignItems: "flex-start",
@@ -321,58 +362,62 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 48,
   },
   title: {
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
-    lineHeight: tokens.typography.body.lineHeight,
+    fontSize: 16,
+    fontWeight: "800",
+    lineHeight: 20,
     textAlign: "center",
   },
   iconButton: {
     alignItems: "center",
-    height: 44,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    height: 48,
     justifyContent: "center",
-    width: 44,
+    width: 48,
   },
   body: {
     flex: 1,
   },
   scrollContent: {
+    gap: tokens.spacing.md,
     paddingBottom: tokens.spacing.xl,
-    paddingHorizontal: tokens.spacing.lg,
+    paddingHorizontal: tokens.spacing.md,
     paddingTop: tokens.spacing.md,
   },
   actionBar: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
     flexDirection: "row",
     gap: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.lg,
+    paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
   },
   actionSlot: {
     alignItems: "center",
-    borderRadius: tokens.radius.sm,
+    borderRadius: tokens.radius.md,
     flex: 1,
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 52,
     paddingHorizontal: tokens.spacing.xs,
   },
   dangerAction: {
     borderWidth: 1,
   },
   actionLabel: {
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "800",
     textAlign: "center",
   },
   textInput: {
-    borderRadius: tokens.radius.sm,
+    borderRadius: tokens.radius.md,
     borderWidth: 1,
     fontSize: tokens.typography.body.fontSize,
-    minHeight: 44,
+    fontWeight: "700",
+    minHeight: 48,
     paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.xs,
   },
   iconTextInput: {
     alignItems: "center",
@@ -383,7 +428,8 @@ const styles = StyleSheet.create({
   bareTextInput: {
     flex: 1,
     fontSize: tokens.typography.body.fontSize,
-    minHeight: 42,
+    fontWeight: "700",
+    minHeight: 46,
     paddingVertical: 0,
   },
   macroLine: {

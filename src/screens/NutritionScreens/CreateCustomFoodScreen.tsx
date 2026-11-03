@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
 import {
@@ -23,15 +23,35 @@ import { catalogFoodFromCustom } from "../../services/foodCatalog";
 import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { readableTextColor, themes } from "../../theme/theme";
+import { feedbackConfirm, feedbackStep } from "../../utils/feedback";
 import type { ExtraNutrientValue, FoodUnit } from "../../types/nutrition";
 
 const tokens = themes.dark;
 const UNITS: FoodUnit[] = ["g", "ml", "tsp", "tbsp", "serving"];
+const SERVING_AMOUNT_PRESETS = [1, 30, 50, 100, 150, 250] as const;
 const MACRO_FIELDS = [
-  { key: "calories", label: "Calories", name: "Calories (kcal)", unit: "kcal" },
-  { key: "protein", label: "Protein", name: "Protein (g)", unit: "g" },
-  { key: "carbohydrates", label: "Carbs", name: "Carbohydrates (g)", unit: "g" },
-  { key: "fat", label: "Fat", name: "Fat (g)", unit: "g" },
+  {
+    key: "calories",
+    label: "Calories",
+    name: "Calories (kcal)",
+    step: 25,
+    unit: "kcal",
+  },
+  {
+    key: "protein",
+    label: "Protein",
+    name: "Protein (g)",
+    step: 5,
+    unit: "g",
+  },
+  {
+    key: "carbohydrates",
+    label: "Carbs",
+    name: "Carbohydrates (g)",
+    step: 5,
+    unit: "g",
+  },
+  { key: "fat", label: "Fat", name: "Fat (g)", step: 2, unit: "g" },
 ] as const;
 const NUTRIENT_ROWS = pairs(NUTRIENT_REGISTRY);
 
@@ -55,9 +75,25 @@ export function CreateCustomFoodScreen() {
   const carbohydrates = Number(customForm.carbohydrates);
   const fat = Number(customForm.fat);
   const warning =
-    [calories, protein, carbohydrates, fat].every((value) => Number.isFinite(value) && value >= 0)
+    [calories, protein, carbohydrates, fat].every(
+      (value) => Number.isFinite(value) && value >= 0,
+    )
       ? calorieCrossCheck(calories, protein, carbohydrates, fat)
       : null;
+  const activeText = readableTextColor(theme.colors.tertiary);
+
+  function stepNumericField(
+    key: "servingAmount" | "calories" | "protein" | "carbohydrates" | "fat",
+    delta: number,
+    min = 0,
+  ) {
+    feedbackStep(delta > 0 ? "up" : "down");
+    updateCustomForm((form) => {
+      const current = Number(form[key]) || 0;
+      const next = Math.max(min, Math.round((current + delta) * 10) / 10);
+      return { ...form, [key]: String(next) };
+    });
+  }
 
   async function saveAndContinue() {
     if (saving || transitioning) {
@@ -97,6 +133,7 @@ export function CreateCustomFoodScreen() {
         await updateCustomFood(db, customForm.customFoodId, input);
       }
 
+      feedbackConfirm();
       updateCustomForm((form) => ({ ...form, customFoodId: id }));
       markNutritionChanged();
       const food = catalogFoodFromCustom({ ...input, id });
@@ -126,7 +163,7 @@ export function CreateCustomFoodScreen() {
           onPress={() => void saveAndContinue()}
           style={[styles.next, { backgroundColor: theme.colors.tertiary }]}
         >
-          <Text style={[styles.nextLabel, { color: readableTextColor(theme.colors.tertiary) }]}>
+          <Text style={[styles.nextLabel, { color: activeText }]}>
             {saving ? "Saving" : "Next"}
           </Text>
         </PressOpacity>
@@ -134,114 +171,354 @@ export function CreateCustomFoodScreen() {
       onClose={closeToRoot}
       title={customForm.customFoodId ? "Edit Food" : "New Food"}
     >
-      <Field
-        error={errors.name}
-        label="Food name"
-        onChangeText={(name) => updateCustomForm((form) => ({ ...form, name }))}
-        placeholder="Enter food name"
-        prominent
-        value={customForm.name}
-      />
-      <Field
-        label="Brand"
-        onChangeText={(brand) => updateCustomForm((form) => ({ ...form, brand }))}
-        placeholder="Enter brand (optional)"
-        value={customForm.brand}
-      />
-      <Field
-        error={errors.barcode}
-        keyboardType="number-pad"
-        label="Barcode"
-        onChangeText={(barcode) => updateCustomForm((form) => ({ ...form, barcode }))}
-        placeholder="Enter barcode (optional)"
-        value={customForm.barcode}
-      />
-      <Field
-        error={errors.servingAmount}
-        keyboardType="decimal-pad"
-        label="Base serving amount"
-        onChangeText={(servingAmount) =>
-          updateCustomForm((form) => ({ ...form, servingAmount }))
-        }
-        placeholder="Enter amount, e.g. 100"
-        value={customForm.servingAmount}
-      />
-      <Text style={[styles.label, styles.unitsLabel, { color: theme.colors.text }]}>
-        Base serving unit
-      </Text>
-      <View style={styles.units}>
-        {UNITS.map((unit) => (
+      {/* Card 1: Food Identity & Base Serving */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+          FOOD IDENTITY & BASE SERVING
+        </Text>
+
+        <Field
+          error={errors.name}
+          label="Food name"
+          onChangeText={(name) => updateCustomForm((form) => ({ ...form, name }))}
+          placeholder="Enter food name"
+          prominent
+          value={customForm.name}
+        />
+        <Field
+          label="Brand"
+          onChangeText={(brand) =>
+            updateCustomForm((form) => ({ ...form, brand }))
+          }
+          placeholder="Enter brand (optional)"
+          value={customForm.brand}
+        />
+        <Field
+          error={errors.barcode}
+          keyboardType="number-pad"
+          label="Barcode"
+          onChangeText={(barcode) =>
+            updateCustomForm((form) => ({ ...form, barcode }))
+          }
+          placeholder="Enter barcode (optional)"
+          value={customForm.barcode}
+        />
+
+        <Text style={[styles.label, { color: theme.colors.text }]}>
+          Base serving unit
+        </Text>
+        <View style={styles.units}>
+          {UNITS.map((unit) => {
+            const selected = customForm.servingUnit === unit;
+            return (
+              <PressOpacity
+                accessibilityLabel={unit}
+                accessibilityState={{ selected }}
+                key={unit}
+                onPress={() => {
+                  feedbackStep("up");
+                  updateCustomForm((form) => ({ ...form, servingUnit: unit }));
+                }}
+                silent
+                style={[
+                  styles.unit,
+                  {
+                    backgroundColor: selected
+                      ? theme.colors.tertiary
+                      : theme.colors.surfaceMuted,
+                    borderColor: selected
+                      ? theme.colors.tertiary
+                      : theme.colors.borderStrong,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: selected ? activeText : theme.colors.text,
+                    fontSize: 13,
+                    fontWeight: "800",
+                  }}
+                >
+                  {unit}
+                </Text>
+              </PressOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={[styles.label, { color: theme.colors.text }]}>
+          Base serving amount
+        </Text>
+        <View style={styles.stepperRow}>
           <PressOpacity
-            accessibilityLabel={unit}
-            key={unit}
-            onPress={() => updateCustomForm((form) => ({ ...form, servingUnit: unit }))}
-            style={styles.unit}
+            accessibilityLabel="Decrease base serving by 10"
+            onPress={() => stepNumericField("servingAmount", -10, 1)}
+            silent
+            style={[
+              styles.stepBtn,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
           >
-            <Text
-              style={{
-                color:
-                  customForm.servingUnit === unit
-                    ? theme.colors.tertiary
-                    : theme.colors.textMuted,
-                fontWeight: "700",
-              }}
-            >
-              {unit}
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              -10
             </Text>
           </PressOpacity>
-        ))}
-      </View>
-      <Text style={[styles.section, { color: theme.colors.text }]}>
-        Nutrition per base serving
-      </Text>
-      <View style={styles.gridRow}>
-        {MACRO_FIELDS.map((field) => (
-          <GridField
-            accessibilityLabel={field.name}
-            invalid={Boolean(errors[field.key])}
-            key={field.key}
-            label={field.label}
-            onChangeText={(value) =>
-              updateCustomForm((form) => ({ ...form, [field.key]: value }))
+          <PressOpacity
+            accessibilityLabel="Decrease base serving by 1"
+            onPress={() => stepNumericField("servingAmount", -1, 1)}
+            silent
+            style={[
+              styles.stepBtn,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              -1
+            </Text>
+          </PressOpacity>
+          <NutritionTextInput
+            accessibilityLabel="Base serving amount"
+            invalid={Boolean(errors.servingAmount)}
+            keyboardType="decimal-pad"
+            onChangeText={(servingAmount) =>
+              updateCustomForm((form) => ({ ...form, servingAmount }))
             }
-            placeholder={field.unit}
-            value={customForm[field.key]}
+            placeholder="100"
+            style={styles.centerInput}
+            value={customForm.servingAmount}
           />
-        ))}
-      </View>
-      <FieldErrors messages={MACRO_FIELDS.map((field) => errors[field.key])} />
-      {warning ? (
-        <Text style={[styles.warning, { color: theme.colors.text }]}>
-          Macronutrients estimate about {formatDisplayNumber(warning.estimate, 0)} kcal.
-          Check the values before continuing. Next stays available.
-        </Text>
-      ) : null}
-      <Text style={[styles.section, { color: theme.colors.text }]}>Optional nutrients</Text>
-      {NUTRIENT_ROWS.map((row) => (
-        <View key={row[0].id}>
-          <View style={styles.gridRow}>
-            {row.map((definition) => (
-              <GridField
-                accessibilityLabel={`${definition.name} (${definition.unit})`}
-                invalid={Boolean(errors[definition.id])}
-                key={definition.id}
-                label={`${definition.name} (${definition.unit})`}
-                onChangeText={(value) =>
-                  updateCustomForm((form) => ({
-                    ...form,
-                    extras: { ...form.extras, [definition.id]: value },
-                  }))
-                }
-                placeholder="Optional"
-                value={customForm.extras[definition.id] ?? ""}
-              />
-            ))}
-            {row.length === 1 ? <View style={styles.gridCell} /> : null}
-          </View>
-          <FieldErrors messages={row.map((definition) => errors[definition.id])} />
+          <PressOpacity
+            accessibilityLabel="Increase base serving by 1"
+            onPress={() => stepNumericField("servingAmount", 1, 1)}
+            silent
+            style={[
+              styles.stepBtn,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              +1
+            </Text>
+          </PressOpacity>
+          <PressOpacity
+            accessibilityLabel="Increase base serving by 10"
+            onPress={() => stepNumericField("servingAmount", 10, 1)}
+            silent
+            style={[
+              styles.stepBtn,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+              +10
+            </Text>
+          </PressOpacity>
         </View>
-      ))}
-      <FieldErrors messages={[errors.form]} />
+
+        <ScrollView
+          contentContainerStyle={styles.presetStrip}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+        >
+          {SERVING_AMOUNT_PRESETS.map((preset) => (
+            <PressOpacity
+              accessibilityLabel={`Set base serving amount ${preset}`}
+              key={preset}
+              onPress={() => {
+                feedbackStep("up");
+                updateCustomForm((form) => ({
+                  ...form,
+                  servingAmount: String(preset),
+                }));
+              }}
+              silent
+              style={[
+                styles.presetChip,
+                {
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.presetChipText, { color: theme.colors.text }]}>
+                {preset} {customForm.servingUnit}
+              </Text>
+            </PressOpacity>
+          ))}
+        </ScrollView>
+        <FieldErrors messages={[errors.servingAmount]} />
+      </View>
+
+      {/* Card 2: Macronutrients Per Base Serving */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+          NUTRITION PER BASE SERVING
+        </Text>
+
+        {MACRO_FIELDS.map((field) => (
+          <View key={field.key} style={styles.macroStepBlock}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              {field.name}
+            </Text>
+            <View style={styles.stepperRow}>
+              <PressOpacity
+                accessibilityLabel={`Decrease ${field.label}`}
+                onPress={() => stepNumericField(field.key, -field.step, 0)}
+                silent
+                style={[
+                  styles.stepBtn,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.borderStrong,
+                  },
+                ]}
+              >
+                <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+                  -{field.step}
+                </Text>
+              </PressOpacity>
+              <PressOpacity
+                accessibilityLabel={`Decrease ${field.label} by 1`}
+                onPress={() => stepNumericField(field.key, -1, 0)}
+                silent
+                style={[
+                  styles.stepBtn,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.borderStrong,
+                  },
+                ]}
+              >
+                <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+                  -1
+                </Text>
+              </PressOpacity>
+              <NutritionTextInput
+                accessibilityLabel={field.name}
+                invalid={Boolean(errors[field.key])}
+                keyboardType="decimal-pad"
+                onChangeText={(value) =>
+                  updateCustomForm((form) => ({ ...form, [field.key]: value }))
+                }
+                placeholder={`0 ${field.unit}`}
+                style={styles.centerInput}
+                value={customForm[field.key]}
+              />
+              <PressOpacity
+                accessibilityLabel={`Increase ${field.label} by 1`}
+                onPress={() => stepNumericField(field.key, 1, 0)}
+                silent
+                style={[
+                  styles.stepBtn,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.borderStrong,
+                  },
+                ]}
+              >
+                <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+                  +1
+                </Text>
+              </PressOpacity>
+              <PressOpacity
+                accessibilityLabel={`Increase ${field.label}`}
+                onPress={() => stepNumericField(field.key, field.step, 0)}
+                silent
+                style={[
+                  styles.stepBtn,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.borderStrong,
+                  },
+                ]}
+              >
+                <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
+                  +{field.step}
+                </Text>
+              </PressOpacity>
+            </View>
+          </View>
+        ))}
+
+        <FieldErrors messages={MACRO_FIELDS.map((field) => errors[field.key])} />
+        {warning ? (
+          <Text style={[styles.warning, { color: theme.colors.text }]}>
+            Macronutrients estimate about{" "}
+            {formatDisplayNumber(warning.estimate, 0)} kcal. Check the values
+            before continuing. Next stays available.
+          </Text>
+        ) : null}
+      </View>
+
+      {/* Card 3: Optional Nutrients */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+          OPTIONAL MICRONUTRIENTS
+        </Text>
+        {NUTRIENT_ROWS.map((row) => (
+          <View key={row[0].id}>
+            <View style={styles.gridRow}>
+              {row.map((definition) => (
+                <GridField
+                  accessibilityLabel={`${definition.name} (${definition.unit})`}
+                  invalid={Boolean(errors[definition.id])}
+                  key={definition.id}
+                  label={`${definition.name} (${definition.unit})`}
+                  onChangeText={(value) =>
+                    updateCustomForm((form) => ({
+                      ...form,
+                      extras: { ...form.extras, [definition.id]: value },
+                    }))
+                  }
+                  placeholder="Optional"
+                  value={customForm.extras[definition.id] ?? ""}
+                />
+              ))}
+              {row.length === 1 ? <View style={styles.gridCell} /> : null}
+            </View>
+            <FieldErrors
+              messages={row.map((definition) => errors[definition.id])}
+            />
+          </View>
+        ))}
+        <FieldErrors messages={[errors.form]} />
+      </View>
     </NutritionPage>
   );
 }
@@ -301,7 +578,10 @@ function GridField({
 
   return (
     <View style={styles.gridCell}>
-      <Text numberOfLines={2} style={[styles.label, { color: theme.colors.text }]}>
+      <Text
+        numberOfLines={2}
+        style={[styles.label, { color: theme.colors.text }]}
+      >
         {label}
       </Text>
       <NutritionTextInput
@@ -319,7 +599,9 @@ function GridField({
 
 function FieldErrors({ messages }: { messages: (string | undefined)[] }) {
   const dangerColors = useDangerColors();
-  const visible = messages.filter((message): message is string => Boolean(message));
+  const visible = messages.filter((message): message is string =>
+    Boolean(message),
+  );
 
   if (visible.length === 0) {
     return null;
@@ -425,27 +707,91 @@ function extrasFromForm(values: Record<string, string>): ExtraNutrientValue[] {
 }
 
 const styles = StyleSheet.create({
+  card: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.sm,
+    padding: tokens.spacing.lg,
+  },
+  cardHeaderLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
   field: {
     gap: tokens.spacing.xs,
-    paddingVertical: tokens.spacing.sm,
   },
   label: {
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: "700",
-    lineHeight: tokens.typography.label.lineHeight,
-  },
-  unitsLabel: {
-    paddingTop: tokens.spacing.sm,
+    fontSize: 11,
+    fontWeight: "800",
+    lineHeight: 15,
   },
   prominentInput: {
-    fontWeight: "700",
+    fontWeight: "800",
     minHeight: 48,
+  },
+  units: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  unit: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 58,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  stepperRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  stepBtn: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 46,
+    paddingHorizontal: 6,
+  },
+  stepBtnText: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  centerInput: {
+    flex: 1,
+    fontVariant: ["tabular-nums"],
+    textAlign: "center",
+  },
+  presetStrip: {
+    gap: 6,
+  },
+  presetChip: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  presetChipText: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  macroStepBlock: {
+    gap: 4,
   },
   gridRow: {
     alignItems: "flex-end",
     flexDirection: "row",
     gap: tokens.spacing.sm,
-    paddingTop: tokens.spacing.sm,
+    paddingTop: tokens.spacing.xs,
   },
   gridCell: {
     flex: 1,
@@ -453,6 +799,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   gridInput: {
+    fontVariant: ["tabular-nums"],
     paddingHorizontal: tokens.spacing.sm,
   },
   errors: {
@@ -460,39 +807,25 @@ const styles = StyleSheet.create({
     paddingTop: tokens.spacing.xs,
   },
   error: {
-    fontSize: tokens.typography.label.fontSize,
-    lineHeight: tokens.typography.label.lineHeight,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 16,
   },
   warning: {
-    fontSize: tokens.typography.body.fontSize,
-    lineHeight: tokens.typography.body.lineHeight,
-    paddingTop: tokens.spacing.md,
-  },
-  section: {
-    fontSize: tokens.typography.sectionTitle.fontSize,
-    fontWeight: "700",
-    paddingTop: tokens.spacing.lg,
-  },
-  units: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  unit: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
-    minWidth: 52,
+    fontSize: 13,
+    lineHeight: 18,
+    paddingTop: tokens.spacing.xs,
   },
   next: {
     alignItems: "center",
-    borderRadius: tokens.radius.sm,
+    borderRadius: tokens.radius.md,
     justifyContent: "center",
-    marginHorizontal: tokens.spacing.lg,
+    marginHorizontal: tokens.spacing.md,
     marginVertical: tokens.spacing.sm,
-    minHeight: 48,
+    minHeight: 52,
   },
   nextLabel: {
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "800",
   },
 });

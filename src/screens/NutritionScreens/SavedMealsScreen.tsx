@@ -16,10 +16,14 @@ import {
   type SavedMealSummary,
 } from "../../data/nutritionCatalogRepository";
 import { createId } from "../../nutrition/calculations";
-import { compositionSignature, type DraftMealItem } from "../../nutrition/drafts";
+import {
+  compositionSignature,
+  type DraftMealItem,
+} from "../../nutrition/drafts";
 import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
-import { themes } from "../../theme/theme";
+import { readableTextColor, themes } from "../../theme/theme";
+import { feedbackConfirm, feedbackStep, feedbackWarn } from "../../utils/feedback";
 
 const tokens = themes.dark;
 
@@ -41,28 +45,15 @@ export function SavedMealsScreen() {
     markNutritionChanged,
     openEditSavedMeal,
     pop,
-    registerBackHandler,
     returnToMealLog,
     updateDraft,
   } = useNutritionWorkspace();
   const [meals, setMeals] = useState<SavedMealSummary[]>([]);
   const [sort, setSort] = useState<SavedSort>("alpha");
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const loadMeals = useCallback(() => {
     void listSavedMeals(db).then(setMeals);
   }, [db]);
-
-  useEffect(() => {
-    if (!menuOpen) {
-      return;
-    }
-
-    return registerBackHandler(() => {
-      setMenuOpen(false);
-      return true;
-    });
-  }, [menuOpen, registerBackHandler]);
 
   useEffect(() => {
     loadMeals();
@@ -101,6 +92,7 @@ export function SavedMealsScreen() {
               return;
             }
 
+            feedbackConfirm();
             updateDraft(activeDraft.key, (draft) => {
               const next = {
                 ...draft,
@@ -122,6 +114,7 @@ export function SavedMealsScreen() {
   }
 
   function confirmDelete(meal: SavedMealSummary) {
+    feedbackWarn();
     Alert.alert(
       "Delete saved meal?",
       `${meal.title} will be removed from your saved meals. Meals you already logged keep their nutrition.`,
@@ -146,46 +139,65 @@ export function SavedMealsScreen() {
     );
   }
 
+  const activeText = readableTextColor(theme.colors.tertiary);
+
   return (
     <NutritionPage
       controls={
-        <View style={styles.controls}>
-          <Text style={[styles.count, { color: theme.colors.textMuted }]}>
-            {meals.length} {meals.length === 1 ? "meal" : "meals"}
-          </Text>
-          <PressOpacity
-            accessibilityLabel={`Sort saved meals, ${sortLabels[sort]}`}
-            onPress={() => setMenuOpen((open) => !open)}
-            style={styles.sortButton}
-          >
-            <Text style={{ color: theme.colors.text }}>{sortLabels[sort]}</Text>
-            <Ionicons color={theme.colors.text} name="swap-vertical" size={18} />
-          </PressOpacity>
-          {menuOpen ? (
-            <View
-              style={[
-                styles.menu,
-                {
-                  backgroundColor: theme.colors.background,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              {(Object.keys(sortLabels) as SavedSort[]).map((option) => (
+        <View
+          style={[
+            styles.controlsCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <View style={styles.controlsTopRow}>
+            <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+              SORT SAVED MEALS
+            </Text>
+            <Text style={[styles.count, { color: theme.colors.tertiary }]}>
+              {meals.length} {meals.length === 1 ? "MEAL" : "MEALS"}
+            </Text>
+          </View>
+          <View style={styles.sortPillRow}>
+            {(Object.keys(sortLabels) as SavedSort[]).map((option) => {
+              const selected = sort === option;
+              return (
                 <PressOpacity
                   accessibilityLabel={sortLabels[option]}
+                  accessibilityState={{ selected }}
                   key={option}
                   onPress={() => {
+                    feedbackStep("up");
                     setSort(option);
-                    setMenuOpen(false);
                   }}
-                  style={styles.menuRow}
+                  silent
+                  style={[
+                    styles.sortPill,
+                    {
+                      backgroundColor: selected
+                        ? theme.colors.tertiary
+                        : theme.colors.surfaceMuted,
+                      borderColor: selected
+                        ? theme.colors.tertiary
+                        : theme.colors.borderStrong,
+                    },
+                  ]}
                 >
-                  <Text style={{ color: theme.colors.text }}>{sortLabels[option]}</Text>
+                  <Text
+                    style={[
+                      styles.sortPillText,
+                      { color: selected ? activeText : theme.colors.text },
+                    ]}
+                  >
+                    {sortLabels[option]}
+                  </Text>
                 </PressOpacity>
-              ))}
-            </View>
-          ) : null}
+              );
+            })}
+          </View>
         </View>
       }
       footer={
@@ -203,11 +215,22 @@ export function SavedMealsScreen() {
       title="Saved Meals"
     >
       {ordered.length === 0 ? (
-        <Text style={[styles.empty, { color: theme.colors.textMuted }]}>
-          Save a meal from the composer to reuse it here.
-        </Text>
+        <View
+          style={[
+            styles.emptyCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Text style={[styles.empty, { color: theme.colors.textMuted }]}>
+            Save a meal from the composer to reuse it here.
+          </Text>
+        </View>
       ) : (
         <FlatList
+          contentContainerStyle={styles.listContent}
           data={ordered}
           keyExtractor={(meal) => meal.id}
           renderItem={({ item }) => {
@@ -215,13 +238,23 @@ export function SavedMealsScreen() {
             const partial = Object.values(totals.incomplete).some(Boolean);
 
             return (
-              <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
+              <View
+                style={[
+                  styles.mealCard,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.borderStrong,
+                  },
+                ]}
+              >
                 <PressOpacity
                   accessibilityLabel={`Edit ${item.title}`}
                   onPress={() => openEditSavedMeal(item)}
                   style={styles.rowMain}
                 >
-                  <Text style={[styles.name, { color: theme.colors.text }]}>{item.title}</Text>
+                  <Text style={[styles.name, { color: theme.colors.text }]}>
+                    {item.title}
+                  </Text>
                   <FoodMacroLine
                     nutrients={{
                       carbohydratesG: totals.carbohydratesG,
@@ -236,48 +269,73 @@ export function SavedMealsScreen() {
                   <PressOpacity
                     accessibilityLabel={`Use ${item.title} in current meal`}
                     onPress={() => confirmUse(item)}
-                    style={styles.rowAction}
+                    style={[
+                      styles.rowAction,
+                      {
+                        backgroundColor: theme.colors.surfaceMuted,
+                        borderColor: theme.colors.borderStrong,
+                      },
+                    ]}
                   >
-                    <Ionicons color={theme.colors.tertiary} name="download-outline" size={20} />
+                    <Ionicons
+                      color={theme.colors.tertiary}
+                      name="download-outline"
+                      size={20}
+                    />
                   </PressOpacity>
                 ) : null}
                 <PressOpacity
                   accessibilityLabel={`Edit ${item.title}`}
                   onPress={() => openEditSavedMeal(item)}
-                  style={styles.rowAction}
+                  style={[
+                    styles.rowAction,
+                    {
+                      backgroundColor: theme.colors.surfaceMuted,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
                 >
-                  <Ionicons color={theme.colors.textMuted} name="create-outline" size={20} />
+                  <Ionicons
+                    color={theme.colors.text}
+                    name="create-outline"
+                    size={20}
+                  />
                 </PressOpacity>
                 <PressOpacity
                   accessibilityLabel={`Delete ${item.title}`}
                   onPress={() => confirmDelete(item)}
-                  style={styles.rowAction}
+                  style={[
+                    styles.rowAction,
+                    {
+                      backgroundColor: theme.colors.surfaceMuted,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
                 >
-                  <Ionicons color={theme.colors.textMuted} name="close" size={20} />
+                  <Ionicons
+                    color={theme.colors.textMuted}
+                    name="close"
+                    size={20}
+                  />
                 </PressOpacity>
               </View>
             );
           }}
         />
       )}
-      {menuOpen ? (
-        <PressOpacity
-          accessibilityLabel="Close sort options"
-          onPress={() => setMenuOpen(false)}
-          pressedOpacity={1}
-          style={styles.backdrop}
-        />
-      ) : null}
     </NutritionPage>
   );
 }
 
-function templateItemToDraft(item: SavedMealSummary["items"][number]): DraftMealItem {
+function templateItemToDraft(
+  item: SavedMealSummary["items"][number],
+): DraftMealItem {
   return {
     brandName: item.storagePolicy === "reference" ? null : item.brandName,
     clientId: createId(),
     description: item.storagePolicy === "reference" ? null : item.description,
-    extrasPerServing: item.storagePolicy === "reference" ? [] : item.extrasPerServing,
+    extrasPerServing:
+      item.storagePolicy === "reference" ? [] : item.extrasPerServing,
     food: item.food,
     nutrientsPerServing:
       item.storagePolicy === "reference"
@@ -299,67 +357,86 @@ function templateItemToDraft(item: SavedMealSummary["items"][number]): DraftMeal
 }
 
 const styles = StyleSheet.create({
-  controls: {
+  controlsCard: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.sm,
+    marginHorizontal: tokens.spacing.md,
+    marginTop: tokens.spacing.sm,
+    padding: tokens.spacing.md,
+  },
+  controlsTopRow: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: tokens.spacing.lg,
-    zIndex: 2,
+  },
+  cardHeaderLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
   },
   count: {
-    fontSize: tokens.typography.label.fontSize,
+    fontSize: 11,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
   },
-  sortButton: {
-    alignItems: "center",
+  sortPillRow: {
     flexDirection: "row",
-    gap: tokens.spacing.xs,
-    minHeight: 44,
+    gap: 6,
   },
-  menu: {
-    borderWidth: StyleSheet.hairlineWidth,
-    position: "absolute",
-    right: tokens.spacing.lg,
-    top: 44,
-    width: 180,
-  },
-  menuRow: {
+  sortPill: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    flex: 1,
     justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: tokens.spacing.md,
+    minHeight: 48,
+    paddingHorizontal: 6,
   },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 1,
+  sortPillText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  emptyCard: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    margin: tokens.spacing.md,
+    padding: tokens.spacing.lg,
   },
   empty: {
     fontSize: tokens.typography.body.fontSize,
     lineHeight: tokens.typography.body.lineHeight,
-    padding: tokens.spacing.lg,
     textAlign: "center",
   },
-  row: {
+  listContent: {
+    gap: tokens.spacing.sm,
+    padding: tokens.spacing.md,
+  },
+  mealCard: {
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
     flexDirection: "row",
-    minHeight: 64,
-    paddingLeft: tokens.spacing.lg,
-    paddingRight: tokens.spacing.sm,
+    gap: 6,
+    minHeight: 72,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
   },
   rowMain: {
     flex: 1,
-    gap: 2,
+    gap: 4,
     justifyContent: "center",
-    minHeight: 64,
-    paddingVertical: tokens.spacing.sm,
   },
   rowAction: {
     alignItems: "center",
-    height: 44,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    height: 48,
     justifyContent: "center",
-    width: 44,
+    width: 48,
   },
   name: {
     fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
+    fontWeight: "800",
   },
 });
