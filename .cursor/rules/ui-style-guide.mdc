@@ -1,0 +1,55 @@
+---
+description: CAPS S&C UI style guide enforcing a high-contrast, minimalist, data-dense, card-by-card interface with large touch targets, steppers/scroll pickers instead of typing, minimal modals, audio/haptic cues, uniform animations, and no cross-screen component reuse. Refer to this file for all current and future screens (including StrengthTrainingScreen, SkillScreen, and Home Recovery/Progress).
+globs: src/**/*.tsx,src/theme/**/*.ts
+alwaysApply: true
+---
+
+# CAPS S&C UI Style Guide
+
+All screens—including future implementations of unfinished screens (`src/screens/StrengthTrainingScreen.tsx`, `src/screens/SkillScreen.tsx`, and the `Recovery` / `Progress` tabs in `src/screens/HomeScreen.tsx`)—must strictly follow this style guide.
+
+## 1. Core Design Philosophy
+
+- **High-Contrast, Minimalist, Data-Dense**: Deep carbon backgrounds (`#060709` dark / `#F3F4F6` light), crisp elevated card surfaces (`#101216` dark / `#FFFFFF` light), secondary muted wells (`#181B22` dark / `#E5E7EB` light), high-contrast primary text (`#FAFAFC` dark / `#090A0D` light), and explicit `1px` structural borders (`border` and `borderStrong`).
+- **Card-by-Card Layout**: Group every functional domain or input cluster into its own bordered card (`borderRadius: theme.radius.lg` = `16`, `borderWidth: 1`, `padding: theme.spacing.lg` = `16`, `gap: theme.spacing.md` = `12`). Separate cards vertically by `12px–16px`.
+- **Card Headers**: Every card starts with a compact header row containing an uppercase tracking label (`fontSize: 11`, `fontWeight: "700"`, `letterSpacing: 0.8`, `color: theme.colors.textMuted`) and an optional right-aligned tabular metric badge or status pill.
+- **Tabular Numerals**: Any number, timer, weight, macro, RPE, distance, or counter must include `fontVariant: ["tabular-nums"]` to prevent layout jitter.
+- **Do Not Reuse UI Components Across Screens**: Do not extract generic shared UI wrappers (such as a global `<Card />` or `<Stepper />` component) across screens. Build dedicated, screen-local card and control markup styled directly with `StyleSheet.create` and `useAppTheme()` tokens so each screen owns its layout density without abstraction bloat.
+
+## 2. Minimal Modals Policy
+
+- **No Data-Entry Modals**: Do not open `Modal` dialogs for form inputs, pickers, or action menus (e.g., age, sex, height, weight, sleep, sports, username, or meal item actions). Use inline card sections, animated card expanders, horizontal `ScrollView` strips, or stack screens instead.
+- **Confirmation Modals Only**: Reserve modal/overlay dialogs strictly for destructive or state-guard confirmations (`ConfirmDialog`, discard/cancel/delete confirmations) and the explicit conditioning overlay exceptions documented in `navigation-and-overlays.mdc`.
+
+## 3. Low-Typing Input & Large Touch Targets
+
+- **Minimum Touch Target**: Every interactive button, stepper, chip, or toggle must have at least `minHeight: 48` and `minWidth: 48` (`52px` height for primary user flow CTAs).
+- **Prefer `+` / `-` Steppers & Horizontal `ScrollView` Presets Over Typing**:
+  - Whenever a user inputs numbers (age, weight, height, serving amounts, calories, interval seconds, rest durations, rounds, sets, reps, distance, load, RPE, dates, or times), provide large `-` and `+` increment buttons (`minHeight: 48`, `minWidth: 48`, `borderRadius: 12`, `borderWidth: 1`) alongside a horizontal `ScrollView` (`showsHorizontalScrollIndicator={false}`) of one-tap preset pills.
+  - Keep freeform `TextInput` usage to a minimum (or pair it as a secondary readout between `-` and `+` buttons so common adjustments require zero keyboard typing).
+
+## 4. User Flow Buttons
+
+- **Primary Action**: Background `theme.colors.tertiary`, text `readableTextColor(theme.colors.tertiary)`, `minHeight: 52`, `borderRadius: 12`, `fontWeight: "700"`.
+- **Secondary Action**: Background `theme.colors.surfaceMuted`, border `1px solid theme.colors.borderStrong`, text `theme.colors.text`, `minHeight: 48`, `borderRadius: 12`, `fontWeight: "700"`.
+- **Quiet / Destructive Action**: Transparent or tinted danger fill (`rgba(211, 21, 22, 0.14)`), border `1px solid`, `minHeight: 48`, `borderRadius: 12`.
+
+## 5. Uniform Animations
+
+- Use `react-native-reanimated` with `ReduceMotion.System`.
+- **Inline Expanders & Segmented Controls**: `duration: 220`, `easing: Easing.out(Easing.cubic)`.
+- **Stack / Sheet Transitions**: `duration: 280`, `easing: Easing.out(Easing.cubic)`.
+- **Press Feedback**: Immediate opacity change (`pressedOpacity = 0.62`) paired with sensory feedback.
+
+## 6. Audio Cues & Haptic Feedback
+
+- Route user interactions through `src/utils/feedback.ts`:
+  - `feedbackSelection()` / `feedbackStep("up" | "down")`: Light haptic tick + subtle acoustic click on tab changes, chip selections, and `+`/`-` stepper increments.
+  - `feedbackConfirm()`: Medium/Success haptic + confirmation chime when saving, logging, or completing a flow.
+  - `feedbackPhaseCue()` / `feedbackCountdownTick()`: Strong haptic + high-visibility acoustic beep on workout runner countdowns (3-2-1) and work/recovery phase transitions.
+  - `feedbackWarn()`: Warning/Error haptic + low tone on destructive confirmations or validation errors.
+
+## 7. Unfinished Screens Mandate
+
+- Do not modify `src/screens/StrengthTrainingScreen.tsx`, `src/screens/SkillScreen.tsx`, or the `Recovery` / `Progress` placeholder panels in `src/screens/HomeScreen.tsx` until requested.
+- When building those features in the future, construct them strictly with this card-by-card, stepper-driven, zero-data-modal, high-contrast architecture.
