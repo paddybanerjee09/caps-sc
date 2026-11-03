@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "react-native-patterns": {
+      "source": "spencerpauly/awesome-cursor-skills",
+      "sourceType": "github",
+      "skillPath": "resources/react-native-patterns/SKILL.md",
+      "computedHash": "0b8016402aa66ecb719bf11086de042fe7c5269f174f570c1070c651c03c85a8"
+    }
+  }
+}
