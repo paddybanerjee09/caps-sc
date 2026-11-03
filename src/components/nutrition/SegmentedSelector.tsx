@@ -9,6 +9,8 @@ import Animated, {
 import { PressOpacity } from "../PressOpacity";
 import { SELECTOR_MOTION } from "../../nutrition/motion";
 import { useAppTheme } from "../../theme/ThemeContext";
+import { readableTextColor } from "../../theme/theme";
+import { feedbackStep } from "../../utils/feedback";
 
 type SelectorOption<T extends string> = {
   value: T;
@@ -54,6 +56,7 @@ export function SegmentedSelector<T extends string>({
   }
 
   const segmentWidth = options.length === 0 ? 0 : width / options.length;
+  const activeColor = readableTextColor(theme.colors.tertiary);
 
   return (
     <View
@@ -64,7 +67,7 @@ export function SegmentedSelector<T extends string>({
         styles.selector,
         {
           backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.border,
+          borderColor: theme.colors.borderStrong,
         },
       ]}
     >
@@ -75,28 +78,35 @@ export function SegmentedSelector<T extends string>({
             styles.indicator,
             indicatorStyle,
             {
-              backgroundColor: theme.colors.surfaceMuted,
+              backgroundColor: theme.colors.tertiary,
               width: segmentWidth,
             },
           ]}
         />
       ) : null}
-      {options.map((option) => {
+      {options.map((option, optionIndex) => {
         const selected = option.value === value;
 
         return (
           <PressOpacity
             accessibilityLabel={option.label}
             accessibilityRole="tab"
+            accessibilityState={{ selected }}
             key={option.value}
-            onPress={() => onChange(option.value)}
+            onPress={() => {
+              if (option.value !== value) {
+                feedbackStep(optionIndex > index ? "up" : "down");
+              }
+              onChange(option.value);
+            }}
+            silent
             style={styles.option}
           >
             <Text
               style={[
                 styles.label,
                 {
-                  color: selected ? theme.colors.tertiary : theme.colors.textMuted,
+                  color: selected ? activeColor : theme.colors.textMuted,
                 },
               ]}
             >
@@ -150,9 +160,9 @@ export function SlidingPanels({ children, index }: SlidingPanelsProps) {
 const styles = StyleSheet.create({
   selector: {
     borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     flexDirection: "row",
-    minHeight: 44,
+    minHeight: 48,
     overflow: "hidden",
   },
   indicator: {
@@ -165,14 +175,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: 4,
+    minHeight: 48,
+    paddingHorizontal: 6,
   },
   label: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "800",
+    letterSpacing: 0.4,
     lineHeight: 16,
     textAlign: "center",
+    textTransform: "uppercase",
   },
   clip: {
     alignSelf: "stretch",

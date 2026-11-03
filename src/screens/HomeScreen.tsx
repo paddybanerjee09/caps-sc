@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"; // React imports
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import Animated, {
@@ -10,15 +10,18 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import Ionicons from "@expo/vector-icons/Ionicons"; // Style Imports
+import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { DayTimeline } from "../components/DayTimeline";
-import { SegmentedSelector, SlidingPanels } from "../components/nutrition/SegmentedSelector";
+import {
+  SegmentedSelector,
+  SlidingPanels,
+} from "../components/nutrition/SegmentedSelector";
 import { PressOpacity } from "../components/PressOpacity";
 import { SleepLogModal } from "../components/SleepLogModal";
 import { WeightLogModal } from "../components/WeightLogModal";
 
-import { useSQLiteContext } from "expo-sqlite"; // Database imports
+import { useSQLiteContext } from "expo-sqlite";
 
 import { scheduleIdleTask } from "../utils/scheduleIdleTask";
 import {
@@ -27,12 +30,13 @@ import {
   type TimelineKind,
 } from "../data/timelineRepository";
 
-import { Screen } from "../components/Screen"; // File imports
+import { Screen } from "../components/Screen";
 import { timelineCategories } from "../constants/timelineCategories";
 import { useAppState, type UnitSystem } from "../state/AppStateContext";
 import { useNutritionWorkspace } from "../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../theme/ThemeContext";
-import { themes } from "../theme/theme";
+import { readableTextColor, themes } from "../theme/theme";
+import { feedbackStep, feedbackToggle } from "../utils/feedback";
 import { formatWeight } from "../utils/weight";
 
 const tokens = themes.dark;
@@ -61,10 +65,7 @@ export function HomeScreen() {
   const selectedDate = homeDate;
 
   const ageText =
-    athleteProfile.age === null
-      ? "Not selected"
-      : `${athleteProfile.age} years old`;
-
+    athleteProfile.age === null ? "—" : `${athleteProfile.age} yrs`;
   const heightText = formatHeight(athleteProfile.heightCm, unitSettings.height);
   const weightText = formatWeight(athleteProfile.weightKg, unitSettings.weight);
   const sportsText = formatSports(athleteProfile.sports);
@@ -77,7 +78,7 @@ export function HomeScreen() {
 
   function toggleQuickLogMenu() {
     const willOpen = !quickLogOpen;
-
+    feedbackToggle(willOpen);
     setQuickLogOpen(willOpen);
 
     quickLogAnimation.set(
@@ -90,7 +91,7 @@ export function HomeScreen() {
   }
 
   const quickLogMenuStyle = useAnimatedStyle(() => ({
-    height: interpolate(quickLogAnimation.get(), [0, 1], [0, 188]),
+    height: interpolate(quickLogAnimation.get(), [0, 1], [0, 212]),
     opacity: quickLogAnimation.get(),
   }));
 
@@ -151,6 +152,7 @@ export function HomeScreen() {
 
   const previousDate = shiftLocalDate(selectedDate, -1);
   const nextDate = shiftLocalDate(selectedDate, 1);
+  const primaryText = readableTextColor(theme.colors.tertiary);
 
   async function handleLoggedEntrySaved(loggedAt: number) {
     const loggedDate = new Date(loggedAt);
@@ -169,6 +171,7 @@ export function HomeScreen() {
 
   function openNewWeightLog() {
     setSelectedWeightEntry(null);
+    setSleepModalOpen(false);
     setWeightModalOpen(true);
   }
 
@@ -178,6 +181,7 @@ export function HomeScreen() {
     }
 
     setSelectedWeightEntry(entry);
+    setSleepModalOpen(false);
     setWeightModalOpen(true);
   }
 
@@ -187,95 +191,169 @@ export function HomeScreen() {
   }
 
   return (
-    <Screen centerTitle title="Home">
+    <Screen
+      centerTitle
+      subtitle="Athlete status, rapid session logging, and 24-hour timeline"
+      title="Home"
+    >
+      {/* Card 1: Athlete Telemetry Card */}
       <View
         style={[
-          styles.profile,
+          styles.profileCard,
           {
             backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
+            borderColor: theme.colors.borderStrong,
           },
         ]}
       >
-        <Text style={[styles.subtitle, { color: theme.colors.text }]}>
-          Profile
-        </Text>
+        <View style={styles.cardHeader}>
+          <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+            ATHLETE TELEMETRY
+          </Text>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.badgeText, { color: theme.colors.tertiary }]}>
+              {timelineEntries.length} LOGGED TODAY
+            </Text>
+          </View>
+        </View>
 
-        <View style={styles.profileContent}>
+        <View style={styles.profileTopRow}>
           <View
             style={[
               styles.profileImage,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.tertiary,
+              },
+            ]}
+          >
+            <Ionicons color={theme.colors.tertiary} name="person" size={30} />
+          </View>
+
+          <View style={styles.profileIdentity}>
+            <Text
+              numberOfLines={1}
+              style={[styles.username, { color: theme.colors.text }]}
+            >
+              {username || "Not selected"}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={[styles.sportsLine, { color: theme.colors.textMuted }]}
+            >
+              {sportsText}
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.weightHeroPill,
               {
                 backgroundColor: theme.colors.surfaceMuted,
                 borderColor: theme.colors.borderStrong,
               },
             ]}
           >
-            <Ionicons color={theme.colors.textMuted} name="person" size={40} />
+            <Text style={[styles.weightHeroLabel, { color: theme.colors.textMuted }]}>
+              WEIGHT
+            </Text>
+            <Text style={[styles.weightHeroValue, { color: theme.colors.text }]}>
+              {weightText}
+            </Text>
           </View>
+        </View>
 
-          <View style={styles.profileDetails}>
-            <View style={styles.summaryRow}>
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.infoText,
-                  styles.username,
-                  { color: theme.colors.text },
-                ]}
-              >
-                {username || "Not selected"}
-              </Text>
-
-              <Text style={[styles.infoText, { color: theme.colors.text }]}>
-                {weightText}
-              </Text>
-            </View>
-
-            <Text style={[styles.infoText, { color: theme.colors.text }]}>
+        <View style={styles.statGrid}>
+          <View
+            style={[
+              styles.statCell,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>
+              AGE
+            </Text>
+            <Text style={[styles.statValue, { color: theme.colors.text }]}>
               {ageText}
             </Text>
-
-            <Text style={[styles.infoText, { color: theme.colors.text }]}>
+          </View>
+          <View
+            style={[
+              styles.statCell,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>
+              STATURE
+            </Text>
+            <Text style={[styles.statValue, { color: theme.colors.text }]}>
               {heightText}
             </Text>
-
-            <Text
-              numberOfLines={1}
-              style={[styles.infoText, { color: theme.colors.text }]}
-            >
-              {sportsText}
+          </View>
+          <View
+            style={[
+              styles.statCell,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>
+              DISCIPLINES
+            </Text>
+            <Text style={[styles.statValue, { color: theme.colors.text }]}>
+              {athleteProfile.sports.length}
             </Text>
           </View>
         </View>
       </View>
 
-      <PressOpacity
-        accessibilityLabel="Quick Log"
+      {/* Card 2: Quick Log Action Launcher */}
+      <View
         style={[
-          styles.quickLogButton,
-          { backgroundColor: theme.colors.tertiary },
-        ]}
-        onPress={toggleQuickLogMenu}
-      >
-        <Text style={styles.quickLogButtonText}>Quick Log</Text>
-      </PressOpacity>
-
-      <Animated.View
-        style={[
-          styles.quickLogMenuWrapper,
-          quickLogMenuStyle,
+          styles.quickLogCard,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
         ]}
       >
-        <View
+        <PressOpacity
+          accessibilityLabel="Quick Log"
+          accessibilityState={{ expanded: quickLogOpen }}
+          onPress={toggleQuickLogMenu}
+          silent
           style={[
-            styles.quickLogMenu,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.border,
-            },
+            styles.quickLogButton,
+            { backgroundColor: theme.colors.tertiary },
           ]}
         >
+          <Ionicons
+            color={primaryText}
+            name={quickLogOpen ? "chevron-up-circle" : "flash"}
+            size={20}
+          />
+          <Text style={[styles.quickLogButtonText, { color: primaryText }]}>
+            Quick Log
+          </Text>
+        </PressOpacity>
+
+        <Animated.View style={[styles.quickLogMenuWrapper, quickLogMenuStyle]}>
           <View style={styles.quickLogGrid}>
             {quickLogKinds.map((kind) => (
               <QuickLogOption
@@ -291,16 +369,36 @@ export function HomeScreen() {
                           }
                           openNewMeal(selectedDate);
                         }
-                    : kind === "sleep"
-                      ? () => setSleepModalOpen(true)
-                      : undefined
+                      : kind === "sleep"
+                        ? () => {
+                            setWeightModalOpen(false);
+                            setSleepModalOpen(true);
+                          }
+                        : undefined
                 }
               />
             ))}
           </View>
-        </View>
-      </Animated.View>
+        </Animated.View>
+      </View>
 
+      {/* Inline Weight & Sleep Cards (No Modals) */}
+      <WeightLogModal
+        entryToEdit={selectedWeightEntry ?? undefined}
+        onClose={closeWeightModal}
+        onDeleted={handleWeightDeleted}
+        onSaved={handleLoggedEntrySaved}
+        visible={weightModalOpen}
+      />
+
+      <SleepLogModal
+        onClose={() => setSleepModalOpen(false)}
+        onSaved={loadSelectedDateEntries}
+        visible={sleepModalOpen}
+        wakeDate={selectedDate}
+      />
+
+      {/* Card 3: Section Selector & Daily Timeline Card */}
       <SegmentedSelector
         accessibilityLabel="Home sections"
         onChange={setSelectedHomeSection}
@@ -316,47 +414,91 @@ export function HomeScreen() {
           styles.homeSectionContent,
           {
             backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
+            borderColor: theme.colors.borderStrong,
           },
         ]}
       >
         <SlidingPanels
-          index={homeSections.findIndex((section) => section.key === selectedHomeSection)}
+          index={homeSections.findIndex(
+            (section) => section.key === selectedHomeSection,
+          )}
         >
-          <View>
+          <View style={styles.todayPanel}>
             <View style={styles.dateNavigator}>
               <PressOpacity
                 accessibilityLabel={`Show previous day, ${formatFullDate(
                   previousDate,
                 )}`}
-                onPress={() => setHomeDate(shiftLocalDate(selectedDate, -1))}
-                style={styles.dateArrow}
+                onPress={() => {
+                  feedbackStep("down");
+                  setHomeDate(shiftLocalDate(selectedDate, -1));
+                }}
+                silent
+                style={[
+                  styles.dateStepButton,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.borderStrong,
+                  },
+                ]}
               >
                 <Ionicons
                   color={theme.colors.text}
                   name="chevron-back"
-                  size={22}
+                  size={20}
                 />
+                <Text style={[styles.dateStepLabel, { color: theme.colors.text }]}>
+                  -1d
+                </Text>
               </PressOpacity>
 
-              <Text
-                numberOfLines={1}
-                style={[styles.selectedDateText, { color: theme.colors.text }]}
+              <PressOpacity
+                accessibilityLabel="Jump to today"
+                onPress={() => {
+                  feedbackStep("up");
+                  setHomeDate(new Date());
+                }}
+                silent
+                style={[
+                  styles.selectedDatePill,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
               >
-                {formatSelectedDate(selectedDate)}
-              </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.selectedDateText, { color: theme.colors.text }]}
+                >
+                  {formatSelectedDate(selectedDate)}
+                </Text>
+              </PressOpacity>
 
               <PressOpacity
                 accessibilityLabel={`Show next day, ${formatFullDate(
                   nextDate,
                 )}`}
-                onPress={() => setHomeDate(shiftLocalDate(selectedDate, 1))}
-                style={styles.dateArrow}
+                onPress={() => {
+                  feedbackStep("up");
+                  setHomeDate(shiftLocalDate(selectedDate, 1));
+                }}
+                silent
+                style={[
+                  styles.dateStepButton,
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderColor: theme.colors.borderStrong,
+                  },
+                ]}
               >
+                <Text style={[styles.dateStepLabel, { color: theme.colors.text }]}>
+                  +1d
+                </Text>
                 <Ionicons
                   color={theme.colors.text}
                   name="chevron-forward"
-                  size={22}
+                  size={20}
                 />
               </PressOpacity>
             </View>
@@ -367,8 +509,8 @@ export function HomeScreen() {
               entries={timelineEntries}
               error={timelineError}
               loading={timelineLoading}
-              onWeightEntryPress={openWeightLog}
               onRetry={loadSelectedDateEntries}
+              onWeightEntryPress={openWeightLog}
             />
           </View>
           <Text style={[styles.homeSectionText, { color: theme.colors.text }]}>
@@ -379,21 +521,6 @@ export function HomeScreen() {
           </Text>
         </SlidingPanels>
       </View>
-
-      <WeightLogModal
-        entryToEdit={selectedWeightEntry ?? undefined}
-        onClose={closeWeightModal}
-        onDeleted={handleWeightDeleted}
-        onSaved={handleLoggedEntrySaved}
-        visible={weightModalOpen}
-      />
-
-      <SleepLogModal
-        onClose={() => setSleepModalOpen(false)}
-        onSaved={loadSelectedDateEntries}
-        visible={sleepModalOpen}
-        wakeDate={selectedDate}
-      />
     </Screen>
   );
 }
@@ -430,14 +557,14 @@ function formatSelectedDate(date: Date) {
 
   if (isSameLocalDay(date, today)) {
     return `Today, ${date.toLocaleDateString([], {
-      month: "long",
+      month: "short",
       day: "numeric",
     })}`;
   }
 
   return date.toLocaleDateString([], {
-    weekday: "long",
-    month: "long",
+    weekday: "short",
+    month: "short",
     day: "numeric",
     year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
   });
@@ -458,13 +585,13 @@ function formatHeight(heightCm: number | null, unit: UnitSystem) {
   }
 
   if (unit === "metric") {
-    return `${heightCm}cm`;
+    return `${Math.round(heightCm)} cm`;
   }
 
   const totalInches = Math.round(heightCm / 2.54);
   const feet = Math.floor(totalInches / 12);
   const inches = totalInches % 12;
-  return `${feet}'${inches}\"`;
+  return `${feet}'${inches}"`;
 }
 
 function formatSports(sports: string[]) {
@@ -493,31 +620,32 @@ function QuickLogOption({ kind, onPress }: QuickLogOptionProps) {
         styles.quickLogOption,
         {
           backgroundColor: theme.colors.surfaceMuted,
-          borderColor: theme.colors.border,
+          borderColor: theme.colors.borderStrong,
         },
       ]}
     >
-      <View style={styles.quickLogOptionIcon}>
-        <View
-          style={[
-            styles.quickLogOptionIconBadge,
-            { backgroundColor: theme.colors.background },
-          ]}
-        >
-          {presentation.iconSet === "materialCommunity" ? (
-            <MaterialCommunityIcons
-              color={presentation.color}
-              name={presentation.icon}
-              size={24}
-            />
-          ) : (
-            <Ionicons
-              color={presentation.color}
-              name={presentation.icon}
-              size={24}
-            />
-          )}
-        </View>
+      <View
+        style={[
+          styles.quickLogOptionIconBadge,
+          {
+            backgroundColor: theme.colors.background,
+            borderColor: presentation.color,
+          },
+        ]}
+      >
+        {presentation.iconSet === "materialCommunity" ? (
+          <MaterialCommunityIcons
+            color={presentation.color}
+            name={presentation.icon}
+            size={22}
+          />
+        ) : (
+          <Ionicons
+            color={presentation.color}
+            name={presentation.icon}
+            size={22}
+          />
+        )}
       </View>
 
       <Text
@@ -531,147 +659,199 @@ function QuickLogOption({ kind, onPress }: QuickLogOptionProps) {
 }
 
 const styles = StyleSheet.create({
-  profile: {
+  profileCard: {
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
+    gap: tokens.spacing.md,
     padding: tokens.spacing.lg,
   },
-  profileContent: {
+  cardHeader: {
     alignItems: "center",
     flexDirection: "row",
-    gap: tokens.spacing.lg,
-    paddingTop: tokens.spacing.md,
+    justifyContent: "space-between",
+  },
+  cardHeaderLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  badge: {
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  profileTopRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.md,
   },
   profileImage: {
     alignItems: "center",
     borderRadius: tokens.radius.pill,
-    borderWidth: 1,
-    height: 76,
+    borderWidth: 2,
+    height: 60,
     justifyContent: "center",
-    width: 76,
+    width: 60,
   },
-  profileDetails: {
+  profileIdentity: {
     flex: 1,
-    gap: tokens.spacing.xs,
+    gap: 2,
     minWidth: 0,
   },
-  summaryRow: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: tokens.spacing.md,
-    justifyContent: "space-between",
-  },
-  infoText: {
-    fontSize: tokens.typography.body.fontSize,
-    lineHeight: tokens.typography.body.lineHeight,
-  },
   username: {
-    fontWeight: "700",
-    flexShrink: 1,
+    fontSize: 20,
+    fontWeight: "800",
+    lineHeight: 24,
   },
-  subtitle: {
-    fontSize: tokens.typography.sectionTitle.fontSize,
-    fontWeight: tokens.typography.sectionTitle.fontWeight,
-    lineHeight: tokens.typography.sectionTitle.lineHeight,
-  },
-  quickLogButton: {
-    alignItems: "center",
-    borderRadius: tokens.radius.md,
-    justifyContent: "center",
-    marginTop: tokens.spacing.lg,
-    minHeight: 25,
-    width: "100%",
-  },
-  quickLogButtonText: {
-    color: "#FFFFFF",
-    fontSize: tokens.typography.label.fontSize,
+  sportsLine: {
+    fontSize: 12,
     fontWeight: "600",
-    lineHeight: tokens.typography.body.lineHeight,
   },
-  quickLogMenuWrapper: {
-    overflow: "hidden",
-  },
-  quickLogMenu: {
+  weightHeroPill: {
+    alignItems: "flex-end",
     borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 52,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: 6,
+  },
+  weightHeroLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  weightHeroValue: {
+    fontSize: 16,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  statGrid: {
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+  },
+  statCell: {
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    flex: 1,
+    gap: 2,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.sm,
+  },
+  statLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  statValue: {
+    fontSize: 15,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  quickLogCard: {
+    borderRadius: tokens.radius.lg,
     borderWidth: 1,
     gap: tokens.spacing.sm,
     padding: tokens.spacing.md,
   },
-  quickLogOption: {
+  quickLogButton: {
     alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    height: 76,
-    padding: tokens.spacing.xs,
-    width: "31%",
-  },
-  quickLogOptionIcon: {
-    alignItems: "center",
-    flex: 1,
+    borderRadius: tokens.radius.md,
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
     justifyContent: "center",
+    minHeight: 52,
+    width: "100%",
   },
-  quickLogOptionIconBadge: {
-    alignItems: "center",
-    borderRadius: tokens.radius.pill,
-    height: 40,
-    justifyContent: "center",
-    width: 40,
+  quickLogButtonText: {
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
   },
-  quickLogOptionText: {
-    fontSize: 8,
-    fontWeight: "700",
-    lineHeight: 12,
-    minHeight: 16,
-    textAlign: "center",
+  quickLogMenuWrapper: {
+    overflow: "hidden",
   },
   quickLogGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: tokens.spacing.sm,
     justifyContent: "space-between",
+    paddingTop: tokens.spacing.xs,
   },
-  homeSelector: {
+  quickLogOption: {
+    alignItems: "center",
     borderRadius: tokens.radius.md,
     borderWidth: 1,
-    flexDirection: "row",
-    marginTop: tokens.spacing.lg,
-    overflow: "hidden",
-    width: "100%",
-  },
-  homeSelectorOption: {
-    alignItems: "center",
-    flex: 1,
+    gap: 6,
+    height: 92,
     justifyContent: "center",
-    minHeight: 25,
+    padding: tokens.spacing.xs,
+    width: "31%",
   },
-  homeSelectorText: {
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: "700",
-    lineHeight: tokens.typography.label.lineHeight,
+  quickLogOptionIconBadge: {
+    alignItems: "center",
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1.5,
+    height: 42,
+    justifyContent: "center",
+    width: 42,
+  },
+  quickLogOptionText: {
+    fontSize: 10,
+    fontWeight: "800",
+    lineHeight: 13,
+    textAlign: "center",
   },
   homeSectionContent: {
-    borderRadius: tokens.radius.md,
+    borderRadius: tokens.radius.lg,
     borderWidth: 1,
-    marginTop: tokens.spacing.lg,
-    minHeight: 160,
+    minHeight: 180,
     padding: tokens.spacing.lg,
+  },
+  todayPanel: {
+    gap: tokens.spacing.md,
   },
   dateNavigator: {
     alignItems: "center",
     flexDirection: "row",
-    marginBottom: tokens.spacing.md,
+    gap: tokens.spacing.xs,
   },
-  dateArrow: {
+  dateStepButton: {
     alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 2,
     justifyContent: "center",
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: 48,
+    minWidth: 68,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  dateStepLabel: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  selectedDatePill: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.sm,
   },
   selectedDateText: {
-    flex: 1,
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
-    lineHeight: tokens.typography.body.lineHeight,
+    fontSize: 14,
+    fontWeight: "800",
     textAlign: "center",
   },
   homeSectionText: {

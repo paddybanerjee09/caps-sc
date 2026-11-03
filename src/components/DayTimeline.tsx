@@ -29,13 +29,13 @@ const VISIBLE_HOURS = 12;
 const MINUTES_PER_HOUR = 60;
 const MINUTES_PER_DAY = TOTAL_HOURS * MINUTES_PER_HOUR;
 const INSTANT_DISPLAY_MINUTES = 15;
-const MIN_EVENT_WIDTH = 72;
-const EVENT_HEIGHT = 44;
+const MIN_EVENT_WIDTH = 82;
+const EVENT_HEIGHT = 48;
 const EVENT_FOOTPRINT_HEIGHT = 4;
-const EVENT_TRACK_GAP = 4;
-const EVENT_HORIZONTAL_GAP = 4;
-const HOUR_HEADER_HEIGHT = 28;
-const LANE_VERTICAL_PADDING = 8;
+const EVENT_TRACK_GAP = 6;
+const EVENT_HORIZONTAL_GAP = 6;
+const HOUR_HEADER_HEIGHT = 32;
+const LANE_VERTICAL_PADDING = 10;
 
 const hourDivisions = Array.from(
   { length: TOTAL_HOURS + 1 },
@@ -597,7 +597,7 @@ function clamp(value: number, minimum: number, maximum: number) {
 
 const styles = StyleSheet.create({
   frame: {
-    borderRadius: tokens.radius.sm,
+    borderRadius: tokens.radius.md,
     borderWidth: 1,
     overflow: "hidden",
     position: "relative",
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     right: 0,
   },
   headerRule: {
-    height: StyleSheet.hairlineWidth,
+    height: 1,
     left: 0,
     position: "absolute",
     right: 0,
@@ -620,14 +620,15 @@ const styles = StyleSheet.create({
   hourDivision: {
     position: "absolute",
     top: 0,
-    width: StyleSheet.hairlineWidth,
+    width: 1,
   },
   hourLabel: {
-    fontSize: 9,
-    fontWeight: "600",
-    lineHeight: 13,
+    fontSize: 10,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+    lineHeight: 14,
     position: "absolute",
-    top: tokens.spacing.xs,
+    top: tokens.spacing.xs + 2,
   },
   eventFootprint: {
     height: EVENT_FOOTPRINT_HEIGHT,

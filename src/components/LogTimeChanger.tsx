@@ -1,23 +1,15 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import DateTimePicker, {
-  DateTimePickerAndroid,
-  type DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
-import { useRef, useState } from "react";
-import {
-  Keyboard,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { useAppTheme } from "../theme/ThemeContext";
-import { themes } from "../theme/theme";
+import { readableTextColor, themes } from "../theme/theme";
+import { feedbackStep } from "../utils/feedback";
 import { PressOpacity } from "./PressOpacity";
 
 const tokens = themes.dark;
+
+const QUICK_HOURS = [6, 8, 12, 15, 18, 20, 22] as const;
 
 type LogTimeChangerProps = {
   compact?: boolean;
@@ -38,207 +30,270 @@ export function LogTimeChanger({
   onChange,
   value,
 }: LogTimeChangerProps) {
-  const { colorScheme, theme } = useAppTheme();
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [draftTime, setDraftTime] = useState(() => new Date(value));
-  const draftTimeRef = useRef(new Date(value));
+  const { theme } = useAppTheme();
+  const [expanded, setExpanded] = useState(false);
+  const activeText = readableTextColor(theme.colors.tertiary);
 
-  function openPicker() {
-    Keyboard.dismiss();
-    const initialTime = new Date(value);
-    draftTimeRef.current = initialTime;
-    setDraftTime(initialTime);
-
-    if (Platform.OS === "android") {
-      openAndroidTimePicker(initialTime);
-      return;
+  function clampDate(candidate: Date) {
+    if (maximumDate && candidate.getTime() > maximumDate.getTime()) {
+      return new Date(maximumDate);
     }
-
-    setPickerOpen(true);
+    return candidate;
   }
 
-  function closePicker() {
-    setPickerOpen(false);
+  function shiftMinutes(deltaMinutes: number) {
+    feedbackStep(deltaMinutes > 0 ? "up" : "down");
+    const updated = new Date(value.getTime() + deltaMinutes * 60_000);
+    onChange(clampDate(updated));
   }
 
-  function openAndroidTimePicker(initialDate: Date) {
-    DateTimePickerAndroid.open({
-      mode: "time",
-      onChange: changeTime,
-      value: initialDate,
-    });
+  function selectHourPreset(hour: number) {
+    feedbackStep("up");
+    const updated = new Date(value);
+    updated.setHours(hour, 0, 0, 0);
+    onChange(clampDate(updated));
   }
 
-  function changeTime(event: DateTimePickerEvent, selectedDate?: Date) {
-    if (event.type === "dismissed" || !selectedDate) {
-      closePicker();
-      return;
-    }
-
-    const updatedDate = new Date(draftTimeRef.current);
-    updatedDate.setHours(
-      selectedDate.getHours(),
-      selectedDate.getMinutes(),
-      0,
-      0,
-    );
-    const acceptedDate =
-      maximumDate && updatedDate.getTime() > maximumDate.getTime()
-        ? new Date(maximumDate)
-        : updatedDate;
-
-    draftTimeRef.current = acceptedDate;
-
-    if (Platform.OS === "android") {
-      onChange(new Date(acceptedDate));
-    } else {
-      setDraftTime(acceptedDate);
-    }
-
-    if (Platform.OS === "android") {
-      closePicker();
-    }
+  function setNow() {
+    feedbackStep("up");
+    onChange(clampDate(new Date()));
   }
 
-  function saveTime() {
-    onChange(new Date(draftTimeRef.current));
-    closePicker();
-  }
-
-  return (
-    <View
-      style={[
-        styles.container,
-        inline && styles.inlineContainer,
-        inline && compact && styles.inlineContainerCompact,
-      ]}
-    >
-      <PressOpacity
-        accessibilityLabel={`Change log time. Currently ${formatFullDateTime(
-          value,
-        )}`}
-        onPress={openPicker}
+  if (inline || compact || iconOnly) {
+    return (
+      <View
         style={[
-          styles.button,
-          compact && styles.buttonCompact,
-          iconOnly && !label && styles.iconButton,
+          styles.inlineContainer,
+          compact && styles.inlineContainerCompact,
         ]}
       >
-        {label ? (
-          <View
+        <View style={styles.inlineStepBar}>
+          <PressOpacity
+            accessibilityLabel="Subtract 15 minutes"
+            onPress={() => shiftMinutes(-15)}
+            silent
             style={[
-              styles.labelPill,
-              compact && styles.labelPillCompact,
+              styles.inlineMiniStep,
               {
                 backgroundColor: theme.colors.surfaceMuted,
                 borderColor: theme.colors.borderStrong,
               },
             ]}
           >
+            <Text style={[styles.inlineMiniStepText, { color: theme.colors.text }]}>
+              -15m
+            </Text>
+          </PressOpacity>
+          <PressOpacity
+            accessibilityLabel={`Change log time. Currently ${formatFullDateTime(
+              value,
+            )}`}
+            onPress={() => setExpanded((current) => !current)}
+            style={[
+              styles.labelPill,
+              compact && styles.labelPillCompact,
+              {
+                backgroundColor: expanded
+                  ? theme.colors.tertiary
+                  : theme.colors.surfaceMuted,
+                borderColor: expanded
+                  ? theme.colors.tertiary
+                  : theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Ionicons
+              color={expanded ? activeText : theme.colors.tertiary}
+              name="time-outline"
+              size={compact ? 14 : 16}
+            />
             <Text
               numberOfLines={1}
               style={[
                 styles.labelText,
                 compact && styles.labelTextCompact,
-                { color: theme.colors.text },
+                { color: expanded ? activeText : theme.colors.text },
               ]}
             >
-              {label}
+              {formatTime(value)}
             </Text>
-            <Ionicons
-              color={theme.colors.text}
-              name="time-outline"
-              size={compact ? 14 : 20}
-            />
-          </View>
-        ) : iconOnly ? (
-          <Ionicons color={theme.colors.text} name="time-outline" size={22} />
-        ) : (
-          <View
+          </PressOpacity>
+          <PressOpacity
+            accessibilityLabel="Add 15 minutes"
+            onPress={() => shiftMinutes(15)}
+            silent
             style={[
-              styles.buttonPill,
+              styles.inlineMiniStep,
               {
                 backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.border,
+                borderColor: theme.colors.borderStrong,
               },
             ]}
           >
-            <Ionicons
-              color={theme.colors.textMuted}
-              name="time-outline"
-              size={15}
-            />
-
-            <Text style={[styles.time, { color: theme.colors.text }]}>
-              {formatTime(value)}
+            <Text style={[styles.inlineMiniStepText, { color: theme.colors.text }]}>
+              +15m
             </Text>
-          </View>
-        )}
-      </PressOpacity>
+          </PressOpacity>
+        </View>
+      </View>
+    );
+  }
 
-      {Platform.OS === "ios" ? (
-        <Modal
-          animationType="fade"
-          onRequestClose={closePicker}
-          presentationStyle="overFullScreen"
-          transparent
-          visible={pickerOpen}
+  return (
+    <View
+      style={[
+        styles.cardContainer,
+        {
+          backgroundColor: theme.colors.surfaceMuted,
+          borderColor: theme.colors.borderStrong,
+        },
+      ]}
+    >
+      <View style={styles.headerRow}>
+        <View style={styles.headerLabelGroup}>
+          <Ionicons color={theme.colors.tertiary} name="time-outline" size={16} />
+          <Text style={[styles.cardLabel, { color: theme.colors.textMuted }]}>
+            {(label ?? "LOG TIME").toUpperCase()}
+          </Text>
+        </View>
+        <PressOpacity
+          accessibilityLabel="Set time to now"
+          onPress={setNow}
+          silent
+          style={[
+            styles.nowBadge,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
         >
-          <View
-            style={[
-              styles.modalOverlay,
-              { backgroundColor: theme.colors.overlay },
-            ]}
-          >
-            <View
-              accessibilityViewIsModal
+          <Text style={[styles.nowBadgeText, { color: theme.colors.tertiary }]}>
+            NOW
+          </Text>
+        </PressOpacity>
+      </View>
+
+      <View style={styles.stepperRow}>
+        <PressOpacity
+          accessibilityLabel="Subtract 1 hour"
+          onPress={() => shiftMinutes(-60)}
+          silent
+          style={[
+            styles.stepButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Text style={[styles.stepText, { color: theme.colors.text }]}>-1h</Text>
+        </PressOpacity>
+        <PressOpacity
+          accessibilityLabel="Subtract 15 minutes"
+          onPress={() => shiftMinutes(-15)}
+          silent
+          style={[
+            styles.stepButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Text style={[styles.stepText, { color: theme.colors.text }]}>-15m</Text>
+        </PressOpacity>
+
+        <View
+          style={[
+            styles.timeReadout,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Text style={[styles.timeValue, { color: theme.colors.text }]}>
+            {formatTime(value)}
+          </Text>
+        </View>
+
+        <PressOpacity
+          accessibilityLabel="Add 15 minutes"
+          onPress={() => shiftMinutes(15)}
+          silent
+          style={[
+            styles.stepButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Text style={[styles.stepText, { color: theme.colors.text }]}>+15m</Text>
+        </PressOpacity>
+        <PressOpacity
+          accessibilityLabel="Add 1 hour"
+          onPress={() => shiftMinutes(60)}
+          silent
+          style={[
+            styles.stepButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Text style={[styles.stepText, { color: theme.colors.text }]}>+1h</Text>
+        </PressOpacity>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.presetStrip}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+      >
+        {QUICK_HOURS.map((hour) => {
+          const isSelected =
+            value.getHours() === hour && Math.abs(value.getMinutes()) < 10;
+          return (
+            <PressOpacity
+              accessibilityLabel={`Set time to ${formatHourChip(hour)}`}
+              key={hour}
+              onPress={() => selectHourPreset(hour)}
+              silent
               style={[
-                styles.pickerModal,
-                { backgroundColor: theme.colors.surface },
+                styles.presetChip,
+                {
+                  backgroundColor: isSelected
+                    ? theme.colors.tertiary
+                    : theme.colors.surface,
+                  borderColor: isSelected
+                    ? theme.colors.tertiary
+                    : theme.colors.border,
+                },
               ]}
             >
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                Log time
+              <Text
+                style={[
+                  styles.presetChipText,
+                  { color: isSelected ? activeText : theme.colors.text },
+                ]}
+              >
+                {formatHourChip(hour)}
               </Text>
-
-              <View style={styles.pickerFrame}>
-                {pickerOpen ? (
-                  <DateTimePicker
-                    display="spinner"
-                    maximumDate={maximumDate}
-                    mode="time"
-                    onChange={changeTime}
-                    style={styles.picker}
-                    textColor={theme.colors.text}
-                    themeVariant={colorScheme}
-                    value={draftTime}
-                  />
-                ) : null}
-              </View>
-
-              <View style={styles.modalActions}>
-                <PressOpacity
-                  accessibilityLabel="Cancel changing log time"
-                  onPress={closePicker}
-                  style={styles.modalAction}
-                >
-                  <Text style={{ color: theme.colors.textMuted }}>Cancel</Text>
-                </PressOpacity>
-
-                <PressOpacity
-                  accessibilityLabel="Save log time"
-                  onPress={saveTime}
-                  style={styles.modalAction}
-                >
-                  <Text style={{ color: theme.colors.tertiary }}>Done</Text>
-                </PressOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-      ) : null}
+            </PressOpacity>
+          );
+        })}
+      </ScrollView>
     </View>
   );
+}
+
+function formatHourChip(hour: number) {
+  if (hour === 0) return "12 AM";
+  if (hour === 12) return "12 PM";
+  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
 }
 
 function formatTime(date: Date) {
@@ -260,115 +315,135 @@ function formatFullDateTime(date: Date) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: "center",
-    paddingTop: tokens.spacing.sm,
+  cardContainer: {
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    gap: tokens.spacing.sm,
+    marginTop: tokens.spacing.xs,
+    padding: tokens.spacing.sm,
     width: "100%",
+  },
+  headerRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  headerLabelGroup: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  cardLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.7,
+  },
+  nowBadge: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 32,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  nowBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  stepperRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  stepButton: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 46,
+    paddingHorizontal: 6,
+  },
+  stepText: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  timeReadout: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.xs,
+  },
+  timeValue: {
+    fontSize: 15,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+  },
+  presetStrip: {
+    gap: 6,
+  },
+  presetChip: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  presetChipText: {
+    fontSize: 11,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
   },
   inlineContainer: {
     alignSelf: "flex-end",
-    paddingTop: 0,
-    width: "auto",
   },
   inlineContainerCompact: {
-    marginBottom: tokens.spacing.xs,
-    marginTop: tokens.spacing.xs,
-    paddingHorizontal: tokens.spacing.xs,
+    marginVertical: 2,
   },
-  button: {
+  inlineStepBar: {
     alignItems: "center",
+    flexDirection: "row",
+    gap: 4,
+  },
+  inlineMiniStep: {
+    alignItems: "center",
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 38,
+    minWidth: 38,
+    paddingHorizontal: 4,
   },
-  buttonCompact: {
-    minHeight: 32,
-  },
-  iconButton: {
-    height: 44,
-    width: 44,
+  inlineMiniStepText: {
+    fontSize: 10,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
   },
   labelPill: {
     alignItems: "center",
     borderRadius: tokens.radius.sm,
     borderWidth: 1,
     flexDirection: "row",
-    gap: tokens.spacing.xs,
-    minHeight: 44,
+    gap: 4,
+    minHeight: 38,
     paddingHorizontal: tokens.spacing.sm,
-    paddingVertical: tokens.spacing.xs,
   },
   labelPillCompact: {
-    gap: 4,
-    minHeight: 30,
-    paddingHorizontal: tokens.spacing.xs,
-    paddingVertical: 4,
+    minHeight: 38,
+    paddingHorizontal: 6,
   },
   labelText: {
-    flexShrink: 1,
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
-    lineHeight: 15,
-    textAlign: "right",
+    fontSize: 11,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
   },
   labelTextCompact: {
     fontSize: 10,
-    lineHeight: 12,
-  },
-  buttonPill: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.spacing.xs,
-    height: 28,
-    paddingHorizontal: tokens.spacing.sm,
-  },
-  time: {
-    fontSize: 10,
-    fontWeight: tokens.typography.label.fontWeight,
-    lineHeight: 14,
-  },
-  modalOverlay: {
-    alignItems: "center",
-    flex: 1,
-    justifyContent: "center",
-    padding: tokens.spacing.lg,
-  },
-  pickerModal: {
-    alignItems: "center",
-    borderRadius: tokens.radius.lg,
-    maxWidth: 300,
-    padding: tokens.spacing.lg,
-    width: "100%",
-  },
-  modalTitle: {
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "700",
-    lineHeight: tokens.typography.body.lineHeight,
-  },
-  picker: {
-    height: 180,
-    transform: [{ scale: 0.75 }],
-    width: 240,
-  },
-  pickerFrame: {
-    alignItems: "center",
-    height: 135,
-    justifyContent: "center",
-    overflow: "hidden",
-    width: 180,
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: tokens.spacing.md,
-    justifyContent: "flex-end",
-    paddingTop: tokens.spacing.sm,
-    width: "100%",
-  },
-  modalAction: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
-    minWidth: 72,
   },
 });
