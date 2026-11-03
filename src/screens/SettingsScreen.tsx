@@ -1,13 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import type { ReactNode } from "react";
 import { useState } from "react";
-import {
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
@@ -15,10 +8,11 @@ import { SimpleSwitch } from "../components/SimpleSwitch";
 import { useAppState } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import {
+  readableTextColor,
   tertiaryColorOptions,
   themes,
-  type TertiaryColor,
 } from "../theme/theme";
+import { feedbackConfirm, feedbackStep } from "../utils/feedback";
 
 const tokens = themes.dark;
 
@@ -30,165 +24,420 @@ export function SettingsScreen() {
     tertiaryColor,
     theme,
   } = useAppTheme();
-  const { setDistanceUnit, setHeightUnit, setWeightUnit, unitSettings } = useAppState();
+  const {
+    audioCuesEnabled,
+    hapticsEnabled,
+    setAudioCuesEnabled,
+    setDistanceUnit,
+    setHapticsEnabled,
+    setHeightUnit,
+    setWeightUnit,
+    unitSettings,
+  } = useAppState();
   const [weighInReminders, setWeighInReminders] = useState(false);
   const [trainingReminders, setTrainingReminders] = useState(false);
   const [hydrationReminders, setHydrationReminders] = useState(false);
-  const [colorMenuOpen, setColorMenuOpen] = useState(false);
 
-  const setThemeFromSwitch = (isLight: boolean) => {
-    setColorScheme(isLight ? "light" : "dark");
-  };
+  const selectedColorOption = tertiaryColorOptions.find(
+    (option) => option.key === tertiaryColor,
+  )!;
+  const activeRemindersCount = [
+    weighInReminders,
+    trainingReminders,
+    hydrationReminders,
+  ].filter(Boolean).length;
 
   return (
-    <Screen title="Settings">
-      <Section style={styles.appearanceSection} title="Appearance">
-        <SettingRow
-          label="Theme"
-          control={
-            <OptionSelector
-              leftLabel="Dark"
-              onValueChange={setThemeFromSwitch}
-              rightLabel="Light"
-              value={colorScheme === "light"}
-            />
-          }
-        />
-        <SettingRow
-          label="Colour"
-          control={
-            <View style={styles.colorMenu}>
-              <ColorSelector
-                color={tertiaryColor}
-                onPress={() => setColorMenuOpen((isOpen) => !isOpen)}
-              />
-              {colorMenuOpen ? (
-                <ColorDropdown
-                  selectedColor={tertiaryColor}
-                  onSelect={(color) => {
-                    setTertiaryColor(color);
-                    setColorMenuOpen(false);
-                  }}
-                />
-              ) : null}
-            </View>
-          }
-        />
-      </Section>
-
-      <Section title="Units">
-        <SettingRow
-          label="Distance"
-          control={
-            <OptionSelector
-              leftLabel="km"
-              onValueChange={(isImperial) =>
-                setDistanceUnit(isImperial ? "imperial" : "metric")
-              }
-              rightLabel="mi"
-              value={unitSettings.distance === "imperial"}
-            />
-          }
-        />
-        <SettingRow
-          label="Weight"
-          control={
-            <OptionSelector
-              leftLabel="kg"
-              onValueChange={(isImperial) =>
-                setWeightUnit(isImperial ? "imperial" : "metric")
-              }
-              rightLabel="lb"
-              value={unitSettings.weight === "imperial"}
-            />
-          }
-        />
-        <SettingRow
-          label="Height"
-          control={
-            <OptionSelector
-              leftLabel="cm"
-              onValueChange={(isImperial) =>
-                setHeightUnit(isImperial ? "imperial" : "metric")
-              }
-              rightLabel="inches"
-              value={unitSettings.height === "imperial"}
-            />
-          }
-        />
-      </Section>
-
-      <Section title="Notifications">
-        <SettingRow
-          label="Weigh-in reminders"
-          control={
-            <ThemedSwitch
-              onValueChange={setWeighInReminders}
-              value={weighInReminders}
-            />
-          }
-        />
-        <SettingRow
-          label="Training reminders"
-          control={
-            <ThemedSwitch
-              onValueChange={setTrainingReminders}
-              value={trainingReminders}
-            />
-          }
-        />
-        <SettingRow
-          label="Hydration reminders"
-          control={
-            <ThemedSwitch
-              onValueChange={setHydrationReminders}
-              value={hydrationReminders}
-            />
-          }
-        />
-      </Section>
+    <Screen
+      subtitle="High-contrast display, unit standards, and sensory feedback"
+      title="Settings"
+    >
+      {/* Card 1: Appearance & Accent */}
       <View
-        style={[styles.bottomLine, { backgroundColor: theme.colors.border }]}
-      />
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+            APPEARANCE & CONTRAST
+          </Text>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.badgeDot,
+                { backgroundColor: selectedColorOption.hex },
+              ]}
+            />
+            <Text style={[styles.badgeText, { color: theme.colors.text }]}>
+              {colorScheme.toUpperCase()} · {selectedColorOption.label.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.row, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.rowTextGroup}>
+            <Text style={[styles.rowLabel, { color: theme.colors.text }]}>
+              Display Mode
+            </Text>
+            <Text style={[styles.rowHint, { color: theme.colors.textMuted }]}>
+              High-contrast surface palette
+            </Text>
+          </View>
+          <DualOptionButtons
+            leftLabel="Dark"
+            onValueChange={(isLight) =>
+              setColorScheme(isLight ? "light" : "dark")
+            }
+            rightLabel="Light"
+            value={colorScheme === "light"}
+          />
+        </View>
+
+        <View style={[styles.blockRow, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.blockHeaderRow}>
+            <Text style={[styles.rowLabel, { color: theme.colors.text }]}>
+              Accent Colour
+            </Text>
+            <Text style={[styles.rowHint, { color: theme.colors.textMuted }]}>
+              Swipe & tap to apply
+            </Text>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.colorStrip}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+          >
+            {tertiaryColorOptions.map((option) => {
+              const isSelected = option.key === tertiaryColor;
+              const activeTextColor = readableTextColor(option.hex);
+
+              return (
+                <PressOpacity
+                  accessibilityLabel={`Use ${option.label}`}
+                  accessibilityState={{ selected: isSelected }}
+                  key={option.key}
+                  onPress={() => {
+                    feedbackStep("up");
+                    setTertiaryColor(option.key);
+                  }}
+                  silent
+                  style={[
+                    styles.colorPill,
+                    {
+                      backgroundColor: isSelected
+                        ? option.hex
+                        : theme.colors.surfaceMuted,
+                      borderColor: isSelected
+                        ? option.hex
+                        : theme.colors.borderStrong,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.colorSwatch,
+                      {
+                        backgroundColor: option.hex,
+                        borderColor: isSelected
+                          ? activeTextColor
+                          : "rgba(255,255,255,0.28)",
+                      },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.colorPillText,
+                      {
+                        color: isSelected ? activeTextColor : theme.colors.text,
+                      },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                  {isSelected ? (
+                    <Ionicons
+                      color={activeTextColor}
+                      name="checkmark-circle"
+                      size={18}
+                    />
+                  ) : null}
+                </PressOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </View>
+
+      {/* Card 2: Measurement Units */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+            MEASUREMENT UNITS
+          </Text>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.badgeText, { color: theme.colors.text }]}>
+              {unitSettings.distance === "metric" ? "KM" : "MI"} ·{" "}
+              {unitSettings.weight === "metric" ? "KG" : "LB"} ·{" "}
+              {unitSettings.height === "metric" ? "CM" : "IN"}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.row, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.rowTextGroup}>
+            <Text style={[styles.rowLabel, { color: theme.colors.text }]}>
+              Distance
+            </Text>
+            <Text style={[styles.rowHint, { color: theme.colors.textMuted }]}>
+              Roadwork, sprints & GPS splits
+            </Text>
+          </View>
+          <DualOptionButtons
+            leftLabel="km"
+            onValueChange={(isImperial) =>
+              setDistanceUnit(isImperial ? "imperial" : "metric")
+            }
+            rightLabel="mi"
+            value={unitSettings.distance === "imperial"}
+          />
+        </View>
+
+        <View style={[styles.row, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.rowTextGroup}>
+            <Text style={[styles.rowLabel, { color: theme.colors.text }]}>
+              Weight & Load
+            </Text>
+            <Text style={[styles.rowHint, { color: theme.colors.textMuted }]}>
+              Bodyweight & external resistance
+            </Text>
+          </View>
+          <DualOptionButtons
+            leftLabel="kg"
+            onValueChange={(isImperial) =>
+              setWeightUnit(isImperial ? "imperial" : "metric")
+            }
+            rightLabel="lb"
+            value={unitSettings.weight === "imperial"}
+          />
+        </View>
+
+        <View style={[styles.row, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.rowTextGroup}>
+            <Text style={[styles.rowLabel, { color: theme.colors.text }]}>
+              Height & Elevation
+            </Text>
+            <Text style={[styles.rowHint, { color: theme.colors.textMuted }]}>
+              Stature & vertical gain
+            </Text>
+          </View>
+          <DualOptionButtons
+            leftLabel="cm"
+            onValueChange={(isImperial) =>
+              setHeightUnit(isImperial ? "imperial" : "metric")
+            }
+            rightLabel="inches"
+            value={unitSettings.height === "imperial"}
+          />
+        </View>
+      </View>
+
+      {/* Card 3: Sensory & Audio Cues */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+            AUDIO CUES & HAPTIC FEEDBACK
+          </Text>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.badgeText, { color: theme.colors.text }]}>
+              {audioCuesEnabled && hapticsEnabled
+                ? "FULL CUES"
+                : audioCuesEnabled
+                  ? "AUDIO ONLY"
+                  : hapticsEnabled
+                    ? "HAPTIC ONLY"
+                    : "MUTED"}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.row, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.rowTextGroup}>
+            <Text style={[styles.rowLabel, { color: theme.colors.text }]}>
+              Audio Cues
+            </Text>
+            <Text style={[styles.rowHint, { color: theme.colors.textMuted }]}>
+              Timer horns, countdown beeps & stepper clicks
+            </Text>
+          </View>
+          <SimpleSwitch
+            onValueChange={setAudioCuesEnabled}
+            value={audioCuesEnabled}
+          />
+        </View>
+
+        <View style={[styles.row, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.rowTextGroup}>
+            <Text style={[styles.rowLabel, { color: theme.colors.text }]}>
+              Haptic Feedback
+            </Text>
+            <Text style={[styles.rowHint, { color: theme.colors.textMuted }]}>
+              Tactile pulses on increments & transitions
+            </Text>
+          </View>
+          <SimpleSwitch
+            onValueChange={setHapticsEnabled}
+            value={hapticsEnabled}
+          />
+        </View>
+
+        <PressOpacity
+          accessibilityLabel="Test audio and haptic cue"
+          onPress={feedbackConfirm}
+          silent
+          style={[
+            styles.testCueButton,
+            {
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.borderStrong,
+            },
+          ]}
+        >
+          <Ionicons
+            color={theme.colors.tertiary}
+            name="volume-high-outline"
+            size={20}
+          />
+          <Text style={[styles.testCueText, { color: theme.colors.text }]}>
+            Test Audio & Haptic Cue
+          </Text>
+        </PressOpacity>
+      </View>
+
+      {/* Card 4: Notifications */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.borderStrong,
+          },
+        ]}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
+            NOTIFICATIONS & REMINDERS
+          </Text>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.badgeText, { color: theme.colors.text }]}>
+              {activeRemindersCount} / 3 ACTIVE
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.row, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.rowTextGroup}>
+            <Text style={[styles.rowLabel, { color: theme.colors.text }]}>
+              Weigh-in reminders
+            </Text>
+            <Text style={[styles.rowHint, { color: theme.colors.textMuted }]}>
+              Morning scale check-in prompt
+            </Text>
+          </View>
+          <SimpleSwitch
+            onValueChange={setWeighInReminders}
+            value={weighInReminders}
+          />
+        </View>
+
+        <View style={[styles.row, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.rowTextGroup}>
+            <Text style={[styles.rowLabel, { color: theme.colors.text }]}>
+              Training reminders
+            </Text>
+            <Text style={[styles.rowHint, { color: theme.colors.textMuted }]}>
+              Scheduled conditioning & session alerts
+            </Text>
+          </View>
+          <SimpleSwitch
+            onValueChange={setTrainingReminders}
+            value={trainingReminders}
+          />
+        </View>
+
+        <View style={[styles.row, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.rowTextGroup}>
+            <Text style={[styles.rowLabel, { color: theme.colors.text }]}>
+              Hydration reminders
+            </Text>
+            <Text style={[styles.rowHint, { color: theme.colors.textMuted }]}>
+              Daily fluid & electrolyte pacing
+            </Text>
+          </View>
+          <SimpleSwitch
+            onValueChange={setHydrationReminders}
+            value={hydrationReminders}
+          />
+        </View>
+      </View>
     </Screen>
   );
 }
 
-function Section({
-  children,
-  style,
-  title,
-}: {
-  children: ReactNode;
-  style?: StyleProp<ViewStyle>;
-  title: string;
-}) {
-  const { theme } = useAppTheme();
-
-  return (
-    <View style={[styles.section, style]}>
-      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-        {title}
-      </Text>
-      {children}
-    </View>
-  );
-}
-
-function SettingRow({ control, label }: { control: ReactNode; label: string }) {
-  const { theme } = useAppTheme();
-
-  return (
-    <View style={[styles.row, { borderTopColor: theme.colors.border }]}>
-      <Text style={[styles.rowLabel, { color: theme.colors.text }]}>
-        {label}
-      </Text>
-      {control}
-    </View>
-  );
-}
-
-function OptionSelector({
+function DualOptionButtons({
   leftLabel,
   onValueChange,
   rightLabel,
@@ -200,6 +449,7 @@ function OptionSelector({
   value: boolean;
 }) {
   const { theme } = useAppTheme();
+  const activeColor = readableTextColor(theme.colors.tertiary);
   const options = [
     { label: leftLabel, value: false },
     { label: rightLabel, value: true },
@@ -210,7 +460,7 @@ function OptionSelector({
       style={[
         styles.optionSelector,
         {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: theme.colors.surfaceMuted,
           borderColor: theme.colors.borderStrong,
         },
       ]}
@@ -222,13 +472,18 @@ function OptionSelector({
           <PressOpacity
             accessibilityLabel={option.label}
             accessibilityRole="tab"
+            accessibilityState={{ selected: isSelected }}
             key={option.label}
-            onPress={() => onValueChange(option.value)}
+            onPress={() => {
+              feedbackStep(option.value ? "up" : "down");
+              onValueChange(option.value);
+            }}
+            silent
             style={[
               styles.option,
               option.value && {
                 borderLeftColor: theme.colors.borderStrong,
-                borderLeftWidth: StyleSheet.hairlineWidth,
+                borderLeftWidth: 1,
               },
               isSelected && { backgroundColor: theme.colors.tertiary },
             ]}
@@ -236,7 +491,7 @@ function OptionSelector({
             <Text
               style={[
                 styles.optionText,
-                { color: isSelected ? "#FFFFFF" : theme.colors.textMuted },
+                { color: isSelected ? activeColor : theme.colors.textMuted },
               ]}
             >
               {option.label}
@@ -248,226 +503,136 @@ function OptionSelector({
   );
 }
 
-function ColorSelector({
-  color,
-  onPress,
-}: {
-  color: TertiaryColor;
-  onPress: () => void;
-}) {
-  const { theme } = useAppTheme();
-  const selectedColor = tertiaryColorOptions.find(
-    (option) => option.key === color,
-  )!;
-
-  return (
-    <PressOpacity
-      accessibilityLabel={`Colour, ${selectedColor.label}`}
-      onPress={onPress}
-      style={[
-        styles.colorSelector,
-        {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.borderStrong,
-        },
-      ]}
-    >
-      <View
-        style={[styles.colorCircle, { backgroundColor: selectedColor.hex }]}
-      />
-      <Text
-        style={[styles.colorSelectorText, { color: theme.colors.text }]}
-      >
-        {selectedColor.label}
-      </Text>
-      <Ionicons
-        color={theme.colors.textMuted}
-        name="chevron-down"
-        size={16}
-      />
-    </PressOpacity>
-  );
-}
-
-function ColorDropdown({
-  onSelect,
-  selectedColor,
-}: {
-  onSelect: (color: TertiaryColor) => void;
-  selectedColor: TertiaryColor;
-}) {
-  const { theme } = useAppTheme();
-
-  return (
-    <View
-      style={[
-        styles.colorDropdown,
-        {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.borderStrong,
-        },
-      ]}
-    >
-      {tertiaryColorOptions.map((option, index) => {
-        const isSelected = option.key === selectedColor;
-
-        return (
-          <PressOpacity
-            accessibilityLabel={`Use ${option.label}`}
-            key={option.key}
-            onPress={() => onSelect(option.key)}
-            style={[
-              styles.colorOption,
-              index > 0 && {
-                borderTopColor: theme.colors.border,
-                borderTopWidth: StyleSheet.hairlineWidth,
-              },
-            ]}
-          >
-            <View style={styles.colorOptionLabel}>
-              <View
-                style={[styles.colorCircle, { backgroundColor: option.hex }]}
-              />
-              <Text
-                style={[styles.colorOptionText, { color: theme.colors.text }]}
-              >
-                {option.label}
-              </Text>
-            </View>
-
-            {isSelected ? (
-              <Ionicons
-                color={theme.colors.tertiary}
-                name="checkmark"
-                size={20}
-              />
-            ) : (
-              <View style={styles.checkmarkSpace} />
-            )}
-          </PressOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
-function ThemedSwitch({
-  onValueChange,
-  value,
-}: {
-  onValueChange: (value: boolean) => void;
-  value: boolean;
-}) {
-  return <SimpleSwitch onValueChange={onValueChange} value={value} />;
-}
-
 const styles = StyleSheet.create({
-  section: {
-    marginBottom: tokens.spacing.xxl,
+  card: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.xs,
+    padding: tokens.spacing.lg,
   },
-  appearanceSection: {
-    zIndex: 1,
+  cardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: tokens.spacing.xs,
   },
-  sectionTitle: {
-    fontSize: tokens.typography.sectionTitle.fontSize,
-    fontWeight: tokens.typography.sectionTitle.fontWeight,
-    letterSpacing: 0,
-    lineHeight: tokens.typography.sectionTitle.lineHeight,
-    marginBottom: tokens.spacing.sm,
-    textTransform: "uppercase",
+  cardHeaderLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  badge: {
+    alignItems: "center",
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: 4,
+  },
+  badgeDot: {
+    borderRadius: 999,
+    height: 8,
+    width: 8,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
   row: {
     alignItems: "center",
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
     flexDirection: "row",
     justifyContent: "space-between",
-    minHeight: 62,
-    paddingVertical: tokens.spacing.md,
+    minHeight: 68,
+    paddingVertical: tokens.spacing.sm,
+  },
+  blockRow: {
+    borderTopWidth: 1,
+    gap: tokens.spacing.sm,
+    paddingTop: tokens.spacing.md,
+  },
+  blockHeaderRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  rowTextGroup: {
+    flex: 1,
+    gap: 2,
+    paddingRight: tokens.spacing.md,
   },
   rowLabel: {
-    flex: 1,
     fontSize: tokens.typography.body.fontSize,
-    fontWeight: tokens.typography.body.fontWeight,
+    fontWeight: "700",
     lineHeight: tokens.typography.body.lineHeight,
-    paddingRight: tokens.spacing.lg,
+  },
+  rowHint: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   optionSelector: {
     alignItems: "center",
-    borderRadius: tokens.radius.sm,
+    borderRadius: tokens.radius.md,
     borderWidth: 1,
     flexDirection: "row",
     overflow: "hidden",
-    width: 166,
+    width: 172,
   },
   option: {
     alignItems: "center",
     flex: 1,
     justifyContent: "center",
-    minHeight: 34,
+    minHeight: 48,
     paddingHorizontal: tokens.spacing.sm,
   },
   optionText: {
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
-    lineHeight: tokens.typography.label.lineHeight,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+    lineHeight: 16,
     textAlign: "center",
+    textTransform: "uppercase",
   },
-  colorSelector: {
+  colorStrip: {
+    gap: tokens.spacing.sm,
+    paddingVertical: 2,
+  },
+  colorPill: {
     alignItems: "center",
-    borderRadius: tokens.radius.sm,
+    borderRadius: tokens.radius.md,
     borderWidth: 1,
     flexDirection: "row",
     gap: tokens.spacing.sm,
-    minHeight: 34,
+    minHeight: 48,
     paddingHorizontal: tokens.spacing.md,
-    width: "100%",
   },
-  colorCircle: {
-    borderRadius: tokens.radius.pill,
-    height: 14,
-    width: 14,
+  colorSwatch: {
+    borderRadius: 999,
+    borderWidth: 1.5,
+    height: 16,
+    width: 16,
   },
-  colorSelectorText: {
-    flex: 1,
-    fontSize: tokens.typography.label.fontSize,
-    fontWeight: tokens.typography.label.fontWeight,
-    lineHeight: tokens.typography.label.lineHeight,
+  colorPillText: {
+    fontSize: 13,
+    fontWeight: "800",
   },
-  colorMenu: {
-    position: "relative",
-    width: 166,
-  },
-  colorDropdown: {
-    borderRadius: tokens.radius.sm,
+  testCueButton: {
+    alignItems: "center",
+    borderRadius: tokens.radius.md,
     borderWidth: 1,
-    elevation: 4,
-    overflow: "hidden",
-    position: "absolute",
-    right: 0,
-    top: "100%",
-    width: "100%",
-    zIndex: 1,
-  },
-  colorOption: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 42,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  colorOptionLabel: {
-    alignItems: "center",
     flexDirection: "row",
     gap: tokens.spacing.sm,
+    justifyContent: "center",
+    marginTop: tokens.spacing.xs,
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.md,
   },
-  colorOptionText: {
-    fontSize: tokens.typography.body.fontSize,
-    lineHeight: tokens.typography.body.lineHeight,
-  },
-  checkmarkSpace: {
-    width: 20,
-  },
-  bottomLine: {
-    height: StyleSheet.hairlineWidth,
+  testCueText: {
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.3,
   },
 });
