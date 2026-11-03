@@ -49,14 +49,18 @@ export function ConditioningScreen() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [events, setEvents] = useState<MonthEvent[]>([]);
   const [templates, setTemplates] = useState<ConditioningTemplateRecord[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(true);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
+  const [fetchRetry, setFetchRetry] = useState(0);
+  const [committedFetchKey, setCommittedFetchKey] = useState<string | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<ConditioningSessionRecord | null>(null);
   const panel = useSharedValue(0);
 
-  const load = useCallback(async () => {
+  const fetchKey = `${workspace.revision}:${month.monthIndex}:${month.year}:${selectedDate}:${fetchRetry}`;
+  const templatesLoading = committedFetchKey !== fetchKey;
+
+  const fetchScreenData = useCallback(async () => {
     const ownerId = await getConditioningOwnerId(db);
     const grid = buildMonthGrid({
       events: [],
@@ -72,26 +76,35 @@ export function ConditioningScreen() {
       listConditioningTemplates(db, ownerId),
       findInProgressConditioningSession(db, ownerId),
     ]);
-    setEvents(sessions.flatMap(toCalendarEvent));
-    setTemplates(saved);
-    setActiveSession(active);
-    setTemplatesLoading(false);
-    setTemplatesError(null);
+    return {
+      activeSession: active,
+      events: sessions.flatMap(toCalendarEvent),
+      templates: saved,
+    };
   }, [db, month.monthIndex, month.year, selectedDate, today]);
 
   useEffect(() => {
     let cancelled = false;
-    setTemplatesLoading(true);
-    void load().catch(() => {
-      if (!cancelled) {
-        setTemplatesError("Couldn’t load conditioning");
-        setTemplatesLoading(false);
-      }
-    });
+    void fetchScreenData()
+      .then((result) => {
+        if (!cancelled) {
+          setEvents(result.events);
+          setTemplates(result.templates);
+          setActiveSession(result.activeSession);
+          setTemplatesError(null);
+          setCommittedFetchKey(fetchKey);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTemplatesError("Couldn’t load conditioning");
+          setCommittedFetchKey(fetchKey);
+        }
+      });
     return () => {
       cancelled = true;
     };
-  }, [load, workspace.revision]);
+  }, [fetchKey, fetchScreenData]);
 
   useEffect(() => {
     workspace.registerBackHandler(() => {
@@ -194,10 +207,7 @@ export function ConditioningScreen() {
               error={templatesError}
               loading={templatesLoading}
               onPress={(template) => openEditor(template.format, template)}
-              onRetry={() => {
-                setTemplatesLoading(true);
-                void load();
-              }}
+              onRetry={() => setFetchRetry((count) => count + 1)}
               templates={templates}
             />
           </ScrollView>
