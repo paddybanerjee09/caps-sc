@@ -1,0 +1,17 @@
+---
+description: Read and update the CAPS Obsidian memory bank in caps-obsidian/ whenever project knowledge, engineering logs, or feature context changes.
+alwaysApply: true
+---
+
+# CAPS Obsidian memory bank
+
+The agent memory bank lives at **`caps-obsidian/`** in the project root (not under `.cursor/`). Cursor indexes this folder for semantic search and @ mentions.
+
+## Core directives
+
+1. **Read for context:** Before architecture, patterns, or feature work, search and read relevant notes under `caps-obsidian/`.
+2. **Write on change:** When you fix a bug, establish a pattern, or ship a meaningful feature, append or create notes in `caps-obsidian/` the same way you update [[docs/feature-tree]] and engineering markdown under `docs/`.
+3. **Obsidian format:** Use wikilinks `[[Note Name]]`, keep YAML frontmatter when present, and avoid editor artifacts in markdown.
+4. **Do not relocate** the vault back into `.cursor/` — that path is not indexed like normal source files (only `.cursor/rules/` is).
+
+Engineering reference docs also live in `docs/`; see `obsidian-vault.mdc` for overlap.

@@ -1,0 +1,3 @@
+﻿# Keep caps-obsidian/ and docs/ accessible to Agent — do not add them here.
+# Only exclude Obsidian app metadata (not note content).
+**/.obsidian/

@@ -1,3 +1,13 @@
 ---
 alwaysApply: true
 ---
+
+GENERAL RULES:
+
+- Refer to the style guide whenever making a UI addition/change. Maintain uniformity throughout the app. Use the react-native-patterns skill for any UI change.
+- If multiple different components effectively accomplish the same thing, refactor accordingly such that the codebase remains minimalist
+- Commit between every feature/change/fix. Even if its a short prompt asking to resolve an error, commit it. Do not commit in big chunks, but instead every time a new app functionality is incorporated
+- End every reply with a condensed summary of what was changed/fixed. Detail commit-by-commit what you changed, where, why something may have been wrong, and so on
+- Explain IN DETAIL the relational SQLite database whenever anything related to it is changed/added. It is essential that the reader of your answers can understand the database like the back of their hand.
+- Distinguish working memory from long-term memory. Working memory contains active tasks, recent discoveries, and unresolved questions. Long-term memory contains stable architectural knowledge, product requirements, and decisions. Periodically consolidate useful working-memory information into the appropriate permanent documents so your vault doesn't become an ever-growing collection of session summaries.
+- Refer to the html tree website when planning features to not make previous mistakes.

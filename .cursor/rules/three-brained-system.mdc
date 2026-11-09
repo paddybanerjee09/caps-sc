@@ -1,0 +1,65 @@
+---
+alwaysApply: true
+---
+
+# CAPS Three-Part Development System — Navigation Guide
+
+The CAPS development environment uses a three-part system designed to maintain persistent context across AI agents, development sessions, and context-window resets. Each component serves a distinct purpose: **agent behavior, persistent knowledge, and human visualization.**
+
+## 1. Agent Rules — Behavioral System
+
+**Location:** `caps-sc/.cursor/rules/`
+
+This directory contains the instructions governing how AI agents operate within the CAPS project.
+
+Agents should consult these rules to understand how to approach development tasks, retrieve relevant context, document changes, maintain consistency, and interact with the other two systems.
+
+**Purpose:** Defines _how agents should work._
+
+## 2. Obsidian Vault — Persistent Memory System
+
+**Location:** `caps-sc/.cursor/caps-obsidian/`
+
+This directory serves as the project's centralized, persistent knowledge base.
+
+It stores project context, architectural documentation, feature specifications, development progress, technical decisions, and relevant historical information.
+
+Agents should consult the vault before beginning work to retrieve relevant context and update it as meaningful changes occur.
+
+The vault enables continuity between different AI tools, agents, and context windows without requiring previous conversations to remain accessible.
+
+**Purpose:** Defines _what agents should know and remember._
+
+## 3. Feature Tree — Human Visualization System
+
+**Location:** docs/feature-tree
+
+The Feature Tree provides a continuously maintained visual representation of the CAPS project.
+
+It allows human developers to navigate the application's features, understand relationships between components, and monitor implementation progress without examining the entire codebase or Obsidian vault.
+
+Agents maintain the visualization according to the project's documentation rules so that it reflects the current development state.
+
+**Purpose:** Shows _what the project contains and how its components relate._
+
+## System Navigation Workflow
+
+1. **Read the rules:** Before starting development, agents consult `.cursor/rules/` to understand their operating instructions.
+2. **Retrieve context:** Agents navigate `caps-obsidian/` to understand the project and the specific components relevant to their assigned task.
+3. **Inspect implementation:** Agents examine the actual source code to verify the current state before making changes.
+4. **Perform development:** Agents implement, modify, debug, or test the requested functionality while following established rules.
+5. **Update persistent memory:** Agents document meaningful changes, discoveries, decisions, and outstanding issues in the Obsidian vault.
+6. **Update the Feature Tree:** Agents synchronize the human-facing visualization with relevant changes to the project's features and development status.
+7. **Preserve continuity:** Before ending a session or approaching a context limit, agents record sufficient context for another agent to resume the work.
+
+## Core Principle
+
+The three systems operate together but maintain separate responsibilities:
+
+- **Rules = Behavior**
+- **Obsidian = Memory**
+- **Feature Tree = Visualization**
+
+The source code remains the authoritative representation of the actual implementation. The Obsidian vault preserves the project's knowledge and reasoning, while the Feature Tree communicates its structure and progress to humans.
+
+Together, these systems establish a shared development environment in which multiple AI agents can contribute to CAPS while maintaining continuity, consistency, and a common understanding of the project.
