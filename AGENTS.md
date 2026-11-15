@@ -7,7 +7,7 @@ This file belongs at the CAPS project root, alongside `.cursor/`. It defines the
 | Layer               | Location                   | Responsibility                                                                               |
 | ------------------- | -------------------------- | -------------------------------------------------------------------------------------------- |
 | Agent behavior      | `.cursor/rules/*.mdc`      | Development rules, workflows, and instructions for maintaining project knowledge.            |
-| Persistent memory   | `.cursor/caps-obsidian/`   | Architecture, feature context, decisions, progress, and handoffs across agents and sessions. |
+| Persistent memory   | `caps-vault/`              | Architecture, feature context, decisions, progress, and handoffs across agents and sessions. |
 | Human visualization | External HTML Feature Tree | A human-readable view of features, relationships, dependencies, and implementation progress. |
 
 The Feature Tree's location is not specified here. Discover its actual location and update procedure from existing project documentation or the user. Never invent a path or URL, create a replacement without authorization, or claim synchronization without verifying it.
@@ -26,7 +26,7 @@ Before making changes:
 
 1. Confirm the project root, current task, working branch or worktree, and existing uncommitted changes. Identify work that belongs to the user or another agent.
 2. Read this file and discover applicable scoped instructions. Inspect `.cursor/rules/*.mdc` descriptions, activation metadata, and scope; read all globally applicable rules and the full bodies of rules relevant to the task. Follow the existing vault-writing instructions.
-3. Read `.cursor/caps-obsidian/index.md` if it exists. If absent, use the vault's existing entry point or discover relevant notes by filename and targeted search. Do not assume a proposed folder layout already exists.
+3. Read `caps-vault/00-Index.md` at the start of the task. If absent, discover relevant notes in the vault by filename and targeted search.
 4. Read the latest relevant handoff or checkpoint, then retrieve the feature notes, architecture notes, and decisions needed for the task.
 5. Verify critical assumptions against the relevant source code, configuration, tests, and current working changes. Identify affected dependencies and shared files before editing.
 6. Determine whether the task affects the Feature Tree and whether its documented location and update method are accessible.
@@ -37,6 +37,7 @@ If a required source is missing or inaccessible, record the gap and continue ind
 
 - Begin with the entry point and relevant recent handoff, then follow links or search for the current feature, component, dependency, or decision.
 - Load only the context needed for the current task. Expand retrieval when an unresolved question or dependency requires it; do not read the entire vault by default.
+- Reuse retrieved context on follow-ups for the same task. Retrieve specific notes again when scope changes or existing context may be stale.
 - Preserve existing note organization and naming conventions. Prefer updating canonical notes and linking to them over duplicating explanations.
 - Keep durable architecture, feature knowledge, and decisions separate from temporary task progress. Put active state and next steps in checkpoints or handoffs using the existing conventions.
 - Support claims with discoverable repository paths, symbols, commands, or decision links. Label assumptions, proposals, historical information, and unverified observations explicitly.

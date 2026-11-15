@@ -16,4 +16,4 @@ The agent memory bank lives at **`caps-vault/`** in the project root (not under 
 5. **Structure**: Inside the index file should contain wikilinks to the different .md indexes of the main features of the app (Ex. Strength, Conditioning, Home, Skill, Nutrition, Database, Architecture, etc). Inside of those files should contain wikilinks to the specific features, and inside of those files should contain wikilinks to the different subfeatures if applicable. Incorporate nesting as a form of information organization.
 6. **Context Retrieval**: When retrieving context, take advantage of the nested structure to find the necessary information. Only do this once at the beginning of a task, instead of every single follow-up prompt afterwards.
 
-Engineering reference docs also live in `docs/`; see `obsidian-vault.mdc` for overlap.
+Start at `caps-vault/00-Index.md`. Engineering reference docs and the Feature Tree live in `docs/`.

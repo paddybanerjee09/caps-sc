@@ -1,0 +1,21 @@
+---
+aliases:
+  - HomeScreen
+---
+
+# Home
+
+Home is the initial dashboard tab. `src/screens/HomeScreen.tsx` renders athlete telemetry, a Quick Log card, and Today / Recovery / Progress sections. The Today section has a selected-day stepper and the [[Home Day Timeline]]. Recovery and Progress are placeholder panels explicitly held for future requests under the UI rule. The Home Progress panel is distinct from the historical Progress tab that became Conditioning.
+
+- Athlete telemetry reads `username`, `athleteProfile`, and `unitSettings` from `src/state/AppStateContext.tsx`. Its count comes from the displayed timeline entries, including the selected day when the user steps away from today. Athlete Information and Home share the same canonical profile weight.
+- Quick Log offers Strength, Conditioning, Skill, Meal, Weight, and Sleep. The latter three have wired actions. Weight and Sleep open mutually exclusive [[Weight and Sleep Logging|inline cards]]. Meal closes Quick Log and calls `openNewMeal(selectedDate)` to switch to [[Meal Composer and Saved Meals|the nutrition composer]]. The Strength, Conditioning, and Skill buttons have no handlers at the audited revision.
+- Home owns its selected day through `homeDate` in `NutritionWorkspaceContext`. The workspace has a separate `diaryDate`. `openNewMeal(homeDate)` sets the diary date to that day when Home opens a draft. Stepping Home's day alone leaves the diary date in place.
+- `SegmentedSelector` and `SlidingPanels` live in `src/components/nutrition/SegmentedSelector.tsx`. Keep animation on transform/opacity to avoid the layout feedback loop corrected in `ccc63a6`.
+
+## History
+
+- `e9ddbfb` → `f0f5834` moved the boilerplate Home tab from Expo Router to custom state navigation. `edd48ce`, `3d09c81`, and `2d78f4c` moved the screen into its own file, introduced the profile header, and established dashboard sections.
+- `5904f45` added Quick Log. `efc880c` implemented an overlay to fix opening it shifting surrounding content. The Home tree still records this guardrail. At the audited revision, `quickLogMenuWrapper` is in normal flow with animated height and no absolute positioning. Verify this behavior in the running app before relying on the historical overlay description.
+- `1d7f792` moved Meal Quick Log to the full-screen Nutrition workspace. `67d99b6` rebuilt Home around the telemetry card, Quick Log, inline forms, and stepped date controls.
+
+Feature Tree source is `docs/feature-tree/data/home.js`. Begin with `home:home-screen`, `home:athlete-telemetry`, `home:quick-log`, or `home:home-sections` in [[Feature Tree Crosswalk]]. Shared shell and provider ownership are in [[App Architecture]]. Earlier branches are in [[Project History]].
