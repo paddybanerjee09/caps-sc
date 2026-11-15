@@ -1,0 +1,734 @@
+import { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+
+import { PressOpacity } from "../../components/PressOpacity";
+import { SimpleSwitch } from "../../components/SimpleSwitch";
+import {
+  MAX_REPS,
+  MAX_REST_SECONDS,
+  MAX_SETS,
+  applyRepeat,
+  customizeSet,
+  matchSetToRepeat,
+  moveExercise,
+  removeExercise,
+  resizeSets,
+  setLoadMode,
+  updateExercise,
+  updateSet,
+} from "../../strength/drafts";
+import type { ExerciseDraft, LoadMode, RepeatTarget, SetDraft } from "../../strength/types";
+import { adjustLoadKg, formatLoadAmount, loadPresetsKg } from "../../strength/units";
+import { useAppState } from "../../state/AppStateContext";
+import { useStrengthWorkspace } from "../../state/StrengthWorkspaceContext";
+import { useAppTheme } from "../../theme/ThemeContext";
+import { readableTextColor, themes } from "../../theme/theme";
+import { feedbackStep, feedbackWarn } from "../../utils/feedback";
+
+const tokens = themes.dark;
+const loadModes: { label: string; mode: LoadMode }[] = [
+  { label: "External", mode: "external" },
+  { label: "Bodyweight", mode: "bodyweight" },
+  { label: "Assisted", mode: "assisted" },
+];
+
+export function ExerciseEditorScreen({ exerciseId }: { exerciseId: string }) {
+  const { theme } = useAppTheme();
+  const { unitSettings } = useAppState();
+  const workspace = useStrengthWorkspace();
+  const draft = workspace.draft;
+  const source = draft?.exercises.find((exercise) => exercise.id === exerciseId) ?? null;
+  const [exercise, setExercise] = useState<ExerciseDraft | null>(source);
+  const [opened] = useState(() => JSON.stringify(source));
+  const primaryText = readableTextColor(theme.colors.tertiary);
+  const unit = unitSettings.weight;
+  const dirty = JSON.stringify(exercise) !== opened;
+
+  function closeEditor() {
+    if (!draft || !exercise || !dirty) {
+      workspace.pop();
+      return;
+    }
+    workspace.requestConfirm({
+      confirmLabel: "Discard",
+      message: "Changes to this exercise will be dropped.",
+      onConfirm: () => workspace.pop(),
+      title: "Discard exercise changes?",
+    });
+  }
+
+  useEffect(() => {
+    workspace.registerBackHandler(() => {
+      closeEditor();
+      return true;
+    });
+    return () => workspace.registerBackHandler(null);
+  });
+
+  if (!draft || !exercise) {
+    return null;
+  }
+
+  function save() {
+    if (!draft || !exercise) {
+      return;
+    }
+    workspace.updateDraft(updateExercise(draft, exercise.id, () => exercise));
+    workspace.pop();
+  }
+
+  function patchRepeat(patch: Partial<RepeatTarget>) {
+    setExercise((current) =>
+      current ? applyRepeat(current, { ...current.repeat, ...patch }) : current,
+    );
+  }
+
+  const weightKg =
+    exercise.loadMode === "assisted" ? exercise.repeat.assistanceKg : exercise.repeat.loadKg;
+  const weightLabel =
+    exercise.loadMode === "assisted"
+      ? "Assistance*"
+      : exercise.loadMode === "bodyweight"
+        ? "Added weight"
+        : "Weight*";
+
+  return (
+    <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.header}>
+        <PressOpacity accessibilityLabel="Back" onPress={closeEditor} style={styles.headerHit}>
+          <Text style={[styles.headerAction, { color: theme.colors.text }]}>Back</Text>
+        </PressOpacity>
+        <Text numberOfLines={1} style={[styles.title, { color: theme.colors.text }]}>
+          {exercise.name}
+        </Text>
+      </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong },
+          ]}
+        >
+          <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>LOAD</Text>
+          <View style={styles.presetRow}>
+            {loadModes.map((option) => {
+              const selected = exercise.loadMode === option.mode;
+              return (
+                <PressOpacity
+                  accessibilityLabel={option.label}
+                  accessibilityState={{ selected }}
+                  key={option.mode}
+                  onPress={() => setExercise((current) => (current ? setLoadMode(current, option.mode) : current))}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: selected ? theme.colors.tertiary : theme.colors.surfaceMuted,
+                      borderColor: theme.colors.borderStrong,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: selected ? primaryText : theme.colors.text, fontWeight: "700" }}>
+                    {option.label}
+                  </Text>
+                </PressOpacity>
+              );
+            })}
+          </View>
+          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+            {exercise.loadMode === "bodyweight"
+              ? "Bodyweight satisfies the weight. Add load only when you are holding extra. Weight is per implement."
+              : exercise.loadMode === "assisted"
+                ? "Enter how much assistance the movement uses."
+                : "Weight is for one implement: the bar, one dumbbell, or one kettlebell."}
+          </Text>
+          <Stepper
+            coarseLabel={unit === "metric" ? "10" : "10"}
+            fineLabel={unit === "metric" ? "2.5" : "5"}
+            label={weightLabel}
+            onChange={(next) =>
+              patchRepeat(
+                exercise.loadMode === "assisted" ? { assistanceKg: next } : { loadKg: next },
+              )
+            }
+            onStep={(direction, coarse) =>
+              patchRepeat(
+                exercise.loadMode === "assisted"
+                  ? { assistanceKg: adjustLoadKg(weightKg, direction, coarse, unit) }
+                  : { loadKg: adjustLoadKg(weightKg, direction, coarse, unit) },
+              )
+            }
+            presets={loadPresetsKg(unit)}
+            readout={
+              weightKg == null || weightKg <= 0
+                ? exercise.loadMode === "bodyweight"
+                  ? "BW"
+                  : "Not set"
+                : formatLoadAmount(weightKg, unit)
+            }
+            renderPreset={(preset) => formatLoadAmount(preset, unit)}
+            value={weightKg}
+          />
+          <View style={styles.switchRow}>
+            <View style={styles.switchCopy}>
+              <Text style={[styles.switchTitle, { color: theme.colors.text }]}>Reps per side</Text>
+              <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+                Unilateral reps are counted per side.
+              </Text>
+            </View>
+            <SimpleSwitch
+              onValueChange={(unilateral) =>
+                setExercise((current) => (current ? { ...current, unilateral } : current))
+              }
+              value={exercise.unilateral}
+            />
+          </View>
+          <View style={styles.switchRow}>
+            <View style={styles.switchCopy}>
+              <Text style={[styles.switchTitle, { color: theme.colors.text }]}>Explosive intent</Text>
+              <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+                Marks power work. A low rep count alone does not.
+              </Text>
+            </View>
+            <SimpleSwitch
+              onValueChange={(explosiveIntent) =>
+                setExercise((current) => (current ? { ...current, explosiveIntent } : current))
+              }
+              value={exercise.explosiveIntent}
+            />
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong },
+          ]}
+        >
+          <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>REPEAT FOR EACH SET</Text>
+          <CountStepper
+            label="Sets*"
+            maximum={MAX_SETS}
+            minimum={1}
+            onChange={(sets) => {
+              if (sets == null) {
+                return;
+              }
+              setExercise((current) => (current ? resizeSets(current, sets) : current));
+            }}
+            presets={[1, 3, 4, 5, 6, 8]}
+            value={exercise.sets.length}
+          />
+          <CountStepper
+            label="Reps*"
+            maximum={MAX_REPS}
+            minimum={1}
+            onChange={(reps) => {
+              if (reps != null) {
+                patchRepeat({ reps });
+              }
+            }}
+            presets={[1, 3, 5, 8, 10, 12, 15, 20]}
+            value={exercise.repeat.reps}
+          />
+          <CountStepper
+            allowEmpty
+            label="RPE"
+            maximum={10}
+            minimum={1}
+            onChange={(rpe) => patchRepeat({ rpe })}
+            presets={[6, 7, 8, 9, 10]}
+            value={exercise.repeat.rpe}
+          />
+          <CountStepper
+            allowEmpty
+            allowZero
+            label="Rest between sets"
+            maximum={MAX_REST_SECONDS}
+            minimum={0}
+            onChange={(restSeconds) => patchRepeat({ restSeconds })}
+            presets={[0, 30, 60, 90, 120, 180]}
+            step={15}
+            suffix="s"
+            value={exercise.repeat.restSeconds}
+          />
+          <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>NOTES</Text>
+          <TextInput
+            accessibilityLabel="Exercise notes"
+            maxLength={1000}
+            multiline
+            onChangeText={(notes) => setExercise((current) => (current ? { ...current, notes } : current))}
+            placeholder="Optional"
+            placeholderTextColor={theme.colors.textMuted}
+            style={[
+              styles.notes,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+                color: theme.colors.text,
+              },
+            ]}
+            value={exercise.notes}
+          />
+        </View>
+
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong },
+          ]}
+        >
+          <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>SETS</Text>
+          {exercise.sets.map((set, index) => (
+            <SetRow
+              index={index}
+              key={set.id}
+              onChange={(next) =>
+                setExercise((current) =>
+                  current ? updateSet(current, set.id, () => next) : current,
+                )
+              }
+              onCustomize={() =>
+                setExercise((current) => (current ? customizeSet(current, set.id) : current))
+              }
+              onMatch={() =>
+                setExercise((current) => (current ? matchSetToRepeat(current, set.id) : current))
+              }
+              set={set}
+              unit={unit}
+            />
+          ))}
+        </View>
+
+        <View style={styles.row}>
+          <PressOpacity
+            accessibilityLabel="Move exercise earlier"
+            onPress={() => workspace.updateDraft(moveExercise(draft, exercise.id, -1))}
+            style={[styles.secondary, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}
+          >
+            <Text style={[styles.actionText, { color: theme.colors.text }]}>Move earlier</Text>
+          </PressOpacity>
+          <PressOpacity
+            accessibilityLabel="Move exercise later"
+            onPress={() => workspace.updateDraft(moveExercise(draft, exercise.id, 1))}
+            style={[styles.secondary, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}
+          >
+            <Text style={[styles.actionText, { color: theme.colors.text }]}>Move later</Text>
+          </PressOpacity>
+        </View>
+        <PressOpacity
+          accessibilityLabel={`Remove ${exercise.name}`}
+          onPress={() =>
+            workspace.requestConfirm({
+              confirmLabel: "Remove",
+              message: `${exercise.name} will leave this workout.`,
+              onConfirm: () => {
+                workspace.updateDraft(removeExercise(draft, exercise.id));
+                workspace.pop();
+              },
+              title: "Remove exercise?",
+            })
+          }
+          style={[styles.danger, { borderColor: theme.colors.tertiary }]}
+        >
+          <Text style={[styles.actionText, { color: theme.colors.tertiary }]}>Remove exercise</Text>
+        </PressOpacity>
+      </ScrollView>
+      <View style={[styles.footer, { borderColor: theme.colors.borderStrong }]}>
+        <PressOpacity
+          accessibilityLabel="Cancel exercise edits"
+          onPress={closeEditor}
+          style={[styles.secondary, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}
+        >
+          <Text style={[styles.actionText, { color: theme.colors.text }]}>Cancel</Text>
+        </PressOpacity>
+        <PressOpacity
+          accessibilityLabel="Save exercise"
+          onPress={save}
+          style={[styles.primary, { backgroundColor: theme.colors.tertiary }]}
+        >
+          <Text style={[styles.actionText, { color: primaryText }]}>Save</Text>
+        </PressOpacity>
+      </View>
+    </View>
+  );
+}
+
+function SetRow({
+  index,
+  onChange,
+  onCustomize,
+  onMatch,
+  set,
+  unit,
+}: {
+  index: number;
+  onChange: (set: SetDraft) => void;
+  onCustomize: () => void;
+  onMatch: () => void;
+  set: SetDraft;
+  unit: "metric" | "imperial";
+}) {
+  const { theme } = useAppTheme();
+  return (
+    <View style={[styles.setCard, { borderColor: theme.colors.border }]}>
+      <View style={styles.switchRow}>
+        <Text style={[styles.switchTitle, { color: theme.colors.text }]}>Set {index + 1}</Text>
+        <PressOpacity
+          accessibilityLabel={set.skipped ? `Include set ${index + 1}` : `Skip set ${index + 1}`}
+          onPress={() => onChange({ ...set, followsRepeat: false, skipped: !set.skipped })}
+          style={[styles.chip, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}
+        >
+          <Text style={{ color: theme.colors.text, fontWeight: "700" }}>
+            {set.skipped ? "Include" : "Skip"}
+          </Text>
+        </PressOpacity>
+      </View>
+      {set.followsRepeat ? (
+        <PressOpacity accessibilityLabel={`Customize set ${index + 1}`} onPress={onCustomize} style={styles.linkHit}>
+          <Text style={[styles.hint, { color: theme.colors.text }]}>Same as the repeat fields. Customize</Text>
+        </PressOpacity>
+      ) : (
+        <View style={styles.setEditor}>
+          <CountStepper
+            label="Reps"
+            maximum={MAX_REPS}
+            minimum={1}
+            onChange={(reps) => {
+              if (reps != null) {
+                onChange({ ...set, followsRepeat: false, reps });
+              }
+            }}
+            presets={[3, 5, 8, 10]}
+            value={set.reps}
+          />
+          <PressOpacity accessibilityLabel={`Match set ${index + 1} to default`} onPress={onMatch} style={styles.linkHit}>
+            <Text style={[styles.hint, { color: theme.colors.tertiary }]}>Match default</Text>
+          </PressOpacity>
+          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+            {formatLoadAmount(set.loadKg ?? set.assistanceKg ?? 0, unit)}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function Stepper({
+  coarseLabel,
+  fineLabel,
+  label,
+  onChange,
+  onStep,
+  presets,
+  readout,
+  renderPreset,
+  value,
+}: {
+  coarseLabel: string;
+  fineLabel: string;
+  label: string;
+  onChange: (value: number | null) => void;
+  onStep: (direction: -1 | 1, coarse: boolean) => void;
+  presets: readonly number[];
+  readout: string;
+  renderPreset: (value: number) => string;
+  value: number | null;
+}) {
+  const { theme } = useAppTheme();
+  return (
+    <View style={styles.stepBlock}>
+      <View style={styles.switchRow}>
+        <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>{label.toUpperCase()}</Text>
+        <Text style={[styles.readout, { color: theme.colors.text }]}>{readout}</Text>
+      </View>
+      <View style={styles.row}>
+        <StepButton label={`-${coarseLabel}`} onPress={() => onStep(-1, true)} />
+        <StepButton label={`-${fineLabel}`} onPress={() => onStep(-1, false)} />
+        <StepButton label={`+${fineLabel}`} onPress={() => onStep(1, false)} />
+        <StepButton label={`+${coarseLabel}`} onPress={() => onStep(1, true)} />
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.presetRow}>
+          {presets.map((preset) => (
+            <PressOpacity
+              accessibilityLabel={renderPreset(preset)}
+              key={preset}
+              onPress={() => {
+                feedbackStep("up");
+                onChange(preset);
+              }}
+              silent
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: value === preset ? theme.colors.tertiary : theme.colors.surfaceMuted,
+                  borderColor: theme.colors.borderStrong,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color: value === preset ? readableTextColor(theme.colors.tertiary) : theme.colors.text,
+                  fontVariant: ["tabular-nums"],
+                  fontWeight: "700",
+                }}
+              >
+                {renderPreset(preset)}
+              </Text>
+            </PressOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+function CountStepper({
+  allowEmpty = false,
+  allowZero = false,
+  label,
+  maximum,
+  minimum,
+  onChange,
+  presets,
+  step = 1,
+  suffix = "",
+  value,
+}: {
+  allowEmpty?: boolean;
+  allowZero?: boolean;
+  label: string;
+  maximum: number;
+  minimum: number;
+  onChange: (value: number | null) => void;
+  presets: readonly number[];
+  step?: number;
+  suffix?: string;
+  value: number | null;
+}) {
+  const { theme } = useAppTheme();
+  function change(next: number | null) {
+    if (next == null) {
+      onChange(null);
+      return;
+    }
+    onChange(Math.min(maximum, Math.max(allowZero ? 0 : minimum, Math.round(next))));
+  }
+  return (
+    <View style={styles.stepBlock}>
+      <View style={styles.switchRow}>
+        <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>{label.toUpperCase()}</Text>
+        <Text style={[styles.readout, { color: theme.colors.text }]}>
+          {value == null ? "Not set" : `${value}${suffix}`}
+        </Text>
+      </View>
+      <View style={styles.row}>
+        <StepButton
+          label={`-${step}`}
+          onPress={() => {
+            if (value == null) {
+              feedbackWarn();
+              return;
+            }
+            const next = value - step;
+            if (next < minimum && allowEmpty) {
+              change(null);
+              return;
+            }
+            if (allowZero && next < minimum) {
+              change(0);
+              return;
+            }
+            change(next);
+          }}
+        />
+        <StepButton
+          label={`+${step}`}
+          onPress={() => change((value ?? (allowZero ? 0 : minimum - step)) + step)}
+        />
+        {allowEmpty && value != null ? (
+          <PressOpacity
+            accessibilityLabel={`Clear ${label}`}
+            onPress={() => {
+              feedbackStep("down");
+              change(null);
+            }}
+            silent
+            style={[styles.chip, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}
+          >
+            <Text style={{ color: theme.colors.text, fontWeight: "700" }}>Omit</Text>
+          </PressOpacity>
+        ) : null}
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.presetRow}>
+          {presets.map((preset) => (
+            <PressOpacity
+              accessibilityLabel={`${label} ${preset}`}
+              key={preset}
+              onPress={() => {
+                feedbackStep("up");
+                change(preset);
+              }}
+              silent
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: value === preset ? theme.colors.tertiary : theme.colors.surfaceMuted,
+                  borderColor: theme.colors.borderStrong,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color: value === preset ? readableTextColor(theme.colors.tertiary) : theme.colors.text,
+                  fontVariant: ["tabular-nums"],
+                  fontWeight: "700",
+                }}
+              >
+                {preset}
+                {suffix}
+              </Text>
+            </PressOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+function StepButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const { theme } = useAppTheme();
+  return (
+    <PressOpacity
+      accessibilityLabel={label}
+      onPress={() => {
+        feedbackStep(label.startsWith("-") ? "down" : "up");
+        onPress();
+      }}
+      silent
+      style={[
+        styles.step,
+        { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong },
+      ]}
+    >
+      <Text style={[styles.actionText, { color: theme.colors.text }]}>{label}</Text>
+    </PressOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { flex: 1 },
+  header: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.md,
+    paddingTop: tokens.spacing.sm,
+  },
+  headerHit: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 64,
+  },
+  headerAction: { fontSize: 16, fontWeight: "700" },
+  title: { flex: 1, fontSize: 20, fontWeight: "800" },
+  content: {
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.md,
+    paddingBottom: tokens.spacing.xl,
+  },
+  card: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    gap: tokens.spacing.md,
+    padding: tokens.spacing.lg,
+  },
+  kicker: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+  },
+  hint: { fontSize: 13, lineHeight: 18 },
+  presetRow: { flexDirection: "row", gap: tokens.spacing.sm },
+  chip: {
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.md,
+  },
+  switchRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.md,
+    justifyContent: "space-between",
+    minHeight: 48,
+  },
+  switchCopy: { flex: 1, gap: 2 },
+  switchTitle: { fontSize: 15, fontWeight: "700" },
+  notes: {
+    borderRadius: 12,
+    borderWidth: 1,
+    fontSize: 15,
+    minHeight: 80,
+    padding: tokens.spacing.md,
+    textAlignVertical: "top",
+  },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: tokens.spacing.sm },
+  secondary: {
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: tokens.spacing.md,
+  },
+  danger: {
+    alignItems: "center",
+    backgroundColor: "rgba(211, 21, 22, 0.14)",
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  actionText: { fontSize: 15, fontWeight: "700" },
+  footer: {
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    padding: tokens.spacing.md,
+  },
+  primary: {
+    alignItems: "center",
+    borderRadius: 12,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 52,
+  },
+  stepBlock: { gap: tokens.spacing.sm },
+  readout: { fontSize: 16, fontVariant: ["tabular-nums"], fontWeight: "800" },
+  step: {
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 64,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  setCard: {
+    borderTopWidth: 1,
+    gap: tokens.spacing.sm,
+    paddingTop: tokens.spacing.sm,
+  },
+  setEditor: { gap: tokens.spacing.sm },
+  linkHit: { justifyContent: "center", minHeight: 48 },
+});

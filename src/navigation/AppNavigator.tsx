@@ -16,7 +16,9 @@ import { Sidebar } from "../components/Sidebar";
 import { NutritionStack } from "../screens/NutritionScreens/NutritionStack";
 import { ScreenForRoute } from "../screens/Screens";
 import { ConditioningStack } from "../screens/conditioning/ConditioningStack";
+import { StrengthStack } from "../screens/strength/StrengthStack";
 import { useConditioningWorkspace } from "../state/ConditioningWorkspaceContext";
+import { useStrengthWorkspace } from "../state/StrengthWorkspaceContext";
 import { useNutritionWorkspace } from "../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import {
@@ -31,6 +33,7 @@ export function AppNavigator() {
   const { colorScheme, theme } = useAppTheme();
   const nutrition = useNutritionWorkspace();
   const conditioning = useConditioningWorkspace();
+  const strength = useStrengthWorkspace();
   const [activeRoute, setActiveRoute] = useState<RouteKey>(initialRoute);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -87,11 +90,15 @@ export function AppNavigator() {
         return conditioning.handleHardwareBack();
       }
 
+      if (activeRoute === "strength") {
+        return strength.handleHardwareBack();
+      }
+
       return false;
     });
 
     return () => subscription.remove();
-  }, [activeRoute, conditioning, nutrition, sidebarOpen]);
+  }, [activeRoute, conditioning, nutrition, sidebarOpen, strength]);
 
   const selectSidebarRoute = (route: SidebarRoute) => {
     setActiveRoute(route);
@@ -117,6 +124,7 @@ export function AppNavigator() {
         </View>
         {activeRoute === "nutrition" ? <NutritionStack /> : null}
         {activeRoute === "conditioning" ? <ConditioningStack /> : null}
+        {activeRoute === "strength" ? <StrengthStack /> : null}
       </View>
       <BottomTabs
         activeRoute={activeRoute}
