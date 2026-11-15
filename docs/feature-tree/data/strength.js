@@ -152,6 +152,18 @@ CAPS.trees.strength = {
               "Added From saved workout inside the log, stacked exercise rows, and a full-width Log Workout button.",
             ],
           },
+          {
+            n: 3,
+            name: "Workout builder",
+            date: "2026-11-15 15:57 -0500",
+            commits: ["6bc5a4c"],
+            request: "Apply the post-build Strength UI review.",
+            changes: [
+              "The log scrolls between a fixed title area and a fixed footer so Log Workout stays above the tab bar.",
+              "Logging that removes a saved workout asks first.",
+              "Removing an exercise from the table asks first.",
+            ],
+          },
         ],
       },
       {
@@ -170,6 +182,15 @@ CAPS.trees.strength = {
             date: "2026-11-15 15:39 -0500",
             commits: ["21d635f"],
             changes: ["Added steppers for load, sets, reps, RPE, and rest, plus explosive intent."],
+          },
+          {
+            n: 2,
+            name: "Exercise editor",
+            date: "2026-11-15 15:57 -0500",
+            commits: ["6bc5a4c"],
+            changes: [
+              "A customized set can change load, reps, RPE, and rest. Cancel restores the workout to the state from when the editor opened.",
+            ],
           },
         ],
       },
