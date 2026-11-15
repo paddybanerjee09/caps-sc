@@ -350,6 +350,15 @@ CAPS.trees.conditioning = {
             commits: ["e9d18be"],
             changes: ["Grid renovation."],
           },
+          {
+            n: 3,
+            name: "SavedWorkoutGrid",
+            date: "2026-11-15 15:39 -0500",
+            commits: ["aea27d0"],
+            changes: [
+              "The saved-workout library scrolls with FlatList. The hub expander stays a bounded 248px scroller so it is not a second vertical list inside the hub.",
+            ],
+          },
         ],
         children: [
           {
@@ -374,6 +383,13 @@ CAPS.trees.conditioning = {
                 date: "2026-11-02 22:39 -0500",
                 commits: ["e9d18be"],
                 changes: ["Card renovation."],
+              },
+              {
+                n: 3,
+                name: "SavedConditioningSessionScreen",
+                date: "2026-11-15 15:39 -0500",
+                commits: ["aea27d0"],
+                changes: ["Replaced the page ScrollView with the virtualized saved-workout grid."],
               },
             ],
           },

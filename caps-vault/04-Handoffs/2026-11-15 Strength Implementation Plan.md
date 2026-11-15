@@ -1,6 +1,6 @@
 # Strength implementation plan for Cursor
 
-2026-11-15 14:54 -05:00 (America/Toronto) · Codex · `main` at `39dd1b0` · implementation pending. This plan supersedes the proposed scope and interactions in [[2026-11-15 Strength Planning Handoff]]. Follow `AGENTS.md`, the Cursor rules, the Strength Feature Tree, and [[Strength History]]. The current vault index is `caps-vault/Index.md` in the working copy. Recheck the working tree and preserve unrelated changes.
+2026-11-15 14:54 -05:00 (America/Toronto) · Codex · `main` at `39dd1b0`. Executed 2026-11-15 15:39 -05:00. See [[2026-11-15 Strength Implementation Handoff]]. This plan supersedes the proposed scope and interactions in [[2026-11-15 Strength Planning Handoff]]. Follow `AGENTS.md`, the Cursor rules, the Strength Feature Tree, and [[Strength History]]. The current vault index is `caps-vault/Index.md` in the working copy. Recheck the working tree and preserve unrelated changes.
 
 ## 1. Build the domain, offline catalog, and SQLite repository
 

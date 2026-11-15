@@ -2,24 +2,31 @@ CAPS.trees.strength = {
   id: "strength",
   title: "Strength",
   summary:
-    "The Strength tab for lifting sessions, periodization, and exercise logging. On main it has only ever been a title placeholder. A full modal-based Strength v1 existed on the reverted Aug–Sep 2026 lineage and was removed from main on 2026-10-02. The README still describes the intended feature.",
+    "The Strength tab for logging lifting sessions, saved workouts, and a heuristic focus estimate. Periodization around competition dates is still unbuilt. A modal-based Strength v1 existed on the reverted Aug–Sep 2026 lineage and was removed from main on 2026-10-02.",
   rules: ["ui-style-guide.mdc"],
   root: {
     id: "strength-screen",
     title: "StrengthTrainingScreen",
     kind: "screen",
-    status: "placeholder",
-    tagline: "Strength tab: centered title only",
-    files: ["src/screens/StrengthTrainingScreen.tsx"],
+    status: "active",
+    tagline: "Month, log, create, and saved workouts",
+    files: ["src/screens/StrengthTrainingScreen.tsx", "src/state/StrengthWorkspaceContext.tsx"],
     entry: "Bottom tab \"Strength\" (barbell-outline icon), second from the right.",
     summary:
-      "Renders the shared `Screen` wrapper with a centered \"Strength Training\" title and nothing else. No state, data, or database tables exist for strength on main. A modal-based v1 lived only on the reverted lineage.",
+      "Month calendar of logged sessions, then Log Workout, Create Workout, and a Saved Workouts list. The parent supplies MonthEvent rows. Marker color is the stored primary focus, or neutral when the estimate has no primary. Home still uses the Strength category color.",
     guardrails: [
-      "Do not modify this screen until it is explicitly requested (ui-style-guide.mdc, section 7).",
-      "When it is built, use screen-local cards, +/- steppers, and preset strips. Do not use data-entry modals or shared UI wrappers (ui-style-guide.mdc). Strength v1 was modal-based and used shared primitives; that approach left main on 2026-10-02 (reverted 2026-10-02).",
+      "Keep logging on screen-local cards, +/- steppers, and preset strips. Do not open a modal to enter sets or pick an exercise (ui-style-guide.mdc).",
+      "Do not restore the reverted v1 modal stack (reverted 2026-10-02).",
       "The file is `StrengthTrainingScreen.tsx`, the component is `StrengthTrainingScreen`, and the route key is `strength`. Keep all three in sync with `Screens.tsx` and `routes.ts`.",
+      "Home timeline blocks stay on `timelineCategories.strength`. Only the Strength month marker uses the session focus color.",
     ],
-    links: ["architecture:bottom-tabs", "architecture:screen-wrapper", "architecture:routes"],
+    links: [
+      "architecture:bottom-tabs",
+      "architecture:routes",
+      "architecture:log-time-changer",
+      "conditioning:monthly-calendar",
+      "database:table-strength-sessions",
+    ],
     versions: [
       {
         n: 1,
@@ -80,8 +87,119 @@ CAPS.trees.strength = {
           "The screen stayed a centered-title placeholder. The same commit added SQLite and split the remaining combined S&C file away from Skills.",
         ],
       },
+      {
+        n: 7,
+        name: "Strength logging",
+        date: "2026-11-15 15:39 -0500",
+        commits: ["21d635f"],
+        request: "Execute the 15 Nov 2026 strength implementation plan.",
+        changes: [
+          "Replaced the title placeholder with the month calendar, Log Workout, Create Workout, and Saved Workouts.",
+          "Logging and template creation share one builder. The draft stays in the strength workspace across the exercise editor and focus screen.",
+          "Turning Save Workout off archives the source template when the log commits. Past logs keep their own snapshots.",
+        ],
+      },
     ],
     children: [
+      {
+        id: "strength-month",
+        title: "MonthlyTimelineComponent",
+        ref: "conditioning:monthly-calendar",
+      },
+      {
+        id: "strength-builder",
+        title: "WorkoutBuilderScreen",
+        kind: "subscreen",
+        status: "active",
+        tagline: "Template mode and log mode",
+        files: ["src/screens/strength/WorkoutBuilderScreen.tsx"],
+        summary:
+          "Search sits in a bounded list above the workout table and focus button. Log mode shows the date, Ends at, and estimated duration. The footer is Cancel, Save Workout, and Log Workout.",
+        guardrails: [
+          "Do not nest the exercise search FlatList in a vertical ScrollView.",
+          "Omitted rest and explicit zero rest stay distinct (implementation plan, 15 Nov 2026).",
+          "An explicit bodyweight or assistance choice satisfies the required weight. External load is per implement.",
+        ],
+        links: ["architecture:log-time-changer"],
+        versions: [
+          {
+            n: 1,
+            name: "Workout builder",
+            date: "2026-11-15 15:39 -0500",
+            commits: ["21d635f"],
+            changes: [
+              "Added template and log modes, exercise search, the set table, and the save-workout toggle.",
+            ],
+          },
+        ],
+      },
+      {
+        id: "strength-exercise-editor",
+        title: "ExerciseEditorScreen",
+        kind: "subscreen",
+        status: "active",
+        tagline: "Weight, sets, reps, RPE, rest, notes",
+        files: ["src/screens/strength/ExerciseEditorScreen.tsx"],
+        summary:
+          "Full-screen editor for one draft exercise. Repeat fields fill sets that still follow them. Individual sets can be customized or skipped. Saving returns to the builder without clearing search.",
+        versions: [
+          {
+            n: 1,
+            name: "Exercise editor",
+            date: "2026-11-15 15:39 -0500",
+            commits: ["21d635f"],
+            changes: ["Added steppers for load, sets, reps, RPE, and rest, plus explosive intent."],
+          },
+        ],
+      },
+      {
+        id: "strength-adaptations",
+        title: "StrengthAdaptationsScreen",
+        kind: "subscreen",
+        status: "active",
+        tagline: "Four focus bars and their evidence",
+        files: [
+          "src/screens/strength/StrengthAdaptationsScreen.tsx",
+          "src/strength/emphasis.ts",
+        ],
+        summary:
+          "Hypertrophy is purple, power is red, strength is blue, and muscular endurance is green. Text labels sit with the colors. A logged session shows the stored estimate. The builder previews the current draft.",
+        guardrails: [
+          "Do not recompute a stored estimate when the heuristic changes.",
+          "Do not use these colors on the Home timeline.",
+        ],
+        versions: [
+          {
+            n: 1,
+            name: "Strength focus",
+            date: "2026-11-15 15:39 -0500",
+            commits: ["e0f5bb4", "21d635f"],
+            changes: [
+              "Added strength-emphasis-v1. A primary requires a score of at least 60 and a 15-point lead.",
+              "The focus screen shows the four indexes and the rationale for each.",
+            ],
+          },
+        ],
+      },
+      {
+        id: "strength-session-detail",
+        title: "StrengthSessionDetailScreen",
+        kind: "subscreen",
+        status: "active",
+        tagline: "Read-only logged workout",
+        files: ["src/screens/strength/StrengthSessionDetailScreen.tsx"],
+        summary:
+          "Opens from a month marker. Shows the saved title, end time, estimated duration, exercise snapshots, and the stored focus.",
+        versions: [
+          {
+            n: 1,
+            name: "Session detail",
+            date: "2026-11-15 15:39 -0500",
+            commits: ["21d635f"],
+            changes: ["Added the read-only log opened from the Strength month."],
+          },
+        ],
+      },
       {
         id: "strength-planned",
         title: "Planned strength work",
@@ -90,7 +208,7 @@ CAPS.trees.strength = {
         tagline: "README scope, not built",
         files: ["README.md"],
         summary:
-          "The README's \"Tracking Strength Training\" section describes the intended feature. None of it exists in code on main.",
+          "Periodization around goals and competition dates is still unbuilt. Exercise, set, load, rest, and RPE logging now lives on the workout builder.",
         parts: [
           {
             name: "Periodization",
@@ -124,6 +242,15 @@ CAPS.trees.strength = {
             changes: [
               "The README rewrite retitled the section and added a normalized workout schema (exercises, sets, reps, load, rest, RPE, RIR).",
               "Periodization now keyed off goals, competition dates, and recorded workload. Qualities became RFD, relative strength, and lean mass.",
+            ],
+          },
+          {
+            n: 3,
+            name: "Logging split out",
+            date: "2026-11-15 15:39 -0500",
+            commits: ["21d635f"],
+            changes: [
+              "Left this node as the unbuilt periodization scope after workout logging shipped on the Strength tab.",
             ],
           },
         ],

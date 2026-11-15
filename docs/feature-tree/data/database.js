@@ -2,7 +2,7 @@ CAPS.trees.database = {
   id: "database",
   title: "Database",
   summary:
-    "Local Expo SQLite database `caps.db`. `SQLiteProvider` runs `migrateDatabase` on init. `PRAGMA user_version` is 7: timeline, weight, sleep, meals, nutrition catalog (v5/v6), then conditioning. Repositories live next to the schema files.",
+    "Local Expo SQLite database `caps.db`. `SQLiteProvider` runs `migrateDatabase` on init. `PRAGMA user_version` is 8: timeline, weight, sleep, meals, nutrition catalog (v5/v6), conditioning, then strength. Repositories live next to the schema files.",
   rules: ["conditioning-data-and-units.mdc"],
   root: {
     id: "caps-db",
@@ -32,20 +32,28 @@ CAPS.trees.database = {
         commits: ["3f111e1"],
         changes: ["DATABASE_VERSION 7: conditioning schema."],
       },
+      {
+        n: 3,
+        name: "caps.db",
+        date: "2026-11-15 15:38 -0500",
+        commits: ["e0f5bb4"],
+        changes: ["DATABASE_VERSION 8: strength catalog, templates, sessions, and set snapshots."],
+      },
     ],
     children: [
       {
         id: "migrations",
         title: "migrateDatabase",
         kind: "logic",
-        tagline: "PRAGMA user_version 1..7",
+        tagline: "PRAGMA user_version 1..8",
         files: [
           "src/data/database.ts",
           "src/data/nutritionMigration.ts",
           "src/data/conditioningMigration.ts",
+          "src/data/strengthMigration.ts",
         ],
         summary:
-          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning.",
+          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning, v8 strength.",
         versions: [
           {
             n: 1,
@@ -77,6 +85,15 @@ CAPS.trees.database = {
             commits: ["dde7751", "3f111e1"],
             changes: [
               "Favourite snapshots (`dde7751` / v6). Conditioning DDL (`3f111e1` / v7).",
+            ],
+          },
+          {
+            n: 5,
+            name: "v8 strength",
+            date: "2026-11-15 15:38 -0500",
+            commits: ["e0f5bb4"],
+            changes: [
+              "Forward migration adds the strength catalog, templates, sessions, and set rows, then pins the text-only exercise seed.",
             ],
           },
         ],
@@ -462,6 +479,67 @@ CAPS.trees.database = {
             date: "2026-10-11 21:40 -0400",
             commits: ["3f111e1"],
             changes: ["Added with v7."],
+          },
+        ],
+      },
+      {
+        id: "table-strength-exercises",
+        title: "strength_exercises",
+        kind: "table",
+        tagline: "Pinned catalog plus custom exercises",
+        files: ["src/data/strengthMigration.ts", "src/strength/catalogSeed.ts"],
+        summary:
+          "Text-only Free Exercise DB pin (`curated-2026-11-15`) plus user-defined rows. Stable CAPS ids, upstream ids, equipment, muscles, and aliases. Photos are not stored.",
+        versions: [
+          {
+            n: 1,
+            name: "strength_exercises",
+            date: "2026-11-15 15:38 -0500",
+            commits: ["e0f5bb4"],
+            changes: ["Seeded the curated catalog and allowed custom exercises."],
+          },
+        ],
+      },
+      {
+        id: "table-strength-templates",
+        title: "strength_templates",
+        kind: "table",
+        tagline: "Reusable workouts, archive instead of delete",
+        files: ["src/data/strengthMigration.ts", "src/data/strengthRepository.ts"],
+        summary:
+          "Header plus `strength_template_exercises` and `strength_template_sets`. Archiving hides a template from Saved Workouts. Logs do not cascade.",
+        versions: [
+          {
+            n: 1,
+            name: "strength_templates",
+            date: "2026-11-15 15:38 -0500",
+            commits: ["e0f5bb4"],
+            changes: ["Added template headers, ordered exercises, and target sets."],
+          },
+        ],
+      },
+      {
+        id: "table-strength-sessions",
+        title: "strength_sessions",
+        kind: "table",
+        tagline: "Logged title, times, focus, timeline row",
+        files: ["src/data/strengthMigration.ts", "src/data/strengthRepository.ts"],
+        summary:
+          "One row per committed log. Stores start and end timestamps, the local end date, timezone, optional source template id, unrounded duration, and the versioned focus JSON. Child snapshots are `strength_session_exercises` and `strength_session_sets`. Load is kilograms. Null rest is omitted; zero rest is explicit. The same session id makes a retry a no-op.",
+        guardrails: [
+          "Do not drop a log when its template is archived or its catalog row is renamed.",
+          "Write the session, sets, focus estimate, timeline row, and template create/update/archive in one transaction.",
+        ],
+        links: ["database:table-timeline-entries"],
+        versions: [
+          {
+            n: 1,
+            name: "strength_sessions",
+            date: "2026-11-15 15:38 -0500",
+            commits: ["e0f5bb4"],
+            changes: [
+              "Added session headers, exercise snapshots, and performed sets, including skipped sets.",
+            ],
           },
         ],
       },
