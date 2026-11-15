@@ -99,6 +99,18 @@ CAPS.trees.strength = {
           "Turning Save Workout off archives the source template when the log commits. Past logs keep their own snapshots.",
         ],
       },
+      {
+        n: 8,
+        name: "Strength logging",
+        date: "2026-11-15 15:48 -0500",
+        commits: ["36bac02"],
+        request: "Apply the pre-build Strength UI review.",
+        changes: [
+          "Month markers use status logged so completed sessions are filled.",
+          "The workout table keeps the exercise name on screen and wraps Weight, Sets, Reps, RPE, Rest, and Notes.",
+          "Log mode can start from a saved workout. Turning Save Workout off explains that the calendar log stays.",
+        ],
+      },
     ],
     children: [
       {
@@ -129,6 +141,15 @@ CAPS.trees.strength = {
             commits: ["21d635f"],
             changes: [
               "Added template and log modes, exercise search, the set table, and the save-workout toggle.",
+            ],
+          },
+          {
+            n: 2,
+            name: "Workout builder",
+            date: "2026-11-15 15:48 -0500",
+            commits: ["36bac02"],
+            changes: [
+              "Added From saved workout inside the log, stacked exercise rows, and a full-width Log Workout button.",
             ],
           },
         ],
@@ -178,6 +199,13 @@ CAPS.trees.strength = {
               "Added strength-emphasis-v1. A primary requires a score of at least 60 and a 15-point lead.",
               "The focus screen shows the four indexes and the rationale for each.",
             ],
+          },
+          {
+            n: 2,
+            name: "Strength focus",
+            date: "2026-11-15 15:48 -0500",
+            commits: ["36bac02"],
+            changes: ["A missing score reads Unavailable, and the rationale stays on the screen."],
           },
         ],
       },
