@@ -1,4 +1,4 @@
-import { PixelRatio, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { FlatList, PixelRatio, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { formatName, formatTemplateSummary } from "../../conditioning/summaries";
 import type { ConditioningTemplateRecord } from "../../data/conditioningRepository";
@@ -10,6 +10,8 @@ import { PressOpacity } from "../PressOpacity";
 const tokens = themes.dark;
 
 type SavedWorkoutGridProps = {
+  /** Keep the wrapping layout for a short panel inside another vertical scroller. */
+  bounded?: boolean;
   emptyLabel?: string;
   error?: string | null;
   loading?: boolean;
@@ -31,6 +33,7 @@ export function savedWorkoutColumnCount(fontScale = PixelRatio.getFontScale()) {
 }
 
 export function SavedWorkoutGrid({
+  bounded = false,
   emptyLabel = "No saved workouts yet",
   error = null,
   loading = false,
@@ -115,48 +118,69 @@ export function SavedWorkoutGrid({
   const cardWidth =
     columns === 1 ? "100%" : columns === 2 ? "48.5%" : "31.8%";
 
-  return (
-    <View style={styles.grid}>
-      {templates.map((template) => (
-        <PressOpacity
-          accessibilityLabel={`${template.title}, ${formatName(template.format)}`}
-          key={template.id}
-          onPress={() => onPress(template)}
+  function renderTemplate(template: ConditioningTemplateRecord, flexItem: boolean) {
+    return (
+      <PressOpacity
+        accessibilityLabel={`${template.title}, ${formatName(template.format)}`}
+        onPress={() => onPress(template)}
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme.colors.surfaceMuted,
+            borderColor: theme.colors.borderStrong,
+            flex: flexItem ? 1 : undefined,
+            width: flexItem ? undefined : cardWidth,
+          },
+        ]}
+      >
+        <View
           style={[
-            styles.card,
+            styles.formatBadge,
             {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.borderStrong,
-              width: cardWidth,
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
             },
           ]}
         >
-          <View
-            style={[
-              styles.formatBadge,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.format, { color: theme.colors.tertiary }]}>
-              {formatName(template.format).toUpperCase()}
-            </Text>
-          </View>
-          <Text numberOfLines={2} style={[styles.title, { color: theme.colors.text }]}>
-            {template.title}
+          <Text style={[styles.format, { color: theme.colors.tertiary }]}>
+            {formatName(template.format).toUpperCase()}
           </Text>
-          <Text style={[styles.summary, { color: theme.colors.textMuted }]}>
-            {formatTemplateSummary(
-              template.config,
-              unitSettings.distance,
-              unitSettings.height,
-            )}
-          </Text>
-        </PressOpacity>
-      ))}
-    </View>
+        </View>
+        <Text numberOfLines={2} style={[styles.title, { color: theme.colors.text }]}>
+          {template.title}
+        </Text>
+        <Text style={[styles.summary, { color: theme.colors.textMuted }]}>
+          {formatTemplateSummary(
+            template.config,
+            unitSettings.distance,
+            unitSettings.height,
+          )}
+        </Text>
+      </PressOpacity>
+    );
+  }
+
+  if (bounded) {
+    return (
+      <View style={styles.grid}>
+        {templates.map((template) => (
+          <View key={template.id}>{renderTemplate(template, false)}</View>
+        ))}
+      </View>
+    );
+  }
+
+  return (
+    <FlatList
+      columnWrapperStyle={columns > 1 ? styles.columns : undefined}
+      contentContainerStyle={styles.list}
+      data={templates}
+      key={columns}
+      keyExtractor={(template) => template.id}
+      numColumns={columns}
+      renderItem={({ item }) => renderTemplate(item, true)}
+      style={styles.listFill}
+    />
   );
 }
 
@@ -166,6 +190,16 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: tokens.spacing.sm,
     justifyContent: "space-between",
+  },
+  listFill: {
+    flex: 1,
+  },
+  list: {
+    gap: tokens.spacing.sm,
+    paddingBottom: tokens.spacing.md,
+  },
+  columns: {
+    gap: tokens.spacing.sm,
   },
   card: {
     borderRadius: tokens.radius.md,

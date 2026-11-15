@@ -366,6 +366,7 @@ export function ConditioningScreen() {
           <Animated.View style={[styles.panel, panelStyle]}>
             <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
               <SavedWorkoutGrid
+                bounded
                 error={templatesError}
                 loading={templatesLoading}
                 onPress={(template) => openEditor(template.format, template)}

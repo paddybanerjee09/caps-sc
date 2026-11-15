@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { ScreenHeading } from "../../components/conditioning/ConditioningFields";
 import { SavedWorkoutGrid } from "../../components/conditioning/SavedWorkoutGrid";
@@ -66,13 +66,14 @@ export function SavedConditioningSessionScreen() {
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <ScreenHeading onBack={workspace.pop} title="Saved Workouts" />
-      <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.content}>
         <View
           style={[
             styles.card,
             {
               backgroundColor: theme.colors.surface,
               borderColor: theme.colors.borderStrong,
+              flex: 1,
             },
           ]}
         >
@@ -95,7 +96,7 @@ export function SavedConditioningSessionScreen() {
             templates={templates}
           />
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -105,6 +106,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    flex: 1,
     gap: tokens.spacing.md,
     padding: tokens.spacing.md,
   },
