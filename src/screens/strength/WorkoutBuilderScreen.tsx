@@ -18,15 +18,19 @@ import { createId } from "../../conditioning/ids";
 import { formatLocalDate } from "../../conditioning/dates";
 import {
   createCustomExercise,
+  createStrengthTemplate,
+  getStrengthTemplate,
   listSameLiftReferences,
   listStrengthExercises,
+  listStrengthTemplates,
   logStrengthSession,
-  createStrengthTemplate,
+  type StrengthTemplateSummary,
 } from "../../data/strengthRepository";
 import { STRENGTH_SEARCH_PAGE, searchExercises } from "../../strength/catalog";
 import {
   MAX_EXERCISES,
   addCatalogExercise,
+  draftFromTemplate,
   projectTemplateDraft,
   removeExercise,
   saveWorkoutConsequence,
@@ -54,6 +58,13 @@ import { feedbackConfirm, feedbackWarn } from "../../utils/feedback";
 
 const tokens = themes.dark;
 
+function savedLogDraft(
+  template: NonNullable<Awaited<ReturnType<typeof getStrengthTemplate>>>,
+  sessionId: string,
+) {
+  return draftFromTemplate(template, Date.now(), sessionId);
+}
+
 export function WorkoutBuilderScreen() {
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
@@ -62,6 +73,8 @@ export function WorkoutBuilderScreen() {
   const draft = workspace.draft;
   const mode = workspace.mode;
   const [catalog, setCatalog] = useState<CatalogExercise[]>([]);
+  const [templates, setTemplates] = useState<StrengthTemplateSummary[]>([]);
+  const [fromSavedOpen, setFromSavedOpen] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -102,6 +115,11 @@ export function WorkoutBuilderScreen() {
     void listStrengthExercises(db).then((rows) => {
       if (!cancelled) {
         setCatalog(rows);
+      }
+    });
+    void listStrengthTemplates(db).then((rows) => {
+      if (!cancelled) {
+        setTemplates(rows);
       }
     });
     return () => {
@@ -160,6 +178,17 @@ export function WorkoutBuilderScreen() {
   function update(next: StrengthDraft) {
     setFormError(null);
     workspace.updateDraft(next);
+  }
+
+  async function applySaved(templateId: string) {
+    const template = await getStrengthTemplate(db, templateId);
+    if (!draft || !template || template.archivedAt) {
+      feedbackWarn();
+      setFormError("That saved workout is no longer available.");
+      return;
+    }
+    update(savedLogDraft(template, draft.sessionId));
+    setFromSavedOpen(false);
   }
 
   function shiftDay(daysAgo: number) {
@@ -257,6 +286,58 @@ export function WorkoutBuilderScreen() {
           ]}
           value={draft.title}
         />
+        {mode === "log" ? (
+          <View style={styles.fromSaved}>
+            <PressOpacity
+              accessibilityLabel="From saved workout"
+              accessibilityState={{ expanded: fromSavedOpen }}
+              onPress={() => setFromSavedOpen((open) => !open)}
+              style={[
+                styles.secondary,
+                {
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderColor: theme.colors.borderStrong,
+                },
+              ]}
+            >
+              <Text style={[styles.secondaryText, { color: theme.colors.text }]}>
+                From saved workout
+              </Text>
+            </PressOpacity>
+            {fromSavedOpen ? (
+              <FlatList
+                data={templates}
+                keyboardShouldPersistTaps="handled"
+                keyExtractor={(item) => item.id}
+                ListEmptyComponent={
+                  <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+                    No saved workouts.
+                  </Text>
+                }
+                renderItem={({ item }) => (
+                  <PressOpacity
+                    accessibilityLabel={`Use saved workout ${item.title}`}
+                    onPress={() => {
+                      void applySaved(item.id);
+                    }}
+                    style={[
+                      styles.result,
+                      {
+                        backgroundColor: theme.colors.surface,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.resultName, { color: theme.colors.text }]}>
+                      {item.title}
+                    </Text>
+                  </PressOpacity>
+                )}
+                style={styles.savedList}
+              />
+            ) : null}
+          </View>
+        ) : null}
         {mode === "log" ? (
           <View
             style={[
@@ -400,46 +481,32 @@ export function WorkoutBuilderScreen() {
             <Text style={[styles.hint, { color: theme.colors.textMuted }]}>{item.equipment}</Text>
           </PressOpacity>
         )}
-        style={styles.resultList}
+        style={[styles.resultList, { maxHeight: timeOpen ? 96 : 180 }]}
       />
 
       <View style={styles.tableWrap}>
         <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-          <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false}>
-            <View>
-              <View style={styles.tableRow}>
-                {["Exercise", "Weight*", "Sets*", "Reps*", "RPE", "Rest", "Notes"].map((label) => (
-                  <Text
-                    key={label}
-                    style={[styles.tableHead, { color: theme.colors.textMuted, width: columnWidth(label) }]}
-                  >
-                    {label}
-                  </Text>
-                ))}
-              </View>
-              {draft.exercises.length === 0 ? (
-                <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-                  Search above and add an exercise.
-                </Text>
-              ) : (
-                draft.exercises.map((exercise) => (
-                  <TableRow
-                    exercise={exercise}
-                    key={exercise.id}
-                    onEdit={() =>
-                      workspace.push({
-                        exerciseId: exercise.id,
-                        key: createId(),
-                        name: "editor",
-                      })
-                    }
-                    onRemove={() => update(removeExercise(draft, exercise.id))}
-                    unit={unitSettings.weight}
-                  />
-                ))
-              )}
-            </View>
-          </ScrollView>
+          {draft.exercises.length === 0 ? (
+            <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+              Search above and add an exercise.
+            </Text>
+          ) : (
+            draft.exercises.map((exercise) => (
+              <TableRow
+                exercise={exercise}
+                key={exercise.id}
+                onEdit={() =>
+                  workspace.push({
+                    exerciseId: exercise.id,
+                    key: createId(),
+                    name: "editor",
+                  })
+                }
+                onRemove={() => update(removeExercise(draft, exercise.id))}
+                unit={unitSettings.weight}
+              />
+            ))
+          )}
         </ScrollView>
       </View>
 
@@ -468,7 +535,41 @@ export function WorkoutBuilderScreen() {
           <Text style={[styles.error, { color: theme.colors.tertiary }]}>{formError}</Text>
         ) : null}
         {mode === "log" ? (
-          <View style={styles.toggleBlock}>
+          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+            {saveWorkoutConsequence(draft)}
+          </Text>
+        ) : null}
+        <PressOpacity
+          accessibilityLabel={mode === "template" ? "Save workout" : "Log workout"}
+          disabled={saving}
+          onPress={() => {
+            void commit();
+          }}
+          style={[
+            styles.primary,
+            { backgroundColor: theme.colors.tertiary, opacity: saving ? 0.5 : 1 },
+          ]}
+        >
+          <Text style={[styles.primaryText, { color: primaryText }]}>
+            {mode === "template" ? "Save Workout" : "Log Workout"}
+          </Text>
+        </PressOpacity>
+        {mode === "log" ? (
+          <View style={styles.footerActions}>
+            <PressOpacity
+              accessibilityLabel="Cancel workout"
+              onPress={requestClose}
+              style={[
+                styles.secondary,
+                styles.footerButton,
+                {
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderColor: theme.colors.borderStrong,
+                },
+              ]}
+            >
+              <Text style={[styles.secondaryText, { color: theme.colors.text }]}>Cancel</Text>
+            </PressOpacity>
             <View style={styles.toggleRow}>
               <Text style={[styles.secondaryText, { color: theme.colors.text }]}>Save workout</Text>
               <SimpleSwitch
@@ -476,18 +577,13 @@ export function WorkoutBuilderScreen() {
                 value={draft.saveAsTemplate}
               />
             </View>
-            <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-              {saveWorkoutConsequence(draft)}
-            </Text>
           </View>
-        ) : null}
-        <View style={styles.footerActions}>
+        ) : (
           <PressOpacity
             accessibilityLabel="Cancel workout"
             onPress={requestClose}
             style={[
               styles.secondary,
-              styles.footerButton,
               {
                 backgroundColor: theme.colors.surfaceMuted,
                 borderColor: theme.colors.borderStrong,
@@ -496,23 +592,7 @@ export function WorkoutBuilderScreen() {
           >
             <Text style={[styles.secondaryText, { color: theme.colors.text }]}>Cancel</Text>
           </PressOpacity>
-          <PressOpacity
-            accessibilityLabel={mode === "template" ? "Save workout" : "Log workout"}
-            disabled={saving}
-            onPress={() => {
-              void commit();
-            }}
-            style={[
-              styles.primary,
-              styles.footerButton,
-              { backgroundColor: theme.colors.tertiary, opacity: saving ? 0.5 : 1 },
-            ]}
-          >
-            <Text style={[styles.primaryText, { color: primaryText }]}>
-              {mode === "template" ? "Save Workout" : "Log Workout"}
-            </Text>
-          </PressOpacity>
-        </View>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -549,54 +629,51 @@ function TableRow({
   const skipped = exercise.sets.filter((set) => set.skipped).length;
   const setsText =
     skipped > 0 ? `${exercise.sets.length} (${skipped} skip)` : String(exercise.sets.length);
-  const cells = [
-    exercise.unilateral ? `${exercise.name} / side` : exercise.name,
-    tableField(exercise.sets, (set) =>
+  const metrics = [
+    ["Weight*", tableField(exercise.sets, (set) =>
       formatSetLoad(exercise.loadMode, set.loadKg, set.assistanceKg, unit),
-    ).text,
-    setsText,
-    tableField(exercise.sets, (set) => String(set.reps)).text,
-    tableField(exercise.sets, (set) => formatRpe(set.rpe)).text,
-    tableField(exercise.sets, (set) => formatRestSeconds(set.restSeconds)).text,
-    exercise.notes.trim() || "—",
-  ];
+    ).text],
+    ["Sets*", setsText],
+    ["Reps*", tableField(exercise.sets, (set) => String(set.reps)).text],
+    ["RPE", tableField(exercise.sets, (set) => formatRpe(set.rpe)).text],
+    ["Rest", tableField(exercise.sets, (set) => formatRestSeconds(set.restSeconds)).text],
+    ["Notes", exercise.notes.trim() || "—"],
+  ] as const;
+  const name = exercise.unilateral ? `${exercise.name} / side` : exercise.name;
   return (
-    <View style={styles.tableRow}>
-      <PressOpacity accessibilityLabel={`Edit ${exercise.name}`} onPress={onEdit} style={styles.nameHit}>
-        <Text numberOfLines={2} style={[styles.tableCell, styles.nameCell, { color: theme.colors.text }]}>
-          {cells[0]}
-        </Text>
-      </PressOpacity>
-      {cells.slice(1).map((cell, index) => (
-        <Text
-          key={`${exercise.id}-${index}`}
-          numberOfLines={2}
-          style={[
-            styles.tableCell,
-            {
-              color: cell === "Mixed" ? theme.colors.tertiary : theme.colors.text,
-              width: columnWidth(["Weight*", "Sets*", "Reps*", "RPE", "Rest", "Notes"][index] ?? "Notes"),
-            },
-          ]}
-        >
-          {cell}
-        </Text>
-      ))}
-      <PressOpacity accessibilityLabel={`Remove ${exercise.name}`} onPress={onRemove} style={styles.removeHit}>
-        <Text style={[styles.chipText, { color: theme.colors.tertiary }]}>Remove</Text>
-      </PressOpacity>
+    <View
+      style={[
+        styles.exerciseCard,
+        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+      ]}
+    >
+      <View style={styles.nameLine}>
+        <PressOpacity accessibilityLabel={`Edit ${exercise.name}`} onPress={onEdit} style={styles.nameHit}>
+          <Text numberOfLines={2} style={[styles.resultName, { color: theme.colors.text }]}>
+            {name}
+          </Text>
+        </PressOpacity>
+        <PressOpacity accessibilityLabel={`Remove ${exercise.name}`} onPress={onRemove} style={styles.removeHit}>
+          <Text style={[styles.chipText, { color: theme.colors.tertiary }]}>Remove</Text>
+        </PressOpacity>
+      </View>
+      <View style={styles.metricWrap}>
+        {metrics.map(([label, value]) => (
+          <View key={label} style={styles.metricCell}>
+            <Text style={[styles.tableHead, { color: theme.colors.textMuted }]}>{label}</Text>
+            <Text
+              style={[
+                styles.tableCell,
+                { color: value === "Mixed" ? theme.colors.tertiary : theme.colors.text },
+              ]}
+            >
+              {value}
+            </Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
-}
-
-function columnWidth(label: string) {
-  if (label === "Exercise") {
-    return 168;
-  }
-  if (label === "Notes" || label === "Weight*") {
-    return 112;
-  }
-  return 72;
 }
 
 function formatClock(date: Date) {
@@ -706,10 +783,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  fromSaved: {
+    gap: tokens.spacing.sm,
+  },
+  savedList: {
+    flexGrow: 0,
+    maxHeight: 160,
+  },
   resultList: {
     flexGrow: 0,
     flexShrink: 1,
-    maxHeight: 180,
   },
   results: {
     gap: tokens.spacing.sm,
@@ -734,29 +817,40 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 96,
   },
-  tableRow: {
+  exerciseCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: tokens.spacing.sm,
+    marginBottom: tokens.spacing.sm,
+    padding: tokens.spacing.md,
+  },
+  nameLine: {
     alignItems: "center",
     flexDirection: "row",
+    gap: tokens.spacing.sm,
+  },
+  metricWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: tokens.spacing.sm,
+  },
+  metricCell: {
+    minWidth: 88,
   },
   tableHead: {
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 0.6,
-    paddingVertical: 6,
   },
   tableCell: {
     fontSize: 14,
     fontVariant: ["tabular-nums"],
     fontWeight: "700",
-    paddingVertical: 8,
-  },
-  nameCell: {
-    width: 168,
   },
   nameHit: {
+    flex: 1,
     justifyContent: "center",
     minHeight: 48,
-    width: 168,
   },
   removeHit: {
     alignItems: "center",

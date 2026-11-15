@@ -101,7 +101,7 @@ export function StrengthTrainingScreen() {
         color: emphasisMarkerColor(session.emphasis),
         id: session.id,
         localDate: session.localEndDate,
-        status: "completed",
+        status: "logged",
         title: session.title,
       })),
     [sessions],

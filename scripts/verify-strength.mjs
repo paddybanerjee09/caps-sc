@@ -244,7 +244,7 @@ assert.equal(validateStrengthDraft({ ...pullupDraft, endedAt: 5_000 }, "log", 1_
 assert.match(formatLoadAmount(100, "imperial"), /220\.5 lb/);
 assert.equal(
   saveWorkoutConsequence({ ...pullupDraft, sourceTemplateId: "tpl", saveAsTemplate: false }),
-  "Logging removes this workout from Saved Workouts. Past logs stay.",
+  "Logging with this off removes the saved workout from your list, and the session you log still stays on your calendar.",
 );
 
 const fresh = new DatabaseSync(":memory:");

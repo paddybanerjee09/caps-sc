@@ -125,7 +125,7 @@ export function StrengthAdaptationsScreen({ sessionId }: { sessionId: string | n
                   {primary ? " · Primary" : ""}
                 </Text>
                 <Text style={[styles.score, { color: theme.colors.text }]}>
-                  {score == null ? "Unknown" : score.toFixed(0)}
+                  {score == null ? "Unavailable" : score.toFixed(0)}
                 </Text>
               </View>
               <View style={[styles.track, { backgroundColor: theme.colors.surfaceMuted }]}>

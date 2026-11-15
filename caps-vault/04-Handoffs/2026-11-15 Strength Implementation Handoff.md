@@ -28,6 +28,10 @@ Focus colors: purple hypertrophy, red power, blue strength, green muscular endur
 
 No device pass was run. Still needed: Create, save, log, edit the end time, cancel an unsave, commit an unsave, reopen the log, confirm only the Strength month uses the focus color, and check imperial units, bodyweight, empty search, and the keyboard against the footer.
 
+## UI review follow-up
+
+The pre-build UI review asked for filled month markers (`status: "logged"`), evidence on the focus screen instead of a modal, a narrow exercise row that keeps the name on screen, From Saved inside the log, and this archive sentence: “Logging with this off removes the saved workout from your list, and the session you log still stays on your calendar.” Those are in the builder and hub. A missing focus score reads Unavailable. The results list shrinks while Ends at is open.
+
 ## Next
 
 1. Run the device pass above and fix what it shows.

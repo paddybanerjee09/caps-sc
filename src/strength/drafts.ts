@@ -281,7 +281,7 @@ export function saveWorkoutConsequence(draft: StrengthDraft) {
   if (draft.sourceTemplateId) {
     return draft.saveAsTemplate
       ? "Logging updates the saved workout to match this draft."
-      : "Logging removes this workout from Saved Workouts. Past logs stay.";
+      : "Logging with this off removes the saved workout from your list, and the session you log still stays on your calendar.";
   }
   return draft.saveAsTemplate
     ? "Logging also saves this as a reusable workout."
