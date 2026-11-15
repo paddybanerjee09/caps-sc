@@ -32,6 +32,8 @@ No device pass was run. Still needed: Create, save, log, edit the end time, canc
 
 The pre-build UI review asked for filled month markers (`status: "logged"`), evidence on the focus screen instead of a modal, a narrow exercise row that keeps the name on screen, From Saved inside the log, and this archive sentence: “Logging with this off removes the saved workout from your list, and the session you log still stays on your calendar.” Those are in the builder and hub. A missing focus score reads Unavailable. The results list shrinks while Ends at is open.
 
+The post-build source review found the log footer could sit below the tab bar because the column did not scroll. The builder is now one scrolling list with the footer fixed underneath. Logging that archives a saved workout asks first. Cancelling a new exercise removes it. A customized set can change load, reps, RPE, and rest.
+
 ## Next
 
 1. Run the device pass above and fix what it shows.

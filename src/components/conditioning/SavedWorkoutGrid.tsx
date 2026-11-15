@@ -128,7 +128,8 @@ export function SavedWorkoutGrid({
           {
             backgroundColor: theme.colors.surfaceMuted,
             borderColor: theme.colors.borderStrong,
-            flex: flexItem ? 1 : undefined,
+            flexGrow: flexItem ? 1 : undefined,
+            maxWidth: flexItem ? cardWidth : undefined,
             width: flexItem ? undefined : cardWidth,
           },
         ]}

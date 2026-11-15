@@ -98,13 +98,15 @@ export function StrengthTrainingScreen() {
   const events = useMemo<MonthEvent[]>(
     () =>
       sessions.map((session) => ({
-        color: emphasisMarkerColor(session.emphasis),
+        color: session.emphasis.primary
+          ? emphasisMarkerColor(session.emphasis)
+          : theme.colors.textMuted,
         id: session.id,
         localDate: session.localEndDate,
         status: "logged",
         title: session.title,
       })),
-    [sessions],
+    [sessions, theme.colors.textMuted],
   );
 
   function toggleSaved() {

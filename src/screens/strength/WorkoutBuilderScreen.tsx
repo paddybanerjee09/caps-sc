@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -57,6 +54,10 @@ import { readableTextColor, themes } from "../../theme/theme";
 import { feedbackConfirm, feedbackWarn } from "../../utils/feedback";
 
 const tokens = themes.dark;
+
+function clockNow() {
+  return Date.now();
+}
 
 function savedLogDraft(
   template: NonNullable<Awaited<ReturnType<typeof getStrengthTemplate>>>,
@@ -132,7 +133,7 @@ export function WorkoutBuilderScreen() {
       return;
     }
     let cancelled = false;
-    const cutoff = mode === "log" ? draft.endedAt : Date.now();
+    const cutoff = mode === "log" ? draft.endedAt : clockNow();
     void listSameLiftReferences(
       db,
       draft.exercises
@@ -197,7 +198,7 @@ export function WorkoutBuilderScreen() {
     target.setDate(now.getDate() - daysAgo);
     const next = new Date(draft!.endedAt);
     next.setFullYear(target.getFullYear(), target.getMonth(), target.getDate());
-    update({ ...draft!, endedAt: Math.min(next.getTime(), Date.now()) });
+    update({ ...draft!, endedAt: Math.min(next.getTime(), clockNow()) });
   }
 
   function addExercise(exercise: CatalogExercise) {
@@ -206,11 +207,18 @@ export function WorkoutBuilderScreen() {
       setFormError("This workout already has 40 exercises.");
       return;
     }
+    const baseline = JSON.stringify(draft);
     const next = addCatalogExercise(draft!, exercise);
     const created = next.exercises.at(-1);
     update(next);
     if (created) {
-      workspace.push({ exerciseId: created.id, key: createId(), name: "editor" });
+      workspace.push({
+        baseline,
+        exerciseId: created.id,
+        fresh: true,
+        key: createId(),
+        name: "editor",
+      });
     }
   }
 
@@ -226,7 +234,7 @@ export function WorkoutBuilderScreen() {
   }
 
   async function commit() {
-    const now = Date.now();
+    const now = clockNow();
     const checked = mode === "template" ? projectTemplateDraft(draft!) : draft!;
     const error = validateStrengthDraft(checked, mode === "template" ? "template" : "log", now);
     if (error) {
@@ -234,6 +242,22 @@ export function WorkoutBuilderScreen() {
       setFormError(error);
       return;
     }
+    if (mode === "log" && draft!.sourceTemplateId && !draft!.saveAsTemplate) {
+      workspace.requestConfirm({
+        confirmLabel: "Log and remove saved",
+        message:
+          "Logging removes this workout from Saved Workouts. The session stays on your calendar. Cancel leaves the saved workout in place.",
+        onConfirm: () => {
+          void writeSession(now);
+        },
+        title: "Remove saved workout?",
+      });
+      return;
+    }
+    await writeSession(now);
+  }
+
+  async function writeSession(now: number) {
     setSaving(true);
     try {
       if (mode === "template") {
@@ -253,10 +277,14 @@ export function WorkoutBuilderScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={[styles.page, { backgroundColor: theme.colors.background }]}
-    >
+    <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
+      <FlatList
+        contentContainerStyle={styles.results}
+        data={results.matches}
+        keyboardShouldPersistTaps="handled"
+        keyExtractor={(item) => item.id}
+        style={styles.scroller}
+        ListHeaderComponent={
       <View style={styles.top}>
         <View style={styles.titleRow}>
           <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>
@@ -305,36 +333,34 @@ export function WorkoutBuilderScreen() {
               </Text>
             </PressOpacity>
             {fromSavedOpen ? (
-              <FlatList
-                data={templates}
-                keyboardShouldPersistTaps="handled"
-                keyExtractor={(item) => item.id}
-                ListEmptyComponent={
+              <View style={styles.fromSaved}>
+                {templates.length === 0 ? (
                   <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
                     No saved workouts.
                   </Text>
-                }
-                renderItem={({ item }) => (
-                  <PressOpacity
-                    accessibilityLabel={`Use saved workout ${item.title}`}
-                    onPress={() => {
-                      void applySaved(item.id);
-                    }}
-                    style={[
-                      styles.result,
-                      {
-                        backgroundColor: theme.colors.surface,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.resultName, { color: theme.colors.text }]}>
-                      {item.title}
-                    </Text>
-                  </PressOpacity>
+                ) : (
+                  templates.map((item) => (
+                    <PressOpacity
+                      accessibilityLabel={`Use saved workout ${item.title}`}
+                      key={item.id}
+                      onPress={() => {
+                        void applySaved(item.id);
+                      }}
+                      style={[
+                        styles.result,
+                        {
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.resultName, { color: theme.colors.text }]}>
+                        {item.title}
+                      </Text>
+                    </PressOpacity>
+                  ))
                 )}
-                style={styles.savedList}
-              />
+              </View>
             ) : null}
           </View>
         ) : null}
@@ -415,12 +441,7 @@ export function WorkoutBuilderScreen() {
           value={workspace.searchQuery}
         />
       </View>
-
-      <FlatList
-        contentContainerStyle={styles.results}
-        data={results.matches}
-        keyboardShouldPersistTaps="handled"
-        keyExtractor={(item) => item.id}
+        }
         ListEmptyComponent={
           <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
             {workspace.searchQuery.trim() ? "No matches." : "No exercises in the catalog."}
@@ -466,6 +487,52 @@ export function WorkoutBuilderScreen() {
                 </Text>
               </PressOpacity>
             ) : null}
+            <View style={styles.tableWrap}>
+              {draft.exercises.length === 0 ? (
+                <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+                  Search above and add an exercise.
+                </Text>
+              ) : (
+                draft.exercises.map((exercise) => (
+                  <TableRow
+                    exercise={exercise}
+                    key={exercise.id}
+                    onEdit={() =>
+                      workspace.push({
+                        baseline: JSON.stringify(draft),
+                        exerciseId: exercise.id,
+                        fresh: false,
+                        key: createId(),
+                        name: "editor",
+                      })
+                    }
+                    onRemove={() =>
+                      workspace.requestConfirm({
+                        confirmLabel: "Remove",
+                        message: `${exercise.name} will leave this workout.`,
+                        onConfirm: () => update(removeExercise(draft, exercise.id)),
+                        title: "Remove exercise?",
+                      })
+                    }
+                    unit={unitSettings.weight}
+                  />
+                ))
+              )}
+            </View>
+            <PressOpacity
+              accessibilityLabel={`Estimated focus ${preview ? emphasisHeadline(preview) : "Not enough evidence"}`}
+              onPress={() => workspace.push({ key: createId(), name: "emphasis", sessionId: null })}
+              style={[
+                styles.secondary,
+                styles.focus,
+                { backgroundColor: theme.colors.surface, borderColor: focusColor },
+              ]}
+            >
+              <View style={[styles.dot, { backgroundColor: focusColor }]} />
+              <Text style={[styles.secondaryText, { color: theme.colors.text }]}>
+                Estimated focus · {preview ? emphasisHeadline(preview) : "Not enough evidence"}
+              </Text>
+            </PressOpacity>
           </View>
         }
         renderItem={({ item }) => (
@@ -481,49 +548,7 @@ export function WorkoutBuilderScreen() {
             <Text style={[styles.hint, { color: theme.colors.textMuted }]}>{item.equipment}</Text>
           </PressOpacity>
         )}
-        style={[styles.resultList, { maxHeight: timeOpen ? 96 : 180 }]}
       />
-
-      <View style={styles.tableWrap}>
-        <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-          {draft.exercises.length === 0 ? (
-            <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-              Search above and add an exercise.
-            </Text>
-          ) : (
-            draft.exercises.map((exercise) => (
-              <TableRow
-                exercise={exercise}
-                key={exercise.id}
-                onEdit={() =>
-                  workspace.push({
-                    exerciseId: exercise.id,
-                    key: createId(),
-                    name: "editor",
-                  })
-                }
-                onRemove={() => update(removeExercise(draft, exercise.id))}
-                unit={unitSettings.weight}
-              />
-            ))
-          )}
-        </ScrollView>
-      </View>
-
-      <PressOpacity
-        accessibilityLabel={`Estimated focus ${preview ? emphasisHeadline(preview) : "Not enough evidence"}`}
-        onPress={() => workspace.push({ key: createId(), name: "emphasis", sessionId: null })}
-        style={[
-          styles.secondary,
-          styles.focus,
-          { backgroundColor: theme.colors.surface, borderColor: focusColor },
-        ]}
-      >
-        <View style={[styles.dot, { backgroundColor: focusColor }]} />
-        <Text style={[styles.secondaryText, { color: theme.colors.text }]}>
-          Estimated focus · {preview ? emphasisHeadline(preview) : "Not enough evidence"}
-        </Text>
-      </PressOpacity>
 
       <View
         style={[
@@ -532,7 +557,7 @@ export function WorkoutBuilderScreen() {
         ]}
       >
         {formError ? (
-          <Text style={[styles.error, { color: theme.colors.tertiary }]}>{formError}</Text>
+          <Text style={[styles.error, { color: "#E11D24" }]}>{formError}</Text>
         ) : null}
         {mode === "log" ? (
           <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
@@ -573,6 +598,7 @@ export function WorkoutBuilderScreen() {
             <View style={styles.toggleRow}>
               <Text style={[styles.secondaryText, { color: theme.colors.text }]}>Save workout</Text>
               <SimpleSwitch
+                accessibilityLabel="Save workout"
                 onValueChange={(saveAsTemplate) => update({ ...draft, saveAsTemplate })}
                 value={draft.saveAsTemplate}
               />
@@ -594,7 +620,7 @@ export function WorkoutBuilderScreen() {
           </PressOpacity>
         )}
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -699,9 +725,11 @@ function daysFromToday(endedAt: number) {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    gap: tokens.spacing.sm,
     paddingHorizontal: tokens.spacing.md,
     paddingTop: tokens.spacing.sm,
+  },
+  scroller: {
+    flex: 1,
   },
   top: {
     gap: tokens.spacing.sm,

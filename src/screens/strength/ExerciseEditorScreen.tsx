@@ -17,7 +17,7 @@ import {
   updateExercise,
   updateSet,
 } from "../../strength/drafts";
-import type { ExerciseDraft, LoadMode, RepeatTarget, SetDraft } from "../../strength/types";
+import type { ExerciseDraft, LoadMode, RepeatTarget, SetDraft, StrengthDraft } from "../../strength/types";
 import { adjustLoadKg, formatLoadAmount, loadPresetsKg } from "../../strength/units";
 import { useAppState } from "../../state/AppStateContext";
 import { useStrengthWorkspace } from "../../state/StrengthWorkspaceContext";
@@ -32,28 +32,51 @@ const loadModes: { label: string; mode: LoadMode }[] = [
   { label: "Assisted", mode: "assisted" },
 ];
 
-export function ExerciseEditorScreen({ exerciseId }: { exerciseId: string }) {
+export function ExerciseEditorScreen({
+  baseline,
+  exerciseId,
+  fresh,
+}: {
+  baseline: string;
+  exerciseId: string;
+  fresh: boolean;
+}) {
   const { theme } = useAppTheme();
   const { unitSettings } = useAppState();
   const workspace = useStrengthWorkspace();
   const draft = workspace.draft;
   const source = draft?.exercises.find((exercise) => exercise.id === exerciseId) ?? null;
   const [exercise, setExercise] = useState<ExerciseDraft | null>(source);
-  const [opened] = useState(() => JSON.stringify(source));
   const primaryText = readableTextColor(theme.colors.tertiary);
   const unit = unitSettings.weight;
-  const dirty = JSON.stringify(exercise) !== opened;
+  const dirty = draft != null && JSON.stringify(draft) !== baseline;
+
+  useEffect(() => {
+    if (!draft || !exercise) {
+      return;
+    }
+    const current = draft.exercises.find((item) => item.id === exercise.id);
+    if (!current || JSON.stringify(current) === JSON.stringify(exercise)) {
+      return;
+    }
+    workspace.updateDraft(updateExercise(draft, exercise.id, () => exercise));
+  }, [draft, exercise, workspace]);
 
   function closeEditor() {
-    if (!draft || !exercise || !dirty) {
+    if (!dirty) {
       workspace.pop();
       return;
     }
     workspace.requestConfirm({
-      confirmLabel: "Discard",
-      message: "Changes to this exercise will be dropped.",
-      onConfirm: () => workspace.pop(),
-      title: "Discard exercise changes?",
+      confirmLabel: fresh ? "Remove" : "Discard",
+      message: fresh
+        ? "This exercise will leave the workout."
+        : "Changes to this exercise will be dropped.",
+      onConfirm: () => {
+        workspace.updateDraft(JSON.parse(baseline) as StrengthDraft);
+        workspace.pop();
+      },
+      title: fresh ? "Remove exercise?" : "Discard exercise changes?",
     });
   }
 
@@ -106,6 +129,7 @@ export function ExerciseEditorScreen({ exerciseId }: { exerciseId: string }) {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        style={styles.scroller}
       >
         <View
           style={[
@@ -180,6 +204,7 @@ export function ExerciseEditorScreen({ exerciseId }: { exerciseId: string }) {
               </Text>
             </View>
             <SimpleSwitch
+              accessibilityLabel="Reps per side"
               onValueChange={(unilateral) =>
                 setExercise((current) => (current ? { ...current, unilateral } : current))
               }
@@ -194,6 +219,7 @@ export function ExerciseEditorScreen({ exerciseId }: { exerciseId: string }) {
               </Text>
             </View>
             <SimpleSwitch
+              accessibilityLabel="Explosive intent"
               onValueChange={(explosiveIntent) =>
                 setExercise((current) => (current ? { ...current, explosiveIntent } : current))
               }
@@ -286,6 +312,7 @@ export function ExerciseEditorScreen({ exerciseId }: { exerciseId: string }) {
             <SetRow
               index={index}
               key={set.id}
+              loadMode={exercise.loadMode}
               onChange={(next) =>
                 setExercise((current) =>
                   current ? updateSet(current, set.id, () => next) : current,
@@ -359,6 +386,7 @@ export function ExerciseEditorScreen({ exerciseId }: { exerciseId: string }) {
 
 function SetRow({
   index,
+  loadMode,
   onChange,
   onCustomize,
   onMatch,
@@ -366,6 +394,7 @@ function SetRow({
   unit,
 }: {
   index: number;
+  loadMode: LoadMode;
   onChange: (set: SetDraft) => void;
   onCustomize: () => void;
   onMatch: () => void;
@@ -373,6 +402,21 @@ function SetRow({
   unit: "metric" | "imperial";
 }) {
   const { theme } = useAppTheme();
+  const loadKg = loadMode === "assisted" ? set.assistanceKg : set.loadKg;
+  function changeLoad(next: number | null) {
+    onChange({
+      ...set,
+      assistanceKg: loadMode === "assisted" ? next : null,
+      followsRepeat: false,
+      loadKg: loadMode === "assisted" ? null : next,
+    });
+  }
+  const loadReadout =
+    loadMode === "bodyweight" && (loadKg == null || loadKg <= 0)
+      ? "BW"
+      : loadKg == null || loadKg <= 0
+        ? "Not set"
+        : formatLoadAmount(loadKg, unit);
   return (
     <View style={[styles.setCard, { borderColor: theme.colors.border }]}>
       <View style={styles.switchRow}>
@@ -393,6 +437,17 @@ function SetRow({
         </PressOpacity>
       ) : (
         <View style={styles.setEditor}>
+          <Stepper
+            coarseLabel={unit === "metric" ? "10" : "10"}
+            fineLabel={unit === "metric" ? "2.5" : "5"}
+            label={loadMode === "assisted" ? "Assistance" : loadMode === "bodyweight" ? "Added weight" : "Weight"}
+            onChange={changeLoad}
+            onStep={(direction, coarse) => changeLoad(adjustLoadKg(loadKg, direction, coarse, unit))}
+            presets={loadPresetsKg(unit)}
+            readout={loadReadout}
+            renderPreset={(preset) => formatLoadAmount(preset, unit)}
+            value={loadKg}
+          />
           <CountStepper
             label="Reps"
             maximum={MAX_REPS}
@@ -405,12 +460,30 @@ function SetRow({
             presets={[3, 5, 8, 10]}
             value={set.reps}
           />
+          <CountStepper
+            allowEmpty
+            label="RPE"
+            maximum={10}
+            minimum={1}
+            onChange={(rpe) => onChange({ ...set, followsRepeat: false, rpe })}
+            presets={[6, 7, 8, 9, 10]}
+            value={set.rpe}
+          />
+          <CountStepper
+            allowEmpty
+            allowZero
+            label="Rest"
+            maximum={MAX_REST_SECONDS}
+            minimum={0}
+            onChange={(restSeconds) => onChange({ ...set, followsRepeat: false, restSeconds })}
+            presets={[0, 30, 60, 90, 120, 180]}
+            step={15}
+            suffix="s"
+            value={set.restSeconds}
+          />
           <PressOpacity accessibilityLabel={`Match set ${index + 1} to default`} onPress={onMatch} style={styles.linkHit}>
             <Text style={[styles.hint, { color: theme.colors.tertiary }]}>Match default</Text>
           </PressOpacity>
-          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-            {formatLoadAmount(set.loadKg ?? set.assistanceKg ?? 0, unit)}
-          </Text>
         </View>
       )}
     </View>
@@ -623,6 +696,7 @@ function StepButton({ label, onPress }: { label: string; onPress: () => void }) 
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
+  scroller: { flex: 1 },
   header: {
     alignItems: "center",
     flexDirection: "row",

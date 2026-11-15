@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { Animated, Easing, Pressable, StyleSheet } from "react-native";
+import { useEffect, useState } from "react";
+import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 
 import { useAppTheme } from "../theme/ThemeContext";
 import { themes } from "../theme/theme";
@@ -9,13 +9,14 @@ const tokens = themes.dark;
 const thumbTravel = 24;
 
 type SimpleSwitchProps = {
+  accessibilityLabel?: string;
   onValueChange: (value: boolean) => void;
   value: boolean;
 };
 
-export function SimpleSwitch({ onValueChange, value }: SimpleSwitchProps) {
+export function SimpleSwitch({ accessibilityLabel, onValueChange, value }: SimpleSwitchProps) {
   const { colorScheme, theme } = useAppTheme();
-  const position = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const [position] = useState(() => new Animated.Value(value ? 1 : 0));
 
   useEffect(() => {
     Animated.timing(position, {
@@ -42,10 +43,13 @@ export function SimpleSwitch({ onValueChange, value }: SimpleSwitchProps) {
 
   return (
     <Pressable
+      accessibilityLabel={accessibilityLabel}
       accessibilityRole="switch"
       accessibilityState={{ checked: value }}
-      hitSlop={8}
       onPress={toggle}
+      style={styles.hit}
+    >
+      <View
       style={[
         styles.track,
         {
@@ -62,12 +66,19 @@ export function SimpleSwitch({ onValueChange, value }: SimpleSwitchProps) {
             transform: [{ translateX }],
           },
         ]}
-      />
+        />
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  hit: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 48,
+  },
   track: {
     borderRadius: tokens.radius.pill,
     borderWidth: 1,

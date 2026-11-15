@@ -12,7 +12,13 @@ import { createId } from "../conditioning/ids";
 import type { StrengthDraft } from "../strength/types";
 
 export type StrengthStackEntry =
-  | { exerciseId: string; key: string; name: "editor" }
+  | {
+      baseline: string;
+      exerciseId: string;
+      fresh: boolean;
+      key: string;
+      name: "editor";
+    }
   | { key: string; name: "builder" }
   | { key: string; name: "detail"; sessionId: string }
   | { key: string; name: "emphasis"; sessionId: string | null };

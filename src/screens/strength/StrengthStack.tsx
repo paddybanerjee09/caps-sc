@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { PressOpacity } from "../../components/PressOpacity";
 import { useAppTheme } from "../../theme/ThemeContext";
-import { readableTextColor, themes } from "../../theme/theme";
+import { themes } from "../../theme/theme";
 import { feedbackWarn } from "../../utils/feedback";
 import { useStrengthWorkspace } from "../../state/StrengthWorkspaceContext";
 import { ExerciseEditorScreen } from "./ExerciseEditorScreen";
@@ -18,9 +18,9 @@ function StrengthConfirm() {
   if (!confirm) {
     return null;
   }
-  const activeText = readableTextColor(theme.colors.tertiary);
   return (
     <View
+      accessibilityViewIsModal
       style={[
         StyleSheet.absoluteFill,
         styles.overlay,
@@ -72,7 +72,7 @@ function StrengthConfirm() {
               },
             ]}
           >
-            <Text style={[styles.buttonText, { color: activeText }]}>
+            <Text style={[styles.buttonText, { color: theme.colors.text }]}>
               {confirm.confirmLabel}
             </Text>
           </PressOpacity>
@@ -98,7 +98,11 @@ function Cover() {
       ]}
     >
       {top.name === "editor" ? (
-        <ExerciseEditorScreen exerciseId={top.exerciseId} />
+        <ExerciseEditorScreen
+          baseline={top.baseline}
+          exerciseId={top.exerciseId}
+          fresh={top.fresh}
+        />
       ) : null}
       {top.name === "emphasis" ? (
         <StrengthAdaptationsScreen sessionId={top.sessionId} />
