@@ -10,10 +10,12 @@ import {
   createLogDraft,
   customizeSet,
   draftFromTemplate,
+  matchSetToRepeat,
   projectTemplateDraft,
   resizeSets,
   saveWorkoutConsequence,
   setLoadMode,
+  tableField,
   updateExercise,
   updateSet,
   validateStrengthDraft,
@@ -39,6 +41,7 @@ import {
   createStrengthTemplate,
   getStrengthSession,
   getStrengthTemplate,
+  listSameLiftReferences,
   listStrengthExercises,
   listStrengthSessionsForDates,
   listStrengthTemplates,
@@ -132,6 +135,20 @@ assert.equal(searchExercises(CATALOG_SEED, "zzzz-not-a-lift", 12).total, 0);
 assert.equal(searchExercises(CATALOG_SEED, "", 12).matches.length, 12);
 assert.ok(searchExercises(CATALOG_SEED, "", 12).total > 12);
 
+const searchFixture = [
+  { id: "tokens", name: "Press", aliases: ["Upward"] },
+  { id: "contains", name: "Single Press-Up", aliases: [] },
+  { id: "alias", name: "Floor Exercise", aliases: ["Press Up"] },
+  { id: "prefix-b", name: "Press-Up Set", aliases: [] },
+  { id: "prefix-a", name: "Press-Up set", aliases: [] },
+];
+const rankedSearch = searchExercises(searchFixture, " PRESS__up ", 4);
+assert.deepEqual(
+  rankedSearch.matches.map((row) => row.id),
+  ["prefix-a", "prefix-b", "alias", "contains"],
+);
+assert.equal(rankedSearch.total, 5);
+
 const zeroRest = benchDraft(0, { sets: 2, reps: 5, restSeconds: 0 });
 assert.equal(estimateDraftDurationSeconds(zeroRest.exercises), 30);
 const missingRest = benchDraft(0, { sets: 2, reps: 5, restSeconds: null });
@@ -143,6 +160,27 @@ const skipped = updateExercise(missingRest, missingRest.exercises[0].id, (exerci
   updateSet(exercise, exercise.sets[0].id, (set) => ({ ...set, skipped: true })),
 );
 assert.equal(estimateDraftDurationSeconds(skipped.exercises), 15);
+const repeatedExercise = zeroRest.exercises[0];
+const flagSet = {
+  ...repeatedExercise.sets[0],
+  followsRepeat: false,
+  reps: 1,
+  skipped: true,
+  warmup: true,
+};
+const flagExercise = { ...repeatedExercise, sets: [flagSet, repeatedExercise.sets[1]] };
+const restored = matchSetToRepeat(flagExercise, flagSet.id);
+assert.deepEqual(restored.sets[0], {
+  ...repeatedExercise.repeat,
+  followsRepeat: true,
+  id: flagSet.id,
+  skipped: false,
+  warmup: false,
+});
+const repsText = (set) => String(set.reps);
+assert.equal(tableField([], repsText), "—");
+assert.equal(tableField(restored.sets, repsText), "5");
+assert.equal(tableField(flagExercise.sets, repsText), "Mixed");
 
 const overnight = benchDraft(0, { sets: 10, reps: 10, restSeconds: null });
 const overnightSeconds = estimateDraftDurationSeconds(overnight.exercises);
@@ -388,4 +426,70 @@ assert.equal(
 
 const projected = projectTemplateDraft(fromSaved);
 assert.equal(projected.exercises.length, 1);
+
+const bench = findSeed("bench press");
+const historyOptions = { now: 100_000, timeZone: "UTC" };
+const referenceAt = async (cutoff) =>
+  (await listSameLiftReferences(db, [bench.id, "", bench.id], cutoff)).get(bench.id);
+await logStrengthSession(
+  db,
+  benchDraft(10_000, { sessionId: "history-a", loadKg: 150 }),
+  historyOptions,
+);
+const tied = benchDraft(10_000, { sessionId: "history-z", loadKg: 100, sets: 4 });
+const partial = updateExercise(tied, tied.exercises[0].id, (exercise) => ({
+  ...exercise,
+  sets: [
+    { ...exercise.sets[0], warmup: true, loadKg: 160 },
+    { ...exercise.sets[1], skipped: true, loadKg: 180 },
+    exercise.sets[2],
+    { ...exercise.sets[3], loadKg: 110, restSeconds: 0 },
+  ],
+}));
+const savedPartial = await logStrengthSession(
+  db,
+  { ...partial, saveAsTemplate: true },
+  historyOptions,
+);
+const [[performed], [prescribed]] = await Promise.all([
+  getStrengthSession(db, savedPartial.sessionId).then((record) => record.exercises),
+  getStrengthTemplate(db, savedPartial.templateId).then((record) => record.exercises),
+]);
+assert.deepEqual(
+  performed.sets.map(({ position, skipped, warmup }) => [position, skipped, warmup]),
+  [[0, false, true], [1, true, false], [2, false, false], [3, false, false]],
+);
+assert.deepEqual(
+  prescribed.sets.map(({ position, loadKg, restSeconds }) => [position, loadKg, restSeconds]),
+  [[0, 100, 120], [1, 110, 0]],
+);
+assert.equal(await referenceAt(10_000), undefined);
+assert.deepEqual(await referenceAt(10_001), { kind: "load", kg: 110 });
+
+let mixedModes = benchDraft(20_000, { sessionId: "history-mixed", sets: 1 });
+mixedModes = updateExercise(mixedModes, mixedModes.exercises[0].id, (exercise) => ({
+  ...exercise,
+  sets: [{ ...exercise.sets[0], skipped: true }],
+}));
+mixedModes = addCatalogExercise(mixedModes, bench);
+mixedModes = loaded(mixedModes, mixedModes.exercises[1], {
+  mode: "assisted",
+  assistanceKg: 30,
+  reps: 5,
+  sets: 2,
+});
+mixedModes = updateExercise(mixedModes, mixedModes.exercises[1].id, (exercise) =>
+  updateSet(exercise, exercise.sets[1].id, (set) => ({ ...set, assistanceKg: 20 })),
+);
+mixedModes = addCatalogExercise(mixedModes, bench);
+mixedModes = loaded(mixedModes, mixedModes.exercises[2], { loadKg: 200, reps: 5 });
+await logStrengthSession(db, mixedModes, historyOptions);
+const bodyweight = benchDraft(30_000, { sessionId: "history-no-load" });
+await logStrengthSession(
+  db,
+  loaded(bodyweight, bodyweight.exercises[0], { mode: "bodyweight", reps: 10 }),
+  historyOptions,
+);
+assert.deepEqual(await referenceAt(40_000), { kind: "assistance", kg: 20 });
+
 console.log("strength checks passed");

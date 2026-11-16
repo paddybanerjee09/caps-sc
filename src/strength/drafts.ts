@@ -96,15 +96,12 @@ function exerciseFromRecord(record: StrengthExerciseRecord): ExerciseDraft {
             skipped: false,
             warmup: false,
           }))
-        : [makeSet(repeat, true)],
+        : [makeSet(repeat)],
     unilateral: record.unilateral,
   };
 }
 
-function sameTarget(
-  set: Pick<RepeatTarget, "assistanceKg" | "loadKg" | "reps" | "restSeconds" | "rpe">,
-  repeat: RepeatTarget,
-) {
+function sameTarget(set: RepeatTarget, repeat: RepeatTarget) {
   return (
     set.assistanceKg === repeat.assistanceKg &&
     set.loadKg === repeat.loadKg &&
@@ -114,11 +111,11 @@ function sameTarget(
   );
 }
 
-function makeSet(repeat: RepeatTarget, followsRepeat: boolean): SetDraft {
+function makeSet(repeat: RepeatTarget, id = createId()): SetDraft {
   return {
     ...repeat,
-    followsRepeat,
-    id: createId(),
+    followsRepeat: true,
+    id,
     skipped: false,
     warmup: false,
   };
@@ -146,7 +143,7 @@ export function addCatalogExercise(
         name: exercise.name,
         notes: "",
         repeat,
-        sets: [makeSet(repeat, true)],
+        sets: [makeSet(repeat)],
         unilateral: exercise.defaultUnilateral,
       },
     ],
@@ -209,27 +206,17 @@ export function resizeSets(exercise: ExerciseDraft, count: number): ExerciseDraf
   const nextCount = Math.min(MAX_SETS, Math.max(1, Math.round(count)));
   const sets = exercise.sets.slice(0, nextCount);
   while (sets.length < nextCount) {
-    sets.push(makeSet(exercise.repeat, true));
+    sets.push(makeSet(exercise.repeat));
   }
   return { ...exercise, sets };
 }
 
 export function customizeSet(exercise: ExerciseDraft, setId: string): ExerciseDraft {
-  return {
-    ...exercise,
-    sets: exercise.sets.map((set) =>
-      set.id === setId ? { ...set, followsRepeat: false } : set,
-    ),
-  };
+  return updateSet(exercise, setId, (set) => ({ ...set, followsRepeat: false }));
 }
 
 export function matchSetToRepeat(exercise: ExerciseDraft, setId: string): ExerciseDraft {
-  return {
-    ...exercise,
-    sets: exercise.sets.map((set) =>
-      set.id === setId ? { ...makeSet(exercise.repeat, true), id: set.id } : set,
-    ),
-  };
+  return updateSet(exercise, setId, (set) => makeSet(exercise.repeat, set.id));
 }
 
 export function updateSet(
@@ -370,19 +357,13 @@ function weightErrorFor(mode: LoadMode, set: SetDraft) {
   return null;
 }
 
-export type TableCell = {
-  mixed: boolean;
-  text: string;
-};
-
-export function tableField(
-  sets: readonly SetDraft[],
-  read: (set: SetDraft) => string,
-): TableCell {
+export function tableField<Set extends RepeatTarget>(
+  sets: readonly Set[],
+  read: (set: Set) => string,
+): string {
   if (sets.length === 0) {
-    return { mixed: false, text: "—" };
+    return "—";
   }
   const first = read(sets[0]!);
-  const mixed = sets.some((set) => read(set) !== first);
-  return { mixed, text: mixed ? "Mixed" : first };
+  return sets.some((set, index) => index > 0 && read(set) !== first) ? "Mixed" : first;
 }

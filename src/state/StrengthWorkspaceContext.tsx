@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { createId } from "../conditioning/ids";
+import { STRENGTH_SEARCH_PAGE } from "../strength/catalog";
 import type { StrengthDraft } from "../strength/types";
 
 export type StrengthStackEntry =
@@ -38,7 +39,6 @@ type StrengthWorkspaceValue = {
   dismissConfirm: () => void;
   draft: StrengthDraft | null;
   handleHardwareBack: () => boolean;
-  markSaved: (draft: StrengthDraft) => void;
   mode: StrengthBuilderMode | null;
   openBuilder: (draft: StrengthDraft, mode: StrengthBuilderMode) => void;
   openDetail: (sessionId: string) => void;
@@ -65,7 +65,7 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
   const [mode, setMode] = useState<StrengthBuilderMode | null>(null);
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchLimit, setSearchLimit] = useState(12);
+  const [searchLimit, setSearchLimit] = useState(STRENGTH_SEARCH_PAGE);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [revision, setRevision] = useState(0);
   const backHandler = useRef<(() => boolean) | null>(null);
@@ -84,7 +84,7 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
     setMode(null);
     setSavedSnapshot("");
     setSearchQuery("");
-    setSearchLimit(12);
+    setSearchLimit(STRENGTH_SEARCH_PAGE);
   }, []);
 
   const handleHardwareBack = useCallback(() => {
@@ -109,17 +109,13 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
       dismissConfirm: () => setConfirm(null),
       draft,
       handleHardwareBack,
-      markSaved: (next) => {
-        setDraft(next);
-        setSavedSnapshot(JSON.stringify(next));
-      },
       mode,
       openBuilder: (next, nextMode) => {
         setDraft(next);
         setMode(nextMode);
         setSavedSnapshot(JSON.stringify(next));
         setSearchQuery("");
-        setSearchLimit(12);
+        setSearchLimit(STRENGTH_SEARCH_PAGE);
         setStack([{ key: createId(), name: "builder" }]);
       },
       openDetail: (sessionId) => {

@@ -658,11 +658,11 @@ function TableRow({
   const metrics = [
     ["Weight*", tableField(exercise.sets, (set) =>
       formatSetLoad(exercise.loadMode, set.loadKg, set.assistanceKg, unit),
-    ).text],
+    )],
     ["Sets*", setsText],
-    ["Reps*", tableField(exercise.sets, (set) => String(set.reps)).text],
-    ["RPE", tableField(exercise.sets, (set) => formatRpe(set.rpe)).text],
-    ["Rest", tableField(exercise.sets, (set) => formatRestSeconds(set.restSeconds)).text],
+    ["Reps*", tableField(exercise.sets, (set) => String(set.reps))],
+    ["RPE", tableField(exercise.sets, (set) => formatRpe(set.rpe))],
+    ["Rest", tableField(exercise.sets, (set) => formatRestSeconds(set.restSeconds))],
     ["Notes", exercise.notes.trim() || "—"],
   ] as const;
   const name = exercise.unilateral ? `${exercise.name} / side` : exercise.name;
@@ -814,14 +814,6 @@ const styles = StyleSheet.create({
   fromSaved: {
     gap: tokens.spacing.sm,
   },
-  savedList: {
-    flexGrow: 0,
-    maxHeight: 160,
-  },
-  resultList: {
-    flexGrow: 0,
-    flexShrink: 1,
-  },
   results: {
     gap: tokens.spacing.sm,
   },
@@ -900,9 +892,6 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.sm,
     paddingBottom: tokens.spacing.sm,
     paddingTop: tokens.spacing.sm,
-  },
-  toggleBlock: {
-    gap: 4,
   },
   toggleRow: {
     alignItems: "center",

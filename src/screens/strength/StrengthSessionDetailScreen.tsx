@@ -124,11 +124,8 @@ function ExerciseCard({
   unit: "metric" | "imperial";
 }) {
   const { theme } = useAppTheme();
-  const sets = exercise.sets.map((set) => ({
-    ...set,
-    followsRepeat: false,
-  }));
-  const skipped = exercise.sets.filter((set) => set.skipped).length;
+  const sets = exercise.sets;
+  const skipped = sets.filter((set) => set.skipped).length;
   return (
     <View
       style={[
@@ -141,15 +138,15 @@ function ExerciseCard({
       </Text>
       <Text style={[styles.exercise, { color: theme.colors.text }]}>{exercise.name}</Text>
       <Text style={[styles.metric, { color: theme.colors.text }]}>
-        {tableField(sets, (set) => formatSetLoad(exercise.loadMode, set.loadKg, set.assistanceKg, unit)).text}
+        {tableField(sets, (set) => formatSetLoad(exercise.loadMode, set.loadKg, set.assistanceKg, unit))}
         {" · "}
         {skipped > 0 ? `${exercise.sets.length} sets, ${skipped} skipped` : `${exercise.sets.length} sets`}
         {" · "}
-        {tableField(sets, (set) => String(set.reps)).text} reps
+        {tableField(sets, (set) => String(set.reps))} reps
       </Text>
       <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-        RPE {tableField(sets, (set) => formatRpe(set.rpe)).text} · Rest{" "}
-        {tableField(sets, (set) => formatRestSeconds(set.restSeconds)).text}
+        RPE {tableField(sets, (set) => formatRpe(set.rpe))} · Rest{" "}
+        {tableField(sets, (set) => formatRestSeconds(set.restSeconds))}
         {exercise.explosiveIntent ? " · Explosive" : ""}
       </Text>
       {exercise.notes ? (

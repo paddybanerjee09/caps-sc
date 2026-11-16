@@ -84,6 +84,8 @@ type SetRow = {
   warmup?: number;
 };
 
+type StrengthSnapshot = "template" | "session";
+
 type CatalogRow = {
   aliases_json: string;
   default_load_mode: LoadMode;
@@ -202,15 +204,7 @@ export async function getStrengthTemplate(db: SQLiteDatabase, templateId: string
   if (!header) {
     return null;
   }
-  const exercises = await loadExercises(
-    db,
-    "strength_template_exercises",
-    "strength_template_sets",
-    "template_id",
-    "template_exercise_id",
-    templateId,
-    false,
-  );
+  const exercises = await loadExercises(db, "template", templateId);
   const record: StrengthTemplateRecord = {
     archivedAt: header.archived_at,
     exercises,
@@ -284,15 +278,7 @@ export async function getStrengthSession(db: SQLiteDatabase, sessionId: string) 
   if (!header) {
     return null;
   }
-  const exercises = await loadExercises(
-    db,
-    "strength_session_exercises",
-    "strength_session_sets",
-    "session_id",
-    "session_exercise_id",
-    sessionId,
-    true,
-  );
+  const exercises = await loadExercises(db, "session", sessionId);
   const record: StrengthSessionRecord = {
     durationSeconds: header.duration_seconds,
     emphasis: parseEmphasis(header.emphasis_json),
@@ -320,65 +306,52 @@ export async function listSameLiftReferences(
     return references;
   }
   const placeholders = ids.map(() => "?").join(", ");
+  // A lift can appear twice in one session. Its first eligible set determines
+  // the load mode, and all eligible sets for that lift contribute to the reference.
   const rows = await db.getAllAsync<{
-    assistance_kg: number | null;
-    ended_at: number;
     exercise_id: string;
-    load_kg: number | null;
-    load_mode: LoadMode;
-    session_id: string;
+    kg: number;
+    kind: EmphasisReference["kind"];
   }>(
-    `SELECT se.exercise_id AS exercise_id,
-            se.load_mode AS load_mode,
-            s.id AS session_id,
-            s.ended_at AS ended_at,
-            ss.load_kg AS load_kg,
-            ss.assistance_kg AS assistance_kg
-     FROM strength_session_sets ss
-     INNER JOIN strength_session_exercises se
-       ON se.id = ss.session_exercise_id
-     INNER JOIN strength_sessions s
-       ON s.id = se.session_id
-     WHERE se.exercise_id IN (${placeholders})
-       AND ss.skipped = 0
-       AND ss.warmup = 0
-       AND s.ended_at < ?
-     ORDER BY s.ended_at DESC, s.id DESC, se.position, ss.position`,
+    `WITH work_sets AS (
+       SELECT se.exercise_id, s.id AS session_id, s.ended_at,
+              ss.load_kg, ss.assistance_kg,
+              FIRST_VALUE(se.load_mode) OVER (
+                PARTITION BY se.exercise_id, s.id
+                ORDER BY se.position, ss.position
+              ) AS load_mode
+       FROM strength_session_sets ss
+       INNER JOIN strength_session_exercises se
+         ON se.id = ss.session_exercise_id
+       INNER JOIN strength_sessions s
+         ON s.id = se.session_id
+       WHERE se.exercise_id IN (${placeholders})
+         AND ss.skipped = 0
+         AND ss.warmup = 0
+         AND s.ended_at < ?
+     ), session_references AS (
+       SELECT exercise_id, session_id, ended_at,
+              CASE WHEN load_mode = 'assisted'
+                THEN MIN(CASE WHEN assistance_kg > 0 THEN assistance_kg END)
+                ELSE MAX(CASE WHEN load_kg > 0 THEN load_kg END)
+              END AS kg,
+              CASE WHEN load_mode = 'assisted' THEN 'assistance' ELSE 'load' END AS kind
+       FROM work_sets
+       GROUP BY exercise_id, session_id
+     ), ranked AS (
+       SELECT exercise_id, kg, kind,
+              ROW_NUMBER() OVER (
+                PARTITION BY exercise_id ORDER BY ended_at DESC, session_id DESC
+              ) AS recency
+       FROM session_references
+       WHERE kg IS NOT NULL
+     )
+     SELECT exercise_id, kg, kind FROM ranked WHERE recency = 1`,
     [...ids, beforeEndedAt],
   );
 
-  const byExercise = new Map<string, Map<string, typeof rows>>();
   for (const row of rows) {
-    const sessions = byExercise.get(row.exercise_id) ?? new Map<string, typeof rows>();
-    const sets = sessions.get(row.session_id) ?? [];
-    sets.push(row);
-    sessions.set(row.session_id, sets);
-    byExercise.set(row.exercise_id, sessions);
-  }
-
-  for (const [exerciseId, sessions] of byExercise) {
-    for (const sets of sessions.values()) {
-      const mode = sets[0]?.load_mode;
-      if (mode === "assisted") {
-        const assistance = sets
-          .map((set) => set.assistance_kg)
-          .filter((value): value is number => value != null && value > 0);
-        const best = assistance.length > 0 ? Math.min(...assistance) : null;
-        if (best != null) {
-          references.set(exerciseId, { kg: best, kind: "assistance" });
-          break;
-        }
-        continue;
-      }
-      const loads = sets
-        .map((set) => set.load_kg)
-        .filter((value): value is number => value != null && value > 0);
-      const best = loads.length > 0 ? Math.max(...loads) : null;
-      if (best != null) {
-        references.set(exerciseId, { kg: best, kind: "load" });
-        break;
-      }
-    }
+    references.set(row.exercise_id, { kg: row.kg, kind: row.kind });
   }
   return references;
 }
@@ -416,9 +389,9 @@ export async function logStrengthSession(
   if (durationSeconds == null) {
     throw new Error("Add at least one work set.");
   }
-  const projected = projectTemplateDraft(draft);
-  if (draft.saveAsTemplate) {
-    const templateError = validateStrengthDraft(projected, "template", now);
+  const templateDraft = draft.saveAsTemplate ? projectTemplateDraft(draft) : null;
+  if (templateDraft) {
+    const templateError = validateStrengthDraft(templateDraft, "template", now);
     if (templateError) {
       throw new Error(templateError);
     }
@@ -440,22 +413,22 @@ export async function logStrengthSession(
   await db.withTransactionAsync(async () => {
     const timelineEntryId = Number(
       await addTimelineEntry(db, {
-      endAt: draft.endedAt,
-      kind: "strength",
-      startAt: startedAt,
-      status: "completed",
-      title,
-    }),
+        endAt: draft.endedAt,
+        kind: "strength",
+        startAt: startedAt,
+        status: "completed",
+        title,
+      }),
     );
-    if (draft.saveAsTemplate && draft.sourceTemplateId) {
-      await replaceTemplate(db, draft.sourceTemplateId, projected, now);
-      templateId = draft.sourceTemplateId;
-    } else if (draft.saveAsTemplate) {
-      templateId = createId();
-      await insertTemplate(db, templateId, projected, now);
-    } else if (draft.sourceTemplateId) {
-      await archiveTemplate(db, draft.sourceTemplateId, now);
-      templateId = draft.sourceTemplateId;
+    if (templateDraft) {
+      if (templateId) {
+        await replaceTemplate(db, templateId, templateDraft, now);
+      } else {
+        templateId = createId();
+        await insertTemplate(db, templateId, templateDraft, now);
+      }
+    } else if (templateId) {
+      await archiveTemplate(db, templateId, now);
     }
 
     await db.runAsync(
@@ -479,7 +452,7 @@ export async function logStrengthSession(
         now,
       ],
     );
-    await insertSessionExercises(db, draft.sessionId, draft.exercises);
+    await insertExercises(db, "session", draft.sessionId, draft.exercises);
     options?.beforeCommit?.();
   });
 
@@ -507,7 +480,7 @@ async function insertTemplate(
     ) VALUES (?, ?, ?, ?, NULL)`,
     [id, draft.title.trim(), now, now],
   );
-  await insertTemplateExercises(db, id, draft.exercises);
+  await insertExercises(db, "template", id, draft.exercises);
 }
 
 async function replaceTemplate(
@@ -529,7 +502,7 @@ async function replaceTemplate(
     `DELETE FROM strength_template_exercises WHERE template_id = ?`,
     [id],
   );
-  await insertTemplateExercises(db, id, draft.exercises);
+  await insertExercises(db, "template", id, draft.exercises);
 }
 
 async function archiveTemplate(db: SQLiteDatabase, id: string, now: number) {
@@ -541,70 +514,25 @@ async function archiveTemplate(db: SQLiteDatabase, id: string, now: number) {
   );
 }
 
-async function insertTemplateExercises(
+async function insertExercises(
   db: SQLiteDatabase,
-  templateId: string,
+  snapshot: StrengthSnapshot,
+  parentId: string,
   exercises: readonly ExerciseDraft[],
 ) {
-  for (let index = 0; index < exercises.length; index += 1) {
-    const exercise = exercises[index]!;
-    await db.runAsync(
-      `INSERT INTO strength_template_exercises (
-        id, template_id, position, exercise_id, name, equipment,
-        muscle_groups_json, load_mode, unilateral, explosive_intent, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        exercise.id,
-        templateId,
-        index,
-        exercise.catalogExerciseId,
-        exercise.name.trim(),
-        exercise.equipment,
-        JSON.stringify(exercise.muscleGroups),
-        exercise.loadMode,
-        exercise.unilateral ? 1 : 0,
-        exercise.explosiveIntent ? 1 : 0,
-        noteOrNull(exercise.notes),
-      ],
-    );
-    const sets = exercise.sets.filter((set) => !set.skipped && !set.warmup);
-    for (let setIndex = 0; setIndex < sets.length; setIndex += 1) {
-      const set = sets[setIndex]!;
-      await db.runAsync(
-        `INSERT INTO strength_template_sets (
-          id, template_exercise_id, position, load_kg, assistance_kg,
-          reps, rpe, rest_seconds
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          set.id,
-          exercise.id,
-          setIndex,
-          storedLoad(exercise.loadMode, set.loadKg),
-          exercise.loadMode === "assisted" ? set.assistanceKg : null,
-          set.reps,
-          set.rpe,
-          set.restSeconds,
-        ],
-      );
-    }
-  }
-}
+  const includePerformed = snapshot === "session";
+  const performedColumns = includePerformed ? ", skipped, warmup" : "";
+  const performedValues = includePerformed ? ", ?, ?" : "";
 
-async function insertSessionExercises(
-  db: SQLiteDatabase,
-  sessionId: string,
-  exercises: readonly ExerciseDraft[],
-) {
-  for (let index = 0; index < exercises.length; index += 1) {
-    const exercise = exercises[index]!;
+  for (const [index, exercise] of exercises.entries()) {
     await db.runAsync(
-      `INSERT INTO strength_session_exercises (
-        id, session_id, position, exercise_id, name, equipment,
+      `INSERT INTO strength_${snapshot}_exercises (
+        id, ${snapshot}_id, position, exercise_id, name, equipment,
         muscle_groups_json, load_mode, unilateral, explosive_intent, notes
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         exercise.id,
-        sessionId,
+        parentId,
         index,
         exercise.catalogExerciseId,
         exercise.name.trim(),
@@ -616,13 +544,12 @@ async function insertSessionExercises(
         noteOrNull(exercise.notes),
       ],
     );
-    for (let setIndex = 0; setIndex < exercise.sets.length; setIndex += 1) {
-      const set = exercise.sets[setIndex]!;
+    for (const [setIndex, set] of exercise.sets.entries()) {
       await db.runAsync(
-        `INSERT INTO strength_session_sets (
-          id, session_exercise_id, position, load_kg, assistance_kg,
-          reps, rpe, rest_seconds, skipped, warmup
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO strength_${snapshot}_sets (
+          id, ${snapshot}_exercise_id, position, load_kg, assistance_kg,
+          reps, rpe, rest_seconds${performedColumns}
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?${performedValues})`,
         [
           set.id,
           exercise.id,
@@ -632,8 +559,7 @@ async function insertSessionExercises(
           set.reps,
           set.rpe,
           set.restSeconds,
-          set.skipped ? 1 : 0,
-          set.warmup ? 1 : 0,
+          ...(includePerformed ? [set.skipped ? 1 : 0, set.warmup ? 1 : 0] : []),
         ],
       );
     }
@@ -656,11 +582,7 @@ function noteOrNull(notes: string) {
 }
 
 function parseEmphasis(value: string): StrengthEmphasis {
-  const parsed = JSON.parse(value) as StrengthEmphasis;
-  if (parsed.modelVersion !== STRENGTH_EMPHASIS_VERSION) {
-    return parsed;
-  }
-  return parsed;
+  return JSON.parse(value) as StrengthEmphasis;
 }
 
 function mapCatalog(row: CatalogRow): CatalogExercise {
@@ -689,18 +611,14 @@ function parseStringList(value: string) {
 
 async function loadExercises(
   db: SQLiteDatabase,
-  exerciseTable: "strength_template_exercises" | "strength_session_exercises",
-  setTable: "strength_template_sets" | "strength_session_sets",
-  parentColumn: "template_id" | "session_id",
-  setParentColumn: "template_exercise_id" | "session_exercise_id",
+  snapshot: StrengthSnapshot,
   parentId: string,
-  includePerformed: boolean,
 ) {
   const exercises = await db.getAllAsync<ExerciseRow>(
     `SELECT id, position, exercise_id, name, equipment, muscle_groups_json,
             load_mode, unilateral, explosive_intent, notes
-     FROM ${exerciseTable}
-     WHERE ${parentColumn} = ?
+     FROM strength_${snapshot}_exercises
+     WHERE ${snapshot}_id = ?
      ORDER BY position`,
     [parentId],
   );
@@ -709,12 +627,12 @@ async function loadExercises(
   }
   const ids = exercises.map((exercise) => exercise.id);
   const placeholders = ids.map(() => "?").join(", ");
-  const performedColumns = includePerformed ? ", skipped, warmup" : "";
+  const performedColumns = snapshot === "session" ? ", skipped, warmup" : "";
   const sets = await db.getAllAsync<SetRow>(
-    `SELECT id, ${setParentColumn} AS parent_id, position, load_kg, assistance_kg,
+    `SELECT id, ${snapshot}_exercise_id AS parent_id, position, load_kg, assistance_kg,
             reps, rpe, rest_seconds${performedColumns}
-     FROM ${setTable}
-     WHERE ${setParentColumn} IN (${placeholders})
+     FROM strength_${snapshot}_sets
+     WHERE ${snapshot}_exercise_id IN (${placeholders})
      ORDER BY position`,
     ids,
   );

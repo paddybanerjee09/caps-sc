@@ -198,7 +198,7 @@ function clampScore(value: number) {
   return roundScore(Math.min(100, Math.max(0, value)));
 }
 
-function unknownQuality(rationale: string, workSets: number): QualityEstimate {
+function unknownQuality(rationale: string): QualityEstimate {
   return {
     coverage: 0,
     evidenceLevel: "unknown",
@@ -303,10 +303,7 @@ export function estimateStrengthEmphasis(
 
 function scoreStrength(scores: number[], workSets: number): QualityEstimate {
   if (scores.length === 0) {
-    return unknownQuality(
-      "No same-lift reference, so strength is unknown.",
-      workSets,
-    );
+    return unknownQuality("No same-lift reference, so strength is unknown.");
   }
   return scoredQuality(
     roundScore(mean(scores)),
@@ -318,10 +315,7 @@ function scoreStrength(scores: number[], workSets: number): QualityEstimate {
 
 function scorePower(scores: number[], workSets: number): QualityEstimate {
   if (scores.length === 0) {
-    return unknownQuality(
-      "No explosive intent, so power is unknown.",
-      workSets,
-    );
+    return unknownQuality("No explosive intent, so power is unknown.");
   }
   return scoredQuality(
     roundScore(mean(scores)),
@@ -334,7 +328,7 @@ function scorePower(scores: number[], workSets: number): QualityEstimate {
 function scoreHypertrophy(sets: WorkSet[], workSets: number): QualityEstimate {
   const base = hypertrophyBase(sets.length);
   if (base == null) {
-    return unknownQuality("No work sets in the 5–30 rep range.", workSets);
+    return unknownQuality("No work sets in the 5–30 rep range.");
   }
   const rated = sets.filter((set) => set.rpe != null);
   let score = base;
@@ -359,7 +353,6 @@ function scoreEndurance(sets: WorkSet[], workSets: number): QualityEstimate {
   if (base == null) {
     return unknownQuality(
       "No high-rep sets with rest or effort, so muscular endurance is unknown.",
-      workSets,
     );
   }
   const rests = sets.map((set) =>

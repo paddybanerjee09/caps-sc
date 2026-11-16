@@ -2,25 +2,14 @@ import type { CatalogExercise } from "./types";
 
 export const STRENGTH_SEARCH_PAGE = 12;
 
-export function normalizeExerciseQuery(value: string) {
+function normalizeExerciseQuery(value: string) {
   return value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
 
-function haystack(exercise: CatalogExercise) {
-  return [exercise.name, ...exercise.aliases].map(normalizeExerciseQuery);
-}
-
-function matches(exercise: CatalogExercise, tokens: string[]) {
-  const fields = haystack(exercise);
-  return tokens.every((token) => fields.some((field) => field.includes(token)));
-}
-
-function rank(exercise: CatalogExercise, query: string) {
-  const name = normalizeExerciseQuery(exercise.name);
-  const aliases = exercise.aliases.map(normalizeExerciseQuery);
+function rank(name: string, aliases: string[], query: string) {
   if (name.startsWith(query)) {
     return 0;
   }
@@ -39,18 +28,25 @@ export function searchExercises(
   limit: number,
 ) {
   const normalized = normalizeExerciseQuery(query);
-  const tokens = normalized.split(" ").filter((token) => token.length > 0);
-  const pool =
-    tokens.length === 0
-      ? [...exercises]
-      : exercises.filter((exercise) => matches(exercise, tokens));
+  const tokens = normalized ? normalized.split(" ") : [];
+  const pool: { exercise: CatalogExercise; rank: number }[] = [];
 
-  pool.sort((left, right) => {
-    if (tokens.length > 0) {
-      const score = rank(left, normalized) - rank(right, normalized);
-      if (score !== 0) {
-        return score;
-      }
+  for (const exercise of exercises) {
+    if (!normalized) {
+      pool.push({ exercise, rank: 0 });
+      continue;
+    }
+    const name = normalizeExerciseQuery(exercise.name);
+    const aliases = exercise.aliases.map(normalizeExerciseQuery);
+    const fields = [name, ...aliases];
+    if (tokens.every((token) => fields.some((field) => field.includes(token)))) {
+      pool.push({ exercise, rank: rank(name, aliases, normalized) });
+    }
+  }
+
+  pool.sort(({ exercise: left, rank: leftRank }, { exercise: right, rank: rightRank }) => {
+    if (leftRank !== rightRank) {
+      return leftRank - rightRank;
     }
     const name = left.name.localeCompare(right.name, undefined, {
       sensitivity: "base",
@@ -60,7 +56,7 @@ export function searchExercises(
 
   const safeLimit = Math.max(0, Math.floor(limit));
   return {
-    matches: pool.slice(0, safeLimit),
+    matches: pool.slice(0, safeLimit).map(({ exercise }) => exercise),
     total: pool.length,
   };
 }
