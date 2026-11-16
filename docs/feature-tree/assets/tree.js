@@ -48,7 +48,7 @@
     collapsed: new Set(),
     showReverted: true,
     zoom: 1,
-    query: "",
+    searchMatches: null,
     selected: null,
     newestFirst: false,
     cursor: -1,
@@ -607,19 +607,17 @@
     return text;
   }
 
-  function matches(entry) {
-    const words = state.query.split(/\s+/).filter(Boolean);
-    const text = haystack(entry);
-    return words.length > 0 && words.every((word) => text.includes(word));
-  }
-
   function onSearch(value) {
-    state.query = value.trim().toLowerCase();
+    const words = value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const matches = words.length ? new Set() : null;
+    state.searchMatches = matches;
     state.cursor = -1;
     let reopened = false;
-    if (state.query) {
+    if (matches) {
       for (const entry of INDEX.get(pageTree).values()) {
-        if (!matches(entry)) continue;
+        const text = haystack(entry);
+        if (!words.every((word) => text.includes(word))) continue;
+        matches.add(entry.node.id);
         for (const parent of ancestors(entry)) if (state.collapsed.delete(parent.node.id)) reopened = true;
       }
     }
@@ -628,14 +626,15 @@
   }
 
   function applySearchMarks() {
-    els.wrap.classList.toggle("searching", Boolean(state.query));
+    const matches = state.searchMatches;
+    els.wrap.classList.toggle("searching", matches !== null);
     let count = 0;
     for (const el of els.wrap.querySelectorAll(".node")) {
-      const hit = Boolean(state.query) && matches(entryOf(el.dataset.id));
+      const hit = matches?.has(el.dataset.id) ?? false;
       el.classList.toggle("match", hit);
       if (hit) count += 1;
     }
-    els.count.textContent = state.query ? `${count} match${count === 1 ? "" : "es"}` : "";
+    els.count.textContent = matches ? `${count} match${count === 1 ? "" : "es"}` : "";
   }
 
   function nextMatch(step) {
