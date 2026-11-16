@@ -3,7 +3,6 @@ import {
   MAX_TITLE_LENGTH,
   MAX_WORK_OCCURRENCES,
   type CircuitConfig,
-  type ConditioningFormat,
   type IntervalConfig,
   type OccurrenceActual,
   type SprintConfig,
@@ -71,6 +70,10 @@ export function validateNotes(notes: string | null) {
   }
 
   return [];
+}
+
+export function normalizeNotes(notes: string | null | undefined) {
+  return notes?.trim() || null;
 }
 
 export function validateOptionalRpe(value: number | null, field: string) {
@@ -425,26 +428,6 @@ export function effectiveStationRpe(
   circuitTargetRpe: number | null,
 ) {
   return station.targetRpe ?? circuitTargetRpe;
-}
-
-export function expectedWorkCount(format: ConditioningFormat, snapshot: {
-  circuit: CircuitConfig | null;
-  interval: IntervalConfig | null;
-  sprint: SprintConfig | null;
-}) {
-  if (format === "time_interval" && snapshot.interval) {
-    return snapshot.interval.rounds * snapshot.interval.intervalsPerRound;
-  }
-
-  if (format === "sprint" && snapshot.sprint) {
-    return snapshot.sprint.sets * snapshot.sprint.sprintsPerSet;
-  }
-
-  if (format === "circuit" && snapshot.circuit) {
-    return snapshot.circuit.rounds * snapshot.circuit.stations.length;
-  }
-
-  return 0;
 }
 
 const numericFields = [

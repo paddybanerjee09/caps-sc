@@ -9,6 +9,7 @@ import {
   scheduledInstant,
 } from "../conditioning/dates";
 import { createId } from "../conditioning/ids";
+import { isOpenRecording } from "../conditioning/status";
 import type {
   CircuitConfig,
   ConditioningFormat,
@@ -26,6 +27,7 @@ import type {
 } from "../conditioning/types";
 import { SNAPSHOT_VERSION } from "../conditioning/types";
 import {
+  normalizeNotes,
   throwIfInvalid,
   validateActual,
   validateOptionalRpe,
@@ -166,7 +168,7 @@ export function saveConditioningTemplate(
               })),
             }
           : null,
-        notes: cleanNotes(config.notes),
+        notes: normalizeNotes(config.notes),
         title: config.title.trim(),
       };
 
@@ -210,7 +212,8 @@ export function saveConditioningTemplate(
         throw new Error("Workout could not be saved");
       }
 
-      return mapTemplate(db, saved);
+      const [record] = await mapTemplates(db, [saved]);
+      return record;
     }),
   );
 }
@@ -224,7 +227,7 @@ export async function listConditioningTemplates(db: SQLiteDatabase, ownerId: str
      ORDER BY last_used_at IS NULL, last_used_at DESC, updated_at DESC, id ASC`,
     [ownerId],
   );
-  return Promise.all(rows.map((row) => mapTemplate(db, row)));
+  return mapTemplates(db, rows);
 }
 
 export async function getConditioningTemplate(
@@ -233,7 +236,12 @@ export async function getConditioningTemplate(
   templateId: string,
 ) {
   const row = await getTemplateRow(db, ownerId, templateId);
-  return row ? mapTemplate(db, row) : null;
+  if (!row) {
+    return null;
+  }
+
+  const [record] = await mapTemplates(db, [row]);
+  return record;
 }
 
 export function archiveConditioningTemplate(
@@ -561,7 +569,7 @@ export function saveConditioningSession(
 
       const sessionRpe = input.sessionRpe ?? null;
       throwIfInvalid(validateOptionalRpe(sessionRpe, "sessionRpe"));
-      const notes = input.notes === undefined ? existing.notes : cleanNotes(input.notes);
+      const notes = input.notes === undefined ? existing.notes : normalizeNotes(input.notes);
       const now = Date.now();
       await db.runAsync(
         `UPDATE conditioning_sessions
@@ -630,7 +638,7 @@ export function logConditioningSession(
       throwIfInvalid(validateOptionalRpe(sessionRpe, "sessionRpe"));
       const status = input.status ?? "completed";
       const now = Date.now();
-      const notes = input.notes === undefined ? snapshot.notes : cleanNotes(input.notes);
+      const notes = input.notes === undefined ? snapshot.notes : normalizeNotes(input.notes);
 
       if (input.planSessionId) {
         const plan = await requiredSession(db, ownerId, input.planSessionId);
@@ -761,7 +769,7 @@ export function discardConditioningRecording(
     inTransaction(db, async () => {
       await requireDeviceOwner(db, ownerId);
       const existing = await requiredSession(db, ownerId, sessionId);
-      if (existing.status !== "in_progress" && existing.status !== "finished_draft") {
+      if (!isOpenRecording(existing.status)) {
         throw new Error("There is no recording to discard");
       }
 
@@ -1065,21 +1073,6 @@ export async function getConditioningUploadJob(
   );
 }
 
-export function replaceConditioningSplits(
-  db: SQLiteDatabase,
-  ownerId: string,
-  sessionId: string,
-  splits: SplitInput[],
-) {
-  return enqueueConditioningWrite(() =>
-    inTransaction(db, async () => {
-      await requireDeviceOwner(db, ownerId);
-      await requiredSession(db, ownerId, sessionId);
-      await replaceSplits(db, sessionId, splits);
-    }),
-  );
-}
-
 async function ensureOwner(db: SQLiteDatabase) {
   const existing = await db.getFirstAsync<{ id: string }>(
     "SELECT id FROM conditioning_owner WHERE singleton = 1",
@@ -1129,7 +1122,7 @@ function checkedSnapshot(snapshot: WorkoutSnapshot) {
   throwIfInvalid(validateSnapshot(snapshot));
   return {
     ...snapshot,
-    notes: cleanNotes(snapshot.notes),
+    notes: normalizeNotes(snapshot.notes),
     title: snapshot.title.trim(),
   };
 }
@@ -1160,15 +1153,6 @@ function assertPast(field: string, timestamp: number) {
         : "Time cannot be in the future",
     );
   }
-}
-
-function cleanNotes(notes: string | null | undefined) {
-  if (notes == null) {
-    return null;
-  }
-
-  const trimmed = notes.trim();
-  return trimmed ? trimmed : null;
 }
 
 async function markTemplateUsed(
@@ -1318,7 +1302,7 @@ async function replaceTemplateStations(
         JSON.stringify(stationTarget(station)),
         station.recoverySeconds,
         station.targetRpe,
-        cleanNotes(station.notes),
+        normalizeNotes(station.notes),
       ],
     );
   }
@@ -1583,6 +1567,7 @@ type StationRow = {
   recovery_seconds: number;
   target_json: string;
   target_rpe: number | null;
+  template_id: string;
 };
 
 async function getTemplateRow(
@@ -1599,36 +1584,55 @@ async function getTemplateRow(
   );
 }
 
-async function mapTemplate(db: SQLiteDatabase, row: TemplateRow) {
-  const config = JSON.parse(row.config_json) as TemplateConfig;
-  if (config.format === "circuit" && config.circuit) {
+async function mapTemplates(db: SQLiteDatabase, rows: TemplateRow[]) {
+  const templates = rows.map((row) => ({
+    row,
+    config: JSON.parse(row.config_json) as TemplateConfig,
+  }));
+  const circuitIds = templates
+    .filter(({ config }) => config.format === "circuit" && config.circuit)
+    .map(({ row }) => row.id);
+
+  const stationsByTemplate = new Map<string, StationConfig[]>();
+  if (circuitIds.length > 0) {
+    // A single bound JSON array avoids a SQLite parameter per template.
     const stations = await db.getAllAsync<StationRow>(
-      `SELECT id, position, exercise_name, completion_type, target_json,
+      `SELECT template_id, id, position, exercise_name, completion_type, target_json,
               recovery_seconds, target_rpe, notes
        FROM conditioning_template_stations
-       WHERE template_id = ?
-       ORDER BY position`,
-      [row.id],
+       WHERE template_id IN (SELECT value FROM json_each(?))
+       ORDER BY template_id, position`,
+      [JSON.stringify(circuitIds)],
     );
-    config.circuit = {
-      ...config.circuit,
-      stations: stations.map(mapStation),
-    };
+    for (const station of stations) {
+      const config = mapStation(station);
+      const group = stationsByTemplate.get(station.template_id);
+      if (group) {
+        group.push(config);
+      } else {
+        stationsByTemplate.set(station.template_id, [config]);
+      }
+    }
   }
 
-  const record: ConditioningTemplateRecord = {
-    archivedAt: row.archived_at,
-    config,
-    configVersion: row.config_version,
-    createdAt: row.created_at,
-    format: row.format,
-    id: row.id,
-    lastUsedAt: row.last_used_at,
-    ownerId: row.owner_id,
-    title: row.title,
-    updatedAt: row.updated_at,
-  };
-  return record;
+  return templates.map(({ config, row }): ConditioningTemplateRecord => {
+    if (config.format === "circuit" && config.circuit) {
+      config.circuit.stations = stationsByTemplate.get(row.id) ?? [];
+    }
+
+    return {
+      archivedAt: row.archived_at,
+      config,
+      configVersion: row.config_version,
+      createdAt: row.created_at,
+      format: row.format,
+      id: row.id,
+      lastUsedAt: row.last_used_at,
+      ownerId: row.owner_id,
+      title: row.title,
+      updatedAt: row.updated_at,
+    };
+  });
 }
 
 function mapStation(row: StationRow): StationConfig {

@@ -149,29 +149,35 @@ export function reconcileRunner(state: RunnerState, now: number) {
 
   let current = state;
   let cuePhaseId: string | null = null;
+  const completedWork: [id: string, durationMs: number][] = [];
 
   while (true) {
     const phase = currentPhase(current);
-    if (!phase || !isTimerPhase(phase) || current.phaseDeadlineAt == null) {
-      break;
-    }
-    if (now < current.phaseDeadlineAt) {
+    const deadline = current.phaseDeadlineAt;
+    if (!phase || !isTimerPhase(phase) || deadline == null || now < deadline) {
       break;
     }
 
-    const completedAt = current.phaseDeadlineAt;
-    current = finishTimerPhase(current, completedAt);
+    const durationMs = phase.durationSeconds * 1000;
+    const totals = { ...current.totals };
+    addBucket(totals, phase.type, durationMs);
+    if (phase.type === "work" && phase.occurrenceId) {
+      completedWork.push([phase.occurrenceId, durationMs]);
+    }
+    current = advance({ ...current, phaseAccumulatedMs: 0, totals }, deadline);
     cuePhaseId = currentPhase(current)?.id ?? current.phases.at(-1)?.id ?? phase.id;
-    if (current.status === "finished") {
-      break;
-    }
-    if (!isTimerPhase(currentPhase(current))) {
-      break;
-    }
   }
 
   if (cuePhaseId === null) {
     return { cuePhaseId, state };
+  }
+
+  if (completedWork.length > 0) {
+    current = {
+      ...current,
+      completedOccurrenceIds: current.completedOccurrenceIds.concat(completedWork.map(([id]) => id)),
+      occurrenceWorkMs: { ...current.occurrenceWorkMs, ...Object.fromEntries(completedWork) },
+    };
   }
 
   return {
@@ -328,11 +334,12 @@ export function projectedTotals(state: RunnerState, now: number): RunnerTotals {
 }
 
 export function occurrencesFromRunner(state: RunnerState): OccurrenceInput[] {
+  const completedIds = new Set(state.completedOccurrenceIds);
   return state.phases
     .filter((phase) => phase.type === "work" && phase.occurrenceId)
     .map((phase, index) => {
       const id = phase.occurrenceId ?? phase.id;
-      const completed = state.completedOccurrenceIds.includes(id);
+      const completed = completedIds.has(id);
       const partial = state.partialOccurrenceId === id;
       return {
         actual: null,
@@ -402,30 +409,6 @@ function beginPhase(state: RunnerState, index: number, at: number): RunnerState 
     remainingMs: timer ? phase.durationSeconds * 1000 : null,
     status: phase.type === "preparation" ? "preparing" : "running",
   };
-}
-
-function finishTimerPhase(state: RunnerState, at: number) {
-  const phase = currentPhase(state);
-  if (!phase) {
-    return state;
-  }
-
-  const durationMs = phase.durationSeconds * 1000;
-  const totals = { ...state.totals };
-  addBucket(totals, phase.type, durationMs);
-  const occurrenceId = phase.type === "work" ? phase.occurrenceId : null;
-  const next: RunnerState = {
-    ...state,
-    completedOccurrenceIds: occurrenceId
-      ? [...state.completedOccurrenceIds, occurrenceId]
-      : state.completedOccurrenceIds,
-    occurrenceWorkMs: occurrenceId
-      ? { ...state.occurrenceWorkMs, [occurrenceId]: durationMs }
-      : state.occurrenceWorkMs,
-    phaseAccumulatedMs: 0,
-    totals,
-  };
-  return advance(next, at);
 }
 
 function advance(state: RunnerState, at: number) {

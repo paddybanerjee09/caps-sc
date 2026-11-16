@@ -3,12 +3,12 @@ import type {
   CircuitConfig,
   IntervalConfig,
   SprintConfig,
-  StationCompletionType,
   StationConfig,
   StructuredFormat,
   TemplateConfig,
 } from "./types";
 import { SNAPSHOT_VERSION } from "./types";
+import { normalizeNotes } from "./validation";
 
 export type WorkoutDraft = {
   betweenRoundRestSeconds: string;
@@ -108,7 +108,7 @@ export function draftFromTemplate(
 }
 
 export function templateConfigFromDraft(draft: WorkoutDraft): TemplateConfig {
-  const notes = draft.notes.trim() ? draft.notes.trim() : null;
+  const notes = normalizeNotes(draft.notes);
   const title = draft.title;
   if (draft.format === "time_interval") {
     const interval: IntervalConfig = {
@@ -188,27 +188,6 @@ export function createStation(position: number): StationConfig {
     recoverySeconds: 0,
     targetReps: null,
     targetRpe: null,
-    workSeconds: null,
-  };
-}
-
-export function emptyStationTarget(type: StationCompletionType): Pick<
-  StationConfig,
-  | "completionType"
-  | "distanceMeters"
-  | "instructions"
-  | "loadKg"
-  | "machineCalories"
-  | "targetReps"
-  | "workSeconds"
-> {
-  return {
-    completionType: type,
-    distanceMeters: null,
-    instructions: null,
-    loadKg: null,
-    machineCalories: null,
-    targetReps: null,
     workSeconds: null,
   };
 }

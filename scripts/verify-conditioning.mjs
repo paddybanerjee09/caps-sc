@@ -6,6 +6,7 @@ import {
   markerForSessionStatus,
 } from "../src/conditioning/dates.ts";
 import {
+  buildCircuitPhases,
   buildIntervalPhases,
   buildSprintPhases,
   buildWorkoutSnapshot,
@@ -13,10 +14,12 @@ import {
   sumPhaseSeconds,
 } from "../src/conditioning/phases.ts";
 import { createId } from "../src/conditioning/ids.ts";
+import { MAX_WORK_OCCURRENCES } from "../src/conditioning/types.ts";
 import {
   completeCurrentWork,
   createReadyRunner,
   endRunnerEarly,
+  occurrencesFromRunner,
   pauseRunner,
   reconcileRunner,
   remainingWholeSeconds,
@@ -55,6 +58,7 @@ import {
 } from "../src/components/monthGrid.ts";
 import { migrateDatabase } from "../src/data/database.ts";
 import {
+  archiveConditioningTemplate,
   discardConditioningRecording,
   findInProgressConditioningSession,
   getConditioningOwnerId,
@@ -280,6 +284,27 @@ assert.equal(finishedRun.totals.preparationMs, 5_000);
 assert.equal(finishedRun.phases.at(-1).type, "work");
 assert.equal(reconcileRunner(runner, 620_000).cuePhaseId !== null, true);
 
+const longPhases = buildIntervalPhases(
+  intervalConfig({ intervalsPerRound: MAX_WORK_OCCURRENCES, restSeconds: 0, rounds: 1, workSeconds: 1 }),
+  ids(),
+);
+const longRun = startRunner(createReadyRunner(longPhases, 0), 0, "process-a");
+const checkpoint = reconcileRunner(longRun, 5_000 + MAX_WORK_OCCURRENCES * 500).state;
+const persisted = JSON.stringify(checkpoint);
+const restoredCheckpoint = JSON.parse(persisted);
+const endTime = 5_000 + MAX_WORK_OCCURRENCES * 1000;
+const caughtUp = reconcileRunner(restoredCheckpoint, endTime);
+assert.deepEqual(caughtUp, reconcileRunner(longRun, endTime));
+assert.equal(caughtUp.cuePhaseId, longPhases.at(-1).id);
+assert.equal(JSON.stringify(restoredCheckpoint), persisted);
+assert.deepEqual(longRun.completedOccurrenceIds, []);
+assert.deepEqual(longRun.occurrenceWorkMs, {});
+const caughtUpOccurrences = occurrencesFromRunner(caughtUp.state);
+const expectedIds = longPhases.map((phase) => phase.occurrenceId);
+assert.deepEqual(caughtUp.state.completedOccurrenceIds, expectedIds);
+assert.deepEqual(caughtUpOccurrences.map((item) => item.id), expectedIds);
+assert.ok(caughtUpOccurrences.every((item) => item.completionStatus === "completed" && item.workSeconds === 1));
+
 runner = startRunner(createReadyRunner(intervalPhases, 0), 0, "process-a");
 assert.equal(remainingWholeSeconds(reconcileRunner(runner, 2_000).state, 2_000), 3);
 const paused = pauseRunner(reconcileRunner(runner, 2_000).state, 2_000);
@@ -311,6 +336,19 @@ assert.equal(manual.status, "running");
 assert.equal(manual.phases[manual.phaseIndex].completion, "manual");
 assert.equal(manual.completedOccurrenceIds.length, 0);
 assert.equal(manual.totals.workMs, 0);
+
+const mixedPhases = buildCircuitPhases({
+  betweenRoundRestSeconds: 0,
+  rounds: 1,
+  stations: [{ ...timed, recoverySeconds: 0, workSeconds: 2 }, { ...station, id: "manual" }],
+  targetRpe: null,
+}, ids());
+const mixed = reconcileRunner(startRunner(createReadyRunner(mixedPhases, 0), 0), 100_000);
+assert.equal(mixed.cuePhaseId, mixedPhases[1].id);
+assert.equal(mixed.state.phaseStartedAt, 7_000);
+assert.deepEqual(occurrencesFromRunner(mixed.state).map((item) => item.completionStatus), [
+  "completed", "pending",
+]);
 
 const killed = restoreAfterProcessTermination(
   startRunner(createReadyRunner(intervalPhases, 1_000), 1_000, "process-a"),
@@ -551,9 +589,10 @@ const ownerId = await getConditioningOwnerId(adapter);
 const template = await saveConditioningTemplate(
   adapter,
   ownerId,
-  intervalTemplate(),
+  intervalTemplate({ notes: "  Aerobic focus  " }),
 );
 assert.equal(template.lastUsedAt, null);
+assert.equal(template.config.notes, "Aerobic focus");
 await getConditioningTemplate(adapter, ownerId, template.id);
 assert.equal(
   (await getConditioningTemplate(adapter, ownerId, template.id)).lastUsedAt,
@@ -565,7 +604,49 @@ assert.equal(
   0,
 );
 
-const snapshot = buildWorkoutSnapshot(template.config, ids());
+const saveCircuit = (title, stations) => saveConditioningTemplate(adapter, ownerId, {
+  ...intervalTemplate(),
+  circuit: { betweenRoundRestSeconds: 0, rounds: 1, stations, targetRpe: null },
+  format: "circuit",
+  interval: null,
+  title,
+});
+const circuit = await saveCircuit("Circuit", [
+  { ...station, id: "circuit-first", position: 5 },
+  { ...station, id: "circuit-second", position: 2 },
+]);
+const anotherCircuit = await saveCircuit("Another circuit", [{ ...station, id: "another-station" }]);
+const archived = await saveCircuit("Archived circuit", [{ ...station, id: "archived-station" }]);
+await archiveConditioningTemplate(adapter, ownerId, archived.id);
+db.prepare("UPDATE conditioning_templates SET last_used_at = ? WHERE id = ?").run(10, circuit.id);
+db.prepare("UPDATE conditioning_templates SET last_used_at = ? WHERE id = ?").run(20, anotherCircuit.id);
+db.prepare("UPDATE conditioning_template_stations SET exercise_name = ? WHERE id = ?")
+  .run("Stored station", "circuit-first");
+
+let listReads = 0;
+const countedAdapter = {
+  ...adapter,
+  getAllAsync(sql, params) {
+    listReads += 1;
+    return adapter.getAllAsync(sql, params);
+  },
+};
+const templates = await listConditioningTemplates(countedAdapter, ownerId);
+assert.equal(listReads, 2);
+assert.deepEqual(templates.map((item) => item.id), [anotherCircuit.id, circuit.id, template.id]);
+assert.deepEqual(templates[0].config.circuit.stations.map((item) => item.id), ["another-station"]);
+assert.deepEqual(templates[1].config.circuit.stations.map((item) => [item.id, item.position]), [
+  ["circuit-first", 0], ["circuit-second", 1],
+]);
+assert.equal(templates[1].config.circuit.stations[0].exerciseName, "Stored station");
+assert.deepEqual(await getConditioningTemplate(adapter, ownerId, circuit.id), templates[1]);
+assert.deepEqual(await listConditioningTemplates(adapter, "other-owner"), []);
+assert.equal(await getConditioningTemplate(adapter, "other-owner", circuit.id), null);
+assert.equal((await getConditioningTemplate(adapter, ownerId, archived.id)).config.circuit.stations[0].id,
+  "archived-station");
+
+const snapshot = buildWorkoutSnapshot({ ...template.config, notes: "  Aerobic focus  " }, ids());
+assert.equal(snapshot.notes, "Aerobic focus");
 const planned = await planConditioningSession(adapter, ownerId, {
   scheduledLocalDate: "2020-01-01",
   schedulingTimezone: "UTC",
@@ -628,6 +709,14 @@ const live = await startConditioningSession(adapter, ownerId, {
 });
 await finishConditioningSession(adapter, ownerId, live.id, {
   finishedAt: Date.now() - 1000,
+  splits: [{
+    activeSeconds: 100,
+    complete: true,
+    distanceMeters: 1_000,
+    ordinal: 1,
+    partial: false,
+    unitSystem: "kilometer",
+  }],
 });
 const occurrence = {
   actual: null,
@@ -657,15 +746,17 @@ const savedAgain = await saveConditioningSession(adapter, ownerId, live.id, {
 assert.equal(savedAgain.id, saved.id);
 assert.equal(savedAgain.status, "completed");
 assert.equal(savedAgain.sessionRpe, null);
+assert.equal(savedAgain.notes, "Aerobic focus");
 assert.equal(
   db.prepare("SELECT COUNT(*) AS count FROM conditioning_upload_jobs").get().count,
   1,
 );
 assert.equal((await listConditioningOccurrences(adapter, ownerId, live.id))[0].actual, null);
-assert.ok(await getConditioningUploadJob(adapter, ownerId, live.id));
+assert.equal((await getConditioningUploadJob(adapter, ownerId, live.id)).expectedSplitCount, 1);
 
 const logged = await logConditioningSession(adapter, ownerId, {
   finishedAt: Date.now() - 1000,
+  notes: "   ",
   performedAt,
   sessionRpe: null,
   snapshot,
@@ -674,6 +765,7 @@ const logged = await logConditioningSession(adapter, ownerId, {
 assert.equal(logged.targetRpe, 8);
 assert.equal(logged.sessionRpe, null);
 assert.equal(logged.status, "completed");
+assert.equal(logged.notes, null);
 
 const point = {
   acceptance: "accepted",

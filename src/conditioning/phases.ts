@@ -12,7 +12,7 @@ import {
   type TemplateConfig,
   type WorkoutSnapshot,
 } from "./types";
-import { throwIfInvalid, validateSnapshot, validateTemplateConfig } from "./validation";
+import { normalizeNotes, throwIfInvalid, validateSnapshot, validateTemplateConfig } from "./validation";
 
 export const PREPARATION_SECONDS = 5;
 
@@ -388,13 +388,4 @@ function stationTarget(station: StationConfig, rpe: number | null): PhaseTarget 
     rpe,
     workSeconds: station.workSeconds,
   };
-}
-
-function normalizeNotes(notes: string | null) {
-  if (notes === null) {
-    return null;
-  }
-
-  const trimmed = notes.trim();
-  return trimmed ? trimmed : null;
 }
