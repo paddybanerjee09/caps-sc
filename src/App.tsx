@@ -5,6 +5,7 @@ import { migrateDatabase } from "./data/database";
 import { AppNavigator } from "./navigation/AppNavigator";
 import { AppStateProvider } from "./state/AppStateContext";
 import { ConditioningWorkspaceProvider } from "./state/ConditioningWorkspaceContext";
+import { SkillWorkspaceProvider } from "./state/SkillWorkspaceContext";
 import { StrengthWorkspaceProvider } from "./state/StrengthWorkspaceContext";
 import { NutritionWorkspaceProvider } from "./state/NutritionWorkspaceContext";
 import { AppThemeProvider } from "./theme/ThemeContext";
@@ -18,7 +19,9 @@ export default function App() {
             <NutritionWorkspaceProvider>
               <ConditioningWorkspaceProvider>
                 <StrengthWorkspaceProvider>
-                  <AppNavigator />
+                  <SkillWorkspaceProvider>
+                    <AppNavigator />
+                  </SkillWorkspaceProvider>
                 </StrengthWorkspaceProvider>
               </ConditioningWorkspaceProvider>
             </NutritionWorkspaceProvider>

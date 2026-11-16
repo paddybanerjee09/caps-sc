@@ -16,8 +16,10 @@ import { Sidebar } from "../components/Sidebar";
 import { NutritionStack } from "../screens/NutritionScreens/NutritionStack";
 import { ScreenForRoute } from "../screens/Screens";
 import { ConditioningStack } from "../screens/conditioning/ConditioningStack";
+import { SkillStack } from "../screens/skill/SkillStack";
 import { StrengthStack } from "../screens/strength/StrengthStack";
 import { useConditioningWorkspace } from "../state/ConditioningWorkspaceContext";
+import { useSkillWorkspace } from "../state/SkillWorkspaceContext";
 import { useStrengthWorkspace } from "../state/StrengthWorkspaceContext";
 import { useNutritionWorkspace } from "../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../theme/ThemeContext";
@@ -30,6 +32,7 @@ export function AppNavigator() {
   const { setNutritionTabHandler } = nutrition;
   const conditioning = useConditioningWorkspace();
   const strength = useStrengthWorkspace();
+  const skill = useSkillWorkspace();
   const [activeRoute, setActiveRoute] = useState<RouteKey>(initialRoute);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -85,11 +88,15 @@ export function AppNavigator() {
         return strength.handleHardwareBack();
       }
 
+      if (activeRoute === "skill") {
+        return skill.handleHardwareBack();
+      }
+
       return false;
     });
 
     return () => subscription.remove();
-  }, [activeRoute, conditioning, nutrition, sidebarOpen, strength]);
+  }, [activeRoute, conditioning, nutrition, sidebarOpen, skill, strength]);
 
   return (
     <KeyboardAvoidingView
@@ -111,6 +118,7 @@ export function AppNavigator() {
         {activeRoute === "nutrition" ? <NutritionStack /> : null}
         {activeRoute === "conditioning" ? <ConditioningStack /> : null}
         {activeRoute === "strength" ? <StrengthStack /> : null}
+        {activeRoute === "skill" ? <SkillStack /> : null}
       </View>
       <BottomTabs
         activeRoute={activeRoute}
