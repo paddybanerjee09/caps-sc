@@ -3,6 +3,7 @@ export const MAX_DAY_MARKERS = 3;
 
 export type MonthEvent = {
   color: string;
+  detail?: string;
   id: string;
   localDate: string;
   status: string;

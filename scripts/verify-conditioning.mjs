@@ -582,7 +582,7 @@ assert.equal(sundayStart.cells[1].isSelected, true);
 assert.equal(sundayStart.cells[2].isToday, true);
 
 await migrateDatabase(adapter);
-assert.equal(db.prepare("PRAGMA user_version").get().user_version, 8);
+assert.equal(db.prepare("PRAGMA user_version").get().user_version, 9);
 await migrateDatabase(adapter);
 
 const ownerId = await getConditioningOwnerId(adapter);

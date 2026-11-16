@@ -1,0 +1,34 @@
+import type { SkillActivityDraft } from "./types";
+
+export type ActivityTiming = {
+  elapsedSeconds: number;
+  restSeconds: number;
+  workSeconds: number;
+};
+
+export function activityTiming(activity: SkillActivityDraft): ActivityTiming {
+  if (activity.timingMode === "duration") {
+    const workSeconds = Math.max(0, activity.durationSeconds);
+    return { workSeconds, restSeconds: 0, elapsedSeconds: workSeconds };
+  }
+
+  const rounds = Math.max(0, activity.rounds);
+  const workSeconds = rounds * Math.max(0, activity.secondsPerRound);
+  const restSeconds =
+    Math.max(0, rounds - 1) * Math.max(0, activity.restBetweenRoundsSeconds);
+  return { workSeconds, restSeconds, elapsedSeconds: workSeconds + restSeconds };
+}
+
+export function elapsedSeconds(activities: readonly SkillActivityDraft[]) {
+  if (activities.length === 0) {
+    return null;
+  }
+  return activities.reduce(
+    (total, activity) => total + activityTiming(activity).elapsedSeconds,
+    0,
+  );
+}
+
+export function sessionStartMs(endedAt: number, elapsed: number) {
+  return endedAt - elapsed * 1000;
+}

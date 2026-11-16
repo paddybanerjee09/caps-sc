@@ -353,6 +353,22 @@ export async function getLatestWeightKg(db: SQLiteDatabase) {
   return row?.weight_kg ?? null;
 }
 
+export async function getWeightKgAtOrBefore(db: SQLiteDatabase, endedAt: number) {
+  const row = await db.getFirstAsync<LatestWeightRow>(
+    `SELECT weight_logs.weight_kg
+     FROM weight_logs
+     INNER JOIN timeline_entries
+       ON timeline_entries.id = weight_logs.timeline_entry_id
+     WHERE timeline_entries.kind = 'weight'
+       AND timeline_entries.start_at <= ?
+     ORDER BY timeline_entries.start_at DESC, timeline_entries.id DESC
+     LIMIT 1`,
+    [endedAt],
+  );
+
+  return row?.weight_kg ?? null;
+}
+
 function convertTimelineEntryRow(row: TimelineEntryRow): TimelineEntry {
   return {
     id: row.id,

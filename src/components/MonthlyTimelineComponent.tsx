@@ -243,7 +243,9 @@ export function MonthlyTimelineComponent({
         ) : (
           selectedEvents.map((event) => (
             <PressOpacity
-              accessibilityLabel={`${event.title}, ${event.status}`}
+              accessibilityLabel={
+                event.detail ? `${event.title}, ${event.detail}` : `${event.title}, ${event.status}`
+              }
               key={event.id}
               onPress={() => onEventPress?.(event)}
               style={[
@@ -267,11 +269,7 @@ export function MonthlyTimelineComponent({
                   {event.title}
                 </Text>
                 <Text style={[styles.eventStatus, { color: theme.colors.textMuted }]}>
-                  {event.status === "logged"
-                    ? "Logged"
-                    : event.status === "planned"
-                      ? "Planned"
-                      : event.status}
+                  {eventSubtitle(event)}
                 </Text>
               </View>
               <Ionicons
@@ -285,6 +283,19 @@ export function MonthlyTimelineComponent({
       </View>
     </View>
   );
+}
+
+function eventSubtitle(event: MonthEvent) {
+  if (event.detail) {
+    return event.detail;
+  }
+  if (event.status === "logged") {
+    return "Logged";
+  }
+  if (event.status === "planned") {
+    return "Planned";
+  }
+  return event.status;
 }
 
 function summarizeStatuses(events: MonthEvent[]) {

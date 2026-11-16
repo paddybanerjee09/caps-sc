@@ -7,10 +7,11 @@ import {
   nutritionV5TablesSql,
   nutritionV6FavouriteSnapshotSql,
 } from "./nutritionMigration";
+import { skillMigrationSql } from "./skillMigration";
 import { strengthMigrationSql } from "./strengthMigration";
 import { ensureStrengthCatalog } from "./strengthRepository";
 
-const DATABASE_VERSION = 8;
+const DATABASE_VERSION = 9;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -25,8 +26,14 @@ export async function migrateDatabase(db: SQLiteDatabase) {
   const currentVersion = versionResult?.user_version ?? 0;
   const workspaceReady = await tableExists(db, "nutrition_workspace");
   const strengthReady = await tableExists(db, "strength_sessions");
+  const skillReady = await tableExists(db, "skill_sessions");
 
-  if (currentVersion >= DATABASE_VERSION && workspaceReady && strengthReady) {
+  if (
+    currentVersion >= DATABASE_VERSION &&
+    workspaceReady &&
+    strengthReady &&
+    skillReady
+  ) {
     await ensureStrengthCatalog(db);
     return;
   }
@@ -157,6 +164,10 @@ export async function migrateDatabase(db: SQLiteDatabase) {
   if (currentVersion < 8 || !strengthReady) {
     await db.execAsync(strengthMigrationSql);
     await ensureStrengthCatalog(db);
+  }
+
+  if (currentVersion < 9 || !skillReady) {
+    await db.execAsync(skillMigrationSql);
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

@@ -11,6 +11,7 @@
     "verify:nutrition": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-nutrition.mjs",
     "verify:conditioning": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-conditioning.mjs",
     "verify:strength": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-strength.mjs",
+    "verify:skill": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-skill.mjs",
     "feature-tree": "node scripts/feature-tree.mjs"
   },
   "dependencies": {
