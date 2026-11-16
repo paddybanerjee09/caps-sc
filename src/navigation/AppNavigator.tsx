@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BackHandler,
   Keyboard,
@@ -21,37 +21,28 @@ import { useConditioningWorkspace } from "../state/ConditioningWorkspaceContext"
 import { useStrengthWorkspace } from "../state/StrengthWorkspaceContext";
 import { useNutritionWorkspace } from "../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../theme/ThemeContext";
-import {
-  initialRoute,
-  type RouteKey,
-  type SidebarRoute,
-  type TabRoute,
-} from "./routes";
+import { initialRoute, type RouteKey } from "./routes";
 
 export function AppNavigator() {
   const insets = useSafeAreaInsets();
   const { colorScheme, theme } = useAppTheme();
   const nutrition = useNutritionWorkspace();
+  const { setNutritionTabHandler } = nutrition;
   const conditioning = useConditioningWorkspace();
   const strength = useStrengthWorkspace();
   const [activeRoute, setActiveRoute] = useState<RouteKey>(initialRoute);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const selectTabRef = useRef<(route: TabRoute) => void>(() => {});
   const previousRoute = useRef<RouteKey>(initialRoute);
 
-  const selectTab = (route: TabRoute) => {
+  const selectRoute = useCallback((route: RouteKey) => {
     setActiveRoute(route);
     setSidebarOpen(false);
-  };
+  }, []);
 
   useEffect(() => {
-    selectTabRef.current = selectTab;
-  });
-
-  useEffect(() => {
-    nutrition.setNutritionTabHandler(() => selectTabRef.current("nutrition"));
-  }, [nutrition]);
+    setNutritionTabHandler(() => selectRoute("nutrition"));
+  }, [selectRoute, setNutritionTabHandler]);
 
   useEffect(() => {
     if (previousRoute.current === "nutrition" && activeRoute !== "nutrition") {
@@ -100,11 +91,6 @@ export function AppNavigator() {
     return () => subscription.remove();
   }, [activeRoute, conditioning, nutrition, sidebarOpen, strength]);
 
-  const selectSidebarRoute = (route: SidebarRoute) => {
-    setActiveRoute(route);
-    setSidebarOpen(false);
-  };
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -129,13 +115,13 @@ export function AppNavigator() {
       <BottomTabs
         activeRoute={activeRoute}
         bottomInset={keyboardVisible ? 0 : insets.bottom}
-        onSelect={selectTab}
+        onSelect={selectRoute}
       />
       <Sidebar
         activeRoute={activeRoute}
         bottomInset={keyboardVisible ? 0 : insets.bottom}
         onClose={() => setSidebarOpen(false)}
-        onSelect={selectSidebarRoute}
+        onSelect={selectRoute}
         open={sidebarOpen}
         topInset={insets.top}
       />

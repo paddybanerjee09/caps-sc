@@ -2,7 +2,7 @@ import { createAudioPlayer, type AudioPlayer } from "expo-audio";
 import * as Haptics from "expo-haptics";
 import { Platform } from "react-native";
 
-export type CueKind =
+type CueKind =
   | "selection"
   | "stepUp"
   | "stepDown"
@@ -25,10 +25,6 @@ let preferences: SensoryPreferences = {
 
 export function setSensoryPreferences(next: Partial<SensoryPreferences>) {
   preferences = { ...preferences, ...next };
-}
-
-export function getSensoryPreferences(): SensoryPreferences {
-  return preferences;
 }
 
 const SAMPLE_RATE = 22050;
@@ -79,10 +75,11 @@ function buildWavDataUri(kind: CueKind): string {
 
   let phase = 0;
   const splitIndex = Math.floor(sampleCount * 0.48);
+  const attackSamples = Math.max(1, Math.floor(sampleCount * 0.08));
 
   for (let index = 0; index < sampleCount; index += 1) {
     const progress = index / sampleCount;
-    const attack = Math.min(1, index / Math.max(1, Math.floor(sampleCount * 0.08)));
+    const attack = Math.min(1, index / attackSamples);
     const release = Math.pow(1 - progress, 1.35);
     const envelope = attack * release;
     const freq =
