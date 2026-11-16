@@ -23,7 +23,6 @@ import { PressOpacity } from "../../components/PressOpacity";
 import {
   deleteCustomFood,
   getFoodUsage,
-  hasCompletedFoodUsage,
   listCustomFoods,
   listFavourites,
   listKnownFoods,
@@ -95,7 +94,7 @@ export function MealItemScreen() {
   const [customs, setCustoms] = useState<CustomFoodRecord[]>([]);
   const [favourites, setFavourites] = useState<FoodFavourite[]>([]);
   const [usage, setUsage] = useState<Map<string, UsageRank>>(new Map());
-  const [hasUsage, setHasUsage] = useState(false);
+  const hasUsage = usage.size > 0;
   const [remote, setRemote] = useState<FoodSearchHit[]>([]);
   const [remoteQuery, setRemoteQuery] = useState("");
   const [remoteLoading, setRemoteLoading] = useState(false);
@@ -141,13 +140,12 @@ export function MealItemScreen() {
     let cancelled = false;
 
     void (async () => {
-      const [knownFoods, customFoods, favouriteFoods, usageMap, usageExists] =
+      const [knownFoods, customFoods, favouriteFoods, usageMap] =
         await Promise.all([
           listKnownFoods(db),
           listCustomFoods(db),
           listFavourites(db),
           getFoodUsage(db),
-          hasCompletedFoodUsage(db),
         ]);
 
       if (!cancelled) {
@@ -155,7 +153,6 @@ export function MealItemScreen() {
         setCustoms(customFoods);
         setFavourites(favouriteFoods);
         setUsage(usageMap);
-        setHasUsage(usageExists);
       }
     })();
 
@@ -729,7 +726,6 @@ function buildRows(input: {
   usage: Map<string, UsageRank>;
 }): Row[] {
   const query = input.picker.query.trim().toLowerCase();
-  const customById = new Map(input.customs.map((food) => [food.id, food]));
 
   if (input.picker.tab === "all" && query) {
     const ranked = input.remote.map((hit, index) => ({ hit, index }));
@@ -761,6 +757,7 @@ function buildRows(input: {
   }
 
   if (input.picker.tab === "favourites") {
+    const customById = new Map(input.customs.map((food) => [food.id, food]));
     const knownByKey = new Map(input.known.map((food) => [foodIdentityKey(food.food), food]));
 
     return input.favourites
@@ -850,7 +847,7 @@ function buildRows(input: {
   for (const food of input.known) {
     const key = foodIdentityKey(food.food);
 
-    if (local.has(key) || (food.food.source === "custom" && !customById.has(food.food.externalId))) {
+    if (food.food.source === "custom" || local.has(key)) {
       continue;
     }
 
@@ -876,20 +873,18 @@ function buildRows(input: {
     });
   }
 
-  return [...local.values()]
-    .filter((row) => !query || row.title.toLowerCase().includes(query))
-    .sort((left, right) =>
-      sortLocal(
-        left.title,
-        left.id,
-        left.usage,
-        right.title,
-        right.id,
-        right.usage,
-        input.picker.sort,
-        input.hasUsage,
-      ),
-    );
+  return [...local.values()].sort((left, right) =>
+    sortLocal(
+      left.title,
+      left.id,
+      left.usage,
+      right.title,
+      right.id,
+      right.usage,
+      input.picker.sort,
+      input.hasUsage,
+    ),
+  );
 }
 
 function favouriteFood(

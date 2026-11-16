@@ -5,6 +5,7 @@ import { migrateDatabase } from "../src/data/database.ts";
 import {
   createCustomFood,
   deleteCustomFood,
+  getFoodUsage,
   listCustomFoods,
   listFavourites,
   saveFavouriteSnapshot,
@@ -29,6 +30,7 @@ import {
 import {
   createCustomFoodForm,
   customFoodToForm,
+  draftFromSavedMeal,
   draftFromStoredMeal,
   restoreWorkspace,
 } from "../src/nutrition/drafts.ts";
@@ -205,6 +207,41 @@ assert.equal(
   db.prepare(`SELECT COUNT(*) AS count FROM timeline_entries WHERE kind = 'meal'`).get().count,
   2,
 );
+assert.equal((await getFoodUsage(adapter, 0)).size, 0);
+assert.equal((await getFoodUsage(adapter, meal.loggedAt - 1)).has("custom:rice"), false);
+assert.deepEqual((await getFoodUsage(adapter, meal.loggedAt)).get("custom:rice"), {
+  count: 1,
+  latestAt: meal.loggedAt,
+});
+
+const templateItem = { ...meal.items[0], brandName: "Example", quantity: 1.23456789 };
+const templateDraft = draftFromSavedMeal({
+  id: "template-1",
+  title: "Template",
+  items: [
+    templateItem,
+    {
+      ...templateItem,
+      food: { externalId: "42", source: "fatsecret" },
+      storagePolicy: "reference",
+    },
+  ],
+});
+const [snapshotDraft, referenceDraft] = templateDraft.items;
+assert.equal(snapshotDraft.quantityInput, "1.23456789");
+assert.equal(snapshotDraft.resolved, true);
+assert.deepEqual(snapshotDraft.nutrientsPerServing, templateItem.nutrientsPerServing);
+assert.deepEqual(snapshotDraft.extrasPerServing, templateItem.extrasPerServing);
+assert.equal(referenceDraft.quantityInput, snapshotDraft.quantityInput);
+assert.equal(referenceDraft.resolved, false);
+assert.equal(referenceDraft.description, null);
+assert.equal(referenceDraft.brandName, null);
+assert.deepEqual(referenceDraft.extrasPerServing, []);
+assert.ok(Object.values(referenceDraft.nutrientsPerServing).every((value) => value === null));
+assert.equal(referenceDraft.servingId, templateItem.servingId);
+assert.equal(referenceDraft.servingAmount, templateItem.servingAmount);
+assert.equal(referenceDraft.servingUnit, templateItem.servingUnit);
+assert.equal(referenceDraft.servingDescription, templateItem.servingDescription);
 
 const totals = calculateNutrientTotals([
   {
@@ -279,6 +316,18 @@ assert.equal(FATSECRET_DETAILS_METHOD, "food.get.v5");
 assert.equal(food.storagePolicy, "reference");
 assert.equal(food.servings[0].extras.find((extra) => extra.id === "vitaminA").unit, "µg");
 assert.equal(food.servings[0].extras.find((extra) => extra.id === "vitaminA").amount, 80);
+
+function normalizeServings(serving) {
+  return normalizeFatSecretFood({ food: { food_id: "42", servings: { serving } } });
+}
+
+const baseServing = { serving_id: "7" };
+const preferredServing = { serving_id: "8", is_default: 1 };
+assert.equal(normalizeServings([baseServing, preferredServing]).defaultServingId, "8");
+assert.equal(
+  normalizeServings([baseServing, { is_default: "1" }, preferredServing]).defaultServingId,
+  "7",
+);
 
 const product = normalizeOpenFoodFactsProduct(
   {

@@ -1,4 +1,4 @@
-import { createId, calculateNutrientTotals, isFoodUnit, parseExtraNutrients, serializeExtraNutrients } from "../nutrition/calculations";
+import { createId, isFoodUnit, parseExtraNutrients, serializeExtraNutrients } from "../nutrition/calculations";
 import { parseCatalogFood } from "../nutrition/drafts";
 import type {
   CatalogFood,
@@ -551,23 +551,6 @@ export async function getFoodUsage(db: SQLiteDatabase, now = Date.now()) {
   return usage;
 }
 
-export async function hasCompletedFoodUsage(db: SQLiteDatabase, now = Date.now()) {
-  const row = await db.getFirstAsync<{ present: number }>(
-    `SELECT 1 AS present
-     FROM meal_items
-     INNER JOIN meal_logs
-       ON meal_logs.timeline_entry_id = meal_items.meal_timeline_entry_id
-     INNER JOIN timeline_entries
-       ON timeline_entries.id = meal_logs.timeline_entry_id
-     WHERE timeline_entries.kind = 'meal'
-       AND timeline_entries.start_at <= ?
-     LIMIT 1`,
-    [now],
-  );
-
-  return row !== null;
-}
-
 export async function listKnownFoods(db: SQLiteDatabase) {
   const rows = await db.getAllAsync<{
     source: string;
@@ -638,15 +621,6 @@ export async function listKnownFoods(db: SQLiteDatabase) {
       } satisfies KnownFoodRow,
     ];
   });
-}
-
-export function totalsForItems(items: readonly NewMealItem[]) {
-  return calculateNutrientTotals(
-    items.map((item) => ({
-      quantity: item.quantity,
-      nutrientsPerServing: item.nutrientsPerServing,
-    })),
-  );
 }
 
 type SavedItemRow = {

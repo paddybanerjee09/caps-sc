@@ -101,11 +101,3 @@ const NUTRIENT_BY_ID = new Map(
 export function getNutrientDefinition(id: string) {
   return NUTRIENT_BY_ID.get(id as NutrientId) ?? null;
 }
-
-export function micronutrientDefinitions() {
-  return NUTRIENT_REGISTRY.filter((definition) => definition.group === "micro");
-}
-
-export function otherNutrientDefinitions() {
-  return NUTRIENT_REGISTRY.filter((definition) => definition.group === "other");
-}

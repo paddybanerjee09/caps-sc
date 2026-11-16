@@ -267,22 +267,18 @@ export function draftFromSavedMeal(meal: {
   return draft;
 }
 
-function savedTemplateItemToDraft(item: NewMealItem): DraftMealItem {
+export function savedTemplateItemToDraft(item: NewMealItem): DraftMealItem {
+  const reference = item.storagePolicy === "reference";
+
   return {
-    brandName: item.storagePolicy === "reference" ? null : item.brandName,
+    brandName: reference ? null : item.brandName,
     clientId: createId(),
-    description: item.storagePolicy === "reference" ? null : item.description,
-    extrasPerServing: item.storagePolicy === "reference" ? [] : item.extrasPerServing,
+    description: reference ? null : item.description,
+    extrasPerServing: reference ? [] : item.extrasPerServing,
     food: item.food,
-    nutrientsPerServing:
-      item.storagePolicy === "reference"
-        ? {
-            carbohydratesG: null,
-            energyKcal: null,
-            fatG: null,
-            proteinG: null,
-          }
-        : item.nutrientsPerServing,
+    nutrientsPerServing: reference
+      ? emptyNutrientSnapshot()
+      : item.nutrientsPerServing,
     quantityInput: String(item.quantity),
     resolved: item.storagePolicy === "snapshot",
     servingAmount: item.servingAmount,
@@ -293,7 +289,7 @@ function savedTemplateItemToDraft(item: NewMealItem): DraftMealItem {
   };
 }
 
-export function storedItemToDraft(
+function storedItemToDraft(
   item: StoredMealLog["items"][number],
 ): DraftMealItem {
   const resolved = item.storagePolicy === "snapshot";
@@ -317,7 +313,7 @@ export function storedItemToDraft(
   };
 }
 
-export function formatQuantityInput(quantity: number) {
+function formatQuantityInput(quantity: number) {
   return Number.isInteger(quantity)
     ? quantity.toFixed(0)
     : String(Number(quantity.toFixed(3)));

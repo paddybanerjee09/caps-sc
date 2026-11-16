@@ -97,9 +97,8 @@ export function normalizeFatSecretFood(payload: unknown): CatalogFood {
     throw new ProviderError("invalid-response", "This food has no servings");
   }
 
-  const defaultServing =
-    servings.find((serving) => serving.id === preferredDefaultId(food)) ??
-    servings[0];
+  const defaultId = preferredDefaultId(food);
+  const defaultServing = servings.find((serving) => serving.id === defaultId) ?? servings[0];
 
   return {
     ref: { source: "fatsecret", externalId },

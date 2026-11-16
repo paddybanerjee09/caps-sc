@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
 
 import {
@@ -12,13 +12,12 @@ import { PressOpacity } from "../../components/PressOpacity";
 import {
   deleteSavedMeal,
   listSavedMeals,
-  totalsForItems,
   type SavedMealSummary,
 } from "../../data/nutritionCatalogRepository";
-import { createId } from "../../nutrition/calculations";
+import { calculateNutrientTotals } from "../../nutrition/calculations";
 import {
   compositionSignature,
-  type DraftMealItem,
+  savedTemplateItemToDraft,
 } from "../../nutrition/drafts";
 import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
@@ -51,13 +50,19 @@ export function SavedMealsScreen() {
   const [meals, setMeals] = useState<SavedMealSummary[]>([]);
   const [sort, setSort] = useState<SavedSort>("alpha");
 
-  const loadMeals = useCallback(() => {
-    void listSavedMeals(db).then(setMeals);
-  }, [db]);
-
   useEffect(() => {
-    loadMeals();
-  }, [dataRevision, loadMeals]);
+    let cancelled = false;
+
+    void listSavedMeals(db).then((savedMeals) => {
+      if (!cancelled) {
+        setMeals(savedMeals);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dataRevision, db]);
 
   const ordered = useMemo(() => {
     return [...meals].sort((left, right) => {
@@ -96,7 +101,7 @@ export function SavedMealsScreen() {
             updateDraft(activeDraft.key, (draft) => {
               const next = {
                 ...draft,
-                items: meal.items.map(templateItemToDraft),
+                items: meal.items.map(savedTemplateItemToDraft),
                 savedMealId: meal.id,
                 title: meal.title,
                 titleTouched: true,
@@ -126,7 +131,6 @@ export function SavedMealsScreen() {
               try {
                 await deleteSavedMeal(db, meal.id);
                 markNutritionChanged();
-                loadMeals();
               } catch {
                 Alert.alert("Couldn't delete meal", "Please try again.");
               }
@@ -234,7 +238,7 @@ export function SavedMealsScreen() {
           data={ordered}
           keyExtractor={(meal) => meal.id}
           renderItem={({ item }) => {
-            const totals = totalsForItems(item.items);
+            const totals = calculateNutrientTotals(item.items);
             const partial = Object.values(totals.incomplete).some(Boolean);
 
             return (
@@ -255,15 +259,7 @@ export function SavedMealsScreen() {
                   <Text style={[styles.name, { color: theme.colors.text }]}>
                     {item.title}
                   </Text>
-                  <FoodMacroLine
-                    nutrients={{
-                      carbohydratesG: totals.carbohydratesG,
-                      energyKcal: totals.energyKcal,
-                      fatG: totals.fatG,
-                      proteinG: totals.proteinG,
-                    }}
-                    partial={partial}
-                  />
+                  <FoodMacroLine nutrients={totals} partial={partial} />
                 </PressOpacity>
                 {activeDraft && activeDraft.mode !== "savedTemplate" ? (
                   <PressOpacity
@@ -325,35 +321,6 @@ export function SavedMealsScreen() {
       )}
     </NutritionPage>
   );
-}
-
-function templateItemToDraft(
-  item: SavedMealSummary["items"][number],
-): DraftMealItem {
-  return {
-    brandName: item.storagePolicy === "reference" ? null : item.brandName,
-    clientId: createId(),
-    description: item.storagePolicy === "reference" ? null : item.description,
-    extrasPerServing:
-      item.storagePolicy === "reference" ? [] : item.extrasPerServing,
-    food: item.food,
-    nutrientsPerServing:
-      item.storagePolicy === "reference"
-        ? {
-            carbohydratesG: null,
-            energyKcal: null,
-            fatG: null,
-            proteinG: null,
-          }
-        : item.nutrientsPerServing,
-    quantityInput: String(item.quantity),
-    resolved: item.storagePolicy === "snapshot",
-    servingAmount: item.servingAmount,
-    servingDescription: item.servingDescription,
-    servingId: item.servingId,
-    servingUnit: item.servingUnit,
-    storagePolicy: item.storagePolicy,
-  };
 }
 
 const styles = StyleSheet.create({
