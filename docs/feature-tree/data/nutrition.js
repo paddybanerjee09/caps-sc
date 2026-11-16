@@ -202,6 +202,15 @@ CAPS.trees.nutrition = {
                     commits: ["9917cee"],
                     changes: ["Card/stepper renovation."],
                   },
+                  {
+                    n: 4,
+                    name: "Single food usage lookup",
+                    date: "2026-11-16 00:20 -0500",
+                    commits: ["a556a7a"],
+                    changes: [
+                      "Use the ranking query to determine whether usage sorting is available.",
+                    ],
+                  },
                 ],
                 children: [
                   {
@@ -313,6 +322,15 @@ CAPS.trees.nutrition = {
                         commits: ["9917cee"],
                         changes: ["Card/stepper renovation."],
                       },
+                      {
+                        n: 5,
+                        name: "Single FatSecret default lookup",
+                        date: "2026-11-16 00:20 -0500",
+                        commits: ["a556a7a"],
+                        changes: [
+                          "Find the preferred serving ID once, then match it against normalized servings.",
+                        ],
+                      },
                     ],
                   },
                 ],
@@ -348,6 +366,16 @@ CAPS.trees.nutrition = {
                     date: "2026-11-02 22:58 -0500",
                     commits: ["9917cee"],
                     changes: ["Card renovation."],
+                  },
+                  {
+                    n: 4,
+                    name: "Shared saved template conversion",
+                    date: "2026-11-16 00:20 -0500",
+                    commits: ["a556a7a"],
+                    changes: [
+                      "Use one draft converter for editing and inserting a template.",
+                      "Reload once after deletion and ignore obsolete refresh results.",
+                    ],
                   },
                 ],
               },

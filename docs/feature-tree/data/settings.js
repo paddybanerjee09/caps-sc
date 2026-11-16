@@ -343,6 +343,15 @@ CAPS.trees.settings = {
               "Rebuilt as BIOMETRIC OVERVIEW plus sex, age, bodyweight, stature, and sports cards with steppers and presets.",
             ],
           },
+          {
+            n: 5,
+            name: "Shared height formatting",
+            date: "2026-11-16 00:18 -0500",
+            commits: ["24a301f"],
+            changes: [
+              "Share Home and Athlete Information formatting and use one conversion for imperial edits.",
+            ],
+          },
         ],
         children: [
           {

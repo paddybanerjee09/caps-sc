@@ -11,7 +11,8 @@ Source baseline `e492e06`. See the [Architecture tree](../../docs/feature-tree/a
 ## Navigation and application state
 
 - `src/navigation/routes.ts` defines tabs and sidebar routes. `src/screens/Screens.tsx` resolves the route to a screen. `AppNavigator.tsx` owns active route and drawer state, begins at Home, and renders the relevant Nutrition or Conditioning stack over its base screen. The custom navigation dates to `f0f5834`.
-- Android hardware Back handles the sidebar first, then delegates to the active Nutrition or Conditioning workspace. A returned `false` allows default handling. `AppNavigator` dismisses transient Nutrition UI when switching away. Home can select the Nutrition route through the handler wired to the Nutrition workspace.
+- Android hardware Back handles the sidebar first, then delegates to the active Nutrition, Conditioning, or Strength workspace. A returned `false` allows default handling. `AppNavigator` dismisses transient Nutrition UI when switching away.
+- Since `2073f65`, bottom tabs, sidebar destinations, and Home’s request to open Nutrition use the same callback to set the route and close the sidebar.
 - `src/state/AppStateContext.tsx` owns the in-memory username, profile, unit settings, audio and haptic flags, and timeline revision. Weight is derived from the latest stored weight event. Weight mutators refresh it from SQLite. Conditioning saves signal the Home timeline through `bumpTimeline()`. Theme selection is owned by `src/theme/ThemeContext.tsx`. See [[Settings]] for which controls persist.
 - `2c0cfb4` changed the initial weight load effect to an explicit cancellable read with a functional profile update. Preserve cleanup and merge semantics when changing async hydration. Git shows that concrete change. The tree's more specific description of the original bug has limited evidence.
 

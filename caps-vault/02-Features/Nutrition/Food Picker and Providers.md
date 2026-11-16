@@ -15,6 +15,7 @@ aliases:
 - `CreateCustomFoodScreen.tsx` supports a user food with macros and optional micronutrients. The calorie cross-check is advisory. Each create starts a fresh form with a new operation ID. Edits retain the original custom food identity. The Close action returns to the diary.
 - `src/services/foodCatalog.ts` resolves normalized `FoodRef` records into `CatalogFood`. Typed FatSecret uses `src/services/fatsecretApi.ts` and `fatsecretNormalize.ts`. The application receives only `EXPO_PUBLIC_FATSECRET_PROXY_URL`. `proxy/fatsecret-proxy.mjs` owns server-side OAuth credentials and permits `foods.search` and `food.get.v5`. Documented setup and provider access constraints live in `docs/nutrition-providers.md`.
 - FatSecret Basic rows use references and resolve nutrients when connected, while local and Open Food Facts entries can use stored snapshots. Open Food Facts facts include product-data attribution. The USDA FoodData Central client was removed in `fe847c6`. Preserve migrated USDA diary snapshots as historical records.
+- Since `a556a7a`, the availability of usage-based sorting comes from the same grouped meal-item query that supplies the ranking. It counts diary items through `meal_logs` and `timeline_entries` at or before the query time. FatSecret resolves the preferred raw serving ID once and falls back to the first valid normalized serving if that ID is absent.
 
 ## History
 

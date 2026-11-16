@@ -88,6 +88,15 @@ CAPS.trees.architecture = {
             commits: ["5c595dd"],
             changes: ["Chrome renovation: header, tabs, and sidebar wired through the feedback engine."],
           },
+          {
+            n: 4,
+            name: "Shared route selection",
+            date: "2026-11-16 00:18 -0500",
+            commits: ["2073f65"],
+            changes: [
+              "Use the same callback for bottom tabs, sidebar destinations, and Home’s request to open Nutrition.",
+            ],
+          },
         ],
         children: [
           {
@@ -459,6 +468,15 @@ CAPS.trees.architecture = {
             commits: ["5c595dd"],
             changes: ["Added the synthesized audio cue and haptic engine and renovated chrome to use it."],
           },
+          {
+            n: 2,
+            name: "Simpler cue generation",
+            date: "2026-11-16 00:18 -0500",
+            commits: ["2073f65"],
+            changes: [
+              "Calculate the attack sample count once per cue and remove an unused preferences getter.",
+            ],
+          },
         ],
       },
       {
@@ -551,6 +569,15 @@ CAPS.trees.architecture = {
               "Create a minimalist HTML website as a working tree for every feature/screen/functionality, timestamped from git, with a tree per main screen plus database and architecture.",
             changes: [
               "Added `docs/feature-tree/` pages and renderer, `scripts/feature-tree.mjs`, and `.cursor/rules/feature-tree.mdc`.",
+            ],
+          },
+          {
+            n: 2,
+            name: "Cached search matches",
+            date: "2026-11-16 00:18 -0500",
+            commits: ["a7e0fd4"],
+            changes: [
+              "Tokenize each query once and reuse the matching node IDs across renders.",
             ],
           },
         ],

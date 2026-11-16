@@ -11,7 +11,7 @@ The header hamburger opens the sidebar destinations `settings`, `accountInfo`, a
 | Audio cues & haptics | Independently enable synthesized cues and haptics | `AppStateContext` updates the module-level preferences consumed by `src/utils/feedback.ts` |
 | Notifications & reminders | Weigh-in, training, and hydration switches are placeholders | Screen-local `useState`. There is no scheduler or storage path for these switches. |
 
-The current providers keep appearance, unit, and feedback preferences in memory. The source review found a discrepancy with the Feature Tree's description of persisted feedback flags. Unit switches change input and display conversions. Preserve kilograms for weight records, centimeters for profile height, and seconds/meters/kilograms in [[Conditioning]]. See `src/utils/weight.ts`, the height helpers in `AthleteInfoScreen.tsx`, and `src/conditioning/units.ts`.
+The current providers keep appearance, unit, and feedback preferences in memory. The source review found a discrepancy with the Feature Tree's description of persisted feedback flags. Unit switches change input and display conversions. Preserve kilograms for weight records, centimeters for profile height, and seconds/meters/kilograms in [[Conditioning]]. `src/utils/height.ts` serves Home and Athlete Information. The imperial controls save centimeters to one decimal place and display the nearest whole inch. See also `src/utils/weight.ts` and `src/conditioning/units.ts`.
 
 ## Account Information
 

@@ -292,6 +292,16 @@ CAPS.trees.conditioning = {
                 commits: ["87e259b"],
                 changes: ["Runner renovation."],
               },
+              {
+                n: 3,
+                name: "Linear timer catch-up and review",
+                date: "2026-11-16 00:20 -0500",
+                commits: ["88f746f"],
+                changes: [
+                  "Record all completed IDs and durations once per reconciliation.",
+                  "Use a set to check completion in occurrence review.",
+                ],
+              },
             ],
           },
           {
@@ -357,6 +367,15 @@ CAPS.trees.conditioning = {
             commits: ["aea27d0"],
             changes: [
               "The saved-workout library scrolls with FlatList. The hub expander stays a bounded 248px scroller so it is not a second vertical list inside the hub.",
+            ],
+          },
+          {
+            n: 4,
+            name: "Batched circuit station reads",
+            date: "2026-11-16 00:20 -0500",
+            commits: ["88f746f"],
+            changes: [
+              "Fetch normalized station rows for visible circuits in one station query.",
             ],
           },
         ],

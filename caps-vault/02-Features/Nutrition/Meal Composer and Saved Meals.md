@@ -19,6 +19,7 @@ aliases:
 
 ## Navigation and restoration
 
+- `a556a7a` made editing and inserting a saved template use `savedTemplateItemToDraft`. Both preserve serving fields and quantity precision. Snapshot items keep their stored facts and provider-reference items resolve through the provider. `SavedMealsScreen` reloads once per revision and ignores obsolete results after a newer refresh or unmount.
 - `NutritionWorkspaceProvider` is mounted above the tab content. `AppNavigator` mounts `NutritionStack` only on the active Nutrition tab and delegates hardware Back to the workspace. Closing a deep screen may pop a layer or return to the diary, depending on the screen action.
 - `src/screens/NutritionScreens/NutritionStack.tsx` renders entering/leaving layers. `src/nutrition/motion.ts` controls transitions with system reduced-motion support.
 - `src/state/NutritionWorkspaceContext.tsx` owns navigation, dates, and draft/session state. `src/nutrition/drafts.ts` restores distinguishable new-day, existing-log, and saved-template drafts. Workspace snapshots use a debounced local write with a flush path on backgrounding. On restoration, recorded operation IDs and available meal IDs help reject stale or already-committed activity.

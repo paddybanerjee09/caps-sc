@@ -16,6 +16,8 @@ Load is stored in kilograms and rest in seconds. Null rest means omitted. Zero r
 
 The focus estimate is heuristic and may overlap. A primary quality needs a score of at least 60 and a 15-point lead. Otherwise the month marker is neutral. Colors are purple hypertrophy, red power, blue strength, and green muscular endurance, with text labels on `StrengthAdaptationsScreen`.
 
+Since `1662f54`, `listSameLiftReferences` uses SQLite to pick one usable result per exercise ID from the latest eligible completed session strictly before the cutoff. It joins sessions to exercise snapshots and performed sets, excludes warmups and skips, and uses the first eligible set’s exercise load mode to pick the lightest positive assistance or heaviest positive external load. The template and session writers share snapshot serialization. Templates project away warmups and skipped sets before writing. Performed snapshots store both flags and preserve explicit zero rest.
+
 The exercise catalog is a text-only pin in `src/strength/catalogSeed.ts` (`curated-2026-11-15`). Photos and instructions are excluded because upstream image provenance is unverified. Custom exercises are rows in `strength_exercises`.
 
 `npm run verify:strength` covers the forward migration, templates, snapshots, rollback, retry, duration, and the four focus qualities. Device exercise of the screens was not run in this session.

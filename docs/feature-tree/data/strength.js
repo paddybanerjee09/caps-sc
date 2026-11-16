@@ -164,6 +164,16 @@ CAPS.trees.strength = {
               "Removing an exercise from the table asks first.",
             ],
           },
+          {
+            n: 4,
+            name: "Shared Strength snapshot persistence",
+            date: "2026-11-16 00:20 -0500",
+            commits: ["1662f54"],
+            changes: [
+              "Share exercise and set persistence across templates and sessions.",
+              "Compute exercise search ranks before sorting.",
+            ],
+          },
         ],
       },
       {
@@ -190,6 +200,15 @@ CAPS.trees.strength = {
             commits: ["6bc5a4c"],
             changes: [
               "A customized set can change load, reps, RPE, and rest. Cancel restores the workout to the state from when the editor opened.",
+            ],
+          },
+          {
+            n: 3,
+            name: "Shared set editing",
+            date: "2026-11-16 00:20 -0500",
+            commits: ["1662f54"],
+            changes: [
+              "Reuse the set updater and keep set IDs when applying repeat targets.",
             ],
           },
         ],
@@ -228,6 +247,15 @@ CAPS.trees.strength = {
             commits: ["36bac02"],
             changes: ["A missing score reads Unavailable, and the rationale stays on the screen."],
           },
+          {
+            n: 3,
+            name: "Latest usable lift reference in SQLite",
+            date: "2026-11-16 00:20 -0500",
+            commits: ["1662f54"],
+            changes: [
+              "Return only the latest usable reference per lift from historical work sets.",
+            ],
+          },
         ],
       },
       {
@@ -246,6 +274,15 @@ CAPS.trees.strength = {
             date: "2026-11-15 15:39 -0500",
             commits: ["21d635f"],
             changes: ["Added the read-only log opened from the Strength month."],
+          },
+          {
+            n: 2,
+            name: "Direct performed-set formatting",
+            date: "2026-11-16 00:20 -0500",
+            commits: ["1662f54"],
+            changes: [
+              "Format saved sets directly for the detail summary.",
+            ],
           },
         ],
       },

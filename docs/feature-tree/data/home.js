@@ -295,6 +295,16 @@ CAPS.trees.home = {
                 commits: ["67d99b6"],
                 changes: ["Rendered inline with stepper time controls. Filename stayed `SleepLogModal`."],
               },
+              {
+                n: 3,
+                name: "Shared sleep bounds",
+                date: "2026-11-16 00:18 -0500",
+                commits: ["24a301f"],
+                changes: [
+                  "Share wake-date and overnight calculations between logs and defaults.",
+                  "Reuse the transactional range-closing SQL when replacing or disabling defaults.",
+                ],
+              },
             ],
             children: [{ id: "sleep-log-time", ref: "architecture:log-time-changer", note: "start/end steppers" }],
           },
