@@ -19,6 +19,7 @@ import {
 import { useAppTheme } from "../theme/ThemeContext";
 import { readableTextColor, themes } from "../theme/theme";
 import { feedbackConfirm, feedbackToggle, feedbackWarn } from "../utils/feedback";
+import { dateAtMinute, getSleepBounds } from "../utils/sleep";
 import { LogTimeChanger } from "./LogTimeChanger";
 import { PressOpacity } from "./PressOpacity";
 
@@ -335,30 +336,6 @@ export function SleepLogModal({
 
 function getMinuteOfDay(date: Date) {
   return date.getHours() * 60 + date.getMinutes();
-}
-
-function dateAtMinute(date: Date, minute: number) {
-  const result = new Date(date);
-  result.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
-  return result;
-}
-
-function getSleepBounds(
-  wakeDate: Date,
-  startMinute: number,
-  endMinute: number,
-) {
-  const endDate = dateAtMinute(wakeDate, endMinute);
-  const startDate = dateAtMinute(wakeDate, startMinute);
-
-  if (startMinute > endMinute) {
-    startDate.setDate(startDate.getDate() - 1);
-  }
-
-  return {
-    startAt: startDate.getTime(),
-    endAt: endDate.getTime(),
-  };
 }
 
 function formatWakeDate(date: Date) {

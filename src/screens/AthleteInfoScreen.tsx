@@ -4,14 +4,15 @@ import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
-import {
-  useAppState,
-  type CombatSport,
-  type UnitSystem,
-} from "../state/AppStateContext";
+import { useAppState, type CombatSport } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { readableTextColor, themes } from "../theme/theme";
 import { feedbackConfirm, feedbackStep } from "../utils/feedback";
+import {
+  centimetersToImperial,
+  formatHeight,
+  inchesToHeightCm,
+} from "../utils/height";
 import {
   convertKilogramsToWeight,
   convertWeightToKilograms,
@@ -19,7 +20,6 @@ import {
 } from "../utils/weight";
 
 const tokens = themes.dark;
-const centimetersPerInch = 2.54;
 type Sex = "Male" | "Female";
 const sexOptions: Sex[] = ["Male", "Female"];
 
@@ -105,7 +105,7 @@ export function AthleteInfoScreen() {
     feedbackStep(deltaInches > 0 ? "up" : "down");
     const currentTotalInches = imperialHeight.feet * 12 + imperialHeight.inches;
     const nextTotalInches = clamp(currentTotalInches + deltaInches, 48, 90);
-    const nextCm = Math.round(nextTotalInches * centimetersPerInch * 10) / 10;
+    const nextCm = inchesToHeightCm(nextTotalInches);
     setAthleteProfile({ ...athleteProfile, heightCm: nextCm });
   }
 
@@ -545,7 +545,7 @@ export function AthleteInfoScreen() {
                 ]}
               >
                 <Text style={[styles.readoutValue, { color: theme.colors.text }]}>
-                  {imperialHeight.feet}'{imperialHeight.inches}"
+                  {formatHeight(currentHeightCm, "imperial")}
                 </Text>
                 <Text style={[styles.readoutUnit, { color: theme.colors.textMuted }]}>
                   FT · IN
@@ -574,8 +574,7 @@ export function AthleteInfoScreen() {
                       const totalInches = preset.feet * 12 + preset.inches;
                       setAthleteProfile({
                         ...athleteProfile,
-                        heightCm:
-                          Math.round(totalInches * centimetersPerInch * 10) / 10,
+                        heightCm: inchesToHeightCm(totalInches),
                       });
                     }}
                     silent
@@ -727,28 +726,6 @@ function StepButton({
       </Text>
     </PressOpacity>
   );
-}
-
-function centimetersToImperial(heightCm: number) {
-  const totalInches = Math.round(heightCm / centimetersPerInch);
-
-  return {
-    feet: Math.floor(totalInches / 12),
-    inches: totalInches % 12,
-  };
-}
-
-function formatHeight(heightCm: number | null, unit: UnitSystem) {
-  if (heightCm === null) {
-    return "Not selected";
-  }
-
-  if (unit === "metric") {
-    return `${Math.round(heightCm)} cm`;
-  }
-
-  const imperialHeight = centimetersToImperial(heightCm);
-  return `${imperialHeight.feet}'${imperialHeight.inches}"`;
 }
 
 function clamp(value: number, minimum: number, maximum: number) {

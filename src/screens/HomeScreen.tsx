@@ -32,11 +32,12 @@ import {
 
 import { Screen } from "../components/Screen";
 import { timelineCategories } from "../constants/timelineCategories";
-import { useAppState, type UnitSystem } from "../state/AppStateContext";
+import { useAppState } from "../state/AppStateContext";
 import { useNutritionWorkspace } from "../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { readableTextColor, themes } from "../theme/theme";
 import { feedbackStep, feedbackToggle } from "../utils/feedback";
+import { formatHeight } from "../utils/height";
 import { formatWeight } from "../utils/weight";
 
 const tokens = themes.dark;
@@ -577,21 +578,6 @@ function formatFullDate(date: Date) {
     day: "numeric",
     year: "numeric",
   });
-}
-
-function formatHeight(heightCm: number | null, unit: UnitSystem) {
-  if (heightCm === null) {
-    return "Not selected";
-  }
-
-  if (unit === "metric") {
-    return `${Math.round(heightCm)} cm`;
-  }
-
-  const totalInches = Math.round(heightCm / 2.54);
-  const feet = Math.floor(totalInches / 12);
-  const inches = totalInches % 12;
-  return `${feet}'${inches}"`;
 }
 
 function formatSports(sports: string[]) {

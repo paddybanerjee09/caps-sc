@@ -1,5 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
+import { getSleepBounds } from "../utils/sleep";
+
 export type TimelineKind =
   | "skill"
   | "strength"
@@ -249,23 +251,7 @@ export async function replaceSleepScheduleFromWakeDate(
   const now = Date.now();
 
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      `UPDATE sleep_schedules
-       SET effective_until_wake_date = ?, updated_at = ?
-       WHERE effective_from_wake_date < ?
-         AND (
-           effective_until_wake_date IS NULL
-           OR effective_until_wake_date > ?
-         )`,
-      [wakeDateKey, now, wakeDateKey, wakeDateKey],
-    );
-
-    await db.runAsync(
-      `DELETE FROM sleep_schedules
-       WHERE effective_from_wake_date >= ?`,
-      [wakeDateKey],
-    );
-
+    await clearSleepSchedulesFromWakeDate(db, wakeDateKey, now);
     await db.runAsync(
       `INSERT INTO sleep_schedules (
         start_minute,
@@ -288,23 +274,30 @@ export async function disableSleepScheduleFromWakeDate(
   const now = Date.now();
 
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      `UPDATE sleep_schedules
-       SET effective_until_wake_date = ?, updated_at = ?
-       WHERE effective_from_wake_date < ?
-         AND (
-           effective_until_wake_date IS NULL
-           OR effective_until_wake_date > ?
-         )`,
-      [wakeDateKey, now, wakeDateKey, wakeDateKey],
-    );
-
-    await db.runAsync(
-      `DELETE FROM sleep_schedules
-       WHERE effective_from_wake_date >= ?`,
-      [wakeDateKey],
-    );
+    await clearSleepSchedulesFromWakeDate(db, wakeDateKey, now);
   });
+}
+
+async function clearSleepSchedulesFromWakeDate(
+  db: SQLiteDatabase,
+  wakeDateKey: string,
+  now: number,
+) {
+  await db.runAsync(
+    `UPDATE sleep_schedules
+     SET effective_until_wake_date = ?, updated_at = ?
+     WHERE effective_from_wake_date < ?
+       AND (
+         effective_until_wake_date IS NULL
+         OR effective_until_wake_date > ?
+       )`,
+    [wakeDateKey, now, wakeDateKey, wakeDateKey],
+  );
+
+  await db.runAsync(
+    `DELETE FROM sleep_schedules WHERE effective_from_wake_date >= ?`,
+    [wakeDateKey],
+  );
 }
 
 export async function getTimelineEntriesForDay(
@@ -409,7 +402,7 @@ async function getVirtualSleepEntriesForDay(
       continue;
     }
 
-    const { startAt, endAt } = getScheduledSleepBounds(
+    const { startAt, endAt } = getSleepBounds(
       wakeDate,
       schedule.startMinute,
       schedule.endMinute,
@@ -446,30 +439,6 @@ async function getVirtualSleepEntriesForDay(
   }
 
   return virtualEntries;
-}
-
-function getScheduledSleepBounds(
-  wakeDate: Date,
-  startMinute: number,
-  endMinute: number,
-) {
-  const endAt = dateAtMinute(wakeDate, endMinute).getTime();
-  const startDate = dateAtMinute(wakeDate, startMinute);
-
-  if (startMinute > endMinute) {
-    startDate.setDate(startDate.getDate() - 1);
-  }
-
-  return {
-    startAt: startDate.getTime(),
-    endAt,
-  };
-}
-
-function dateAtMinute(date: Date, minute: number) {
-  const result = new Date(date);
-  result.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
-  return result;
 }
 
 function formatLocalDateKey(date: Date) {
