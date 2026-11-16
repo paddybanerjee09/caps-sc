@@ -1,6 +1,20 @@
 # Skills Training
 
-**Current status: title-only placeholder.** The second bottom tab uses route `skill` and the `boxing-glove` icon. `src/screens/Screens.tsx` resolves it to `SkillTrainingScreen` in `src/screens/SkillScreen.tsx`, which renders `<Screen centerTitle title="Skills Training" />`. The current path has no skill workspace, repository, or SQLite tables.
+**Current status: logging is on the Skills tab** at `45648a2`. The second bottom tab uses route `skill` and the `boxing-glove` icon. `src/screens/Screens.tsx` resolves it to `SkillTrainingScreen` in `src/screens/SkillScreen.tsx`. Schema version is 9.
+
+[[2026-11-16 Skill Screen Implementation Plan]] is the design that was built. Effort is stored as an RPE band (rate of perceived exertion): Easy is RPE 6 or below, Moderate is RPE 7–8, and Hard is RPE 9–10. The plan's RIR wording was not implemented.
+
+## Logging
+
+`src/state/SkillWorkspaceContext.tsx` keeps the draft while the builder is open. `src/screens/skill/SkillSessionBuilderScreen.tsx` is Build Skill Session and a reopened saved session. Save writes only a template. Log writes the session, activity snapshots, `skill-energy-v1`, and a `timeline_entries` row of kind `skill` in one transaction. The session id makes a retry a no-op. Failed writes leave the draft unchanged. Removing a saved session archives the template and leaves earlier logs intact.
+
+Time is stored in epoch milliseconds and seconds. `started_at` is the chosen end minus elapsed seconds. `local_end_date` is the device-local date of that end, so a session that crosses midnight is placed on the day it finished. `timezone` is the IANA zone captured at commit. Templates store no date or time. Reopening one sets Ends at to the current time.
+
+RPE is a required band, not a 1–10 number: `easy`, `moderate`, or `hard`. Sparring and rolling also store a separate mode. Duration uses the entered seconds as work and zero rest. Rounds use `rounds × seconds per round` as work and `(rounds − 1) × rest` as rest, so one round with a configured rest stores that rest and adds no rest seconds. Focus ignores general activities. One combat discipline sets the focus. Two or more set `mixed`.
+
+Calories are gross kilocalories: `weightKg × ((baseMET × rpeMultiplier × workSeconds) + (1.5 × restSeconds)) / 3600`. The multipliers are 0.80, 1.00, and 1.10. The session stores the unrounded sum, the weight used, `logged` or `reference`, and `skill-energy-v1`. Reference weight is 75 kg when no `weight_logs` row has a timeline start at or before the end time. `getLatestWeightKg` is unchanged and still returns the newest log with no cutoff.
+
+There is no skill owner table. Conditioning has a singleton owner because those sessions sync. Skill logs stay on the device, as Strength logs do.
 
 ## Planned scope
 
@@ -13,4 +27,4 @@ The README’s **Custom Skill Work** section describes sessions composed from in
 - `0b97b10` described fixed skill activity types. `41b5c4d` shifted the README to user-built sessions of independently configured activities. Neither version is an implemented logging flow.
 - `.cursor/rules/ui-style-guide.mdc` reserves implementation for an explicit Skills Training request. Keep the route key, file name, exported component, and `ScreenForRoute` mapping aligned. For an authorized UI implementation, use screen-local cards, steppers, and presets per that rule.
 
-Current status verified against `src/navigation/routes.ts`, `src/components/BottomTabs.tsx`, `src/screens/Screens.tsx`, `src/screens/SkillScreen.tsx`, and current migrations. Related notes: [[App Architecture]], [[Data and Persistence]], [[Project History]], [[Feature Tree Crosswalk]]. Feature Tree: [`skill.html`](../../../docs/feature-tree/skill.html).
+Verified against `src/navigation/routes.ts`, `src/screens/SkillScreen.tsx`, `src/screens/skill/`, `src/skill/`, `src/data/skillMigration.ts`, and `src/data/skillRepository.ts`. `npm run verify:skill` covers the migration, focus, calorie fixture, templates, snapshots, rollback, and retry. The screens were not exercised on a device in the implementation session. Related notes: [[App Architecture]], [[Data and Persistence]], [[Project History]], [[Feature Tree Crosswalk]]. Feature Tree: [`skill.html`](../../../docs/feature-tree/skill.html).

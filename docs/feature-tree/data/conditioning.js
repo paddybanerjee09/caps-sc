@@ -78,7 +78,7 @@ CAPS.trees.conditioning = {
         tagline: "Month grid, planned vs logged markers",
         files: ["src/components/MonthlyTimelineComponent.tsx", "src/components/monthGrid.ts"],
         summary:
-          "Pure month grid. Markers come from `monthGrid` + session status. The screen queries `listConditioningSessionsForDates` and maps events in.",
+          "Pure month grid. Markers come from `monthGrid` + session status. The screen queries `listConditioningSessionsForDates` and maps events in. An optional `detail` string replaces the Logged/Planned subtitle and the row accessibility label. Filled markers still require status `logged`.",
         guardrails: [
           "Do not query SQLite from `MonthlyTimelineComponent` (calendar-session-state.mdc).",
         ],
@@ -96,6 +96,15 @@ CAPS.trees.conditioning = {
             date: "2026-11-02 22:39 -0500",
             commits: ["e9d18be"],
             changes: ["Card renovation on the hub."],
+          },
+          {
+            n: 3,
+            name: "Optional event detail",
+            date: "2026-11-16 11:01 -0500",
+            commits: ["80f1155"],
+            changes: [
+              "MonthEvent.detail, when set, is the selected-day subtitle and the row accessibility label. Strength and Conditioning leave it unset.",
+            ],
           },
         ],
       },

@@ -2,7 +2,7 @@ CAPS.trees.database = {
   id: "database",
   title: "Database",
   summary:
-    "Local Expo SQLite database `caps.db`. `SQLiteProvider` runs `migrateDatabase` on init. `PRAGMA user_version` is 8: timeline, weight, sleep, meals, nutrition catalog (v5/v6), conditioning, then strength. Repositories live next to the schema files.",
+    "Local Expo SQLite database `caps.db`. `SQLiteProvider` runs `migrateDatabase` on init. `PRAGMA user_version` is 9: timeline, weight, sleep, meals, nutrition catalog (v5/v6), conditioning, strength, then skill. Repositories live next to the schema files.",
   rules: ["conditioning-data-and-units.mdc"],
   root: {
     id: "caps-db",
@@ -39,21 +39,29 @@ CAPS.trees.database = {
         commits: ["e0f5bb4"],
         changes: ["DATABASE_VERSION 8: strength catalog, templates, sessions, and set snapshots."],
       },
+      {
+        n: 4,
+        name: "caps.db",
+        date: "2026-11-16 11:01 -0500",
+        commits: ["80f1155"],
+        changes: ["DATABASE_VERSION 9: skill templates, sessions, and activity snapshots."],
+      },
     ],
     children: [
       {
         id: "migrations",
         title: "migrateDatabase",
         kind: "logic",
-        tagline: "PRAGMA user_version 1..8",
+        tagline: "PRAGMA user_version 1..9",
         files: [
           "src/data/database.ts",
           "src/data/nutritionMigration.ts",
           "src/data/conditioningMigration.ts",
           "src/data/strengthMigration.ts",
+          "src/data/skillMigration.ts",
         ],
         summary:
-          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning, v8 strength.",
+          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning, v8 strength, v9 skill.",
         versions: [
           {
             n: 1,
@@ -96,6 +104,15 @@ CAPS.trees.database = {
               "Forward migration adds the strength catalog, templates, sessions, and set rows, then pins the text-only exercise seed.",
             ],
           },
+          {
+            n: 6,
+            name: "v9 skill",
+            date: "2026-11-16 11:01 -0500",
+            commits: ["80f1155"],
+            changes: [
+              "Forward migration adds skill templates, sessions, and ordered activity snapshots.",
+            ],
+          },
         ],
       },
       {
@@ -121,7 +138,8 @@ CAPS.trees.database = {
         kind: "table",
         tagline: "weight_kg on a timeline row",
         files: ["src/data/database.ts", "src/data/timelineRepository.ts"],
-        summary: "1:1 with `timeline_entries`. Canonical kilograms.",
+        summary:
+          "1:1 with `timeline_entries`. Canonical kilograms. `getWeightKgAtOrBefore` reads the newest weight whose timeline start is at or before a chosen instant. `getLatestWeightKg` is unchanged.",
         versions: [
           {
             n: 1,
@@ -129,6 +147,15 @@ CAPS.trees.database = {
             date: "2026-07-24 21:59 -0400",
             commits: ["ea4cc2b"],
             changes: ["Added the table."],
+          },
+          {
+            n: 2,
+            name: "Weight at a cutoff",
+            date: "2026-11-16 11:01 -0500",
+            commits: ["80f1155"],
+            changes: [
+              "Added a cutoff query so a backdated skill estimate uses the latest weight at or before its end time.",
+            ],
           },
         ],
       },
@@ -539,6 +566,49 @@ CAPS.trees.database = {
             commits: ["e0f5bb4"],
             changes: [
               "Added session headers, exercise snapshots, and performed sets, including skipped sets.",
+            ],
+          },
+        ],
+      },
+      {
+        id: "table-skill-templates",
+        title: "skill_templates",
+        kind: "table",
+        tagline: "Reusable skill sessions, archive instead of delete",
+        files: ["src/data/skillMigration.ts", "src/data/skillRepository.ts"],
+        summary:
+          "Header plus ordered `skill_template_activities`. No date, weight, or calorie columns. Archiving hides a template from Saved Sessions. Logs do not cascade.",
+        versions: [
+          {
+            n: 1,
+            name: "skill_templates",
+            date: "2026-11-16 11:01 -0500",
+            commits: ["80f1155"],
+            changes: ["Added template headers and ordered activity settings."],
+          },
+        ],
+      },
+      {
+        id: "table-skill-sessions",
+        title: "skill_sessions",
+        kind: "table",
+        tagline: "Logged title, end date, focus, calorie snapshot",
+        files: ["src/data/skillMigration.ts", "src/data/skillRepository.ts"],
+        summary:
+          "One row per committed log. Stores start and end timestamps, the local end date, timezone, optional source template id, elapsed seconds, focus, unrounded kcal, weight basis, and estimator version. Child snapshots are `skill_session_activities`. The same session id makes a retry a no-op. The timeline row is kind `skill`.",
+        guardrails: [
+          "Do not drop or rewrite a log when its template is edited, archived, or when a later weight is recorded.",
+          "Write the timeline row, session, and activity snapshots in one transaction. Template saves stay in their own transaction.",
+        ],
+        links: ["database:table-timeline-entries", "database:table-weight-logs"],
+        versions: [
+          {
+            n: 1,
+            name: "skill_sessions",
+            date: "2026-11-16 11:01 -0500",
+            commits: ["80f1155"],
+            changes: [
+              "Added session headers and activity snapshots, including the MET and RPE multiplier used for each estimate.",
             ],
           },
         ],

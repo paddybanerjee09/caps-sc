@@ -1,6 +1,6 @@
 # Strength
 
-Status at `aea27d0` · logging is on the Strength tab. The `strength` route in `src/navigation/routes.ts` opens `StrengthTrainingScreen` via `src/screens/Screens.tsx`. Bottom tabs use `barbell-outline`. The hub shows `MonthlyTimelineComponent`, then Log Workout, Create Workout, and Saved Workouts. Schema version is 8. Home still paints strength rows with `timelineCategories.strength`.
+Status at `aea27d0` · logging is on the Strength tab. The `strength` route in `src/navigation/routes.ts` opens `StrengthTrainingScreen` via `src/screens/Screens.tsx`. Bottom tabs use `barbell-outline`. The hub shows `MonthlyTimelineComponent`, then Log Workout, Create Workout, and Saved Workouts. Strength tables arrived at schema version 8. The database is version 9 after skill logging. Home still paints strength rows with `timelineCategories.strength`.
 
 ## Product intent
 

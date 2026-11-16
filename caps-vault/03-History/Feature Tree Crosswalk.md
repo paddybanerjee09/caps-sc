@@ -8,7 +8,7 @@ Snapshot of the eight trees in `docs/feature-tree/data/` at baseline `e492e06`. 
 - [[Nutrition]] · 15 nodes, 42 versions
 - [[Conditioning]] · 19 nodes, 37 versions
 - [[Strength]] · 14 nodes, 33 versions
-- [[Skills Training]] · 2 nodes, 7 versions
+- [[Skills Training]] · 6 nodes, 11 versions
 - [[Settings]] · 12 nodes, 27 versions
 
 ## Architecture
@@ -163,8 +163,12 @@ Snapshot of the eight trees in `docs/feature-tree/data/` at baseline `e492e06`. 
 
 | Feature Tree node | ID | Parent path | Tree status or reference | Versions |
 | --- | --- | --- | --- | ---: |
-| [SkillTrainingScreen](../../docs/feature-tree/skill.html#skill-screen) | `skill-screen` | — | placeholder | 5 |
-| [Planned skill work](../../docs/feature-tree/skill.html#skill-planned) | `skill-planned` | SkillTrainingScreen | planned | 2 |
+| [SkillTrainingScreen](../../docs/feature-tree/skill.html#skill-screen) | `skill-screen` | — | active | 6 |
+| [MonthlyTimelineComponent](../../docs/feature-tree/skill.html#skill-month) | `skill-month` | SkillTrainingScreen | ref `conditioning:monthly-calendar` | — |
+| [SkillSessionBuilderScreen](../../docs/feature-tree/skill.html#skill-builder) | `skill-builder` | SkillTrainingScreen | active | 1 |
+| [SkillSessionDetailScreen](../../docs/feature-tree/skill.html#skill-detail) | `skill-detail` | SkillTrainingScreen | active | 1 |
+| [Skill calorie model](../../docs/feature-tree/skill.html#skill-energy) | `skill-energy` | SkillTrainingScreen | active | 1 |
+| [Unbuilt skill planning](../../docs/feature-tree/skill.html#skill-planned) | `skill-planned` | SkillTrainingScreen | planned | 2 |
 
 ## Settings
 
