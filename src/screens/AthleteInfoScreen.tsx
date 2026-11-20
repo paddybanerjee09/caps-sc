@@ -1,9 +1,11 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { parseDecimalInput } from "../utils/numericInput";
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
+import { LogTimeChanger } from "../components/LogTimeChanger";
 import { useAppState, type CombatSport } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { readableTextColor, themes } from "../theme/theme";
@@ -34,8 +36,6 @@ const IMPERIAL_HEIGHT_PRESETS = [
   { feet: 6, inches: 2, label: "6'2\"" },
   { feet: 6, inches: 4, label: "6'4\"" },
 ] as const;
-const METRIC_WEIGHT_PRESETS = [57, 61.2, 65.8, 70.3, 77.1, 83.9, 93] as const;
-const IMPERIAL_WEIGHT_PRESETS = [125, 135, 145, 155, 170, 185, 205] as const;
 
 const sportOptions: CombatSport[] = [
   "Muay Thai",
@@ -50,7 +50,7 @@ const sportOptions: CombatSport[] = [
   "Karate",
 ];
 
-export function AthleteInfoScreen() {
+export function AthleteInfoScreen({ onClose, registerCloseHandler }: { onClose?: () => void; registerCloseHandler?: (handler: (() => void) | null) => void }) {
   const { theme } = useAppTheme();
   const {
     athleteProfile,
@@ -61,27 +61,31 @@ export function AthleteInfoScreen() {
   } = useAppState();
 
   const [sex, setSex] = useState<Sex>("Male");
-  const [draftWeightDisplay, setDraftWeightDisplay] = useState<number>(() => {
-    const baseKg = athleteProfile.weightKg ?? 70;
-    return Math.round(convertKilogramsToWeight(baseKg, unitSettings.weight) * 10) / 10;
-  });
+  const weightSource = `${unitSettings.weight}:${athleteProfile.weightKg}`;
+  const initialWeight = String(Math.round(convertKilogramsToWeight(athleteProfile.weightKg ?? 70, unitSettings.weight) * 10) / 10);
+  const [weightDraft, setWeightDraft] = useState<{ source: string; value: string } | null>(null);
+  const draftWeightDisplay = weightDraft?.source === weightSource ? weightDraft.value : initialWeight;
+  function setDraftWeightDisplay(value: string) { setWeightDraft({ source: weightSource, value }); }
   const [weightSavedFlash, setWeightSavedFlash] = useState(false);
-
+  const [savingWeight, setSavingWeight] = useState(false);
+  const [weightLoggedAt, setWeightLoggedAt] = useState(() => new Date());
+  const closeProfile = useCallback(() => {
+    if (savingWeight) return;
+    if (draftWeightDisplay.trim() !== initialWeight && !weightSavedFlash) {
+      Alert.alert("Discard weight changes?", "Your unlogged weight will be discarded.", [
+        { text: "Keep editing", style: "cancel" },
+        { text: "Discard", style: "destructive", onPress: onClose },
+      ]);
+    } else onClose?.();
+  }, [draftWeightDisplay, initialWeight, onClose, savingWeight, weightSavedFlash]);
   useEffect(() => {
-    const baseKg = athleteProfile.weightKg ?? 70;
-    setDraftWeightDisplay(
-      Math.round(convertKilogramsToWeight(baseKg, unitSettings.weight) * 10) / 10,
-    );
-  }, [athleteProfile.weightKg, unitSettings.weight]);
-
+    registerCloseHandler?.(closeProfile);
+    return () => registerCloseHandler?.(null);
+  }, [closeProfile, registerCloseHandler]);
   const currentAge = athleteProfile.age ?? 18;
   const currentHeightCm = athleteProfile.heightCm ?? 175;
   const imperialHeight = centimetersToImperial(currentHeightCm);
   const weightUnitLabel = unitSettings.weight === "metric" ? "kg" : "lbs";
-  const weightPresets =
-    unitSettings.weight === "metric"
-      ? METRIC_WEIGHT_PRESETS
-      : IMPERIAL_WEIGHT_PRESETS;
   const primaryTextColor = readableTextColor(theme.colors.tertiary);
 
   function stepAge(delta: number) {
@@ -109,27 +113,23 @@ export function AthleteInfoScreen() {
     setAthleteProfile({ ...athleteProfile, heightCm: nextCm });
   }
 
-  function stepWeight(delta: number) {
-    feedbackStep(delta > 0 ? "up" : "down");
-    setWeightSavedFlash(false);
-    setDraftWeightDisplay((current) =>
-      clamp(Math.round((current + delta) * 10) / 10, 25, 450),
-    );
-  }
 
   async function commitWeightLog() {
+    const parsedWeight = parseDecimalInput(draftWeightDisplay);
+    if (savingWeight || parsedWeight === null || parsedWeight <= 0) return;
     const weightKg = convertWeightToKilograms(
-      draftWeightDisplay,
+      parsedWeight,
       unitSettings.weight,
     );
+    setSavingWeight(true);
     try {
-      await logWeight(weightKg, Date.now());
+      await logWeight(weightKg, Math.min(weightLoggedAt.getTime(), Date.now()));
       bumpTimeline();
       setWeightSavedFlash(true);
       feedbackConfirm();
     } catch {
       Alert.alert("Couldn't save weight log", "Please try again.");
-    }
+    } finally { setSavingWeight(false); }
   }
 
   function toggleSport(sport: CombatSport) {
@@ -153,10 +153,33 @@ export function AthleteInfoScreen() {
     unitSettings.height,
   );
 
+  const weightAction = (
+        <PressOpacity
+          accessibilityLabel="Log weight"
+          disabled={savingWeight || parseDecimalInput(draftWeightDisplay) === null || Number(draftWeightDisplay.replace(",", ".")) <= 0}
+          onPress={() => void commitWeightLog()}
+          silent
+          style={[
+            styles.primaryFlowButton,
+            { backgroundColor: theme.colors.tertiary },
+          ]}
+        >
+          <Ionicons color={primaryTextColor} name="scale-outline" size={20} />
+          <Text style={[styles.primaryFlowText, { color: primaryTextColor }]}>
+            {weightSavedFlash
+              ? `Logged ${draftWeightDisplay} ${weightUnitLabel}`
+              : `Log ${draftWeightDisplay} ${weightUnitLabel}`}
+          </Text>
+        </PressOpacity>
+  );
+
   return (
     <Screen
-      subtitle="Zero-typing steppers & presets for biometric and sport telemetry"
+      subtitle="Your biometric information and training disciplines"
       title="Athlete Information"
+      onClose={onClose ? closeProfile : undefined}
+      footer={weightAction}
+      right={<LogTimeChanger label="Weigh-in time" maximumDate={new Date()} value={weightLoggedAt} onChange={(date) => { setWeightSavedFlash(false); setWeightLoggedAt(date); }} />}
     >
       {/* Card 1: Biometric Summary Strip */}
       <View
@@ -341,7 +364,7 @@ export function AthleteInfoScreen() {
         </ScrollView>
       </View>
 
-      {/* Card 4: Bodyweight Stepper & Quick Log */}
+      {/* Card 4: Bodyweight input and quick log */}
       <View
         style={[
           styles.card,
@@ -360,88 +383,18 @@ export function AthleteInfoScreen() {
           </Text>
         </View>
 
-        <View style={styles.stepperRow}>
-          <StepButton label="-1.0" onPress={() => stepWeight(-1)} />
-          <StepButton label="-0.1" onPress={() => stepWeight(-0.1)} />
-          <View
-            style={[
-              styles.readoutBox,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.readoutValue, { color: theme.colors.text }]}>
-              {draftWeightDisplay.toFixed(1)}
-            </Text>
-            <Text style={[styles.readoutUnit, { color: theme.colors.textMuted }]}>
-              {weightUnitLabel.toUpperCase()}
-            </Text>
-          </View>
-          <StepButton label="+0.1" onPress={() => stepWeight(0.1)} />
-          <StepButton label="+1.0" onPress={() => stepWeight(1)} />
-        </View>
+        <TextInput
+          accessibilityLabel={`Bodyweight in ${weightUnitLabel}`}
+          inputMode="decimal"
+          keyboardType="decimal-pad"
+          onChangeText={(text) => { setWeightSavedFlash(false); setDraftWeightDisplay(text); }}
+          placeholder="Enter weight"
+          placeholderTextColor={theme.colors.textMuted}
+          selectTextOnFocus
+          style={[styles.readoutBox, { color: theme.colors.text, borderColor: theme.colors.borderStrong, backgroundColor: theme.colors.surfaceMuted, fontSize: 22, fontVariant: ["tabular-nums"], paddingHorizontal: 12 }]}
+          value={draftWeightDisplay}
+        />
 
-        <ScrollView
-          contentContainerStyle={styles.presetStrip}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-        >
-          {weightPresets.map((preset) => {
-            const selected = Math.abs(draftWeightDisplay - preset) < 0.05;
-            return (
-              <PressOpacity
-                accessibilityLabel={`Set weight ${preset} ${weightUnitLabel}`}
-                accessibilityState={{ selected }}
-                key={preset}
-                onPress={() => {
-                  feedbackStep("up");
-                  setWeightSavedFlash(false);
-                  setDraftWeightDisplay(preset);
-                }}
-                silent
-                style={[
-                  styles.presetChip,
-                  {
-                    backgroundColor: selected
-                      ? theme.colors.tertiary
-                      : theme.colors.surfaceMuted,
-                    borderColor: selected
-                      ? theme.colors.tertiary
-                      : theme.colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.presetChipText,
-                    { color: selected ? primaryTextColor : theme.colors.text },
-                  ]}
-                >
-                  {preset} {weightUnitLabel}
-                </Text>
-              </PressOpacity>
-            );
-          })}
-        </ScrollView>
-
-        <PressOpacity
-          accessibilityLabel="Log weight"
-          onPress={() => void commitWeightLog()}
-          silent
-          style={[
-            styles.primaryFlowButton,
-            { backgroundColor: theme.colors.tertiary },
-          ]}
-        >
-          <Ionicons color={primaryTextColor} name="scale-outline" size={20} />
-          <Text style={[styles.primaryFlowText, { color: primaryTextColor }]}>
-            {weightSavedFlash
-              ? `Logged ${draftWeightDisplay.toFixed(1)} ${weightUnitLabel}`
-              : `Log ${draftWeightDisplay.toFixed(1)} ${weightUnitLabel}`}
-          </Text>
-        </PressOpacity>
       </View>
 
       {/* Card 5: Height Stepper & Scroll Presets */}

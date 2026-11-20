@@ -9,10 +9,12 @@ import { SkillTrainingScreen } from "./SkillScreen";
 import { StrengthTrainingScreen } from "./StrengthTrainingScreen";
 
 type ScreenForRouteProps = {
+  onClose?: () => void;
+  registerCloseHandler?: (handler: (() => void) | null) => void;
   route: RouteKey;
 };
 
-export function ScreenForRoute({ route }: ScreenForRouteProps) {
+export function ScreenForRoute({ onClose, registerCloseHandler, route }: ScreenForRouteProps) {
   switch (route) {
     case "nutrition":
       return <NutritionScreen />;
@@ -23,11 +25,11 @@ export function ScreenForRoute({ route }: ScreenForRouteProps) {
     case "conditioning":
       return <ConditioningScreen />;
     case "settings":
-      return <SettingsScreen />;
+      return <SettingsScreen onClose={onClose} />;
     case "accountInfo":
-      return <AccountInfoScreen />;
+      return <AccountInfoScreen onClose={onClose} registerCloseHandler={registerCloseHandler} />;
     case "athleteInfo":
-      return <AthleteInfoScreen />;
+      return <AthleteInfoScreen onClose={onClose} registerCloseHandler={registerCloseHandler} />;
     case "home":
     default:
       return <HomeScreen />;

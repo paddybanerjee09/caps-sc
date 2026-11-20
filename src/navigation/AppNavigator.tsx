@@ -23,7 +23,7 @@ import { useSkillWorkspace } from "../state/SkillWorkspaceContext";
 import { useStrengthWorkspace } from "../state/StrengthWorkspaceContext";
 import { useNutritionWorkspace } from "../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../theme/ThemeContext";
-import { initialRoute, type RouteKey } from "./routes";
+import { initialRoute, sidebarItems, tabs, type RouteKey, type TabRoute } from "./routes";
 
 export function AppNavigator() {
   const insets = useSafeAreaInsets();
@@ -37,10 +37,23 @@ export function AppNavigator() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const previousRoute = useRef<RouteKey>(initialRoute);
+  const mainRoute = useRef<TabRoute>(initialRoute);
+  const sidebarCloseHandler = useRef<(() => void) | null>(null);
+  const sidebarActive = sidebarItems.some((item) => item.key === activeRoute);
 
   const selectRoute = useCallback((route: RouteKey) => {
+    if (tabs.some((tab) => tab.key === route)) mainRoute.current = route as TabRoute;
     setActiveRoute(route);
     setSidebarOpen(false);
+  }, []);
+
+  const closeSidebarScreen = useCallback(() => {
+    setActiveRoute(mainRoute.current);
+    setSidebarOpen(false);
+  }, []);
+
+  const registerCloseHandler = useCallback((handler: (() => void) | null) => {
+    sidebarCloseHandler.current = handler;
   }, []);
 
   useEffect(() => {
@@ -76,6 +89,11 @@ export function AppNavigator() {
         return true;
       }
 
+      if (sidebarActive) {
+        (sidebarCloseHandler.current ?? closeSidebarScreen)();
+        return true;
+      }
+
       if (activeRoute === "nutrition") {
         return nutrition.handleHardwareBack();
       }
@@ -96,7 +114,7 @@ export function AppNavigator() {
     });
 
     return () => subscription.remove();
-  }, [activeRoute, conditioning, nutrition, sidebarOpen, skill, strength]);
+  }, [activeRoute, closeSidebarScreen, conditioning, nutrition, sidebarActive, sidebarOpen, skill, strength]);
 
   return (
     <KeyboardAvoidingView
@@ -107,12 +125,12 @@ export function AppNavigator() {
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
       />
       <View style={styles.workspace}>
-        <Header
+        {!sidebarActive ? <Header
           onMenuPress={() => setSidebarOpen((open) => !open)}
           topInset={insets.top}
-        />
+        /> : null}
         <View style={styles.content}>
-          <ScreenForRoute route={activeRoute} />
+          <ScreenForRoute route={activeRoute} onClose={closeSidebarScreen} registerCloseHandler={registerCloseHandler} />
         </View>
         {activeRoute === "nutrition" ? <NutritionStack /> : null}
         {activeRoute === "conditioning" ? <ConditioningStack /> : null}

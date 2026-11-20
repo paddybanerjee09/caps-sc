@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { PressOpacity } from "../components/PressOpacity";
 import { Screen } from "../components/Screen";
@@ -24,7 +24,10 @@ const CALLSIGN_PRESETS = [
 
 const SUFFIX_STEPS = ["_01", "_99", "_HQ", "_SC", "_PRO"] as const;
 
-export function AccountInfoScreen() {
+export function AccountInfoScreen({ onClose, registerCloseHandler }: {
+  onClose?: () => void;
+  registerCloseHandler?: (handler: (() => void) | null) => void;
+} = {}) {
   const { username, setUsername } = useAppState();
   const { theme } = useAppTheme();
   const [draftUsername, setDraftUsername] = useState(username);
@@ -60,8 +63,63 @@ export function AccountInfoScreen() {
     setSavedBanner(false);
   }
 
+  const requestClose = useCallback(() => {
+    if (!onClose) return;
+    if (hasChanges) {
+      Alert.alert("Discard username changes?", "Your unsaved username will be discarded.", [
+        { text: "Keep editing", style: "cancel" },
+        { text: "Discard", style: "destructive", onPress: onClose },
+      ]);
+    } else {
+      onClose();
+    }
+  }, [hasChanges, onClose]);
+
+  useEffect(() => {
+    registerCloseHandler?.(requestClose);
+    return () => registerCloseHandler?.(null);
+  }, [registerCloseHandler, requestClose]);
+
   return (
     <Screen
+      onClose={onClose ? requestClose : undefined}
+      footer={
+        <>
+          <PressOpacity
+            accessibilityLabel="Reset username changes"
+            disabled={!hasChanges}
+            onPress={resetDraft}
+            silent
+            style={[
+              styles.secondaryFlowButton,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.borderStrong,
+              },
+            ]}
+          >
+            <Text style={[styles.secondaryFlowText, { color: theme.colors.text }]}>
+              Reset
+            </Text>
+          </PressOpacity>
+
+          <PressOpacity
+            accessibilityLabel="Save username"
+            disabled={!hasChanges}
+            onPress={saveUsername}
+            silent
+            style={[
+              styles.primaryFlowButton,
+              { backgroundColor: theme.colors.tertiary },
+            ]}
+          >
+            <Ionicons color={primaryTextColor} name="checkmark-circle" size={20} />
+            <Text style={[styles.primaryFlowText, { color: primaryTextColor }]}>
+              {savedBanner && !hasChanges ? "Saved" : "Save Username"}
+            </Text>
+          </PressOpacity>
+        </>
+      }
       subtitle="Athlete callsign and local profile identity"
       title="Account Information"
     >
@@ -280,41 +338,7 @@ export function AccountInfoScreen() {
           ) : null}
         </View>
 
-        <View style={styles.flowButtons}>
-          <PressOpacity
-            accessibilityLabel="Reset username changes"
-            disabled={!hasChanges}
-            onPress={resetDraft}
-            silent
-            style={[
-              styles.secondaryFlowButton,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.secondaryFlowText, { color: theme.colors.text }]}>
-              Reset
-            </Text>
-          </PressOpacity>
 
-          <PressOpacity
-            accessibilityLabel="Save username"
-            disabled={!hasChanges}
-            onPress={saveUsername}
-            silent
-            style={[
-              styles.primaryFlowButton,
-              { backgroundColor: theme.colors.tertiary },
-            ]}
-          >
-            <Ionicons color={primaryTextColor} name="checkmark-circle" size={20} />
-            <Text style={[styles.primaryFlowText, { color: primaryTextColor }]}>
-              {savedBanner && !hasChanges ? "Saved" : "Save Username"}
-            </Text>
-          </PressOpacity>
-        </View>
       </View>
     </Screen>
   );
@@ -451,6 +475,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: "center",
     minHeight: 52,
+    minWidth: 90,
     paddingHorizontal: tokens.spacing.lg,
   },
   secondaryFlowText: {
@@ -465,10 +490,13 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.xs,
     justifyContent: "center",
     minHeight: 52,
+    minWidth: 150,
     paddingHorizontal: tokens.spacing.lg,
   },
   primaryFlowText: {
+    flexShrink: 1,
     fontSize: 15,
     fontWeight: "800",
+    textAlign: "center",
   },
 });

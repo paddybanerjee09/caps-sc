@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -22,6 +24,7 @@ import { feedbackConfirm, feedbackToggle, feedbackWarn } from "../utils/feedback
 import { dateAtMinute, getSleepBounds } from "../utils/sleep";
 import { LogTimeChanger } from "./LogTimeChanger";
 import { PressOpacity } from "./PressOpacity";
+import { WorkflowFooter, WorkflowHeader } from "./WorkflowChrome";
 
 const tokens = themes.dark;
 const DEFAULT_START_MINUTE = 22 * 60;
@@ -34,7 +37,11 @@ type SleepLogModalProps = {
   wakeDate: Date;
 };
 
-export function SleepLogModal({
+export function SleepLogModal(props: SleepLogModalProps) {
+  return props.visible ? <SleepLogForm key={props.wakeDate.toDateString()} {...props} /> : null;
+}
+
+function SleepLogForm({
   onClose,
   onSaved,
   visible,
@@ -50,15 +57,15 @@ export function SleepLogModal({
   );
   const [useEveryNight, setUseEveryNight] = useState(false);
   const [hasNightlyDefault, setHasNightlyDefault] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const requestId = useRef(0);
+  const [saving, setSaving] = useState(false);
+  const [draftWakeDate, setDraftWakeDate] = useState(wakeDate);
 
   const loadSchedule = useCallback(async () => {
     const currentRequestId = requestId.current + 1;
     requestId.current = currentRequestId;
-    setLoading(true);
-    setLoadError(false);
 
     try {
       const schedule = await getSleepScheduleForWakeDate(db, wakeDate);
@@ -71,6 +78,7 @@ export function SleepLogModal({
       const endMinute = schedule?.endMinute ?? DEFAULT_END_MINUTE;
       setStartTime(dateAtMinute(wakeDate, startMinute));
       setEndTime(dateAtMinute(wakeDate, endMinute));
+      setDraftWakeDate(wakeDate);
       setHasNightlyDefault(schedule !== null);
     } catch {
       if (requestId.current === currentRequestId) {
@@ -89,13 +97,21 @@ export function SleepLogModal({
       return;
     }
 
-    setUseEveryNight(false);
     void loadSchedule();
 
     return () => {
       requestId.current += 1;
     };
   }, [loadSchedule, visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!saving) onClose();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [onClose, saving, visible]);
 
   if (!visible) {
     return null;
@@ -116,23 +132,25 @@ export function SleepLogModal({
   }
 
   async function saveSleep() {
+    if (saving) return;
     if (startMinute === endMinute) {
       feedbackWarn();
       Alert.alert("Invalid sleep time", "Start and end times must be different.");
       return;
     }
 
+    setSaving(true);
     try {
       if (useEveryNight) {
         await replaceSleepScheduleFromWakeDate(
           db,
-          wakeDate,
+          draftWakeDate,
           startMinute,
           endMinute,
         );
       } else {
         const { startAt, endAt } = getSleepBounds(
-          wakeDate,
+          draftWakeDate,
           startMinute,
           endMinute,
         );
@@ -144,12 +162,14 @@ export function SleepLogModal({
       closeCard();
     } catch {
       Alert.alert("Couldn’t save sleep", "Please try again.");
+    } finally {
+      setSaving(false);
     }
   }
 
   async function disableNightlyDefault() {
     try {
-      await disableSleepScheduleFromWakeDate(db, wakeDate);
+      await disableSleepScheduleFromWakeDate(db, draftWakeDate);
       feedbackWarn();
       await onSaved?.();
       closeCard();
@@ -182,37 +202,40 @@ export function SleepLogModal({
         styles.inlineCard,
         {
           backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.tertiary,
+
         },
       ]}
     >
-      <View style={styles.cardHeader}>
-        <View>
-          <View style={styles.titleRow}>
-            <Ionicons color={theme.colors.tertiary} name="moon-outline" size={18} />
-            <Text style={[styles.cardHeaderLabel, { color: theme.colors.text }]}>
-              SLEEP WINDOW · {durationHours} HRS
-            </Text>
+      <WorkflowHeader
+        topInset={0}
+        title="Log Sleep"
+        sideWidth={116}
+        onClose={() => { if (!saving) closeCard(); }}
+        right={
+          <View style={styles.timeBar}>
+            <View style={styles.timeField}>
+              <Text style={[styles.timeLabel, { color: theme.colors.textMuted }]}>Bed</Text>
+              <LogTimeChanger label="Bedtime / Lights out" onChange={(date) => {
+                setStartTime(date);
+                const wake = new Date(date);
+                if (getMinuteOfDay(date) > endMinute) wake.setDate(wake.getDate() + 1);
+                setDraftWakeDate(wake);
+                setEndTime(dateAtMinute(wake, endMinute));
+              }} value={new Date(getSleepBounds(draftWakeDate, startMinute, endMinute).startAt)} />
+            </View>
+            <View style={styles.timeField}>
+              <Text style={[styles.timeLabel, { color: theme.colors.textMuted }]}>Wake</Text>
+              <LogTimeChanger label="Wake-up time" onChange={(date) => {
+                setEndTime(date);
+                setDraftWakeDate(date);
+              }} value={dateAtMinute(draftWakeDate, endMinute)} />
+            </View>
           </View>
-          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-            Night ending {formatWakeDate(wakeDate)}
-          </Text>
-        </View>
-        <PressOpacity
-          accessibilityLabel="Close sleep logger"
-          onPress={closeCard}
-          style={[
-            styles.closeButton,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
-          <Ionicons color={theme.colors.text} name="close" size={18} />
-        </PressOpacity>
-      </View>
-
+        }
+      />
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.body}>
+        <Text style={[styles.cardHeaderLabel, { color: theme.colors.text }]}>{durationHours} HRS</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>Night ending {formatWakeDate(draftWakeDate)}</Text>
       {loading ? (
         <View style={styles.state}>
           <ActivityIndicator color={theme.colors.tertiary} />
@@ -222,7 +245,7 @@ export function SleepLogModal({
           <Text style={{ color: theme.colors.text }}>
             Couldn’t load sleep schedule
           </Text>
-          <PressOpacity onPress={() => void loadSchedule()}>
+          <PressOpacity onPress={() => { setLoading(true); setLoadError(false); void loadSchedule(); }}>
             <Text style={{ color: theme.colors.tertiary, fontWeight: "800" }}>
               Retry
             </Text>
@@ -230,17 +253,6 @@ export function SleepLogModal({
         </View>
       ) : (
         <>
-          <LogTimeChanger
-            label="Bedtime / Lights out"
-            onChange={setStartTime}
-            value={startTime}
-          />
-          <LogTimeChanger
-            label="Wake-up time"
-            onChange={setEndTime}
-            value={endTime}
-          />
-
           <Pressable
             accessibilityLabel="Use this time for every night"
             accessibilityRole="checkbox"
@@ -300,23 +312,10 @@ export function SleepLogModal({
         </>
       )}
 
-      <View style={styles.actions}>
+      </ScrollView>
+      <WorkflowFooter onBack={closeCard} disabled={saving}>
         <PressOpacity
-          onPress={closeCard}
-          style={[
-            styles.cancelButton,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <Text style={[styles.cancelText, { color: theme.colors.text }]}>
-            Cancel
-          </Text>
-        </PressOpacity>
-        <PressOpacity
-          disabled={loading || loadError}
+          disabled={saving || loading || loadError}
           onPress={() => void saveSleep()}
           silent
           style={[
@@ -329,7 +328,7 @@ export function SleepLogModal({
             Save Sleep ({durationHours}h)
           </Text>
         </PressOpacity>
-      </View>
+      </WorkflowFooter>
     </View>
   );
 }
@@ -347,11 +346,12 @@ function formatWakeDate(date: Date) {
 }
 
 const styles = StyleSheet.create({
+  body: { flexGrow: 1, padding: 16, gap: 12 },
+  timeBar: { gap: 4 },
+  timeField: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 },
+  timeLabel: { fontSize: 11, fontWeight: "700" },
   inlineCard: {
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1.5,
-    gap: tokens.spacing.md,
-    padding: tokens.spacing.lg,
+    ...StyleSheet.absoluteFill,
   },
   cardHeader: {
     alignItems: "center",

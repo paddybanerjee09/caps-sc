@@ -192,6 +192,7 @@ export function HomeScreen() {
   }
 
   return (
+    <View style={{ flex: 1 }}>
     <Screen
       subtitle="Athlete status, rapid session logging, and 24-hour timeline"
       title="Home"
@@ -366,22 +367,6 @@ export function HomeScreen() {
         </Animated.View>
       </View>
 
-      {/* Inline Weight & Sleep Cards (No Modals) */}
-      <WeightLogModal
-        entryToEdit={selectedWeightEntry ?? undefined}
-        onClose={closeWeightModal}
-        onDeleted={handleWeightDeleted}
-        onSaved={handleLoggedEntrySaved}
-        visible={weightModalOpen}
-      />
-
-      <SleepLogModal
-        onClose={() => setSleepModalOpen(false)}
-        onSaved={loadSelectedDateEntries}
-        visible={sleepModalOpen}
-        wakeDate={selectedDate}
-      />
-
       {/* Card 3: Section Selector & Daily Timeline Card */}
       <SegmentedSelector
         accessibilityLabel="Home sections"
@@ -506,6 +491,20 @@ export function HomeScreen() {
         </SlidingPanels>
       </View>
     </Screen>
+      <WeightLogModal
+        entryToEdit={selectedWeightEntry ?? undefined}
+        onClose={closeWeightModal}
+        onDeleted={handleWeightDeleted}
+        onSaved={handleLoggedEntrySaved}
+        visible={weightModalOpen}
+      />
+      <SleepLogModal
+        onClose={() => setSleepModalOpen(false)}
+        onSaved={loadSelectedDateEntries}
+        visible={sleepModalOpen}
+        wakeDate={selectedDate}
+      />
+    </View>
   );
 }
 

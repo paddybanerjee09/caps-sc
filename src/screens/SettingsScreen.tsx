@@ -16,7 +16,7 @@ import { feedbackConfirm, feedbackStep } from "../utils/feedback";
 
 const tokens = themes.dark;
 
-export function SettingsScreen() {
+export function SettingsScreen({ onClose }: { onClose?: () => void } = {}) {
   const {
     colorScheme,
     setColorScheme,
@@ -49,6 +49,7 @@ export function SettingsScreen() {
 
   return (
     <Screen
+      onClose={onClose}
       subtitle="High-contrast display, unit standards, and sensory feedback"
       title="Settings"
     >
