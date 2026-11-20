@@ -9,7 +9,7 @@ CAPS.trees.architecture = {
     title: "App",
     kind: "app",
     tagline: "index.ts + provider stack",
-    files: ["index.ts", "src/App.tsx"],
+    files: ["index.ts", "src/App.tsx", "package.json", "app.json"],
     summary:
       "`index.ts` imports `conditioningLocationTask` first so the GPS background task is registered, then `registerRootComponent(App)`. `App` nests SafeAreaProvider → SQLiteProvider(`caps.db`, `migrateDatabase`) → AppThemeProvider → AppStateProvider → NutritionWorkspaceProvider → ConditioningWorkspaceProvider → AppNavigator.",
     guardrails: [
@@ -56,6 +56,30 @@ CAPS.trees.architecture = {
       },
     ],
     children: [
+      {
+        id: "expo-sdk",
+        title: "Expo SDK dependencies",
+        kind: "config",
+        status: "active",
+        tagline: "SDK 58 / React 19.3 / React Native 0.88",
+        files: ["package.json", "package-lock.json", "app.json", "src/components/DayTimeline.tsx", "src/navigation/AppNavigator.tsx", "src/screens/SkillScreen.tsx", "src/screens/StrengthTrainingScreen.tsx"],
+        summary: "Expo-compatible versions are selected with expo install. The SDK 58 upgrade regenerated the stale lockfile, aligned React types and ESLint config, declared native asset/font peers, and migrated removed config and strict React Native types. Native device verification remains separate from type and bundling checks.",
+        guardrails: ["Keep peer dependency checks enabled; the picker does not require react-native-windows for Android/iOS (SDK 58 upgrade)."],
+        versions: [
+          {
+            n: 1,
+            name: "SDK 58 dependency alignment",
+            date: "2026-11-19 23:39 -0500",
+            commits: ["9826e16"],
+            request: "Resolve ERESOLVE when aligning dependencies after upgrading to Expo SDK 58.",
+            changes: [
+              "Regenerated the stale SDK 57 lockfile and installed the SDK 58 dependency set without force or legacy peer resolution.",
+              "Aligned React types and Expo ESLint config; declared expo-font and expo-asset as direct dependencies.",
+              "Migrated ScrollView instance refs and empty-list props; removed obsolete status-bar and edge-to-edge settings.",
+            ],
+          },
+        ],
+      },
       {
         id: "app-navigator",
         title: "AppNavigator",

@@ -16,8 +16,9 @@
 - `npx expo install --check`: final recheck passed, dependencies up to date.
 - `npm run typecheck`: passed after the minimal strict API migration.
 - Android Metro export: passed, 1,322 modules; output at `C:/Users/paddy/AppData/Local/Temp/caps-sdk58-export`. The previous handoff's `expo/internal/bundle-origin` failure no longer reproduces. This is bundling evidence, not a native/device test.
-- Feature Tree data validation: passed, with 11 existing unmapped historical commit warnings. SDK upgrade is represented under `architecture:expo-sdk`.
+- Feature Tree synchronization complete: regenerated `docs/feature-tree/data/commits.js`, mapped implementation commit `9826e16` under `architecture:expo-sdk`, and passed `npm run feature-tree -- --check`. Twelve existing unmapped historical commit warnings remain in the refreshed inventory.
 - Initial Expo Doctor: 18/20, identifying the config and native-peer issues fixed above. Final `npx expo-doctor`: 20/20 passed.
+- `npm run lint`: reports 19 errors, matching the prior refactor handoff's count and categories (Feature Tree `CAPS` globals and React Hooks diagnostics in untouched app code). No lint-driven refactor was included.
 - npm reports five moderate audit findings. No broad or breaking audit fix was run.
 
 ## Ownership and next steps
