@@ -42,8 +42,6 @@ import type { CatalogFood, CatalogServing } from "../../types/nutrition";
 
 const tokens = themes.dark;
 const FAVOURITE_GOLD = "#EAB308";
-const AMOUNT_PRESETS = [0.5, 1, 1.5, 2, 3, 4] as const;
-const CALORIE_PRESETS = [100, 200, 300, 400, 500, 750] as const;
 
 export function NutritionFactsScreen() {
   const db = useSQLiteContext();
@@ -53,7 +51,6 @@ export function NutritionFactsScreen() {
     closeToRoot,
     completeCustomFood,
     facts,
-    pop,
     returnToMealLog,
     setFacts,
     stack,
@@ -170,13 +167,6 @@ export function NutritionFactsScreen() {
     });
   }
 
-  function stepAmount(delta: number) {
-    feedbackStep(delta > 0 ? "up" : "down");
-    const base = amountValid ? amount : 1;
-    const next = Math.max(0.25, Math.round((base + delta) * 100) / 100);
-    changeAmount(String(next));
-  }
-
   function changeCalories(value: string) {
     if (
       !caloriesCanDrive ||
@@ -197,16 +187,6 @@ export function NutritionFactsScreen() {
       calorieInput: value,
       inputMode: "calories",
     });
-  }
-
-  function stepCalories(delta: number) {
-    if (!caloriesCanDrive) {
-      return;
-    }
-    feedbackStep(delta > 0 ? "up" : "down");
-    const currentCals = Number(calorieText) || 100;
-    const nextCals = Math.max(25, Math.round(currentCals + delta));
-    changeCalories(String(nextCals));
   }
 
   function selectServing(next: CatalogServing) {
@@ -280,7 +260,6 @@ export function NutritionFactsScreen() {
     <NutritionPage
       footer={
         <NutritionActionBar
-          left={{ accessibilityLabel: "Back", label: "Back", onPress: pop }}
           right={
             creatingCustomFood
               ? {
@@ -424,39 +403,7 @@ export function NutritionFactsScreen() {
         <Text style={[styles.subLabel, { color: theme.colors.textMuted }]}>
           AMOUNT MULTIPLIER
         </Text>
-        <View style={styles.stepperRow}>
-          <PressOpacity
-            accessibilityLabel="Decrease amount by 1"
-            onPress={() => stepAmount(-1)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              -1
-            </Text>
-          </PressOpacity>
-          <PressOpacity
-            accessibilityLabel="Decrease amount by 0.25"
-            onPress={() => stepAmount(-0.25)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              -.25
-            </Text>
-          </PressOpacity>
+        <View style={styles.inputRow}>
 
           <NutritionTextInput
             accessibilityLabel="Serving amount"
@@ -467,83 +414,11 @@ export function NutritionFactsScreen() {
             value={facts.amountInput}
           />
 
-          <PressOpacity
-            accessibilityLabel="Increase amount by 0.25"
-            onPress={() => stepAmount(0.25)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              +.25
-            </Text>
-          </PressOpacity>
-          <PressOpacity
-            accessibilityLabel="Increase amount by 1"
-            onPress={() => stepAmount(1)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              +1
-            </Text>
-          </PressOpacity>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.presetStrip}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-        >
-          {AMOUNT_PRESETS.map((preset) => {
-            const selected = amountValid && Math.abs(amount - preset) < 0.01;
-            return (
-              <PressOpacity
-                accessibilityLabel={`Set amount ${preset}`}
-                key={preset}
-                onPress={() => {
-                  feedbackStep("up");
-                  changeAmount(String(preset));
-                }}
-                silent
-                style={[
-                  styles.presetChip,
-                  {
-                    backgroundColor: selected
-                      ? theme.colors.tertiary
-                      : theme.colors.surfaceMuted,
-                    borderColor: selected
-                      ? theme.colors.tertiary
-                      : theme.colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.presetChipText,
-                    { color: selected ? activeText : theme.colors.text },
-                  ]}
-                >
-                  {preset}×
-                </Text>
-              </PressOpacity>
-            );
-          })}
-        </ScrollView>
       </View>
 
-      {/* Card 2: Target Calories Stepper */}
+      {/* Card 2: Target Calories */}
       <View
         style={[
           styles.card,
@@ -562,41 +437,7 @@ export function NutritionFactsScreen() {
           </Text>
         </View>
 
-        <View style={styles.stepperRow}>
-          <PressOpacity
-            accessibilityLabel="Decrease calories by 100"
-            disabled={!caloriesCanDrive}
-            onPress={() => stepCalories(-100)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              -100
-            </Text>
-          </PressOpacity>
-          <PressOpacity
-            accessibilityLabel="Decrease calories by 25"
-            disabled={!caloriesCanDrive}
-            onPress={() => stepCalories(-25)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              -25
-            </Text>
-          </PressOpacity>
+        <View style={styles.inputRow}>
 
           <NutritionTextInput
             accessibilityLabel="Calories"
@@ -615,72 +456,8 @@ export function NutritionFactsScreen() {
             value={calorieText}
           />
 
-          <PressOpacity
-            accessibilityLabel="Increase calories by 25"
-            disabled={!caloriesCanDrive}
-            onPress={() => stepCalories(25)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              +25
-            </Text>
-          </PressOpacity>
-          <PressOpacity
-            accessibilityLabel="Increase calories by 100"
-            disabled={!caloriesCanDrive}
-            onPress={() => stepCalories(100)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              +100
-            </Text>
-          </PressOpacity>
         </View>
 
-        {caloriesCanDrive ? (
-          <ScrollView
-            contentContainerStyle={styles.presetStrip}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          >
-            {CALORIE_PRESETS.map((preset) => (
-              <PressOpacity
-                accessibilityLabel={`Set calories to ${preset}`}
-                key={preset}
-                onPress={() => {
-                  feedbackStep("up");
-                  changeCalories(String(preset));
-                }}
-                silent
-                style={[
-                  styles.presetChip,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.presetChipText, { color: theme.colors.text }]}>
-                  {preset} kcal
-                </Text>
-              </PressOpacity>
-            ))}
-          </ScrollView>
-        ) : null}
       </View>
 
       {/* Card 3: Macronutrient Breakdown */}
@@ -759,24 +536,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
   },
-  stepperRow: {
+  inputRow: {
     alignItems: "center",
     flexDirection: "row",
     gap: 6,
-  },
-  stepBtn: {
-    alignItems: "center",
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    minWidth: 46,
-    paddingHorizontal: 6,
-  },
-  stepBtnText: {
-    fontSize: 12,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
   },
   centerInput: {
     flex: 1,
@@ -786,20 +549,6 @@ const styles = StyleSheet.create({
   },
   presetStrip: {
     gap: 6,
-  },
-  presetChip: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 40,
-    minWidth: 52,
-    paddingHorizontal: tokens.spacing.sm,
-  },
-  presetChipText: {
-    fontSize: 12,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
   },
   inputDisabled: {
     opacity: tokens.opacity.disabled,

@@ -9,10 +9,11 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { PressOpacity } from "../PressOpacity";
+import { WorkflowFooter, WorkflowHeader } from "../WorkflowChrome";
+import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
 import { NUTRITION_COLORS } from "../../constants/nutrition";
 import { formatAmount } from "../../nutrition/calculations";
 import { useAppTheme } from "../../theme/ThemeContext";
@@ -20,7 +21,22 @@ import { appColorPalette, readableTextColor, themes } from "../../theme/theme";
 import type { NutrientSnapshot } from "../../types/nutrition";
 
 const tokens = themes.dark;
-const SIDE_WIDTH = 76;
+
+export { WorkflowHeader } from "../WorkflowChrome";
+
+export function NutritionFooter({ children }: { children?: ReactNode }) {
+  const { pop, stack, transitioning } = useNutritionWorkspace();
+  const depth = stack.filter((entry) => entry.phase !== "exit").length;
+  return (
+    <WorkflowFooter
+      backLabel={depth > 1 ? "Back" : "Cancel"}
+      disabled={transitioning}
+      onBack={pop}
+    >
+      {children}
+    </WorkflowFooter>
+  );
+}
 
 export function useDangerColors() {
   const { colorScheme } = useAppTheme();
@@ -85,68 +101,6 @@ export function NutritionTextInput({
       {...props}
       style={[styles.textInput, frame, { color: theme.colors.text }, style]}
     />
-  );
-}
-
-type WorkflowHeaderProps = {
-  center?: ReactNode;
-  onClose: () => void;
-  right?: ReactNode;
-  sideWidth?: number;
-  title?: string;
-};
-
-export function WorkflowHeader({
-  center,
-  onClose,
-  right,
-  sideWidth = SIDE_WIDTH,
-  title,
-}: WorkflowHeaderProps) {
-  const insets = useSafeAreaInsets();
-  const { theme } = useAppTheme();
-
-  return (
-    <View
-      style={[
-        styles.header,
-        {
-          backgroundColor: theme.colors.surface,
-          borderBottomColor: theme.colors.borderStrong,
-          paddingTop: insets.top,
-        },
-      ]}
-    >
-      <View style={[styles.side, { width: sideWidth }]}>
-        <PressOpacity
-          accessibilityLabel="Close"
-          onPress={onClose}
-          style={[
-            styles.iconButton,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
-          <Ionicons color={theme.colors.text} name="close" size={22} />
-        </PressOpacity>
-      </View>
-      <View style={styles.center}>
-        {center ?? (
-          <Text
-            accessibilityRole="header"
-            numberOfLines={2}
-            style={[styles.title, { color: theme.colors.text }]}
-          >
-            {title}
-          </Text>
-        )}
-      </View>
-      <View style={[styles.side, styles.sideRight, { width: sideWidth }]}>
-        {right}
-      </View>
-    </View>
   );
 }
 
@@ -215,42 +169,36 @@ export function NutritionActionBar({
   right,
 }: {
   danger?: ActionProps;
-  left: ActionProps;
+  left?: ActionProps;
   right: ActionProps;
 }) {
   const { theme } = useAppTheme();
   const dangerColors = useDangerColors();
 
   return (
-    <View
-      style={[
-        styles.actionBar,
-        {
-          backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.borderStrong,
-        },
-      ]}
-    >
-      <PressOpacity
-        accessibilityLabel={left.accessibilityLabel}
-        disabled={left.disabled}
-        onPress={left.onPress}
-        style={[
-          styles.actionSlot,
-          {
-            backgroundColor: theme.colors.surfaceMuted,
-            borderColor: theme.colors.borderStrong,
-            borderWidth: 1,
-          },
-        ]}
-      >
-        <Text
-          numberOfLines={2}
-          style={[styles.actionLabel, { color: theme.colors.text }]}
+    <NutritionFooter>
+      {left ? (
+        <PressOpacity
+          accessibilityLabel={left.accessibilityLabel}
+          disabled={left.disabled}
+          onPress={left.onPress}
+          style={[
+            styles.actionSlot,
+            {
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.borderStrong,
+              borderWidth: 1,
+            },
+          ]}
         >
-          {left.label}
-        </Text>
-      </PressOpacity>
+          <Text
+            numberOfLines={2}
+            style={[styles.actionLabel, { color: theme.colors.text }]}
+          >
+            {left.label}
+          </Text>
+        </PressOpacity>
+      ) : null}
       <PressOpacity
         accessibilityLabel={right.accessibilityLabel}
         disabled={right.disabled}
@@ -289,7 +237,7 @@ export function NutritionActionBar({
           </Text>
         </PressOpacity>
       ) : null}
-    </View>
+    </NutritionFooter>
   );
 }
 
@@ -343,41 +291,6 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
   },
-  header: {
-    alignItems: "center",
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    minHeight: 60,
-    paddingHorizontal: tokens.spacing.sm,
-    paddingVertical: 6,
-  },
-  side: {
-    alignItems: "flex-start",
-    width: SIDE_WIDTH,
-  },
-  sideRight: {
-    alignItems: "flex-end",
-  },
-  center: {
-    alignItems: "center",
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 48,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "800",
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  iconButton: {
-    alignItems: "center",
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    height: 48,
-    justifyContent: "center",
-    width: 48,
-  },
   body: {
     flex: 1,
   },
@@ -387,19 +300,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
     paddingTop: tokens.spacing.md,
   },
-  actionBar: {
-    borderTopWidth: 1,
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-  },
   actionSlot: {
     alignItems: "center",
     borderRadius: tokens.radius.md,
     flex: 1,
     justifyContent: "center",
     minHeight: 52,
+    minWidth: 90,
     paddingHorizontal: tokens.spacing.xs,
   },
   dangerAction: {

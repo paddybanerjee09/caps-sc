@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
 import {
   NutritionPage,
+  NutritionFooter,
   NutritionTextInput,
   useDangerColors,
 } from "../../components/nutrition/NutritionChrome";
@@ -28,30 +29,26 @@ import type { ExtraNutrientValue, FoodUnit } from "../../types/nutrition";
 
 const tokens = themes.dark;
 const UNITS: FoodUnit[] = ["g", "ml", "tsp", "tbsp", "serving"];
-const SERVING_AMOUNT_PRESETS = [1, 30, 50, 100, 150, 250] as const;
 const MACRO_FIELDS = [
   {
     key: "calories",
     label: "Calories",
     name: "Calories (kcal)",
-    step: 25,
     unit: "kcal",
   },
   {
     key: "protein",
     label: "Protein",
     name: "Protein (g)",
-    step: 5,
     unit: "g",
   },
   {
     key: "carbohydrates",
     label: "Carbs",
     name: "Carbohydrates (g)",
-    step: 5,
     unit: "g",
   },
-  { key: "fat", label: "Fat", name: "Fat (g)", step: 2, unit: "g" },
+  { key: "fat", label: "Fat", name: "Fat (g)", unit: "g" },
 ] as const;
 const NUTRIENT_ROWS = pairs(NUTRIENT_REGISTRY);
 
@@ -81,19 +78,6 @@ export function CreateCustomFoodScreen() {
       ? calorieCrossCheck(calories, protein, carbohydrates, fat)
       : null;
   const activeText = readableTextColor(theme.colors.tertiary);
-
-  function stepNumericField(
-    key: "servingAmount" | "calories" | "protein" | "carbohydrates" | "fat",
-    delta: number,
-    min = 0,
-  ) {
-    feedbackStep(delta > 0 ? "up" : "down");
-    updateCustomForm((form) => {
-      const current = Number(form[key]) || 0;
-      const next = Math.max(min, Math.round((current + delta) * 10) / 10);
-      return { ...form, [key]: String(next) };
-    });
-  }
 
   async function saveAndContinue() {
     if (saving || transitioning) {
@@ -157,16 +141,18 @@ export function CreateCustomFoodScreen() {
   return (
     <NutritionPage
       footer={
-        <PressOpacity
-          accessibilityLabel="Next"
-          disabled={saving}
-          onPress={() => void saveAndContinue()}
-          style={[styles.next, { backgroundColor: theme.colors.tertiary }]}
-        >
-          <Text style={[styles.nextLabel, { color: activeText }]}>
-            {saving ? "Saving" : "Next"}
-          </Text>
-        </PressOpacity>
+        <NutritionFooter>
+          <PressOpacity
+            accessibilityLabel="Next"
+            disabled={saving}
+            onPress={() => void saveAndContinue()}
+            style={[styles.next, { backgroundColor: theme.colors.tertiary }]}
+          >
+            <Text style={[styles.nextLabel, { color: activeText }]}>
+              {saving ? "Saving" : "Next"}
+            </Text>
+          </PressOpacity>
+        </NutritionFooter>
       }
       onClose={closeToRoot}
       title={customForm.customFoodId ? "Edit Food" : "New Food"}
@@ -257,39 +243,8 @@ export function CreateCustomFoodScreen() {
         <Text style={[styles.label, { color: theme.colors.text }]}>
           Base serving amount
         </Text>
-        <View style={styles.stepperRow}>
-          <PressOpacity
-            accessibilityLabel="Decrease base serving by 10"
-            onPress={() => stepNumericField("servingAmount", -10, 1)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              -10
-            </Text>
-          </PressOpacity>
-          <PressOpacity
-            accessibilityLabel="Decrease base serving by 1"
-            onPress={() => stepNumericField("servingAmount", -1, 1)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              -1
-            </Text>
-          </PressOpacity>
+        <View style={styles.inputRow}>
+
           <NutritionTextInput
             accessibilityLabel="Base serving amount"
             invalid={Boolean(errors.servingAmount)}
@@ -301,71 +256,9 @@ export function CreateCustomFoodScreen() {
             style={styles.centerInput}
             value={customForm.servingAmount}
           />
-          <PressOpacity
-            accessibilityLabel="Increase base serving by 1"
-            onPress={() => stepNumericField("servingAmount", 1, 1)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              +1
-            </Text>
-          </PressOpacity>
-          <PressOpacity
-            accessibilityLabel="Increase base serving by 10"
-            onPress={() => stepNumericField("servingAmount", 10, 1)}
-            silent
-            style={[
-              styles.stepBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-              +10
-            </Text>
-          </PressOpacity>
+
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.presetStrip}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-        >
-          {SERVING_AMOUNT_PRESETS.map((preset) => (
-            <PressOpacity
-              accessibilityLabel={`Set base serving amount ${preset}`}
-              key={preset}
-              onPress={() => {
-                feedbackStep("up");
-                updateCustomForm((form) => ({
-                  ...form,
-                  servingAmount: String(preset),
-                }));
-              }}
-              silent
-              style={[
-                styles.presetChip,
-                {
-                  backgroundColor: theme.colors.surfaceMuted,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Text style={[styles.presetChipText, { color: theme.colors.text }]}>
-                {preset} {customForm.servingUnit}
-              </Text>
-            </PressOpacity>
-          ))}
-        </ScrollView>
         <FieldErrors messages={[errors.servingAmount]} />
       </View>
 
@@ -384,43 +277,12 @@ export function CreateCustomFoodScreen() {
         </Text>
 
         {MACRO_FIELDS.map((field) => (
-          <View key={field.key} style={styles.macroStepBlock}>
+          <View key={field.key} style={styles.macroField}>
             <Text style={[styles.label, { color: theme.colors.text }]}>
               {field.name}
             </Text>
-            <View style={styles.stepperRow}>
-              <PressOpacity
-                accessibilityLabel={`Decrease ${field.label}`}
-                onPress={() => stepNumericField(field.key, -field.step, 0)}
-                silent
-                style={[
-                  styles.stepBtn,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.borderStrong,
-                  },
-                ]}
-              >
-                <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-                  -{field.step}
-                </Text>
-              </PressOpacity>
-              <PressOpacity
-                accessibilityLabel={`Decrease ${field.label} by 1`}
-                onPress={() => stepNumericField(field.key, -1, 0)}
-                silent
-                style={[
-                  styles.stepBtn,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.borderStrong,
-                  },
-                ]}
-              >
-                <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-                  -1
-                </Text>
-              </PressOpacity>
+            <View style={styles.inputRow}>
+
               <NutritionTextInput
                 accessibilityLabel={field.name}
                 invalid={Boolean(errors[field.key])}
@@ -432,38 +294,7 @@ export function CreateCustomFoodScreen() {
                 style={styles.centerInput}
                 value={customForm[field.key]}
               />
-              <PressOpacity
-                accessibilityLabel={`Increase ${field.label} by 1`}
-                onPress={() => stepNumericField(field.key, 1, 0)}
-                silent
-                style={[
-                  styles.stepBtn,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.borderStrong,
-                  },
-                ]}
-              >
-                <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-                  +1
-                </Text>
-              </PressOpacity>
-              <PressOpacity
-                accessibilityLabel={`Increase ${field.label}`}
-                onPress={() => stepNumericField(field.key, field.step, 0)}
-                silent
-                style={[
-                  styles.stepBtn,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.borderStrong,
-                  },
-                ]}
-              >
-                <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-                  +{field.step}
-                </Text>
-              </PressOpacity>
+
             </View>
           </View>
         ))}
@@ -744,47 +575,17 @@ const styles = StyleSheet.create({
     minWidth: 58,
     paddingHorizontal: tokens.spacing.sm,
   },
-  stepperRow: {
+  inputRow: {
     alignItems: "center",
     flexDirection: "row",
     gap: 6,
-  },
-  stepBtn: {
-    alignItems: "center",
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    minWidth: 46,
-    paddingHorizontal: 6,
-  },
-  stepBtnText: {
-    fontSize: 12,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
   },
   centerInput: {
     flex: 1,
     fontVariant: ["tabular-nums"],
     textAlign: "center",
   },
-  presetStrip: {
-    gap: 6,
-  },
-  presetChip: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 40,
-    paddingHorizontal: tokens.spacing.sm,
-  },
-  presetChipText: {
-    fontSize: 12,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
-  },
-  macroStepBlock: {
+  macroField: {
     gap: 4,
   },
   gridRow: {
@@ -820,8 +621,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: tokens.radius.md,
     justifyContent: "center",
-    marginHorizontal: tokens.spacing.md,
-    marginVertical: tokens.spacing.sm,
+    flex: 1,
     minHeight: 52,
   },
   nextLabel: {

@@ -43,7 +43,6 @@ export function SavedMealsScreen() {
     dataRevision,
     markNutritionChanged,
     openEditSavedMeal,
-    pop,
     returnToMealLog,
     updateDraft,
   } = useNutritionWorkspace();
@@ -206,7 +205,6 @@ export function SavedMealsScreen() {
       }
       footer={
         <NutritionActionBar
-          left={{ accessibilityLabel: "Back", label: "Back", onPress: pop }}
           right={{
             accessibilityLabel: "Back to meal",
             label: "Back to Meal",

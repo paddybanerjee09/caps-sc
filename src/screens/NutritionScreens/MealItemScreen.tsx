@@ -80,7 +80,6 @@ export function MealItemScreen() {
     customForm,
     markNutritionChanged,
     picker,
-    pop,
     push,
     registerBackHandler,
     setFacts,
@@ -402,19 +401,7 @@ export function MealItemScreen() {
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <WorkflowHeader
-        center={
-          <NutritionTextInput
-            accessibilityLabel="Search foods"
-            autoCapitalize="none"
-            autoCorrect={false}
-            containerStyle={styles.search}
-            icon="search"
-            onChangeText={(query) => updatePicker((current) => ({ ...current, query }))}
-            placeholder="Search foods"
-            returnKeyType="search"
-            value={picker.query}
-          />
-        }
+        title="Add Meal Item"
         onClose={closeToRoot}
         right={
           <PressOpacity
@@ -426,6 +413,19 @@ export function MealItemScreen() {
           </PressOpacity>
         }
       />
+      <View style={styles.searchRow}>
+        <NutritionTextInput
+          accessibilityLabel="Search foods"
+          autoCapitalize="none"
+          autoCorrect={false}
+          containerStyle={styles.search}
+          icon="search"
+          onChangeText={(query) => updatePicker((current) => ({ ...current, query }))}
+          placeholder="Search foods"
+          returnKeyType="search"
+          value={picker.query}
+        />
+      </View>
       <View
         onLayout={(event) => setRowFrame(event.nativeEvent.layout)}
         style={styles.selectorRow}
@@ -591,7 +591,6 @@ export function MealItemScreen() {
         </PressOpacity>
       ) : null}
       <NutritionActionBar
-        left={{ accessibilityLabel: "Back", label: "Back", onPress: pop }}
         right={{
           accessibilityLabel: "Scan barcode",
           label: "Scan Barcode",
@@ -983,14 +982,15 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
   },
+  searchRow: { paddingHorizontal: tokens.spacing.md, paddingTop: tokens.spacing.sm },
   search: {
     width: "100%",
   },
   iconButton: {
     alignItems: "center",
-    height: 44,
+    height: 48,
     justifyContent: "center",
-    width: 44,
+    width: 48,
   },
   selectorRow: {
     alignItems: "center",

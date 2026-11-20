@@ -14,7 +14,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { NutritionPage, NutritionTextInput } from "../../components/nutrition/NutritionChrome";
+import { NutritionFooter, NutritionPage, NutritionTextInput } from "../../components/nutrition/NutritionChrome";
 import { PressOpacity } from "../../components/PressOpacity";
 import { normalizeBarcode } from "../../nutrition/calculations";
 import { NUTRITION_TRANSITION } from "../../nutrition/motion";
@@ -150,7 +150,7 @@ export function BarcodeScanScreen({ active }: { active: boolean }) {
   return (
     <NutritionPage
       footer={
-        <View style={[styles.bar, { borderTopColor: theme.colors.border }]}>
+        <NutritionFooter>
           <PressOpacity
             accessibilityLabel={torch ? "Turn torch off" : "Turn torch on"}
             onPress={() => setTorch((current) => !current)}
@@ -177,11 +177,11 @@ export function BarcodeScanScreen({ active }: { active: boolean }) {
               name={scanner.manualEntryOpen ? "chevron-down" : "barcode-outline"}
               size={22}
             />
-            <Text style={{ color: theme.colors.text }}>
+            <Text numberOfLines={2} style={{ color: theme.colors.text, flex: 1 }}>
               {scanner.manualEntryOpen ? "Hide Barcode Entry" : "Type Barcode"}
             </Text>
           </PressOpacity>
-        </View>
+        </NutritionFooter>
       }
       onClose={() => {
         requestId.current += 1;
@@ -357,14 +357,6 @@ const styles = StyleSheet.create({
     fontSize: tokens.typography.body.fontSize,
     fontWeight: "700",
   },
-  bar: {
-    alignItems: "center",
-    borderTopWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 64,
-    paddingHorizontal: tokens.spacing.lg,
-  },
   barButton: {
     alignItems: "center",
     height: 48,
@@ -374,6 +366,7 @@ const styles = StyleSheet.create({
   typeButton: {
     alignItems: "center",
     flexDirection: "row",
+    flex: 1,
     gap: tokens.spacing.sm,
     minHeight: 48,
   },

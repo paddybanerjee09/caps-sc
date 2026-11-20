@@ -197,21 +197,6 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
     mealDraft.title.trim().length > 0 &&
     itemsValid !== null;
 
-  function stepItemQuantity(clientId: string, delta: number) {
-    feedbackStep(delta > 0 ? "up" : "down");
-    updateDraft(draftKey, (draft) => ({
-      ...draft,
-      items: draft.items.map((item) => {
-        if (item.clientId !== clientId) {
-          return item;
-        }
-        const currentQty = Number(item.quantityInput) || 1;
-        const nextQty = Math.max(0.25, Math.round((currentQty + delta) * 100) / 100);
-        return { ...item, quantityInput: String(nextQty) };
-      }),
-    }));
-  }
-
   function editItem(item: DraftMealItem) {
     if (transitioning) {
       return;
@@ -430,11 +415,7 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
           }
           left={
             editingSavedTemplate
-              ? {
-                  accessibilityLabel: "Back",
-                  label: "Back",
-                  onPress: pop,
-                }
+              ? undefined
               : {
                   accessibilityLabel: "Saved meals",
                   label: "Saved Meals",
@@ -465,6 +446,7 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
             compact
             inline
             label="Change Log Time"
+            maximumDate={new Date()}
             onChange={(date) =>
               updateDraft(draftKey, (draft) => ({
                 ...draft,
@@ -475,7 +457,6 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
           />
         )
       }
-      sideWidth={128}
       title={
         editingSavedTemplate
           ? "Edit Saved Meal"
@@ -691,39 +672,21 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
                   <FoodMacroLine nutrients={scaleLine(item)} />
                 </PressOpacity>
 
-                <View style={styles.itemStepRow}>
-                  <PressOpacity
-                    accessibilityLabel={`Decrease ${item.description ?? "food"} serving`}
-                    onPress={() => stepItemQuantity(item.clientId, -0.5)}
-                    silent
-                    style={[
-                      styles.miniStep,
-                      {
-                        backgroundColor: theme.colors.surface,
-                        borderColor: theme.colors.borderStrong,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.miniStepText, { color: theme.colors.text }]}>
-                      -0.5
-                    </Text>
-                  </PressOpacity>
-                  <PressOpacity
-                    accessibilityLabel={`Increase ${item.description ?? "food"} serving`}
-                    onPress={() => stepItemQuantity(item.clientId, 0.5)}
-                    silent
-                    style={[
-                      styles.miniStep,
-                      {
-                        backgroundColor: theme.colors.surface,
-                        borderColor: theme.colors.borderStrong,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.miniStepText, { color: theme.colors.text }]}>
-                      +0.5
-                    </Text>
-                  </PressOpacity>
+                <View style={styles.itemInputRow}>
+                  <NutritionTextInput
+                    accessibilityLabel={`${item.description ?? "Food"} servings`}
+                    keyboardType="decimal-pad"
+                    onChangeText={(quantityInput) => updateDraft(draftKey, (draft) => ({
+                      ...draft,
+                      items: draft.items.map((candidate) => candidate.clientId === item.clientId
+                        ? { ...candidate, quantityInput }
+                        : candidate),
+                    }))}
+                    placeholder="1"
+                    style={{ flex: 1, fontVariant: ["tabular-nums"] }}
+                    value={item.quantityInput}
+                  />
+
                   <PressOpacity
                     accessibilityLabel={`Remove ${item.description ?? "food"}`}
                     onPress={() => {
@@ -956,24 +919,10 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
     fontWeight: "700",
   },
-  itemStepRow: {
+  itemInputRow: {
     alignItems: "center",
     flexDirection: "row",
     gap: 4,
-  },
-  miniStep: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    height: 44,
-    justifyContent: "center",
-    minWidth: 42,
-    paddingHorizontal: 4,
-  },
-  miniStepText: {
-    fontSize: 11,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
   },
   remove: {
     alignItems: "center",
