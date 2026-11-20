@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
-import { PressOpacity } from "../../components/PressOpacity";
+import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
 import { getSkillSession } from "../../data/skillRepository";
 import { FOCUS_PRESENTATION } from "../../skill/focus";
 import {
@@ -58,13 +58,8 @@ export function SkillSessionDetailScreen({ sessionId }: { sessionId: string }) {
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
+      <WorkflowHeader title={session?.title ?? "Skill session"} onClose={workspace.resetWorkspace} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <PressOpacity accessibilityLabel="Back" onPress={workspace.pop} style={styles.headerHit}>
-          <Text style={[styles.headerAction, { color: theme.colors.text }]}>Back</Text>
-        </PressOpacity>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          {session?.title ?? "Skill session"}
-        </Text>
         {error ? <Text style={[styles.error, { color: theme.colors.tertiary }]}>{error}</Text> : null}
         {session && focus ? (
           <View
@@ -101,6 +96,7 @@ export function SkillSessionDetailScreen({ sessionId }: { sessionId: string }) {
           <ActivityCard activity={activity} index={index} key={activity.id} />
         ))}
       </ScrollView>
+      <WorkflowFooter onBack={workspace.pop} backLabel={workspace.stack.length > 1 ? "Back" : "Cancel"} />
     </View>
   );
 }

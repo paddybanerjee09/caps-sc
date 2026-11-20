@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
+import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
 import { LogTimeChanger } from "../../components/LogTimeChanger";
 import { PressOpacity } from "../../components/PressOpacity";
 import { deviceTimeZone, formatLocalDate } from "../../conditioning/dates";
@@ -71,7 +72,6 @@ export function SkillSessionBuilderScreen() {
   const { bumpTimeline } = useAppState();
   const workspace = useSkillWorkspace();
   const draft = workspace.draft;
-  const [timeOpen, setTimeOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [discipline, setDiscipline] = useState<SkillDiscipline>("general");
   const [formError, setFormError] = useState<string | null>(null);
@@ -239,17 +239,11 @@ export function SkillSessionBuilderScreen() {
     }
   }
 
-  function shiftDay(daysAgo: number) {
-    const now = new Date();
-    const target = new Date(now);
-    target.setDate(now.getDate() - daysAgo);
-    const next = new Date(draft!.endedAt);
-    next.setFullYear(target.getFullYear(), target.getMonth(), target.getDate());
-    update({ ...draft!, endedAt: Math.min(next.getTime(), Date.now()) });
-  }
-
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
+      <WorkflowHeader title="Build Skill Session" onClose={closeDraft} right={
+        <LogTimeChanger maximumDate={new Date()} onChange={(date) => update({ ...draft, endedAt: date.getTime() })} value={new Date(draft.endedAt)} />
+      } />
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -287,44 +281,6 @@ export function SkillSessionBuilderScreen() {
             { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
           ]}
         >
-          <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>DATE</Text>
-          <Text style={[styles.dateReadout, { color: theme.colors.text }]}>
-            {formatDay(new Date(draft.endedAt))}
-          </Text>
-          <View style={styles.presetRow}>
-            <Chip label="-1 day" onPress={() => shiftDay(daysFromToday(draft.endedAt) + 1)} />
-            <Chip label="Today" onPress={() => shiftDay(0)} />
-            <Chip label="Yesterday" onPress={() => shiftDay(1)} />
-            <Chip label="7 days" onPress={() => shiftDay(7)} />
-          </View>
-          <PressOpacity
-            accessibilityLabel={`Ends at ${formatClock(new Date(draft.endedAt))}`}
-            onPress={() => setTimeOpen((open) => !open)}
-            style={[
-              styles.secondary,
-              {
-                backgroundColor: timeOpen ? theme.colors.tertiary : theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.secondaryText,
-                { color: timeOpen ? primaryText : theme.colors.text },
-              ]}
-            >
-              Ends at {formatClock(new Date(draft.endedAt))}
-            </Text>
-          </PressOpacity>
-          {timeOpen ? (
-            <LogTimeChanger
-              label="Ends at"
-              maximumDate={new Date()}
-              onChange={(date) => update({ ...draft, endedAt: date.getTime() })}
-              value={new Date(draft.endedAt)}
-            />
-          ) : null}
           <Text style={[styles.body, { color: theme.colors.text }]}>
             Estimated time {formatElapsed(elapsed)}
           </Text>
@@ -436,23 +392,7 @@ export function SkillSessionBuilderScreen() {
       {formError ? (
         <Text style={[styles.error, { color: theme.colors.tertiary }]}>{formError}</Text>
       ) : null}
-      <View
-        style={[
-          styles.footer,
-          { backgroundColor: theme.colors.background, borderTopColor: theme.colors.border },
-        ]}
-      >
-        <PressOpacity
-          accessibilityLabel="Cancel"
-          disabled={saving}
-          onPress={closeDraft}
-          style={[
-            styles.footerButton,
-            { backgroundColor: "transparent", borderColor: theme.colors.borderStrong },
-          ]}
-        >
-          <Text style={[styles.secondaryText, { color: theme.colors.text }]}>Cancel</Text>
-        </PressOpacity>
+      <WorkflowFooter onBack={closeDraft} disabled={saving}>
         <PressOpacity
           accessibilityLabel={
             label === "Saved"
@@ -485,7 +425,7 @@ export function SkillSessionBuilderScreen() {
         >
           <Text style={[styles.primaryText, { color: primaryText }]}>Log</Text>
         </PressOpacity>
-      </View>
+      </WorkflowFooter>
     </View>
   );
 }
@@ -796,22 +736,6 @@ function formatClock(date: Date) {
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-function formatDay(date: Date) {
-  return date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    weekday: "short",
-  });
-}
-
-function daysFromToday(endedAt: number) {
-  const end = new Date(endedAt);
-  const today = new Date();
-  const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
-  const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  return Math.round((todayDay - endDay) / 86_400_000);
-}
-
 const styles = StyleSheet.create({
   page: { flex: 1 },
   scroller: { flex: 1 },
@@ -906,6 +830,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 48,
     paddingHorizontal: tokens.spacing.sm,
+    minWidth: 90,
   },
   logButton: {
     alignItems: "center",
@@ -913,6 +838,7 @@ const styles = StyleSheet.create({
     flex: 1.15,
     justifyContent: "center",
     minHeight: 52,
+    minWidth: 90,
   },
   primaryText: { fontSize: 16, fontWeight: "700" },
 });
