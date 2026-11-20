@@ -14,3 +14,7 @@
 - The later design rules favor screen-owned card/stepper markup. The November revisions are the primary source for today’s screen patterns. Compare active components before borrowing any archived UI. Current reusable controls and domain logic have their own boundaries.
 
 Evidence is linked in the [Architecture tree](../../docs/feature-tree/architecture.html#style-guide) under style guide, shared controls, feedback, idle tasks, and the shared-UI archive.
+
+## Shared main-screen title card (20 November 2026)
+
+`src/components/ScreenTitleCard.tsx` extracts the Strength banner unchanged: full-height theme accent, left-aligned 26px/800 title, 13px/18px subtitle, 16px vertical padding. Home and Nutrition use it through `Screen`; Strength, Conditioning and Skill use it directly. The user explicitly requested this shared component, an exception to the general screen-local wrapper rule. `Screen.centerTitle` was removed after checking its only callers (Home and Nutrition). Commit `43eab3a`; Home caller updated in `548bbe5`.

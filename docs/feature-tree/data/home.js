@@ -108,9 +108,9 @@ CAPS.trees.home = {
     children: [
       {
         id: "athlete-telemetry",
-        title: "Athlete telemetry",
+        title: "Athlete Information",
         kind: "card",
-        tagline: "Username, sports, age, stature, weight",
+        tagline: "Username, sports, age, height, weight",
         files: ["src/screens/HomeScreen.tsx"],
         summary:
           "Top card on Home. Reads `username` and `athleteProfile` from `AppStateContext` and shows a \"logged today\" count from the loaded timeline.",
@@ -130,6 +130,7 @@ CAPS.trees.home = {
             commits: ["67d99b6"],
             changes: ["Restyled as the ATHLETE TELEMETRY card with a weight hero pill and a three-cell stat grid."],
           },
+          { n: 3, name: "Athlete Information", date: "2026-11-20 16:53 -0500", commits: ["548bbe5"], request: "Uniform Strength-style title cards and balanced Home information and Quick Log layout.", changes: ["Rename Athlete Telemetry to Athlete Information and Stature to Height.","Remove the discipline count; Age and Height share the row equally."] },
         ],
       },
       {
@@ -181,6 +182,7 @@ CAPS.trees.home = {
               "Meal Quick Log now opens the full-screen nutrition composer for Home's selected day. `MealLogModal` was removed.",
             ],
           },
+          { n: 4, name: "Quick Log", date: "2026-11-20 16:53 -0500", commits: ["548bbe5"], request: "Uniform Strength-style title cards and balanced Home information and Quick Log layout.", changes: ["Remove the collapsed layout gap so the button is centered vertically.","Use a 12px grid top gap and exact two-row expanded height to match the 12px bottom padding."] },
         ],
         children: [
           {

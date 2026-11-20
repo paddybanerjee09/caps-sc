@@ -19,3 +19,7 @@ Home is the initial dashboard tab. `src/screens/HomeScreen.tsx` renders athlete 
 - `1d7f792` moved Meal Quick Log to the full-screen Nutrition workspace. `67d99b6` rebuilt Home around the telemetry card, Quick Log, inline forms, and stepped date controls.
 
 Feature Tree source is `docs/feature-tree/data/home.js`. Begin with `home:home-screen`, `home:athlete-telemetry`, `home:quick-log`, or `home:home-sections` in [[Feature Tree Crosswalk]]. Shared shell and provider ownership are in [[App Architecture]]. Earlier branches are in [[Project History]].
+
+## Layout update (20 November 2026)
+
+Commit `548bbe5` renames the profile card to Athlete Information and Stature to Height. Age and Height now divide the stat row equally; the discipline count cell is removed. Quick Log has no parent gap when collapsed; the expanded grid has a 12px top gap matching the card bottom padding, with height calculated from two 92px rows, the 8px row gap and 12px top gap. This retains the current in-flow animation; the historical overlay discrepancy above is unchanged. Both main-screen titles now use `ScreenTitleCard`. Typecheck and targeted ESLint pass; device visual verification remains outstanding.

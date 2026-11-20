@@ -159,8 +159,8 @@ CAPS.trees.architecture = {
             title: "Screen",
             kind: "component",
             tagline: "Shared screen chrome",
-            files: ["src/components/Screen.tsx"],
-            summary: "Title, optional subtitle, optional `centerTitle`, and a padded ScrollView. Screens must not be extracted into a generic Card wrapper.",
+            files: ["src/components/Screen.tsx", "src/components/ScreenTitleCard.tsx"],
+            summary: "Uniform left-aligned ScreenTitleCard and a padded ScrollView. The same title card is used directly by Skill, Strength and Conditioning. Screens must not be extracted into a generic Card wrapper.",
             guardrails: [
               "Do not extract a global `<Card />` across screens; each screen owns its card markup (ui-style-guide.mdc).",
             ],
@@ -186,6 +186,7 @@ CAPS.trees.architecture = {
                 commits: ["5c595dd"],
                 changes: ["High-contrast chrome renovation."],
               },
+          { n: 4, name: "Screen", date: "2026-11-20 16:53 -0500", commits: ["43eab3a"], request: "Uniform Strength-style title cards and balanced Home information and Quick Log layout.", changes: ["ScreenTitleCard owns the Strength-style accent bar, left-aligned title and subtitle across Home, Nutrition, Skill, Strength and Conditioning.","Screen delegates its header and removes centered title variants."] },
             ],
           },
           {
