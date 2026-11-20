@@ -7,6 +7,7 @@ import {
   ActionButton,
   ErrorText,
   ScreenHeading,
+  ConditioningFooter,
 } from "../../components/conditioning/ConditioningFields";
 import { createId } from "../../conditioning/ids";
 import { formatClock } from "../../conditioning/summaries";
@@ -61,7 +62,7 @@ export function WorkoutRunnerScreen({ sessionId }: { sessionId: string }) {
   const { db, ownerId } = useConditioningOwner();
   const [session, setSession] = useState<ConditioningSessionRecord | null>(null);
   const [runner, setRunner] = useState<RunnerState | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [reviewRpe, setReviewRpe] = useState<number | null>(null);
@@ -233,6 +234,21 @@ export function WorkoutRunnerScreen({ sessionId }: { sessionId: string }) {
   const totals = runner ? projectedTotals(runner, now) : null;
   const activeText = readableTextColor(theme.colors.tertiary);
 
+  function requestLeave(destination: () => void) {
+    if (!runner) { destination(); return; }
+    workspace.requestConfirm({
+      confirmLabel: "Leave",
+      message: "Your workout progress is kept. Return to resume or save it.",
+      onConfirm: destination,
+      title: "Leave this workout?",
+    });
+  }
+
+  useEffect(() => {
+    workspace.registerBackHandler(() => { requestLeave(workspace.pop); return true; });
+    return () => workspace.registerBackHandler(null);
+  });
+
   async function finishReview(next: RunnerState) {
     if (!ownerId || !session) {
       return;
@@ -253,7 +269,7 @@ export function WorkoutRunnerScreen({ sessionId }: { sessionId: string }) {
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <ScreenHeading
-        onBack={workspace.pop}
+        onClose={() => requestLeave(workspace.closeBranch)}
         title={session?.title ?? "Workout"}
       />
       <ScrollView
@@ -404,7 +420,8 @@ export function WorkoutRunnerScreen({ sessionId }: { sessionId: string }) {
           </View>
         </View>
 
-        {/* Card 3: Runner Controls or Review Deck */}
+        {/* Session review inputs scroll above the fixed action bar. */}
+        {reviewing ? (
         <View
           style={[
             styles.card,
@@ -414,52 +431,6 @@ export function WorkoutRunnerScreen({ sessionId }: { sessionId: string }) {
             },
           ]}
         >
-          {runner &&
-          !reviewing &&
-          (runner.status === "running" || runner.status === "preparing") ? (
-            <ActionButton
-              label="Pause"
-              onPress={() => void update(pauseRunner(runner, Date.now()))}
-              tone="secondary"
-            />
-          ) : null}
-          {runner?.status === "paused" && !reviewing ? (
-            <ActionButton
-              label="Resume"
-              onPress={() => void update(resumeRunner(runner, Date.now()))}
-            />
-          ) : null}
-          {runner &&
-          phase &&
-          !isTimerPhase(phase) &&
-          runner.status === "running" ? (
-            <ActionButton
-              label="Mark complete"
-              onPress={() => {
-                feedbackPhaseCue();
-                void update(completeCurrentWork(runner, Date.now()));
-              }}
-            />
-          ) : null}
-          {runner && !reviewing && runner.status !== "ready" ? (
-            <ActionButton
-              label="End workout"
-              onPress={() =>
-                workspace.requestConfirm({
-                  confirmLabel: "End workout",
-                  message:
-                    "Completed work is kept. The current step stays partial.",
-                  onConfirm: () =>
-                    void finishReview(endRunnerEarly(runner, Date.now())).catch(
-                      (caught) => setError(messageFromUnknown(caught)),
-                    ),
-                  title: "End this workout?",
-                })
-              }
-              tone="quiet"
-            />
-          ) : null}
-
           {reviewing ? (
             <View style={styles.reviewBlock}>
               <Text style={{ color: theme.colors.textMuted, fontSize: 13 }}>
@@ -560,6 +531,61 @@ export function WorkoutRunnerScreen({ sessionId }: { sessionId: string }) {
                 })}
               </ScrollView>
 
+
+            </View>
+          ) : null}
+        </View>
+        ) : null}
+        <ErrorText>{error}</ErrorText>
+      </ScrollView>
+      <ConditioningFooter onBack={() => requestLeave(workspace.pop)}>
+          {runner &&
+          !reviewing &&
+          (runner.status === "running" || runner.status === "preparing") ? (
+            <ActionButton
+              label="Pause"
+              onPress={() => void update(pauseRunner(runner, Date.now()))}
+              tone="secondary"
+            />
+          ) : null}
+          {runner?.status === "paused" && !reviewing ? (
+            <ActionButton
+              label="Resume"
+              onPress={() => void update(resumeRunner(runner, Date.now()))}
+            />
+          ) : null}
+          {runner &&
+          phase &&
+          !isTimerPhase(phase) &&
+          runner.status === "running" ? (
+            <ActionButton
+              label="Mark complete"
+              onPress={() => {
+                feedbackPhaseCue();
+                void update(completeCurrentWork(runner, Date.now()));
+              }}
+            />
+          ) : null}
+          {runner && !reviewing && runner.status !== "ready" ? (
+            <ActionButton
+              label="End workout"
+              onPress={() =>
+                workspace.requestConfirm({
+                  confirmLabel: "End workout",
+                  message:
+                    "Completed work is kept. The current step stays partial.",
+                  onConfirm: () =>
+                    void finishReview(endRunnerEarly(runner, Date.now())).catch(
+                      (caught) => setError(messageFromUnknown(caught)),
+                    ),
+                  title: "End this workout?",
+                })
+              }
+              tone="quiet"
+            />
+          ) : null}
+
+        {reviewing ? <>
               <ActionButton
                 label="Save session"
                 onPress={() =>
@@ -599,11 +625,8 @@ export function WorkoutRunnerScreen({ sessionId }: { sessionId: string }) {
                 }
                 tone="quiet"
               />
-            </View>
-          ) : null}
-          <ErrorText>{error}</ErrorText>
-        </View>
-      </ScrollView>
+        </> : null}
+      </ConditioningFooter>
     </View>
   );
 }

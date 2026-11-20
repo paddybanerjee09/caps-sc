@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { PressOpacity } from "../../components/PressOpacity";
 import {
   ActionButton,
+  ConditioningFooter,
+  WeightInput,
   ErrorText,
   FieldLabel,
   FormInput,
@@ -60,8 +62,24 @@ export function StationEditorScreen({
     () =>
       existing ?? createStation(workspace.editor?.draft.stations.length ?? 0),
   );
+  const [baseline] = useState(() => JSON.stringify(station));
   const [error, setError] = useState<string | null>(null);
   const activeText = readableTextColor(theme.colors.tertiary);
+
+  function requestNavigation(destination: () => void) {
+    if (JSON.stringify(station) === baseline) { destination(); return; }
+    workspace.requestConfirm({
+      confirmLabel: "Discard",
+      message: "This station has unsaved changes.",
+      onConfirm: destination,
+      title: "Discard station changes?",
+    });
+  }
+
+  useEffect(() => {
+    workspace.registerBackHandler(() => { requestNavigation(workspace.pop); return true; });
+    return () => workspace.registerBackHandler(null);
+  });
 
   function chooseType(nextType: StationCompletionType) {
     feedbackStep("up");
@@ -114,7 +132,7 @@ export function StationEditorScreen({
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <ScreenHeading
-        onBack={workspace.pop}
+        onClose={() => requestNavigation(workspace.closeBranch)}
         title={existing ? "Edit station" : "Add station"}
       />
       <ScrollView
@@ -337,8 +355,10 @@ export function StationEditorScreen({
         </View>
 
         <ErrorText>{error}</ErrorText>
-        <ActionButton label="Save station" onPress={save} />
       </ScrollView>
+      <ConditioningFooter onBack={() => requestNavigation(workspace.pop)}>
+        <ActionButton label="Save station" onPress={save} />
+      </ConditioningFooter>
     </View>
   );
 }
@@ -366,6 +386,9 @@ function NullableNumber({
 }) {
   const { theme } = useAppTheme();
   const activeText = readableTextColor(theme.colors.tertiary);
+  if (label.toLowerCase().includes("load")) {
+    return <WeightInput label={label} value={value} onChange={onChange} />;
+  }
 
   function step(delta: number) {
     feedbackStep(delta > 0 ? "up" : "down");

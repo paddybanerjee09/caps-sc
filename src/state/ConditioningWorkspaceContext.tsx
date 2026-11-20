@@ -48,6 +48,7 @@ type ConfirmRequest = {
 type ConditioningWorkspaceValue = {
   bumpRevision: () => void;
   closeEditor: () => void;
+  closeBranch: () => void;
   confirm: ConfirmRequest | null;
   confirmDiscard: (onConfirm: () => void) => void;
   dismissConfirm: () => void;
@@ -89,6 +90,25 @@ export function ConditioningWorkspaceProvider({ children }: { children: ReactNod
     setEditor(null);
   }, []);
 
+  const closeBranch = useCallback(() => {
+    const close = () => {
+      setStack([]);
+      setEditor(null);
+      setLogRequest(null);
+      setConfirm(null);
+    };
+    if (editorIsDirty(editor)) {
+      setConfirm({
+        confirmLabel: "Discard",
+        message: "This workout has unsaved changes.",
+        onConfirm: close,
+        title: "Discard changes?",
+      });
+      return;
+    }
+    close();
+  }, [editor]);
+
   const handleHardwareBack = useCallback(() => {
     if (confirm) {
       setConfirm(null);
@@ -99,13 +119,10 @@ export function ConditioningWorkspaceProvider({ children }: { children: ReactNod
       return true;
     }
 
-    if (stack.length > 0) {
-      setStack((current) => current.slice(0, -1));
-      return true;
-    }
-
-    if (editor) {
-      if (editor.savedSnapshot !== JSON.stringify(editor.draft)) {
+    const top = stack.at(-1);
+    const coversEditor = top?.name === "station" || top?.name === "log" || top?.name === "emphasis";
+    if (editor && !coversEditor) {
+      if (editorIsDirty(editor)) {
         setConfirm({
           confirmLabel: "Discard",
           message: "This workout has unsaved changes.",
@@ -118,13 +135,19 @@ export function ConditioningWorkspaceProvider({ children }: { children: ReactNod
       return true;
     }
 
+    if (stack.length > 0) {
+      setStack((current) => current.slice(0, -1));
+      return true;
+    }
+
     return false;
-  }, [confirm, editor, stack.length]);
+  }, [confirm, editor, stack]);
 
   const value = useMemo<ConditioningWorkspaceValue>(
     () => ({
       bumpRevision: () => setRevision((current) => current + 1),
       closeEditor,
+      closeBranch,
       confirm,
       confirmDiscard: (onConfirm) =>
         setConfirm({
@@ -151,7 +174,7 @@ export function ConditioningWorkspaceProvider({ children }: { children: ReactNod
       updateEditor: (draft) =>
         setEditor((current) => (current ? { ...current, draft } : current)),
     }),
-    [closeEditor, confirm, editor, handleHardwareBack, logRequest, pop, push, revision, stack],
+    [closeBranch, closeEditor, confirm, editor, handleHardwareBack, logRequest, pop, push, revision, stack],
   );
 
   return (

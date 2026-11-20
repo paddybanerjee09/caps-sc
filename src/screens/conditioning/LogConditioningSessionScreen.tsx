@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { LogTimeChanger } from "../../components/LogTimeChanger";
 import { PressOpacity } from "../../components/PressOpacity";
 import {
   ActionButton,
+  ConditioningFooter,
+  WeightInput,
   ErrorText,
   FieldLabel,
   FormInput,
@@ -46,10 +48,28 @@ export function LogConditioningSessionScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  function requestNavigation(destination: () => void) {
+    if (saving) return;
+    const changed = request && (notes !== request.snapshot.notes || sessionRpe !== "" || Object.keys(actuals).length > 0 || date !== request.date || time.getTime() !== request.time.getTime());
+    if (!changed) { destination(); return; }
+    workspace.requestConfirm({
+      confirmLabel: "Discard",
+      message: "This session has unsaved log changes.",
+      onConfirm: destination,
+      title: "Discard log changes?",
+    });
+  }
+
+  useEffect(() => {
+    workspace.registerBackHandler(() => { requestNavigation(workspace.pop); return true; });
+    return () => workspace.registerBackHandler(null);
+  });
+
   if (!request) {
     return (
       <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
-        <ScreenHeading onBack={workspace.pop} title="Log session" />
+        <ScreenHeading title="Log session" />
+        <ConditioningFooter />
       </View>
     );
   }
@@ -59,16 +79,7 @@ export function LogConditioningSessionScreen() {
   );
   const activeText = readableTextColor(theme.colors.tertiary);
 
-  function stepDate(deltaDays: number) {
-    feedbackStep(deltaDays > 0 ? "up" : "down");
-    const base = isLocalDateString(date)
-      ? new Date(`${date}T12:00:00`)
-      : new Date();
-    base.setDate(base.getDate() + deltaDays);
-    setDate(formatLocalDate(base));
-  }
-
-  async function save() {
+  async function save(now: number) {
     if (!request || !ownerId || saving) {
       return;
     }
@@ -77,7 +88,7 @@ export function LogConditioningSessionScreen() {
       return;
     }
     const performedAt = combineLocalDateAndTime(date, time);
-    if (performedAt === null || performedAt > Date.now()) {
+    if (performedAt === null || performedAt > now) {
       setError("Performed time cannot be in the future");
       return;
     }
@@ -125,7 +136,11 @@ export function LogConditioningSessionScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
-      <ScreenHeading onBack={workspace.pop} title="Log session" />
+      <ScreenHeading
+        onClose={() => requestNavigation(workspace.closeBranch)}
+        title="Log session"
+        right={<LogTimeChanger maximumDate={new Date()} value={performedDateTime(date, time)} onChange={(selected) => { setDate(formatLocalDate(selected)); setTime(selected); }} />}
+      />
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -141,67 +156,6 @@ export function LogConditioningSessionScreen() {
             },
           ]}
         >
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
-              PERFORMED TIMESTAMP & EFFORT
-            </Text>
-            <Text style={[styles.cardBadge, { color: theme.colors.tertiary }]}>
-              MANUAL LOG
-            </Text>
-          </View>
-          <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
-            Targets stay separate from what you actually did.
-          </Text>
-
-          <FieldLabel>Performed date</FieldLabel>
-          <View style={styles.dateRow}>
-            <PressOpacity
-              accessibilityLabel="Previous day"
-              onPress={() => stepDate(-1)}
-              silent
-              style={[
-                styles.stepBtn,
-                {
-                  backgroundColor: theme.colors.surfaceMuted,
-                  borderColor: theme.colors.borderStrong,
-                },
-              ]}
-            >
-              <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-                -1d
-              </Text>
-            </PressOpacity>
-            <FormInput
-              accessibilityLabel="Performed date"
-              onChangeText={setDate}
-              style={styles.centerInput}
-              value={date}
-            />
-            <PressOpacity
-              accessibilityLabel="Next day"
-              onPress={() => stepDate(1)}
-              silent
-              style={[
-                styles.stepBtn,
-                {
-                  backgroundColor: theme.colors.surfaceMuted,
-                  borderColor: theme.colors.borderStrong,
-                },
-              ]}
-            >
-              <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-                +1d
-              </Text>
-            </PressOpacity>
-          </View>
-
-          <LogTimeChanger
-            label="Log time"
-            maximumDate={isToday(date) ? new Date() : undefined}
-            onChange={setTime}
-            value={time}
-          />
-
           <View style={styles.cardHeader}>
             <FieldLabel>Session RPE (optional)</FieldLabel>
             {sessionRpe.trim() ? (
@@ -297,12 +251,14 @@ export function LogConditioningSessionScreen() {
           />
         ))}
         <ErrorText>{error}</ErrorText>
+      </ScrollView>
+      <ConditioningFooter disabled={saving} onBack={() => requestNavigation(workspace.pop)}>
         <ActionButton
           disabled={saving}
           label="Save session"
-          onPress={() => void save()}
+          onPress={() => void save(Date.now())}
         />
-      </ScrollView>
+      </ConditioningFooter>
     </View>
   );
 }
@@ -381,6 +337,9 @@ function OptionalNumber({
   value: number | null;
 }) {
   const { theme } = useAppTheme();
+  if (label.toLowerCase().includes("load")) {
+    return <WeightInput label={label} value={value} onChange={onChange} />;
+  }
   function adjust(delta: number) {
     feedbackStep(delta > 0 ? "up" : "down");
     const base = value ?? 0;
@@ -449,10 +408,11 @@ function emptyActual(): OccurrenceActual {
   };
 }
 
-function isToday(date: string) {
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return date === today;
+function performedDateTime(date: string, time: Date) {
+  const result = new Date(`${date}T12:00:00`);
+  if (!Number.isFinite(result.getTime())) return time;
+  result.setHours(time.getHours(), time.getMinutes(), 0, 0);
+  return result;
 }
 
 const styles = StyleSheet.create({

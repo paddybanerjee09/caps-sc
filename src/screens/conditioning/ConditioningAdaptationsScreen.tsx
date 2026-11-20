@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { PressOpacity } from "../../components/PressOpacity";
-import { ScreenHeading } from "../../components/conditioning/ConditioningFields";
+import { ConditioningFooter, ScreenHeading } from "../../components/conditioning/ConditioningFields";
 import {
   emphasisCategories,
   emphasisColors,
@@ -116,7 +116,6 @@ export function ConditioningAdaptationsScreen({
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <ScreenHeading
-        onBack={workspace.pop}
         title="Estimated Training Emphasis"
       />
       <ScrollView
@@ -230,6 +229,7 @@ export function ConditioningAdaptationsScreen({
           );
         })}
       </ScrollView>
+      <ConditioningFooter />
 
       <Modal
         animationType="fade"

@@ -5,6 +5,7 @@ import {
   ActionButton,
   ErrorText,
   ScreenHeading,
+  ConditioningFooter,
 } from "../../components/conditioning/ConditioningFields";
 import { RouteMap } from "../../components/conditioning/RouteMap";
 import { deviceTimeZone, formatLocalDate } from "../../conditioning/dates";
@@ -86,7 +87,6 @@ export function ConditioningSessionDetailScreen({
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <ScreenHeading
-        onBack={workspace.pop}
         title={session?.title ?? "Session"}
       />
       <ScrollView
@@ -223,24 +223,14 @@ export function ConditioningSessionDetailScreen({
               </View>
             ) : null}
 
-            {/* Card 4: Actions */}
-            <View
-              style={[
-                styles.card,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.borderStrong,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.cardHeaderLabel,
-                  { color: theme.colors.textMuted },
-                ]}
-              >
-                SESSION FLOW
-              </Text>
+          </>
+        ) : (
+          <Text style={{ color: theme.colors.textMuted }}>Loading session</Text>
+        )}
+        <ErrorText>{error}</ErrorText>
+      </ScrollView>
+      <ConditioningFooter>
+        {session ? <>
               {session.status === "completed" ||
               session.status === "ended_early" ? (
                 <ActionButton
@@ -368,13 +358,8 @@ export function ConditioningSessionDetailScreen({
                   />
                 </View>
               ) : null}
-            </View>
-          </>
-        ) : (
-          <Text style={{ color: theme.colors.textMuted }}>Loading session</Text>
-        )}
-        <ErrorText>{error}</ErrorText>
-      </ScrollView>
+        </> : null}
+      </ConditioningFooter>
     </View>
   );
 }
@@ -529,6 +514,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   actions: {
+    flex: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: tokens.spacing.sm,
   },
 });

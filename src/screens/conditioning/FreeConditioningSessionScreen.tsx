@@ -6,6 +6,7 @@ import {
   ActionButton,
   ErrorText,
   ScreenHeading,
+  ConditioningFooter,
 } from "../../components/conditioning/ConditioningFields";
 import { deviceTimeZone } from "../../conditioning/dates";
 import { buildFreeSnapshot } from "../../conditioning/phases";
@@ -51,7 +52,7 @@ export function FreeConditioningSessionScreen() {
   const { db, ownerId } = useConditioningOwner();
   const [activity, setActivity] = useState<FreeActivity>("run");
   const [timer, setTimer] = useState<FreeTimer | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const [locationMode, setLocationMode] = useState<
     "checking" | "gps" | "foreground" | "timer"
@@ -169,6 +170,21 @@ export function FreeConditioningSessionScreen() {
     }
   }
 
+  function requestLeave(destination: () => void) {
+    if (!timer) { destination(); return; }
+    workspace.requestConfirm({
+      confirmLabel: "Leave",
+      message: "Your recording is kept. Return to this session to resume or save it.",
+      onConfirm: destination,
+      title: "Leave this session?",
+    });
+  }
+
+  useEffect(() => {
+    workspace.registerBackHandler(() => { requestLeave(workspace.pop); return true; });
+    return () => workspace.registerBackHandler(null);
+  });
+
   const activeMs = timer
     ? (timer.pauseStartedAt ??
         (timer.status === "finished" ? timer.startedAt : now)) -
@@ -179,7 +195,7 @@ export function FreeConditioningSessionScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
-      <ScreenHeading onBack={workspace.pop} title="Free session" />
+      <ScreenHeading onClose={() => requestLeave(workspace.closeBranch)} title="Free session" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -284,16 +300,9 @@ export function FreeConditioningSessionScreen() {
           </View>
         </View>
 
-        {/* Card 3: Control Actions */}
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
+        <ErrorText>{error}</ErrorText>
+      </ScrollView>
+      <ConditioningFooter onBack={() => requestLeave(workspace.pop)}>
           {!timer ? (
             <ActionButton label="Start" onPress={() => void start()} />
           ) : null}
@@ -408,9 +417,7 @@ export function FreeConditioningSessionScreen() {
               />
             </>
           ) : null}
-          <ErrorText>{error}</ErrorText>
-        </View>
-      </ScrollView>
+      </ConditioningFooter>
     </View>
   );
 }

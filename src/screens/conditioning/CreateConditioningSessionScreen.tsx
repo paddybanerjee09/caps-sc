@@ -1,4 +1,3 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMemo, useState } from "react";
 import {
   ScrollView,
@@ -7,12 +6,13 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { LogTimeChanger } from "../../components/LogTimeChanger";
 import { PressOpacity } from "../../components/PressOpacity";
 import {
   ActionButton,
+  ConditioningFooter,
+  ScreenHeading,
   ErrorText,
   FieldLabel,
   FormInput,
@@ -21,7 +21,6 @@ import {
 import {
   deviceTimeZone,
   formatLocalDate,
-  isLocalDateString,
   localTimeFromInstant,
 } from "../../conditioning/dates";
 import {
@@ -92,7 +91,6 @@ const RPE_PRESETS = [5, 6, 7, 8, 9, 10] as const;
 
 export function CreateConditioningSessionScreen() {
   const { theme } = useAppTheme();
-  const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const tablet = width >= 768;
   const { unitSettings, bumpTimeline } = useAppState();
@@ -120,15 +118,6 @@ export function CreateConditioningSessionScreen() {
 
   function update(next: WorkoutDraft) {
     workspace.updateEditor(next);
-  }
-
-  function stepPlannedDate(deltaDays: number) {
-    feedbackStep(deltaDays > 0 ? "up" : "down");
-    const base = isLocalDateString(draft!.scheduledDate)
-      ? new Date(`${draft!.scheduledDate}T12:00:00`)
-      : new Date();
-    base.setDate(base.getDate() + deltaDays);
-    update({ ...draft!, scheduledDate: formatLocalDate(base) });
   }
 
   function requestClose() {
@@ -190,56 +179,17 @@ export function CreateConditioningSessionScreen() {
           { backgroundColor: theme.colors.background },
         ]}
       >
-        {/* Top Editor Header */}
-        <View
-          style={[
-            styles.heading,
-            {
-              backgroundColor: theme.colors.surface,
-              borderBottomColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <PressOpacity
-            accessibilityLabel="Back"
-            onPress={requestClose}
-            style={[
-              styles.headerBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
-            <Ionicons color={theme.colors.text} name="arrow-back" size={18} />
-            <Text style={[styles.headerBtnText, { color: theme.colors.text }]}>
-              Back
-            </Text>
-          </PressOpacity>
-
-          <View style={styles.headingTitleWrap}>
-            <Text style={[styles.headingTag, { color: theme.colors.tertiary }]}>
-              PROTOCOL COMPOSER
-            </Text>
-            <Text style={[styles.headingTitle, { color: theme.colors.text }]}>
-              {formatName(draft.format)}
-            </Text>
-          </View>
-
-          <PressOpacity
-            accessibilityLabel="Close"
-            onPress={requestClose}
-            style={[
-              styles.headerIconBtn,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
-            <Ionicons color={theme.colors.text} name="close" size={20} />
-          </PressOpacity>
-        </View>
+        <ScreenHeading
+          onClose={workspace.closeBranch}
+          title={formatName(draft.format)}
+          right={
+            <LogTimeChanger
+              label="Planned start"
+              value={plannedDateTime(draft)}
+              onChange={(scheduledTime) => update({ ...draft, scheduledDate: formatLocalDate(scheduledTime), scheduledTime })}
+            />
+          }
+        />
 
         <ScrollView
           contentContainerStyle={styles.form}
@@ -373,117 +323,13 @@ export function CreateConditioningSessionScreen() {
             ) : null}
           </View>
 
-          {/* Card 3: Schedule & Planned Start */}
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <View style={styles.cardHeader}>
-              <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
-                PLANNED SCHEDULE
-              </Text>
-              <PressOpacity
-                accessibilityLabel="Set planned date to today"
-                onPress={() => {
-                  feedbackStep("up");
-                  update({ ...draft, scheduledDate: formatLocalDate(new Date()) });
-                }}
-                silent
-                style={[
-                  styles.todayMiniPill,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.borderStrong,
-                  },
-                ]}
-              >
-                <Text style={[styles.todayMiniText, { color: theme.colors.tertiary }]}>
-                  TODAY
-                </Text>
-              </PressOpacity>
-            </View>
-
-            <View style={styles.dateStepperRow}>
-              <PressOpacity
-                accessibilityLabel="Previous day"
-                onPress={() => stepPlannedDate(-1)}
-                silent
-                style={[
-                  styles.dateStepBtn,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.borderStrong,
-                  },
-                ]}
-              >
-                <Text style={[styles.dateStepBtnText, { color: theme.colors.text }]}>
-                  -1d
-                </Text>
-              </PressOpacity>
-
-              <FormInput
-                accessibilityLabel="Planned date"
-                autoCapitalize="none"
-                onChangeText={(scheduledDate) => update({ ...draft, scheduledDate })}
-                placeholder="YYYY-MM-DD"
-                style={styles.dateInput}
-                value={draft.scheduledDate}
-              />
-
-              <PressOpacity
-                accessibilityLabel="Next day"
-                onPress={() => stepPlannedDate(1)}
-                silent
-                style={[
-                  styles.dateStepBtn,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.borderStrong,
-                  },
-                ]}
-              >
-                <Text style={[styles.dateStepBtnText, { color: theme.colors.text }]}>
-                  +1d
-                </Text>
-              </PressOpacity>
-            </View>
-
-            {draft.scheduledTime ? (
-              <LogTimeChanger
-                label="Planned start"
-                onChange={(scheduledTime) => update({ ...draft, scheduledTime })}
-                value={draft.scheduledTime}
-              />
-            ) : (
-              <ActionButton
-                label="Add start time"
-                onPress={() => update({ ...draft, scheduledTime: new Date() })}
-                tone="secondary"
-              />
-            )}
-          </View>
-
           {/* Card 4: Live Phase Preview */}
           <Preview preview={preview} />
           <ErrorText>{error}</ErrorText>
         </ScrollView>
 
-        {/* Fixed Footer */}
-        <View
-          style={[
-            styles.footer,
-            {
-              backgroundColor: theme.colors.surface,
-              borderTopColor: theme.colors.borderStrong,
-              paddingBottom: Math.max(insets.bottom, 12),
-            },
-          ]}
-        >
+        <ConditioningFooter disabled={saving} onBack={requestClose}>
+          <View style={{ flex: 1, gap: 8 }}>
           <ActionButton
             disabled={saving}
             label="Start workout"
@@ -635,10 +481,19 @@ export function CreateConditioningSessionScreen() {
               />
             </View>
           </View>
-        </View>
+          </View>
+        </ConditioningFooter>
       </View>
     </View>
   );
+}
+
+function plannedDateTime(draft: WorkoutDraft) {
+  const result = new Date(`${draft.scheduledDate}T12:00:00`);
+  const time = draft.scheduledTime ?? new Date();
+  if (!Number.isFinite(result.getTime())) return time;
+  result.setHours(time.getHours(), time.getMinutes(), 0, 0);
+  return result;
 }
 
 function IntervalFields({

@@ -1,5 +1,4 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -10,9 +9,11 @@ import {
 } from "react-native";
 
 import { useAppTheme } from "../../theme/ThemeContext";
+import { useConditioningWorkspace } from "../../state/ConditioningWorkspaceContext";
 import { readableTextColor, themes } from "../../theme/theme";
 import { feedbackStep } from "../../utils/feedback";
 import { PressOpacity } from "../PressOpacity";
+import { WorkflowFooter, WorkflowHeader } from "../WorkflowChrome";
 
 const tokens = themes.dark;
 
@@ -49,6 +50,37 @@ export function FormInput({
   );
 }
 
+/** Keep the user's decimal text intact while canonical kilograms update. */
+export function WeightInput({ label, onChange, value }: {
+  label: string;
+  onChange: (value: number | null) => void;
+  value: number | null;
+}) {
+  const [focused, setFocused] = useState(false);
+  const [text, setText] = useState(value === null ? "" : String(value));
+  return (
+    <View style={styles.measurementBlock}>
+      <FieldLabel>{label}</FieldLabel>
+      <FormInput
+        accessibilityLabel={label}
+        keyboardType="decimal-pad"
+        onBlur={() => setFocused(false)}
+        onChangeText={(next) => {
+          if (!/^\d*(?:[.,]\d*)?$/.test(next)) return;
+          setText(next);
+          onChange(next === "" || next === "." || next === "," ? null : Number(next.replace(",", ".")));
+        }}
+        onFocus={() => {
+          setFocused(true);
+          setText(value === null ? "" : String(value));
+        }}
+        placeholder="—"
+        value={focused ? text : value === null ? "" : String(value)}
+      />
+    </View>
+  );
+}
+
 export function MeasurementInput({
   accessibilityLabel,
   canonical,
@@ -81,12 +113,6 @@ export function MeasurementInput({
   const parseAtFocus = useRef(parseValue);
   const formatAtFocus = useRef(formatValue);
   const activeText = readableTextColor(theme.colors.tertiary);
-
-  useEffect(() => {
-    if (!focused) {
-      setText(canonical === null ? "" : formatValue(canonical));
-    }
-  }, [canonical, focused, formatValue, unitKey]);
 
   function adjustByDisplayStep(delta: number) {
     feedbackStep(delta > 0 ? "up" : "down");
@@ -353,69 +379,35 @@ export function ActionButton({
 }
 
 export function ScreenHeading({
-  onBack,
   onClose,
+  right,
   title,
 }: {
-  onBack?: () => void;
   onClose?: () => void;
+  right?: ReactNode;
   title: string;
 }) {
-  const { theme } = useAppTheme();
+  const workspace = useConditioningWorkspace();
   return (
-    <View
-      style={[
-        styles.heading,
-        {
-          backgroundColor: theme.colors.surface,
-          borderBottomColor: theme.colors.borderStrong,
-        },
-      ]}
+    <WorkflowHeader onClose={onClose ?? workspace.closeBranch} right={right} title={title} />
+  );
+}
+
+export function ConditioningFooter({ children, disabled, onBack }: {
+  children?: ReactNode;
+  disabled?: boolean;
+  onBack?: () => void;
+}) {
+  const workspace = useConditioningWorkspace();
+  const depth = workspace.stack.length + (workspace.editor ? 1 : 0);
+  return (
+    <WorkflowFooter
+      backLabel={depth > 1 ? "Back" : "Cancel"}
+      disabled={disabled}
+      onBack={onBack ?? workspace.pop}
     >
-      {onBack ? (
-        <PressOpacity
-          accessibilityLabel="Back"
-          onPress={onBack}
-          style={[
-            styles.headingButton,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
-          <Ionicons color={theme.colors.text} name="arrow-back" size={18} />
-          <Text style={[styles.headingButtonText, { color: theme.colors.text }]}>
-            Back
-          </Text>
-        </PressOpacity>
-      ) : (
-        <View style={styles.headingSpacer} />
-      )}
-      <Text
-        numberOfLines={1}
-        style={[styles.headingTitle, { color: theme.colors.text }]}
-      >
-        {title}
-      </Text>
-      {onClose ? (
-        <PressOpacity
-          accessibilityLabel="Close"
-          onPress={onClose}
-          style={[
-            styles.headingIconButton,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
-          <Ionicons color={theme.colors.text} name="close" size={20} />
-        </PressOpacity>
-      ) : (
-        <View style={styles.headingSpacer} />
-      )}
-    </View>
+      {children}
+    </WorkflowFooter>
   );
 }
 
@@ -525,8 +517,10 @@ const styles = StyleSheet.create({
   action: {
     alignItems: "center",
     borderRadius: tokens.radius.md,
+    flexGrow: 1,
     justifyContent: "center",
     minHeight: 48,
+    minWidth: 90,
     paddingHorizontal: tokens.spacing.md,
   },
   actionPrimary: {

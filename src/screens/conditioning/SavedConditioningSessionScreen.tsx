@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { ScreenHeading } from "../../components/conditioning/ConditioningFields";
+import { ConditioningFooter, ScreenHeading } from "../../components/conditioning/ConditioningFields";
 import { SavedWorkoutGrid } from "../../components/conditioning/SavedWorkoutGrid";
 import { draftFromTemplate } from "../../conditioning/drafts";
 import { formatLocalDate } from "../../conditioning/dates";
@@ -21,7 +21,9 @@ export function SavedConditioningSessionScreen() {
   const workspace = useConditioningWorkspace();
   const { db, ownerId } = useConditioningOwner();
   const [templates, setTemplates] = useState<ConditioningTemplateRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const fetchKey = `${ownerId ?? "pending"}:${workspace.revision}`;
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const loading = loadedKey !== fetchKey;
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,7 +31,6 @@ export function SavedConditioningSessionScreen() {
       return;
     }
     let cancelled = false;
-    setLoading(true);
     void listConditioningTemplates(db, ownerId)
       .then((saved) => {
         if (!cancelled) {
@@ -44,13 +45,13 @@ export function SavedConditioningSessionScreen() {
       })
       .finally(() => {
         if (!cancelled) {
-          setLoading(false);
+          setLoadedKey(fetchKey);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [db, ownerId, workspace.revision]);
+  }, [db, fetchKey, ownerId]);
 
   function openTemplate(template: ConditioningTemplateRecord) {
     const draft = draftFromTemplate(template.config, formatLocalDate(new Date()));
@@ -65,7 +66,7 @@ export function SavedConditioningSessionScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
-      <ScreenHeading onBack={workspace.pop} title="Saved Workouts" />
+      <ScreenHeading title="Saved Workouts" />
       <View style={styles.content}>
         <View
           style={[
@@ -97,6 +98,7 @@ export function SavedConditioningSessionScreen() {
           />
         </View>
       </View>
+      <ConditioningFooter />
     </View>
   );
 }
