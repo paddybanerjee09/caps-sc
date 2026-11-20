@@ -7,4 +7,8 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    files: ['docs/feature-tree/data/*.js'],
+    languageOptions: { globals: { CAPS: 'readonly' } },
+  },
 ]);

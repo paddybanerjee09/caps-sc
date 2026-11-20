@@ -63,13 +63,11 @@ function SleepLogForm({
   const [saving, setSaving] = useState(false);
   const [draftWakeDate, setDraftWakeDate] = useState(wakeDate);
 
-  const loadSchedule = useCallback(async () => {
+  const loadSchedule = useCallback(() => {
     const currentRequestId = requestId.current + 1;
     requestId.current = currentRequestId;
 
-    try {
-      const schedule = await getSleepScheduleForWakeDate(db, wakeDate);
-
+    return getSleepScheduleForWakeDate(db, wakeDate).then((schedule) => {
       if (requestId.current !== currentRequestId) {
         return;
       }
@@ -80,15 +78,15 @@ function SleepLogForm({
       setEndTime(dateAtMinute(wakeDate, endMinute));
       setDraftWakeDate(wakeDate);
       setHasNightlyDefault(schedule !== null);
-    } catch {
+    }).catch(() => {
       if (requestId.current === currentRequestId) {
         setLoadError(true);
       }
-    } finally {
+    }).finally(() => {
       if (requestId.current === currentRequestId) {
         setLoading(false);
       }
-    }
+    });
   }, [db, wakeDate]);
 
   useEffect(() => {
