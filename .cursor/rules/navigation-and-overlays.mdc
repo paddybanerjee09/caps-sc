@@ -14,7 +14,10 @@ These are the only overlay exceptions:
 - One workout editor at a time
 - Training-emphasis explanation popover
 - Discard and end confirmations
+- Shared Log Time scroll-wheel modal (explicit user request, 20 November 2026)
 
 The Saved Workouts expander is the only control that may push content down. Other dropdowns stay overlays.
 
 Phone editors fill the space between the header and tabs. Tablet editors are centered, about 90% of the height, with a readable max width. Keep the form scrolling above a fixed footer. Back, Cancel, X, and system Back use the same unsaved-change guard. Visiting a station or emphasis screen must leave the editor draft intact.
+
+All conditioning destinations follow `ui-style-guide.mdc` section 8: safe-area top bar with centered title, branch-wide X at left, compact log-time trigger at right when applicable; fixed bottom navigation with Cancel only at branch depth one and Back at deeper levels. Preserve active timers/recordings when leaving and keep timer/save actions in the bottom bar. Weight/load fields use decimal text boxes without increments or presets.

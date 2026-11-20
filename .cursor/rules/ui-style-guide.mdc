@@ -1,5 +1,5 @@
 ---
-description: CAPS S&C UI style guide enforcing a high-contrast, minimalist, data-dense, card-by-card interface with large touch targets, steppers/scroll pickers instead of typing, minimal modals, audio/haptic cues, uniform animations, and no cross-screen component reuse. Refer to this file for all current and future screens (including StrengthTrainingScreen, SkillScreen, and Home Recovery/Progress).
+description: CAPS UI guide for minimalist inputs, shared safe-area subscreen bars, compact log-time buttons with scroll-wheel modals, accessible controls, theme tokens, and consistent navigation across all five tabs.
 globs: src/**/*.tsx,src/theme/**/*.ts
 alwaysApply: true
 ---
@@ -14,19 +14,19 @@ All screens—including future implementations of unfinished screens (`src/scree
 - **Card-by-Card Layout**: Group every functional domain or input cluster into its own bordered card (`borderRadius: theme.radius.lg` = `16`, `borderWidth: 1`, `padding: theme.spacing.lg` = `16`, `gap: theme.spacing.md` = `12`). Separate cards vertically by `12px–16px`.
 - **Card Headers**: Every card starts with a compact header row containing an uppercase tracking label (`fontSize: 11`, `fontWeight: "700"`, `letterSpacing: 0.8`, `color: theme.colors.textMuted`) and an optional right-aligned tabular metric badge or status pill.
 - **Tabular Numerals**: Any number, timer, weight, macro, RPE, distance, or counter must include `fontVariant: ["tabular-nums"]` to prevent layout jitter.
-- **Do Not Reuse UI Components Across Screens**: Do not extract generic shared UI wrappers (such as a global `<Card />` or `<Stepper />` component) across screens. Build dedicated, screen-local card and control markup styled directly with `StyleSheet.create` and `useAppTheme()` tokens so each screen owns its layout density without abstraction bloat.
+- **Shared Interaction Contracts**: Reuse `WorkflowHeader`, `WorkflowFooter`, `ScreenTitleCard`, and `LogTimeChanger` across screens so navigation and log-time entry remain uniform. Keep domain-specific form composition local; avoid duplicate implementations of the same interaction.
 
 ## 2. Minimal Modals Policy
 
-- **No Data-Entry Modals**: Do not open `Modal` dialogs for form inputs, pickers, or action menus (e.g., age, sex, height, weight, sleep, sports, username, or meal item actions). Use inline card sections, animated card expanders, horizontal `ScrollView` strips, or stack screens instead.
-- **Confirmation Modals Only**: Reserve modal/overlay dialogs strictly for destructive or state-guard confirmations (`ConfirmDialog`, discard/cancel/delete confirmations) and the explicit conditioning overlay exceptions documented in `navigation-and-overlays.mdc`.
+- **Screens and Dropdowns by Default**: Use screens or dropdowns for forms and menus. Do not introduce a modal unless explicitly requested or covered by an existing exception.
+- **Log Time Exception**: `LogTimeChanger` opens the explicitly requested modal with scrollable hour and minute columns. Confirmation dialogs and the documented conditioning overlays remain allowed.
 
-## 3. Low-Typing Input & Large Touch Targets
+## 3. Simple Inputs & Large Touch Targets
 
 - **Minimum Touch Target**: Every interactive button, stepper, chip, or toggle must have at least `minHeight: 48` and `minWidth: 48` (`52px` height for primary user flow CTAs).
-- **Prefer `+` / `-` Steppers & Horizontal `ScrollView` Presets Over Typing**:
-  - Whenever a user inputs numbers (age, weight, height, serving amounts, calories, interval seconds, rest durations, rounds, sets, reps, distance, load, RPE, dates, or times), provide large `-` and `+` increment buttons (`minHeight: 48`, `minWidth: 48`, `borderRadius: 12`, `borderWidth: 1`) alongside a horizontal `ScrollView` (`showsHorizontalScrollIndicator={false}`) of one-tap preset pills.
-  - Keep freeform `TextInput` usage to a minimum (or pair it as a secondary readout between `-` and `+` buttons so common adjustments require zero keyboard typing).
+- **Weight and Load**: Use one labeled decimal text box with the current kg/lb unit for every bodyweight, load, resistance, assistance, or added-weight input. Never add fine/coarse increment buttons or weight preset strips. Preserve canonical kg conversion and existing validation; allow an empty draft while typing without saving invalid values.
+- **Choose the Simplest Control**: Do not require steppers or presets for numeric fields. Use direct input where it is clearer. Existing useful count, duration, and categorical controls may remain; do not apply the rejected weight/time increment design elsewhere.
+- **Keyboard Access**: Give every field an accessible label and suitable keyboard, preserve drafts on errors, and keep primary actions reachable above the keyboard. Use `keyboardShouldPersistTaps="handled"` on form scroll views.
 
 ## 4. User Flow Buttons
 
@@ -52,4 +52,16 @@ All screens—including future implementations of unfinished screens (`src/scree
 ## 7. Unfinished Screens Mandate
 
 - Do not modify `src/screens/StrengthTrainingScreen.tsx`, `src/screens/SkillScreen.tsx`, or the `Recovery` / `Progress` placeholder panels in `src/screens/HomeScreen.tsx` until requested.
-- When building those features in the future, construct them strictly with this card-by-card, stepper-driven, zero-data-modal, high-contrast architecture.
+- When building those features in the future, follow the current simple-input, shared-navigation, minimal-modal, high-contrast conventions.
+
+## 8. Uniform Logging and Subscreen Navigation (20 November 2026)
+
+- Apply these contracts across Home, Nutrition, Strength, Conditioning, and Skills Training, including every nested destination. The five main screens retain their main-screen title cards.
+- Every subscreen has a dedicated fixed top bar and bottom action bar, with scrolling content between them. Account for the phone status bar / cutout at the top exactly once. Existing bottom tabs own their system bottom inset; a standalone flow must provide its own bottom safe area.
+- Center the subscreen title. Put an X at the left that exits the entire feature branch to its main screen, regardless of nesting depth. Route X through existing unsaved-change, active-session, and save-pending guards. Never wire X to a one-level pop.
+- Put the compact `LogTimeChanger` at the right of the top bar when a log timestamp applies. Show only a time icon and selected time on the trigger. Sleep may show two labeled compact triggers in this same right-hand area for Bed and Wake.
+- No log-time cards, inline expanders, hour presets, Now buttons, or minute/hour increment buttons. No increment buttons flanking a clock trigger.
+- The picker modal title is **Log Time**. Directly below it, put minimalist previous/next day arrows around **Today, {Day}, {Month}** for the current local day, otherwise **{Day}, {Month}**. Use independently scrollable hour and minute columns. Cancel leaves the timestamp unchanged; Done applies it. Preserve each caller's date bounds and timestamp/duration logic.
+- The bottom bar's left action is **Cancel** on the first subscreen only, returning to the main screen. At every deeper level it is **Back**, returning one screen while preserving the parent draft. Use actual branch depth, including nested editors and detail routes.
+- Keep existing Save, Logged, Log, Delete, template, timer, and other primary actions alongside navigation. Preserve their underlying logic unless it conflicts with the user's requirements. Do not bury these actions at the end of scrolling content.
+- Review every new or modified flow for safe-area access, long titles, large text, keyboard access, X exit from deepest nesting, Cancel at depth one, Back at deeper levels, and save failure recovery.

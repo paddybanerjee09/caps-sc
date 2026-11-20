@@ -1,449 +1,185 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRef, useState, type ComponentRef } from "react";
+import { Keyboard, Modal, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAppTheme } from "../theme/ThemeContext";
 import { readableTextColor, themes } from "../theme/theme";
-import { feedbackStep } from "../utils/feedback";
+import { clampLogDate, formatLogDay, shiftLogDay } from "../utils/logTime";
 import { PressOpacity } from "./PressOpacity";
 
 const tokens = themes.dark;
 
-const QUICK_HOURS = [6, 8, 12, 15, 18, 20, 22] as const;
-
 type LogTimeChangerProps = {
+  // Legacy presentation flags remain compatible; all callers get one small trigger.
   compact?: boolean;
   iconOnly?: boolean;
   inline?: boolean;
   label?: string;
   maximumDate?: Date;
+  minimumDate?: Date;
   onChange: (date: Date) => void;
   value: Date;
 };
 
-export function LogTimeChanger({
-  compact = false,
-  iconOnly = false,
-  inline = false,
-  label,
-  maximumDate,
-  onChange,
-  value,
-}: LogTimeChangerProps) {
+export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, value }: LogTimeChangerProps) {
   const { theme } = useAppTheme();
-  const [expanded, setExpanded] = useState(false);
-  const activeText = readableTextColor(theme.colors.tertiary);
+  const insets = useSafeAreaInsets();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const wheelHour = useRef<number | null>(null);
+  const wheelMinute = useRef<number | null>(null);
+  const primaryText = readableTextColor(theme.colors.tertiary);
 
-  function clampDate(candidate: Date) {
-    if (maximumDate && candidate.getTime() > maximumDate.getTime()) {
-      return new Date(maximumDate);
-    }
-    return candidate;
+  function openPicker() {
+    Keyboard.dismiss();
+    setDraft(clampLogDate(value, minimumDate, maximumDate));
+    wheelHour.current = null;
+    wheelMinute.current = null;
+    setOpen(true);
   }
 
-  function shiftMinutes(deltaMinutes: number) {
-    feedbackStep(deltaMinutes > 0 ? "up" : "down");
-    const updated = new Date(value.getTime() + deltaMinutes * 60_000);
-    onChange(clampDate(updated));
+  function selectTime(hour: number, minute: number) {
+    wheelHour.current = null;
+    wheelMinute.current = null;
+    setDraft((current) => {
+      const next = new Date(current);
+      next.setHours(hour, minute, 0, 0);
+      return clampLogDate(next, minimumDate, maximumDate);
+    });
   }
 
-  function selectHourPreset(hour: number) {
-    feedbackStep("up");
-    const updated = new Date(value);
-    updated.setHours(hour, 0, 0, 0);
-    onChange(clampDate(updated));
+  function changeDay(amount: number) {
+    wheelHour.current = null;
+    wheelMinute.current = null;
+    setDraft((current) => clampLogDate(shiftLogDay(current, amount), minimumDate, maximumDate));
   }
 
-  function setNow() {
-    feedbackStep("up");
-    onChange(clampDate(new Date()));
-  }
+  const previousDay = shiftLogDay(draft, -1);
+  previousDay.setHours(23, 59, 59, 999);
+  const nextDay = shiftLogDay(draft, 1);
+  nextDay.setHours(0, 0, 0, 0);
 
-  if (inline || compact || iconOnly) {
-    return (
-      <View
-        style={[
-          styles.inlineContainer,
-          compact && styles.inlineContainerCompact,
-        ]}
+  return (
+    <>
+      <PressOpacity
+        accessibilityLabel={`${label ?? "Log time"}: ${value.toLocaleString()}. Change log time`}
+        accessibilityState={{ expanded: open }}
+        onPress={openPicker}
+        style={[styles.trigger, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}
       >
-        <View style={styles.inlineStepBar}>
-          <PressOpacity
-            accessibilityLabel="Subtract 15 minutes"
-            onPress={() => shiftMinutes(-15)}
-            silent
-            style={[
-              styles.inlineMiniStep,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.inlineMiniStepText, { color: theme.colors.text }]}>
-              -15m
-            </Text>
-          </PressOpacity>
-          <PressOpacity
-            accessibilityLabel={`Change log time. Currently ${formatFullDateTime(
-              value,
-            )}`}
-            onPress={() => setExpanded((current) => !current)}
-            style={[
-              styles.labelPill,
-              compact && styles.labelPillCompact,
-              {
-                backgroundColor: expanded
-                  ? theme.colors.tertiary
-                  : theme.colors.surfaceMuted,
-                borderColor: expanded
-                  ? theme.colors.tertiary
-                  : theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Ionicons
-              color={expanded ? activeText : theme.colors.tertiary}
-              name="time-outline"
-              size={compact ? 14 : 16}
-            />
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.labelText,
-                compact && styles.labelTextCompact,
-                { color: expanded ? activeText : theme.colors.text },
-              ]}
-            >
-              {formatTime(value)}
-            </Text>
-          </PressOpacity>
-          <PressOpacity
-            accessibilityLabel="Add 15 minutes"
-            onPress={() => shiftMinutes(15)}
-            silent
-            style={[
-              styles.inlineMiniStep,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.inlineMiniStepText, { color: theme.colors.text }]}>
-              +15m
-            </Text>
-          </PressOpacity>
-        </View>
-      </View>
-    );
+        <Ionicons color={theme.colors.tertiary} name="time-outline" size={17} />
+        <Text numberOfLines={1} style={[styles.triggerText, { color: theme.colors.text }]}>
+          {value.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+        </Text>
+      </PressOpacity>
+      {open ? (
+        <Modal animationType="none" onRequestClose={() => setOpen(false)} transparent visible>
+          <View style={[styles.backdrop, { backgroundColor: theme.colors.overlay, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
+            <View accessibilityViewIsModal style={[styles.dialog, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong }]}>
+              <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.dialogContent}>
+                <Text accessibilityRole="header" style={[styles.title, { color: theme.colors.text }]}>Log Time</Text>
+                <View style={styles.dayBar}>
+                  <PressOpacity accessibilityLabel="Previous log day" disabled={!!minimumDate && previousDay < minimumDate} onPress={() => changeDay(-1)} style={styles.dayArrow}>
+                    <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+                  </PressOpacity>
+                  <Text style={[styles.dayText, { color: theme.colors.text }]}>{formatLogDay(draft)}</Text>
+                  <PressOpacity accessibilityLabel="Next log day" disabled={!!maximumDate && nextDay > maximumDate} onPress={() => changeDay(1)} style={styles.dayArrow}>
+                    <Ionicons name="chevron-forward" size={22} color={theme.colors.text} />
+                  </PressOpacity>
+                </View>
+                {label ? <Text style={[styles.contextLabel, { color: theme.colors.textMuted }]}>{label}</Text> : null}
+                <View style={styles.wheels}>
+                  <TimeWheel label="Hours" count={24} value={draft.getHours()} onPreview={(hour) => { wheelHour.current = hour; }} onChange={(hour) => selectTime(hour, wheelMinute.current ?? draft.getMinutes())} />
+                  <Text style={[styles.colon, { color: theme.colors.textMuted }]}>:</Text>
+                  <TimeWheel label="Minutes" count={60} value={draft.getMinutes()} onPreview={(minute) => { wheelMinute.current = minute; }} onChange={(minute) => selectTime(wheelHour.current ?? draft.getHours(), minute)} />
+                </View>
+              </ScrollView>
+              <View style={[styles.actions, { borderTopColor: theme.colors.border }]}>
+                <PressOpacity accessibilityLabel="Cancel log time changes" onPress={() => setOpen(false)} style={[styles.action, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}>
+                  <Text style={[styles.actionText, { color: theme.colors.text }]}>Cancel</Text>
+                </PressOpacity>
+                <PressOpacity accessibilityLabel="Confirm log time" onPress={() => {
+                  const selected = new Date(draft);
+                  selected.setHours(wheelHour.current ?? draft.getHours(), wheelMinute.current ?? draft.getMinutes(), 0, 0);
+                  onChange(clampLogDate(selected, minimumDate, maximumDate));
+                  setOpen(false);
+                }} style={[styles.action, { backgroundColor: theme.colors.tertiary, borderColor: theme.colors.tertiary }]}>
+                  <Text style={[styles.actionText, { color: primaryText }]}>Done</Text>
+                </PressOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
+    </>
+  );
+}
+
+function TimeWheel({ count, label, onChange, onPreview, value }: { count: number; label: string; onChange: (value: number) => void; onPreview: (value: number) => void; value: number }) {
+  const { theme } = useAppTheme();
+  const { fontScale } = useWindowDimensions();
+  const rowHeight = Math.max(48, Math.ceil(32 * fontScale));
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const dragging = useRef(false);
+
+  function settle(offset: number) {
+    dragging.current = false;
+    const selected = Math.max(0, Math.min(count - 1, Math.round(offset / rowHeight)));
+    onChange(selected);
+    scroll.current?.scrollTo({ y: selected * rowHeight, animated: false });
   }
 
   return (
-    <View
-      style={[
-        styles.cardContainer,
-        {
-          backgroundColor: theme.colors.surfaceMuted,
-          borderColor: theme.colors.borderStrong,
-        },
-      ]}
-    >
-      <View style={styles.headerRow}>
-        <View style={styles.headerLabelGroup}>
-          <Ionicons color={theme.colors.tertiary} name="time-outline" size={16} />
-          <Text style={[styles.cardLabel, { color: theme.colors.textMuted }]}>
-            {(label ?? "LOG TIME").toUpperCase()}
-          </Text>
-        </View>
-        <PressOpacity
-          accessibilityLabel="Set time to now"
-          onPress={setNow}
-          silent
-          style={[
-            styles.nowBadge,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
+    <View style={styles.wheelColumn}>
+      <Text style={[styles.contextLabel, { color: theme.colors.textMuted }]}>{label}</Text>
+      <View style={{ height: rowHeight * 3 }}>
+        <View pointerEvents="none" style={[styles.selection, { top: rowHeight, height: rowHeight, backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]} />
+        <ScrollView
+          key={`${rowHeight}-${value}`}
+          ref={scroll}
+          nestedScrollEnabled
+          bounces={false}
+          contentOffset={{ x: 0, y: value * rowHeight }}
+          contentContainerStyle={{ paddingVertical: rowHeight }}
+          decelerationRate="fast"
+          onScroll={(event) => onPreview(Math.max(0, Math.min(count - 1, Math.round(event.nativeEvent.contentOffset.y / rowHeight))))}
+          scrollEventThrottle={16}
+          onScrollBeginDrag={() => { dragging.current = true; }}
+          onScrollEndDrag={(event) => { if (Math.abs(event.nativeEvent.velocity?.y ?? 0) < 0.1) settle(event.nativeEvent.contentOffset.y); }}
+          onMomentumScrollEnd={(event) => { if (dragging.current) settle(event.nativeEvent.contentOffset.y); }}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={rowHeight}
         >
-          <Text style={[styles.nowBadgeText, { color: theme.colors.tertiary }]}>
-            NOW
-          </Text>
-        </PressOpacity>
-      </View>
-
-      <View style={styles.stepperRow}>
-        <PressOpacity
-          accessibilityLabel="Subtract 1 hour"
-          onPress={() => shiftMinutes(-60)}
-          silent
-          style={[
-            styles.stepButton,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <Text style={[styles.stepText, { color: theme.colors.text }]}>-1h</Text>
-        </PressOpacity>
-        <PressOpacity
-          accessibilityLabel="Subtract 15 minutes"
-          onPress={() => shiftMinutes(-15)}
-          silent
-          style={[
-            styles.stepButton,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <Text style={[styles.stepText, { color: theme.colors.text }]}>-15m</Text>
-        </PressOpacity>
-
-        <View
-          style={[
-            styles.timeReadout,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <Text style={[styles.timeValue, { color: theme.colors.text }]}>
-            {formatTime(value)}
-          </Text>
-        </View>
-
-        <PressOpacity
-          accessibilityLabel="Add 15 minutes"
-          onPress={() => shiftMinutes(15)}
-          silent
-          style={[
-            styles.stepButton,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <Text style={[styles.stepText, { color: theme.colors.text }]}>+15m</Text>
-        </PressOpacity>
-        <PressOpacity
-          accessibilityLabel="Add 1 hour"
-          onPress={() => shiftMinutes(60)}
-          silent
-          style={[
-            styles.stepButton,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <Text style={[styles.stepText, { color: theme.colors.text }]}>+1h</Text>
-        </PressOpacity>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.presetStrip}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-      >
-        {QUICK_HOURS.map((hour) => {
-          const isSelected =
-            value.getHours() === hour && Math.abs(value.getMinutes()) < 10;
-          return (
-            <PressOpacity
-              accessibilityLabel={`Set time to ${formatHourChip(hour)}`}
-              key={hour}
-              onPress={() => selectHourPreset(hour)}
-              silent
-              style={[
-                styles.presetChip,
-                {
-                  backgroundColor: isSelected
-                    ? theme.colors.tertiary
-                    : theme.colors.surface,
-                  borderColor: isSelected
-                    ? theme.colors.tertiary
-                    : theme.colors.border,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.presetChipText,
-                  { color: isSelected ? activeText : theme.colors.text },
-                ]}
-              >
-                {formatHourChip(hour)}
-              </Text>
+          {Array.from({ length: count }, (_, index) => (
+            <PressOpacity key={index} accessibilityLabel={`${label}: ${String(index).padStart(2, "0")}`} accessibilityState={{ selected: value === index }} onPress={() => onChange(index)} style={[styles.wheelRow, { height: rowHeight }]}>
+              <Text style={[styles.wheelText, { color: value === index ? theme.colors.tertiary : theme.colors.textMuted }]}>{String(index).padStart(2, "0")}</Text>
             </PressOpacity>
-          );
-        })}
-      </ScrollView>
+          ))}
+        </ScrollView>
+      </View>
     </View>
   );
 }
 
-function formatHourChip(hour: number) {
-  if (hour === 0) return "12 AM";
-  if (hour === 12) return "12 PM";
-  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
-}
-
-function formatTime(date: Date) {
-  return date.toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function formatFullDateTime(date: Date) {
-  return date.toLocaleString([], {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 const styles = StyleSheet.create({
-  cardContainer: {
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    gap: tokens.spacing.sm,
-    marginTop: tokens.spacing.xs,
-    padding: tokens.spacing.sm,
-    width: "100%",
-  },
-  headerRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  headerLabelGroup: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 6,
-  },
-  cardLabel: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.7,
-  },
-  nowBadge: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 32,
-    paddingHorizontal: tokens.spacing.sm,
-  },
-  nowBadgeText: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-  },
-  stepperRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 6,
-  },
-  stepButton: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    minWidth: 46,
-    paddingHorizontal: 6,
-  },
-  stepText: {
-    fontSize: 12,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
-  },
-  timeReadout: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: tokens.spacing.xs,
-  },
-  timeValue: {
-    fontSize: 15,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
-  },
-  presetStrip: {
-    gap: 6,
-  },
-  presetChip: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 40,
-    paddingHorizontal: tokens.spacing.sm,
-  },
-  presetChipText: {
-    fontSize: 11,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
-  },
-  inlineContainer: {
-    alignSelf: "flex-end",
-  },
-  inlineContainerCompact: {
-    marginVertical: 2,
-  },
-  inlineStepBar: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 4,
-  },
-  inlineMiniStep: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 38,
-    minWidth: 38,
-    paddingHorizontal: 4,
-  },
-  inlineMiniStepText: {
-    fontSize: 10,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
-  },
-  labelPill: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 4,
-    minHeight: 38,
-    paddingHorizontal: tokens.spacing.sm,
-  },
-  labelPillCompact: {
-    minHeight: 38,
-    paddingHorizontal: 6,
-  },
-  labelText: {
-    fontSize: 11,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
-  },
-  labelTextCompact: {
-    fontSize: 10,
-  },
+  trigger: { alignItems: "center", borderRadius: tokens.radius.md, borderWidth: 1, flexDirection: "row", gap: 5, justifyContent: "center", minHeight: 48, minWidth: 80, paddingHorizontal: 8 },
+  triggerText: { fontSize: 13, fontVariant: ["tabular-nums"], fontWeight: "700" },
+  backdrop: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
+  dialog: { borderRadius: tokens.radius.lg, borderWidth: 1, maxHeight: "100%", maxWidth: 400, width: "100%", overflow: "hidden" },
+  dialogContent: { gap: tokens.spacing.md, padding: tokens.spacing.lg },
+  title: { textAlign: "center", fontSize: 20, fontWeight: "800" },
+  contextLabel: { textAlign: "center", fontSize: 12, fontWeight: "700" },
+  dayBar: { flexDirection: "row", alignItems: "center" },
+  dayArrow: { minHeight: 48, minWidth: 48, alignItems: "center", justifyContent: "center" },
+  dayText: { flex: 1, textAlign: "center", fontSize: 14, fontWeight: "700" },
+  wheels: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: tokens.spacing.sm },
+  wheelColumn: { flex: 1, gap: tokens.spacing.sm },
+  wheelRow: { alignItems: "center", justifyContent: "center" },
+  wheelText: { fontSize: 24, fontVariant: ["tabular-nums"], fontWeight: "700" },
+  selection: { position: "absolute", left: 0, right: 0, borderRadius: tokens.radius.md, borderWidth: 1 },
+  colon: { fontSize: 24, fontWeight: "700" },
+  actions: { flexDirection: "row", gap: tokens.spacing.sm, borderTopWidth: 1, padding: tokens.spacing.md },
+  action: { flex: 1, minHeight: 48, borderRadius: tokens.radius.md, borderWidth: 1, alignItems: "center", justifyContent: "center", padding: tokens.spacing.sm },
+  actionText: { fontSize: 14, fontWeight: "700" },
 });
