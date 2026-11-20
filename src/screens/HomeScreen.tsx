@@ -92,7 +92,7 @@ export function HomeScreen() {
   }
 
   const quickLogMenuStyle = useAnimatedStyle(() => ({
-    height: interpolate(quickLogAnimation.get(), [0, 1], [0, 212]),
+    height: interpolate(quickLogAnimation.get(), [0, 1], [0, 2 * 92 + tokens.spacing.sm + tokens.spacing.md]),
     opacity: quickLogAnimation.get(),
   }));
 
@@ -193,11 +193,10 @@ export function HomeScreen() {
 
   return (
     <Screen
-      centerTitle
       subtitle="Athlete status, rapid session logging, and 24-hour timeline"
       title="Home"
     >
-      {/* Card 1: Athlete Telemetry Card */}
+      {/* Card 1: Athlete Information Card */}
       <View
         style={[
           styles.profileCard,
@@ -209,7 +208,7 @@ export function HomeScreen() {
       >
         <View style={styles.cardHeader}>
           <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
-            ATHLETE TELEMETRY
+            ATHLETE INFORMATION
           </Text>
           <View
             style={[
@@ -299,26 +298,10 @@ export function HomeScreen() {
             ]}
           >
             <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>
-              STATURE
+              HEIGHT
             </Text>
             <Text style={[styles.statValue, { color: theme.colors.text }]}>
               {heightText}
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.statCell,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>
-              DISCIPLINES
-            </Text>
-            <Text style={[styles.statValue, { color: theme.colors.text }]}>
-              {athleteProfile.sports.length}
             </Text>
           </View>
         </View>
@@ -744,7 +727,6 @@ const styles = StyleSheet.create({
   quickLogCard: {
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
-    gap: tokens.spacing.sm,
     padding: tokens.spacing.md,
   },
   quickLogButton: {
@@ -770,7 +752,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: tokens.spacing.sm,
     justifyContent: "space-between",
-    paddingTop: tokens.spacing.xs,
+    paddingTop: tokens.spacing.md,
   },
   quickLogOption: {
     alignItems: "center",
