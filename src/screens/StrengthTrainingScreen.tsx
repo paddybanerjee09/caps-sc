@@ -9,6 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSQLiteContext } from "expo-sqlite";
 
+import { ScreenTitleCard } from "../components/ScreenTitleCard";
 import { MonthlyTimelineComponent } from "../components/MonthlyTimelineComponent";
 import { PressOpacity } from "../components/PressOpacity";
 import { buildMonthGrid, type MonthEvent } from "../components/monthGrid";
@@ -153,23 +154,7 @@ export function StrengthTrainingScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <View
-              style={[
-                styles.banner,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.borderStrong,
-                },
-              ]}
-            >
-              <View style={[styles.accent, { backgroundColor: theme.colors.tertiary }]} />
-              <View style={styles.bannerText}>
-                <Text style={[styles.title, { color: theme.colors.text }]}>Strength</Text>
-                <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-                  Log a workout or save one to repeat.
-                </Text>
-              </View>
-            </View>
+            <ScreenTitleCard title="Strength" subtitle="Log a workout or save one to repeat." />
 
             {loadError ? (
               <PressOpacity
@@ -289,32 +274,6 @@ const styles = StyleSheet.create({
   header: {
     gap: tokens.spacing.md,
     marginBottom: tokens.spacing.sm,
-  },
-  banner: {
-    alignItems: "center",
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.spacing.md,
-    overflow: "hidden",
-  },
-  accent: {
-    alignSelf: "stretch",
-    width: 6,
-  },
-  bannerText: {
-    flex: 1,
-    gap: 2,
-    paddingVertical: tokens.spacing.lg,
-    paddingRight: tokens.spacing.lg,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-  },
-  subtitle: {
-    fontSize: 13,
-    lineHeight: 18,
   },
   primary: {
     alignItems: "center",

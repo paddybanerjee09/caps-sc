@@ -9,6 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSQLiteContext } from "expo-sqlite";
 
+import { ScreenTitleCard } from "../components/ScreenTitleCard";
 import { MonthlyTimelineComponent } from "../components/MonthlyTimelineComponent";
 import { PressOpacity } from "../components/PressOpacity";
 import { buildMonthGrid, parseIsoDate, type MonthEvent } from "../components/monthGrid";
@@ -158,6 +159,7 @@ export function SkillTrainingScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
+            <ScreenTitleCard title="Skill" subtitle="Log skill sessions or save one to repeat." />
             {loadError ? (
               <PressOpacity
                 accessibilityLabel="Retry loading skills"

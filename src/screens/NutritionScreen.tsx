@@ -181,7 +181,6 @@ export function NutritionScreen() {
 
   return (
     <Screen
-      centerTitle
       subtitle="Daily macro targets, meal diary cards, and micronutrient tracking"
       title="Nutrition"
     >

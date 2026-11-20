@@ -10,6 +10,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSQLiteContext } from "expo-sqlite";
 
+import { ScreenTitleCard } from "../components/ScreenTitleCard";
 import { MonthlyTimelineComponent } from "../components/MonthlyTimelineComponent";
 import { PressOpacity } from "../components/PressOpacity";
 import { SavedWorkoutGrid } from "../components/conditioning/SavedWorkoutGrid";
@@ -186,26 +187,7 @@ export function ConditioningScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Banner Card */}
-        <View
-          style={[
-            styles.headerBanner,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <View style={[styles.accentBar, { backgroundColor: theme.colors.tertiary }]} />
-          <View style={styles.headerTextWrap}>
-            <Text style={[styles.title, { color: theme.colors.text }]}>
-              Conditioning
-            </Text>
-            <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-              Intervals, sprints, circuits, and GPS roadwork
-            </Text>
-          </View>
-        </View>
+        <ScreenTitleCard title="Conditioning" subtitle="Intervals, sprints, circuits, and GPS roadwork" />
 
         {/* Active Session Banner Card */}
         {activeSession ? (
@@ -491,35 +473,6 @@ const styles = StyleSheet.create({
     paddingBottom: tokens.spacing.xxl,
     paddingHorizontal: tokens.spacing.md,
     paddingTop: tokens.spacing.md,
-  },
-  headerBanner: {
-    alignItems: "center",
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.spacing.md,
-    minHeight: 60,
-    paddingHorizontal: tokens.spacing.lg,
-    paddingVertical: tokens.spacing.md,
-  },
-  accentBar: {
-    borderRadius: 999,
-    height: 28,
-    width: 4,
-  },
-  headerTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "800",
-    lineHeight: 26,
-  },
-  subtitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    lineHeight: 16,
   },
   activeBannerCard: {
     alignItems: "center",
