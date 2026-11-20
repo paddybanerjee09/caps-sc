@@ -6,7 +6,7 @@ Status at `aea27d0` · logging is on the Strength tab. The `strength` route in `
 
 `README.md` describes periodization based on goals, competition dates, and recorded workload. It describes logging exercises with sets, reps, load, rest, RPE, and RIR, in support of rate of force development, relative strength, and lean mass. This is planned scope (`0b97b10`, `41b5c4d`).
 
-The 15 Nov 2026 implementation replaced the placeholder. Preserve the `strength` route, screen-local cards, stepper and preset controls, and confirmation-only modal policy. Do not restore the archived modal stack. See [[Strength History]], [[2026-11-15 Strength Implementation Plan]], [[App Architecture]], [[Data and Persistence]], and [[Feature Tree Crosswalk]].
+The 15 Nov 2026 implementation replaced the placeholder. Preserve the `strength` route, domain-owned cards, decimal load fields, shared subscreen bars, and the explicit Log Time modal exception. Do not restore the archived modal stack. See [[Strength History]], [[2026-11-15 Strength Implementation Plan]], [[App Architecture]], [[Data and Persistence]], and [[Feature Tree Crosswalk]].
 
 ## Logging
 
@@ -29,3 +29,7 @@ The exercise catalog is a text-only pin in `src/strength/catalogSeed.ts` (`curat
 3. `59dd4e8` introduced the current `StrengthTrainingScreen` file alongside the SQLite transition. The implementations on the September archive descend from the placeholder and are outside main's ancestry after `e8fc8e9`.
 
 Tree source is `docs/feature-tree/data/strength.js`, with navigation at `docs/feature-tree/strength.html`. Use [[Strength History]] for early provider, logging, SQLite, and scoring decisions when relevant.
+
+## Uniform UI audit (20 November 2026)
+
+All owned subscreens now use shared safe-area headers, branch-wide X, fixed depth-aware Cancel/Back footers, and preserved domain actions. Applicable log timestamps use the header clock and shared scroll-wheel modal; weight/load fields use decimal text input without increments or presets. See [[UI and Interaction Decisions]] for the current contract and [[2026-11-20 UI Audit Review]] for screen/input coverage and verification limits.

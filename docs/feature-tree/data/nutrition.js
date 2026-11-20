@@ -128,40 +128,73 @@ CAPS.trees.nutrition = {
             links: ["architecture:log-time-changer", "database:table-meal-logs", "home:quick-log"],
             versions: [
               {
-                n: 1,
-                name: "MealLogModal",
-                date: "2026-07-30 14:23 -0400",
-                commits: ["241f556", "e845b49", "bfdcb3a", "298f627", "3225bb5", "e8fc8e9"],
-                changes: [
-                  "Modal composer with USDA search, servings, planned vs completed, and collapsible sections.",
+                "n": 1,
+                "name": "MealLogModal",
+                "date": "2026-07-30 14:23 -0400",
+                "commits": [
+                  "241f556",
+                  "e845b49",
+                  "bfdcb3a",
+                  "298f627",
+                  "3225bb5",
+                  "e8fc8e9"
                 ],
+                "changes": [
+                  "Modal composer with USDA search, servings, planned vs completed, and collapsible sections."
+                ]
               },
               {
-                n: 2,
-                name: "MealLogScreen",
-                date: "2026-10-03 22:33 -0400",
-                commits: ["4b6db09", "1d7f792"],
-                request: "Replace the meal modal with a full-screen nutrition stack.",
-                changes: [
-                  "Added `MealLogScreen` (`4b6db09`) and switched Nutrition and Home to open it (`1d7f792`).",
+                "n": 2,
+                "name": "MealLogScreen",
+                "date": "2026-10-03 22:33 -0400",
+                "commits": [
+                  "4b6db09",
+                  "1d7f792"
                 ],
+                "request": "Replace the meal modal with a full-screen nutrition stack.",
+                "changes": [
+                  "Added `MealLogScreen` (`4b6db09`) and switched Nutrition and Home to open it (`1d7f792`)."
+                ]
               },
               {
-                n: 3,
-                name: "MealLogScreen",
-                date: "2026-10-05 22:38 -0400",
-                commits: ["0deafb1", "0627d77", "1daf75d", "39add05", "6397e58"],
-                changes: [
-                  "Add meal item focus, compact meal totals, filled title fields, compact time pill, saved-template editing.",
+                "n": 3,
+                "name": "MealLogScreen",
+                "date": "2026-10-05 22:38 -0400",
+                "commits": [
+                  "0deafb1",
+                  "0627d77",
+                  "1daf75d",
+                  "39add05",
+                  "6397e58"
                 ],
+                "changes": [
+                  "Add meal item focus, compact meal totals, filled title fields, compact time pill, saved-template editing."
+                ]
               },
               {
-                n: 4,
-                name: "MealLogScreen",
-                date: "2026-11-02 22:58 -0500",
-                commits: ["9917cee"],
-                changes: ["Card-by-card composer with steppers."],
+                "n": 4,
+                "name": "MealLogScreen",
+                "date": "2026-11-02 22:58 -0500",
+                "commits": [
+                  "9917cee"
+                ],
+                "changes": [
+                  "Card-by-card composer with steppers."
+                ]
               },
+              {
+                "n": 5,
+                "name": "MealLogScreen",
+                "date": "2026-11-20 17:46 -0500",
+                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                "changes": [
+                  "Shared safe header and depth-aware footer; header-only log-time modal.",
+                  "Direct decimal servings input replaces adjustment buttons."
+                ],
+                "commits": [
+                  "20c8b60"
+                ]
+              }
             ],
             children: [
               {
@@ -180,37 +213,62 @@ CAPS.trees.nutrition = {
                 ],
                 versions: [
                   {
-                    n: 1,
-                    name: "MealItemScreen",
-                    date: "2026-10-03 22:32 -0400",
-                    commits: ["8731d05"],
-                    changes: ["Added the food picker with local and FatSecret search."],
-                  },
-                  {
-                    n: 2,
-                    name: "MealItemScreen",
-                    date: "2026-10-05 22:38 -0400",
-                    commits: ["f8de697", "fabae46"],
-                    changes: [
-                      "Sort overlay and custom-food edit/delete (`f8de697`). Back bar and prominent create-custom-food (`fabae46`).",
+                    "n": 1,
+                    "name": "MealItemScreen",
+                    "date": "2026-10-03 22:32 -0400",
+                    "commits": [
+                      "8731d05"
                     ],
+                    "changes": [
+                      "Added the food picker with local and FatSecret search."
+                    ]
                   },
                   {
-                    n: 3,
-                    name: "MealItemScreen",
-                    date: "2026-11-02 22:58 -0500",
-                    commits: ["9917cee"],
-                    changes: ["Card/stepper renovation."],
-                  },
-                  {
-                    n: 4,
-                    name: "Single food usage lookup",
-                    date: "2026-11-16 00:20 -0500",
-                    commits: ["a556a7a"],
-                    changes: [
-                      "Use the ranking query to determine whether usage sorting is available.",
+                    "n": 2,
+                    "name": "MealItemScreen",
+                    "date": "2026-10-05 22:38 -0400",
+                    "commits": [
+                      "f8de697",
+                      "fabae46"
                     ],
+                    "changes": [
+                      "Sort overlay and custom-food edit/delete (`f8de697`). Back bar and prominent create-custom-food (`fabae46`)."
+                    ]
                   },
+                  {
+                    "n": 3,
+                    "name": "MealItemScreen",
+                    "date": "2026-11-02 22:58 -0500",
+                    "commits": [
+                      "9917cee"
+                    ],
+                    "changes": [
+                      "Card/stepper renovation."
+                    ]
+                  },
+                  {
+                    "n": 4,
+                    "name": "Single food usage lookup",
+                    "date": "2026-11-16 00:20 -0500",
+                    "commits": [
+                      "a556a7a"
+                    ],
+                    "changes": [
+                      "Use the ranking query to determine whether usage sorting is available."
+                    ]
+                  },
+                  {
+                    "n": 5,
+                    "name": "MealItemScreen",
+                    "date": "2026-11-20 17:46 -0500",
+                    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                    "changes": [
+                      "Centered title with search below header; X exits branch and footer Back/Cancel uses actual depth."
+                    ],
+                    "commits": [
+                      "20c8b60"
+                    ]
+                  }
                 ],
                 children: [
                   {
@@ -223,26 +281,51 @@ CAPS.trees.nutrition = {
                     summary: "Camera scan or typed barcode via Open Food Facts. Close-X returns to nutrition home (`64d6eb3`).",
                     versions: [
                       {
-                        n: 1,
-                        name: "BarcodeScanScreen",
-                        date: "2026-10-03 22:33 -0400",
-                        commits: ["4890a26"],
-                        changes: ["In-screen barcode scanning through Open Food Facts."],
+                        "n": 1,
+                        "name": "BarcodeScanScreen",
+                        "date": "2026-10-03 22:33 -0400",
+                        "commits": [
+                          "4890a26"
+                        ],
+                        "changes": [
+                          "In-screen barcode scanning through Open Food Facts."
+                        ]
                       },
                       {
-                        n: 2,
-                        name: "BarcodeScanScreen",
-                        date: "2026-10-05 22:38 -0400",
-                        commits: ["4d8f785", "64d6eb3"],
-                        changes: ["Clearer barcode prompt (`4d8f785`). Close to nutrition home (`64d6eb3`)."],
+                        "n": 2,
+                        "name": "BarcodeScanScreen",
+                        "date": "2026-10-05 22:38 -0400",
+                        "commits": [
+                          "4d8f785",
+                          "64d6eb3"
+                        ],
+                        "changes": [
+                          "Clearer barcode prompt (`4d8f785`). Close to nutrition home (`64d6eb3`)."
+                        ]
                       },
                       {
-                        n: 3,
-                        name: "BarcodeScanScreen",
-                        date: "2026-11-02 22:58 -0500",
-                        commits: ["9917cee"],
-                        changes: ["Card renovation."],
+                        "n": 3,
+                        "name": "BarcodeScanScreen",
+                        "date": "2026-11-02 22:58 -0500",
+                        "commits": [
+                          "9917cee"
+                        ],
+                        "changes": [
+                          "Card renovation."
+                        ]
                       },
+                      {
+                        "n": 4,
+                        "name": "BarcodeScanScreen",
+                        "date": "2026-11-20 17:46 -0500",
+                        "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                        "changes": [
+                          "Shared branch-close header and fixed depth-aware navigation preserve scanning actions."
+                        ],
+                        "commits": [
+                          "20c8b60"
+                        ]
+                      }
                     ],
                   },
                   {
@@ -258,28 +341,53 @@ CAPS.trees.nutrition = {
                     ],
                     versions: [
                       {
-                        n: 1,
-                        name: "CreateCustomFoodScreen",
-                        date: "2026-10-03 22:33 -0400",
-                        commits: ["12b6b40"],
-                        changes: ["Custom foods with an advisory calorie check."],
-                      },
-                      {
-                        n: 2,
-                        name: "CreateCustomFoodScreen",
-                        date: "2026-10-04 23:27 -0400",
-                        commits: ["1041599", "e8925f8", "14c1595"],
-                        changes: [
-                          "Macro row / micro columns (`1041599`). Fresh create form (`e8925f8`). Facts labeled Create Custom Food (`14c1595`).",
+                        "n": 1,
+                        "name": "CreateCustomFoodScreen",
+                        "date": "2026-10-03 22:33 -0400",
+                        "commits": [
+                          "12b6b40"
                         ],
+                        "changes": [
+                          "Custom foods with an advisory calorie check."
+                        ]
                       },
                       {
-                        n: 3,
-                        name: "CreateCustomFoodScreen",
-                        date: "2026-11-02 22:58 -0500",
-                        commits: ["9917cee"],
-                        changes: ["Card/stepper renovation."],
+                        "n": 2,
+                        "name": "CreateCustomFoodScreen",
+                        "date": "2026-10-04 23:27 -0400",
+                        "commits": [
+                          "1041599",
+                          "e8925f8",
+                          "14c1595"
+                        ],
+                        "changes": [
+                          "Macro row / micro columns (`1041599`). Fresh create form (`e8925f8`). Facts labeled Create Custom Food (`14c1595`)."
+                        ]
                       },
+                      {
+                        "n": 3,
+                        "name": "CreateCustomFoodScreen",
+                        "date": "2026-11-02 22:58 -0500",
+                        "commits": [
+                          "9917cee"
+                        ],
+                        "changes": [
+                          "Card/stepper renovation."
+                        ]
+                      },
+                      {
+                        "n": 4,
+                        "name": "CreateCustomFoodScreen",
+                        "date": "2026-11-20 17:46 -0500",
+                        "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                        "changes": [
+                          "Direct numeric inputs replace amount/macro presets and steppers.",
+                          "Shared top and fixed action bars preserve save/discard behavior."
+                        ],
+                        "commits": [
+                          "20c8b60"
+                        ]
+                      }
                     ],
                   },
                   {
@@ -290,47 +398,79 @@ CAPS.trees.nutrition = {
                     files: ["src/screens/NutritionScreens/NutritionFactsScreen.tsx"],
                     entry: "Selecting a food in `MealItemScreen`.",
                     summary:
-                      "Serving amount steppers, facts, exact-serving favourites. Replaced `FoodServingEditor`. Calories for the default amount show on open.",
+                      "Direct decimal serving amount and calorie inputs, nutrition facts and exact-serving favourites. Default serving calories show on open; shared safe header and fixed Back/action footer.",
                     versions: [
                       {
-                        n: 1,
-                        name: "FoodServingEditor",
-                        date: "2026-07-30 13:39 -0400",
-                        commits: ["298f627"],
-                        changes: ["Editable calorie counter inside the old meal modal."],
-                      },
-                      {
-                        n: 2,
-                        name: "NutritionFactsScreen",
-                        date: "2026-10-04 18:59 -0400",
-                        commits: ["12171e9", "c4e6bcb", "02ea54a"],
-                        changes: [
-                          "Full-screen facts with exact-serving favourites, initial calories, floating serving dropdown.",
+                        "n": 1,
+                        "name": "FoodServingEditor",
+                        "date": "2026-07-30 13:39 -0400",
+                        "commits": [
+                          "298f627"
                         ],
+                        "changes": [
+                          "Editable calorie counter inside the old meal modal."
+                        ]
                       },
                       {
-            n: 3,
-            name: "NutritionFactsScreen",
-            date: "2026-10-05 22:42 -0400",
-                        commits: ["e5cf05f", "59c7ef6"],
-                        changes: ["Compact macro totals with clearer spacing, then inline P/C/F in the title."],
-                      },
-                      {
-                        n: 4,
-                        name: "NutritionFactsScreen",
-                        date: "2026-11-02 22:58 -0500",
-                        commits: ["9917cee"],
-                        changes: ["Card/stepper renovation."],
-                      },
-                      {
-                        n: 5,
-                        name: "Single FatSecret default lookup",
-                        date: "2026-11-16 00:20 -0500",
-                        commits: ["a556a7a"],
-                        changes: [
-                          "Find the preferred serving ID once, then match it against normalized servings.",
+                        "n": 2,
+                        "name": "NutritionFactsScreen",
+                        "date": "2026-10-04 18:59 -0400",
+                        "commits": [
+                          "12171e9",
+                          "c4e6bcb",
+                          "02ea54a"
                         ],
+                        "changes": [
+                          "Full-screen facts with exact-serving favourites, initial calories, floating serving dropdown."
+                        ]
                       },
+                      {
+                        "n": 3,
+                        "name": "NutritionFactsScreen",
+                        "date": "2026-10-05 22:42 -0400",
+                        "commits": [
+                          "e5cf05f",
+                          "59c7ef6"
+                        ],
+                        "changes": [
+                          "Compact macro totals with clearer spacing, then inline P/C/F in the title."
+                        ]
+                      },
+                      {
+                        "n": 4,
+                        "name": "NutritionFactsScreen",
+                        "date": "2026-11-02 22:58 -0500",
+                        "commits": [
+                          "9917cee"
+                        ],
+                        "changes": [
+                          "Card/stepper renovation."
+                        ]
+                      },
+                      {
+                        "n": 5,
+                        "name": "Single FatSecret default lookup",
+                        "date": "2026-11-16 00:20 -0500",
+                        "commits": [
+                          "a556a7a"
+                        ],
+                        "changes": [
+                          "Find the preferred serving ID once, then match it against normalized servings."
+                        ]
+                      },
+                      {
+                        "n": 6,
+                        "name": "NutritionFactsScreen",
+                        "date": "2026-11-20 17:46 -0500",
+                        "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                        "changes": [
+                          "Direct quantity and serving-mass fields retain serving calculations and selected unit.",
+                          "Shared header/footer preserve save, favourite and delete actions."
+                        ],
+                        "commits": [
+                          "20c8b60"
+                        ]
+                      }
                     ],
                   },
                 ],
@@ -345,38 +485,65 @@ CAPS.trees.nutrition = {
                 summary: "List of `saved_meals` templates, separate from diary logs. Edit/delete on the list. Opening one loads the composer.",
                 versions: [
                   {
-                    n: 1,
-                    name: "SavedMealsScreen",
-                    date: "2026-10-03 22:32 -0400",
-                    commits: ["4c6b3f1"],
-                    changes: ["Reusable saved meals separate from the diary."],
-                  },
-                  {
-                    n: 2,
-                    name: "SavedMealsScreen",
-                    date: "2026-10-05 22:38 -0400",
-                    commits: ["9b8f6e2", "3b34380", "7c98213", "a553465"],
-                    changes: [
-                      "Update/delete APIs, template drafts, workspace open, and list edit/delete controls.",
+                    "n": 1,
+                    "name": "SavedMealsScreen",
+                    "date": "2026-10-03 22:32 -0400",
+                    "commits": [
+                      "4c6b3f1"
                     ],
+                    "changes": [
+                      "Reusable saved meals separate from the diary."
+                    ]
                   },
                   {
-                    n: 3,
-                    name: "SavedMealsScreen",
-                    date: "2026-11-02 22:58 -0500",
-                    commits: ["9917cee"],
-                    changes: ["Card renovation."],
+                    "n": 2,
+                    "name": "SavedMealsScreen",
+                    "date": "2026-10-05 22:38 -0400",
+                    "commits": [
+                      "9b8f6e2",
+                      "3b34380",
+                      "7c98213",
+                      "a553465"
+                    ],
+                    "changes": [
+                      "Update/delete APIs, template drafts, workspace open, and list edit/delete controls."
+                    ]
                   },
                   {
-                    n: 4,
-                    name: "Shared saved template conversion",
-                    date: "2026-11-16 00:20 -0500",
-                    commits: ["a556a7a"],
-                    changes: [
+                    "n": 3,
+                    "name": "SavedMealsScreen",
+                    "date": "2026-11-02 22:58 -0500",
+                    "commits": [
+                      "9917cee"
+                    ],
+                    "changes": [
+                      "Card renovation."
+                    ]
+                  },
+                  {
+                    "n": 4,
+                    "name": "Shared saved template conversion",
+                    "date": "2026-11-16 00:20 -0500",
+                    "commits": [
+                      "a556a7a"
+                    ],
+                    "changes": [
                       "Use one draft converter for editing and inserting a template.",
-                      "Reload once after deletion and ignore obsolete refresh results.",
-                    ],
+                      "Reload once after deletion and ignore obsolete refresh results."
+                    ]
                   },
+                  {
+                    "n": 5,
+                    "name": "SavedMealsScreen",
+                    "date": "2026-11-20 17:46 -0500",
+                    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                    "changes": [
+                      "Shared safe header and fixed depth-aware footer retain template actions."
+                    ],
+                    "commits": [
+                      "20c8b60"
+                    ]
+                  }
                 ],
               },
             ],

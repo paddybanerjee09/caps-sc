@@ -25,6 +25,10 @@ The README’s **Custom Skill Work** section describes sessions composed from in
 - `e9ddbfb` added the Expo Router placeholder at `app/(tabs)/sport-training.tsx` under the name Sport Training. `f0f5834` switched to custom navigation, route `sportTraining`, label Sport, and a `boxing-glove` icon.
 - `edd48ce` extracted `SportScreen.tsx` and `ad01bfe` centered its title. `59dd4e8` renamed the route and file to the current `skill` / `SkillScreen.tsx` and split S&C into separate Strength and Conditioning tabs.
 - `0b97b10` described fixed skill activity types. `41b5c4d` shifted the README to user-built sessions of independently configured activities. Neither version is an implemented logging flow.
-- `.cursor/rules/ui-style-guide.mdc` reserves implementation for an explicit Skills Training request. Keep the route key, file name, exported component, and `ScreenForRoute` mapping aligned. For an authorized UI implementation, use screen-local cards, steppers, and presets per that rule.
+- `.cursor/rules/ui-style-guide.mdc` reserves implementation for an explicit Skills Training request. Keep the route key, file name, exported component, and `ScreenForRoute` mapping aligned. For authorized UI changes, use domain-owned cards and the current shared subscreen/log-time contracts; the 20 November audit removes time increments.
 
 Verified against `src/navigation/routes.ts`, `src/screens/SkillScreen.tsx`, `src/screens/skill/`, `src/skill/`, `src/data/skillMigration.ts`, and `src/data/skillRepository.ts`. `npm run verify:skill` covers the migration, focus, calorie fixture, templates, snapshots, rollback, and retry. The screens were not exercised on a device in the implementation session. Related notes: [[App Architecture]], [[Data and Persistence]], [[Project History]], [[Feature Tree Crosswalk]]. Feature Tree: [`skill.html`](../../../docs/feature-tree/skill.html).
+
+## Uniform UI audit (20 November 2026)
+
+All owned subscreens now use shared safe-area headers, branch-wide X, fixed depth-aware Cancel/Back footers, and preserved domain actions. Applicable log timestamps use the header clock and shared scroll-wheel modal; weight/load fields use decimal text input without increments or presets. See [[UI and Interaction Decisions]] for the current contract and [[2026-11-20 UI Audit Review]] for screen/input coverage and verification limits.

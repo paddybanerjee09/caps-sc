@@ -15,10 +15,10 @@ CAPS.trees.skill = {
     summary:
       "The month calendar is the first card. The parent supplies MonthEvent rows. Marker colour is the stored focus, and each row shows the focus name and end time. A legend lists the five focus colours. Build Skill Session opens the builder. Saved Sessions expands inline under its button.",
     guardrails: [
-      "Use screen-local cards, +/- steppers, and preset strips. Do not open a modal to enter an activity (ui-style-guide.mdc).",
+      "Use shared subscreen bars, decimal weight/load inputs and the shared Log Time modal; preserve domain validation (user correction, 20 November 2026).",
       "The file is `SkillScreen.tsx`, the component is `SkillTrainingScreen`, and the route key is `skill`. Keep all three in sync with `Screens.tsx` and `routes.ts`.",
       "Home timeline blocks stay on `timelineCategories.skill`. Only the Skill month marker uses the session focus colour.",
-      "Saving a template, removing a template, and logging a session are separate writes. Logging does not change the template.",
+      "Saving a template, removing a template, and logging a session are separate writes. Logging does not change the template."
     ],
     links: [
       "architecture:bottom-tabs",
@@ -111,16 +111,31 @@ CAPS.trees.skill = {
         links: ["architecture:log-time-changer"],
         versions: [
           {
-            n: 1,
-            name: "Skill session builder",
-            date: "2026-11-16 11:02 -0500",
-            commits: ["45648a2"],
-            request: "Build the Skills Training tab from the approved plan, using RPE instead of RIR.",
-            changes: [
-              "Added inline activity cards with steppers, presets, and up/down reordering.",
-              "Save writes a template immediately. Saved asks before removing it. Log does not change the template.",
+            "n": 1,
+            "name": "Skill session builder",
+            "date": "2026-11-16 11:02 -0500",
+            "commits": [
+              "45648a2"
             ],
+            "request": "Build the Skills Training tab from the approved plan, using RPE instead of RIR.",
+            "changes": [
+              "Added inline activity cards with steppers, presets, and up/down reordering.",
+              "Save writes a template immediately. Saved asks before removing it. Log does not change the template."
+            ]
           },
+          {
+            "n": 2,
+            "name": "SkillSessionBuilderScreen",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Header-only clock modal replaces time card/day increments.",
+              "Shared safe branch-close header and fixed footer preserve template/log actions and discard guard."
+            ],
+            "commits": [
+              "d56e731"
+            ]
+          }
         ],
       },
       {
@@ -134,12 +149,28 @@ CAPS.trees.skill = {
           "Shows the stored title, start, end, focus, elapsed time, estimated calories, weight basis, and ordered activities. It does not recompute the estimate.",
         versions: [
           {
-            n: 1,
-            name: "Skill session detail",
-            date: "2026-11-16 11:02 -0500",
-            commits: ["45648a2"],
-            changes: ["Added the read-only session screen opened from a calendar row."],
+            "n": 1,
+            "name": "Skill session detail",
+            "date": "2026-11-16 11:02 -0500",
+            "commits": [
+              "45648a2"
+            ],
+            "changes": [
+              "Added the read-only session screen opened from a calendar row."
+            ]
           },
+          {
+            "n": 2,
+            "name": "SkillSessionDetailScreen",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Shared safe centered header and fixed depth-aware footer."
+            ],
+            "commits": [
+              "d56e731"
+            ]
+          }
         ],
       },
       {

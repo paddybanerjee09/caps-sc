@@ -90,37 +90,63 @@ CAPS.trees.architecture = {
           "Owns `activeRoute` and `sidebarOpen`. Renders Header, `ScreenForRoute`, then `NutritionStack` when the nutrition tab is active and `ConditioningStack` when the conditioning tab is active, then BottomTabs and Sidebar. Hardware back closes the sidebar, then the active workspace, then exits.",
         versions: [
           {
-            n: 1,
-            name: "AppNavigator",
-            date: "2026-07-02 00:35 -0400",
-            commits: ["f0f5834"],
-            changes: ["Added the custom navigator shell."],
-          },
-          {
-            n: 2,
-            name: "AppNavigator",
-            date: "2026-10-11 21:40 -0400",
-            commits: ["1d7f792", "7e20d09"],
-            changes: [
-              "Hosted the nutrition stack overlay (`1d7f792`) and the conditioning stack (`7e20d09`).",
+            "n": 1,
+            "name": "AppNavigator",
+            "date": "2026-07-02 00:35 -0400",
+            "commits": [
+              "f0f5834"
             ],
+            "changes": [
+              "Added the custom navigator shell."
+            ]
           },
           {
-            n: 3,
-            name: "AppNavigator",
-            date: "2026-11-02 22:26 -0500",
-            commits: ["5c595dd"],
-            changes: ["Chrome renovation: header, tabs, and sidebar wired through the feedback engine."],
-          },
-          {
-            n: 4,
-            name: "Shared route selection",
-            date: "2026-11-16 00:18 -0500",
-            commits: ["2073f65"],
-            changes: [
-              "Use the same callback for bottom tabs, sidebar destinations, and Home’s request to open Nutrition.",
+            "n": 2,
+            "name": "AppNavigator",
+            "date": "2026-10-11 21:40 -0400",
+            "commits": [
+              "1d7f792",
+              "7e20d09"
             ],
+            "changes": [
+              "Hosted the nutrition stack overlay (`1d7f792`) and the conditioning stack (`7e20d09`)."
+            ]
           },
+          {
+            "n": 3,
+            "name": "AppNavigator",
+            "date": "2026-11-02 22:26 -0500",
+            "commits": [
+              "5c595dd"
+            ],
+            "changes": [
+              "Chrome renovation: header, tabs, and sidebar wired through the feedback engine."
+            ]
+          },
+          {
+            "n": 4,
+            "name": "Shared route selection",
+            "date": "2026-11-16 00:18 -0500",
+            "commits": [
+              "2073f65"
+            ],
+            "changes": [
+              "Use the same callback for bottom tabs, sidebar destinations, and Home’s request to open Nutrition."
+            ]
+          },
+          {
+            "n": 5,
+            "name": "AppNavigator",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Sidebar branches return to the last main tab and own their safe-area header.",
+              "Hardware Back respects profile draft guards."
+            ],
+            "commits": [
+              "b971c0d"
+            ]
+          }
         ],
         children: [
           {
@@ -166,27 +192,64 @@ CAPS.trees.architecture = {
             ],
             versions: [
               {
-                n: 1,
-                name: "Screen",
-                date: "2026-07-02 00:35 -0400",
-                commits: ["f0f5834"],
-                changes: ["Added the shared screen wrapper."],
+                "n": 1,
+                "name": "Screen",
+                "date": "2026-07-02 00:35 -0400",
+                "commits": [
+                  "f0f5834"
+                ],
+                "changes": [
+                  "Added the shared screen wrapper."
+                ]
               },
               {
-                n: 2,
-                name: "Screen",
-                date: "2026-07-22 02:53 -0400",
-                commits: ["edd48ce", "ad01bfe"],
-                changes: ["Added `centerTitle` in the UI pass."],
+                "n": 2,
+                "name": "Screen",
+                "date": "2026-07-22 02:53 -0400",
+                "commits": [
+                  "edd48ce",
+                  "ad01bfe"
+                ],
+                "changes": [
+                  "Added `centerTitle` in the UI pass."
+                ]
               },
               {
-                n: 3,
-                name: "Screen",
-                date: "2026-11-02 22:26 -0500",
-                commits: ["5c595dd"],
-                changes: ["High-contrast chrome renovation."],
+                "n": 3,
+                "name": "Screen",
+                "date": "2026-11-02 22:26 -0500",
+                "commits": [
+                  "5c595dd"
+                ],
+                "changes": [
+                  "High-contrast chrome renovation."
+                ]
               },
-          { n: 4, name: "Screen", date: "2026-11-20 16:53 -0500", commits: ["43eab3a"], request: "Uniform Strength-style title cards and balanced Home information and Quick Log layout.", changes: ["ScreenTitleCard owns the Strength-style accent bar, left-aligned title and subtitle across Home, Nutrition, Skill, Strength and Conditioning.","Screen delegates its header and removes centered title variants."] },
+              {
+                "n": 4,
+                "name": "Screen",
+                "date": "2026-11-20 16:53 -0500",
+                "commits": [
+                  "43eab3a"
+                ],
+                "request": "Uniform Strength-style title cards and balanced Home information and Quick Log layout.",
+                "changes": [
+                  "ScreenTitleCard owns the Strength-style accent bar, left-aligned title and subtitle across Home, Nutrition, Skill, Strength and Conditioning.",
+                  "Screen delegates its header and removes centered title variants."
+                ]
+              },
+              {
+                "n": 5,
+                "name": "Screen",
+                "date": "2026-11-20 17:46 -0500",
+                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                "changes": [
+                  "Screen optionally composes fixed WorkflowHeader/WorkflowFooter around scrolling sidebar content."
+                ],
+                "commits": [
+                  "b971c0d"
+                ]
+              }
             ],
           },
           {
@@ -307,14 +370,14 @@ CAPS.trees.architecture = {
         id: "shared-controls",
         title: "Shared controls",
         kind: "group",
-        tagline: "PressOpacity, SimpleSwitch, LogTimeChanger",
+        tagline: "Shared press, toggle, time and workflow controls",
         files: [
           "src/components/PressOpacity.tsx",
           "src/components/SimpleSwitch.tsx",
           "src/components/LogTimeChanger.tsx",
         ],
         summary:
-          "Small primitives used in more than one domain. The style guide forbids extracting generic Card/Stepper wrappers; these three already exist and stay here.",
+          "Shared interaction primitives enforce uniform press feedback, toggles, logging time and subscreen bars across the five tabs.",
         children: [
           {
             id: "press-opacity",
@@ -368,46 +431,106 @@ CAPS.trees.architecture = {
             id: "log-time-changer",
             title: "LogTimeChanger",
             kind: "component",
-            tagline: "Stepper date/time, no typing",
+            tagline: "Compact header clock and scroll-wheel modal",
             files: ["src/components/LogTimeChanger.tsx"],
             summary:
-              "Logged-at control for Home weight/sleep, MealLogScreen, and conditioning editors. Compact pill variant exists for meal headers.",
+              "Shared compact clock/time trigger for every logging flow. Opens Log Time with local-day arrows, hour/minute wheels and Cancel/Done; caller bounds and duration calculations remain owned by each flow.",
             modes: [
-              { name: "Full", detail: "Date and time steppers." },
-              { name: "Compact pill", detail: "Meal log header (`39add05`)." },
+              {
+                "name": "Header button",
+                "detail": "Clock icon and selected 24-hour time; no inline/card/increment variant."
+              },
+              {
+                "name": "Log Time modal",
+                "detail": "Scrollable hours/minutes with local-day navigation, cancellation and bounded confirmation."
+              }
             ],
             guardrails: [
-              "Do not use a typing DateTimePicker for log times; keep +/- steppers (ui-style-guide.mdc; 67d99b6).",
+              "Never restore weight/time increments, presets or body log-time cards (user correction, 20 November 2026).",
+              "Put the shared trigger in the header right and preserve caller date bounds (ui-style-guide.mdc section 8)."
             ],
             versions: [
               {
-                n: 1,
-                name: "LogTimeChanger",
-                date: "2026-07-28 23:28 -0400",
-                commits: ["3232443", "859b4aa", "d94e5c3"],
-                changes: [
-                  "Extracted from the weight picker (`3232443`), reused for sleep (`859b4aa`), then as a separate time control (`d94e5c3`).",
+                "n": 1,
+                "name": "LogTimeChanger",
+                "date": "2026-07-28 23:28 -0400",
+                "commits": [
+                  "3232443",
+                  "859b4aa",
+                  "d94e5c3"
                 ],
+                "changes": [
+                  "Extracted from the weight picker (`3232443`), reused for sleep (`859b4aa`), then as a separate time control (`d94e5c3`)."
+                ]
               },
               {
-                n: 2,
-                name: "LogTimeChanger",
-                date: "2026-10-05 22:38 -0400",
-                commits: ["9fc0f73", "ce2ba31", "39add05"],
-                changes: [
-                  "SDK repairs, workspace mount tweaks, and the compact meal-header pill (`39add05`).",
+                "n": 2,
+                "name": "LogTimeChanger",
+                "date": "2026-10-05 22:38 -0400",
+                "commits": [
+                  "9fc0f73",
+                  "ce2ba31",
+                  "39add05"
                 ],
+                "changes": [
+                  "SDK repairs, workspace mount tweaks, and the compact meal-header pill (`39add05`)."
+                ]
               },
               {
-                n: 3,
-                name: "LogTimeChanger",
-                date: "2026-11-02 22:36 -0500",
-                commits: ["e8fc8e9", "67d99b6"],
-                changes: ["Stepper time controls in the Home renovation."],
+                "n": 3,
+                "name": "LogTimeChanger",
+                "date": "2026-11-02 22:36 -0500",
+                "commits": [
+                  "e8fc8e9",
+                  "67d99b6"
+                ],
+                "changes": [
+                  "Stepper time controls in the Home renovation."
+                ]
               },
+              {
+                "n": 4,
+                "name": "LogTimeChanger",
+                "date": "2026-11-20 17:46 -0500",
+                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                "changes": [
+                  "Replaced all time cards, increments and presets with a compact header clock/time button.",
+                  "Log Time modal has local-day arrows, independent hour/minute wheels, Cancel and Done with caller date bounds."
+                ],
+                "commits": [
+                  "2a8f16d"
+                ]
+              }
             ],
           },
-        ],
+
+            {
+              "id": "workflow-chrome",
+              "title": "WorkflowHeader and WorkflowFooter",
+              "kind": "component",
+              "status": "active",
+              "tagline": "Safe fixed bars and branch navigation",
+              "files": [
+                "src/components/WorkflowChrome.tsx"
+              ],
+              "summary": "One header/footer contract across all subscreens. Centered title, safe top inset, branch-wide X, optional right-hand clock. Fixed footer uses Cancel at first depth and Back deeper, next to existing actions.",
+              "guardrails": [
+                "Apply top safe inset exactly once; Home overlays use their already-inset parent.",
+                "X exits the entire branch with existing guards; footer Back pops one level and preserves parent drafts."
+              ],
+              "versions": [
+                {
+                  "n": 1,
+                  "name": "Shared subscreen chrome",
+                  "date": "2026-11-20 17:41 -0500",
+                  "uncommitted": true,
+                  "changes": [
+                    "Standardized subscreen headers and footers across five tabs and sidebar branches."
+                  ]
+                }
+              ]
+            }
+          ],
       },
       {
         id: "app-state",
@@ -560,24 +683,45 @@ CAPS.trees.architecture = {
         tagline: "ui-style-guide.mdc",
         files: [".cursor/rules/ui-style-guide.mdc"],
         summary:
-          "Always-on rule: card-by-card layout, no data-entry modals, steppers and presets, no cross-screen Card/Stepper extraction, unfinished screens left alone until requested.",
+          "Theme-based minimalist forms, decimal weight/load fields, shared safe-area headers/footers, compact clock buttons and the explicit Log Time modal exception. Branch X exits all levels; fixed Cancel/Back depends on depth.",
         versions: [
           {
-            n: 1,
-            name: "react-native-patterns skill",
-            date: "2026-11-02 22:19 -0500",
-            commits: ["3587129"],
-            request: "Install the spencerpauly react-native-patterns skill.",
-            changes: ["Added `.agents/skills/react-native-patterns/SKILL.md`."],
+            "n": 1,
+            "name": "react-native-patterns skill",
+            "date": "2026-11-02 22:19 -0500",
+            "commits": [
+              "3587129"
+            ],
+            "request": "Install the spencerpauly react-native-patterns skill.",
+            "changes": [
+              "Added `.agents/skills/react-native-patterns/SKILL.md`."
+            ]
           },
           {
-            n: 2,
-            name: "UI style guide",
-            date: "2026-11-02 22:20 -0500",
-            commits: ["cb31dff"],
-            request: "Renovate the app to a card-by-card, stepper-driven, high-contrast architecture.",
-            changes: ["Added `.cursor/rules/ui-style-guide.mdc` and the high-contrast theme tokens."],
+            "n": 2,
+            "name": "UI style guide",
+            "date": "2026-11-02 22:20 -0500",
+            "commits": [
+              "cb31dff"
+            ],
+            "request": "Renovate the app to a card-by-card, stepper-driven, high-contrast architecture.",
+            "changes": [
+              "Added `.cursor/rules/ui-style-guide.mdc` and the high-contrast theme tokens."
+            ]
           },
+          {
+            "n": 3,
+            "name": "UI style guide",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Replaced mandatory weight steppers with decimal text boxes and documented the requested time-modal exception.",
+              "Defined safe centered subscreen bars, branch-wide X and depth-aware fixed Cancel/Back footers."
+            ],
+            "commits": [
+              "2a8f16d"
+            ]
+          }
         ],
       },
       {
@@ -594,25 +738,26 @@ CAPS.trees.architecture = {
           "Static HTML org-chart of every screen, component, table, and architectural piece, versioned from git. Future feature work must consult and update it.",
         versions: [
           {
-            n: 1,
-            name: "Feature tree site",
-            date: "2026-11-03 02:15 -0500",
-            uncommitted: true,
-            request:
-              "Create a minimalist HTML website as a working tree for every feature/screen/functionality, timestamped from git, with a tree per main screen plus database and architecture.",
-            changes: [
-              "Added `docs/feature-tree/` pages and renderer, `scripts/feature-tree.mjs`, and `.cursor/rules/feature-tree.mdc`.",
-            ],
+            "n": 1,
+            "name": "Feature tree site",
+            "date": "2026-11-03 02:15 -0500",
+            "uncommitted": true,
+            "request": "Create a minimalist HTML website as a working tree for every feature/screen/functionality, timestamped from git, with a tree per main screen plus database and architecture.",
+            "changes": [
+              "Added `docs/feature-tree/` pages and renderer, `scripts/feature-tree.mjs`, and `.cursor/rules/feature-tree.mdc`."
+            ]
           },
           {
-            n: 2,
-            name: "Cached search matches",
-            date: "2026-11-16 00:18 -0500",
-            commits: ["a7e0fd4"],
-            changes: [
-              "Tokenize each query once and reuse the matching node IDs across renders.",
+            "n": 2,
+            "name": "Cached search matches",
+            "date": "2026-11-16 00:18 -0500",
+            "commits": [
+              "a7e0fd4"
             ],
-          },
+            "changes": [
+              "Tokenize each query once and reuse the matching node IDs across renders."
+            ]
+          }
         ],
       },
       {

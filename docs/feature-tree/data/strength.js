@@ -15,10 +15,10 @@ CAPS.trees.strength = {
     summary:
       "Month calendar of logged sessions, then Log Workout, Create Workout, and a Saved Workouts list. The parent supplies MonthEvent rows. Marker color is the stored primary focus, or neutral when the estimate has no primary. Home still uses the Strength category color.",
     guardrails: [
-      "Keep logging on screen-local cards, +/- steppers, and preset strips. Do not open a modal to enter sets or pick an exercise (ui-style-guide.mdc).",
+      "Use shared subscreen bars, decimal weight/load inputs and the shared Log Time modal; preserve domain validation (user correction, 20 November 2026).",
       "Do not restore the reverted v1 modal stack (reverted 2026-10-02).",
       "The file is `StrengthTrainingScreen.tsx`, the component is `StrengthTrainingScreen`, and the route key is `strength`. Keep all three in sync with `Screens.tsx` and `routes.ts`.",
-      "Home timeline blocks stay on `timelineCategories.strength`. Only the Strength month marker uses the session focus color.",
+      "Home timeline blocks stay on `timelineCategories.strength`. Only the Strength month marker uses the session focus color."
     ],
     links: [
       "architecture:bottom-tabs",
@@ -135,45 +135,65 @@ CAPS.trees.strength = {
         links: ["architecture:log-time-changer"],
         versions: [
           {
-            n: 1,
-            name: "Workout builder",
-            date: "2026-11-15 15:39 -0500",
-            commits: ["21d635f"],
-            changes: [
-              "Added template and log modes, exercise search, the set table, and the save-workout toggle.",
+            "n": 1,
+            "name": "Workout builder",
+            "date": "2026-11-15 15:39 -0500",
+            "commits": [
+              "21d635f"
             ],
+            "changes": [
+              "Added template and log modes, exercise search, the set table, and the save-workout toggle."
+            ]
           },
           {
-            n: 2,
-            name: "Workout builder",
-            date: "2026-11-15 15:48 -0500",
-            commits: ["36bac02"],
-            changes: [
-              "Added From saved workout inside the log, stacked exercise rows, and a full-width Log Workout button.",
+            "n": 2,
+            "name": "Workout builder",
+            "date": "2026-11-15 15:48 -0500",
+            "commits": [
+              "36bac02"
             ],
+            "changes": [
+              "Added From saved workout inside the log, stacked exercise rows, and a full-width Log Workout button."
+            ]
           },
           {
-            n: 3,
-            name: "Workout builder",
-            date: "2026-11-15 15:57 -0500",
-            commits: ["6bc5a4c"],
-            request: "Apply the post-build Strength UI review.",
-            changes: [
+            "n": 3,
+            "name": "Workout builder",
+            "date": "2026-11-15 15:57 -0500",
+            "commits": [
+              "6bc5a4c"
+            ],
+            "request": "Apply the post-build Strength UI review.",
+            "changes": [
               "The log scrolls between a fixed title area and a fixed footer so Log Workout stays above the tab bar.",
               "Logging that removes a saved workout asks first.",
-              "Removing an exercise from the table asks first.",
-            ],
+              "Removing an exercise from the table asks first."
+            ]
           },
           {
-            n: 4,
-            name: "Shared Strength snapshot persistence",
-            date: "2026-11-16 00:20 -0500",
-            commits: ["1662f54"],
-            changes: [
-              "Share exercise and set persistence across templates and sessions.",
-              "Compute exercise search ranks before sorting.",
+            "n": 4,
+            "name": "Shared Strength snapshot persistence",
+            "date": "2026-11-16 00:20 -0500",
+            "commits": [
+              "1662f54"
             ],
+            "changes": [
+              "Share exercise and set persistence across templates and sessions.",
+              "Compute exercise search ranks before sorting."
+            ]
           },
+          {
+            "n": 5,
+            "name": "WorkoutBuilderScreen",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Header clock replaces day/time cards and increments; fixed Cancel/Back actions preserve log/template actions."
+            ],
+            "commits": [
+              "6d94ddf"
+            ]
+          }
         ],
       },
       {
@@ -187,30 +207,51 @@ CAPS.trees.strength = {
           "Full-screen editor for one draft exercise. Repeat fields fill sets that still follow them. Individual sets can be customized or skipped. Saving returns to the builder without clearing search.",
         versions: [
           {
-            n: 1,
-            name: "Exercise editor",
-            date: "2026-11-15 15:39 -0500",
-            commits: ["21d635f"],
-            changes: ["Added steppers for load, sets, reps, RPE, and rest, plus explosive intent."],
+            "n": 1,
+            "name": "Exercise editor",
+            "date": "2026-11-15 15:39 -0500",
+            "commits": [
+              "21d635f"
+            ],
+            "changes": [
+              "Added steppers for load, sets, reps, RPE, and rest, plus explosive intent."
+            ]
           },
           {
-            n: 2,
-            name: "Exercise editor",
-            date: "2026-11-15 15:57 -0500",
-            commits: ["6bc5a4c"],
-            changes: [
-              "A customized set can change load, reps, RPE, and rest. Cancel restores the workout to the state from when the editor opened.",
+            "n": 2,
+            "name": "Exercise editor",
+            "date": "2026-11-15 15:57 -0500",
+            "commits": [
+              "6bc5a4c"
             ],
+            "changes": [
+              "A customized set can change load, reps, RPE, and rest. Cancel restores the workout to the state from when the editor opened."
+            ]
           },
           {
-            n: 3,
-            name: "Shared set editing",
-            date: "2026-11-16 00:20 -0500",
-            commits: ["1662f54"],
-            changes: [
-              "Reuse the set updater and keep set IDs when applying repeat targets.",
+            "n": 3,
+            "name": "Shared set editing",
+            "date": "2026-11-16 00:20 -0500",
+            "commits": [
+              "1662f54"
             ],
+            "changes": [
+              "Reuse the set updater and keep set IDs when applying repeat targets."
+            ]
           },
+          {
+            "n": 4,
+            "name": "ExerciseEditorScreen",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Repeat/custom set load, assistance and added weight use decimal inputs with kg/lb conversion.",
+              "Shared branch X and fixed Back/action bar retain exercise and parent draft guards."
+            ],
+            "commits": [
+              "6d94ddf"
+            ]
+          }
         ],
       },
       {
@@ -231,31 +272,52 @@ CAPS.trees.strength = {
         ],
         versions: [
           {
-            n: 1,
-            name: "Strength focus",
-            date: "2026-11-15 15:39 -0500",
-            commits: ["e0f5bb4", "21d635f"],
-            changes: [
+            "n": 1,
+            "name": "Strength focus",
+            "date": "2026-11-15 15:39 -0500",
+            "commits": [
+              "e0f5bb4",
+              "21d635f"
+            ],
+            "changes": [
               "Added strength-emphasis-v1. A primary requires a score of at least 60 and a 15-point lead.",
-              "The focus screen shows the four indexes and the rationale for each.",
-            ],
+              "The focus screen shows the four indexes and the rationale for each."
+            ]
           },
           {
-            n: 2,
-            name: "Strength focus",
-            date: "2026-11-15 15:48 -0500",
-            commits: ["36bac02"],
-            changes: ["A missing score reads Unavailable, and the rationale stays on the screen."],
+            "n": 2,
+            "name": "Strength focus",
+            "date": "2026-11-15 15:48 -0500",
+            "commits": [
+              "36bac02"
+            ],
+            "changes": [
+              "A missing score reads Unavailable, and the rationale stays on the screen."
+            ]
           },
           {
-            n: 3,
-            name: "Latest usable lift reference in SQLite",
-            date: "2026-11-16 00:20 -0500",
-            commits: ["1662f54"],
-            changes: [
-              "Return only the latest usable reference per lift from historical work sets.",
+            "n": 3,
+            "name": "Latest usable lift reference in SQLite",
+            "date": "2026-11-16 00:20 -0500",
+            "commits": [
+              "1662f54"
             ],
+            "changes": [
+              "Return only the latest usable reference per lift from historical work sets."
+            ]
           },
+          {
+            "n": 4,
+            "name": "StrengthAdaptationsScreen",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Shared safe centered header and fixed depth-aware navigation."
+            ],
+            "commits": [
+              "6d94ddf"
+            ]
+          }
         ],
       },
       {
@@ -269,21 +331,39 @@ CAPS.trees.strength = {
           "Opens from a month marker. Shows the saved title, end time, estimated duration, exercise snapshots, and the stored focus.",
         versions: [
           {
-            n: 1,
-            name: "Session detail",
-            date: "2026-11-15 15:39 -0500",
-            commits: ["21d635f"],
-            changes: ["Added the read-only log opened from the Strength month."],
+            "n": 1,
+            "name": "Session detail",
+            "date": "2026-11-15 15:39 -0500",
+            "commits": [
+              "21d635f"
+            ],
+            "changes": [
+              "Added the read-only log opened from the Strength month."
+            ]
           },
           {
-            n: 2,
-            name: "Direct performed-set formatting",
-            date: "2026-11-16 00:20 -0500",
-            commits: ["1662f54"],
-            changes: [
-              "Format saved sets directly for the detail summary.",
+            "n": 2,
+            "name": "Direct performed-set formatting",
+            "date": "2026-11-16 00:20 -0500",
+            "commits": [
+              "1662f54"
             ],
+            "changes": [
+              "Format saved sets directly for the detail summary."
+            ]
           },
+          {
+            "n": 3,
+            "name": "StrengthSessionDetailScreen",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Shared safe centered header and fixed depth-aware navigation."
+            ],
+            "commits": [
+              "6d94ddf"
+            ]
+          }
         ],
       },
       {

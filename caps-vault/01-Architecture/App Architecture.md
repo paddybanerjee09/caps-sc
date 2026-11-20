@@ -31,3 +31,7 @@ Source baseline `e492e06`. See the [Architecture tree](../../docs/feature-tree/a
 | Feature Tree | `docs/feature-tree/index.html`; read-only validation with `npm run feature-tree -- --check` |
 
 The package scripts are those at the baseline above. The latest run results are in [[Handoffs]].
+
+## Subscreen navigation audit (20 November 2026)
+
+`WorkflowChrome.tsx` provides shared safe top bars and fixed bottom navigation. All four feature stacks use branch-wide X and depth-aware footer Cancel/Back. Home weight/sleep overlay its already-inset content with the same bars. Sidebar routes hide the global header, use `Screen.onClose/footer/right`, and return to the last main tab; Account/Athlete register close guards for hardware Back. See [[UI and Interaction Decisions]] and [[2026-11-20 UI Audit Review]].

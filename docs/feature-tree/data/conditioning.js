@@ -135,19 +135,40 @@ CAPS.trees.conditioning = {
             summary: "Shows snapshot, status, optional recorded route (`RouteMap`), and emphasis entry.",
             versions: [
               {
-                n: 1,
-                name: "ConditioningSessionDetailScreen",
-                date: "2026-10-11 21:43 -0400",
-                commits: ["002c288", "4123903"],
-                changes: ["Detail screen (`002c288`). Recorded route (`4123903`)."],
+                "n": 1,
+                "name": "ConditioningSessionDetailScreen",
+                "date": "2026-10-11 21:43 -0400",
+                "commits": [
+                  "002c288",
+                  "4123903"
+                ],
+                "changes": [
+                  "Detail screen (`002c288`). Recorded route (`4123903`)."
+                ]
               },
               {
-                n: 2,
-                name: "ConditioningSessionDetailScreen",
-                date: "2026-11-02 22:50 -0500",
-                commits: ["87e259b"],
-                changes: ["Card renovation."],
+                "n": 2,
+                "name": "ConditioningSessionDetailScreen",
+                "date": "2026-11-02 22:50 -0500",
+                "commits": [
+                  "87e259b"
+                ],
+                "changes": [
+                  "Card renovation."
+                ]
               },
+              {
+                "n": 3,
+                "name": "ConditioningSessionDetailScreen",
+                "date": "2026-11-20 17:46 -0500",
+                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                "changes": [
+                  "Moved log/start/resume/discard/cancel-plan actions to fixed footer with depth-aware navigation."
+                ],
+                "commits": [
+                  "16a4d75"
+                ]
+              }
             ],
           },
         ],
@@ -163,21 +184,40 @@ CAPS.trees.conditioning = {
         links: ["database:table-conditioning-sessions", "database:table-conditioning-location-points"],
         versions: [
           {
-            n: 1,
-            name: "FreeConditioningSessionScreen",
-            date: "2026-10-11 21:41 -0400",
-            commits: ["d08cadc", "920f146"],
-            changes: [
-              "Timer-only free session (`d08cadc`). Background route recording (`920f146`).",
+            "n": 1,
+            "name": "FreeConditioningSessionScreen",
+            "date": "2026-10-11 21:41 -0400",
+            "commits": [
+              "d08cadc",
+              "920f146"
             ],
+            "changes": [
+              "Timer-only free session (`d08cadc`). Background route recording (`920f146`)."
+            ]
           },
           {
-            n: 2,
-            name: "FreeConditioningSessionScreen",
-            date: "2026-11-02 22:50 -0500",
-            commits: ["87e259b"],
-            changes: ["Card renovation."],
+            "n": 2,
+            "name": "FreeConditioningSessionScreen",
+            "date": "2026-11-02 22:50 -0500",
+            "commits": [
+              "87e259b"
+            ],
+            "changes": [
+              "Card renovation."
+            ]
           },
+          {
+            "n": 3,
+            "name": "FreeConditioningSessionScreen",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Safe shared header, branch-wide guarded X, fixed timer/save/footer navigation."
+            ],
+            "commits": [
+              "16a4d75"
+            ]
+          }
         ],
       },
       {
@@ -201,21 +241,42 @@ CAPS.trees.conditioning = {
         ],
         versions: [
           {
-            n: 1,
-            name: "CreateConditioningSessionScreen",
-            date: "2026-10-11 21:40 -0400",
-            commits: ["64bc57b", "001e7f3", "002c288", "4539314"],
-            changes: [
-              "Draft helpers, form controls, the editor screen, and workspace navigation state.",
+            "n": 1,
+            "name": "CreateConditioningSessionScreen",
+            "date": "2026-10-11 21:40 -0400",
+            "commits": [
+              "64bc57b",
+              "001e7f3",
+              "002c288",
+              "4539314"
             ],
+            "changes": [
+              "Draft helpers, form controls, the editor screen, and workspace navigation state."
+            ]
           },
           {
-            n: 2,
-            name: "CreateConditioningSessionScreen",
-            date: "2026-11-02 22:44 -0500",
-            commits: ["45e2f29"],
-            changes: ["+/- steppers and preset strips in the composer."],
+            "n": 2,
+            "name": "CreateConditioningSessionScreen",
+            "date": "2026-11-02 22:44 -0500",
+            "commits": [
+              "45e2f29"
+            ],
+            "changes": [
+              "+/- steppers and preset strips in the composer."
+            ]
           },
+          {
+            "n": 3,
+            "name": "CreateConditioningSessionScreen",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Header clock replaces timestamp/day cards; shared bars preserve planned/template editor logic."
+            ],
+            "commits": [
+              "16a4d75"
+            ]
+          }
         ],
         children: [
           {
@@ -228,19 +289,40 @@ CAPS.trees.conditioning = {
             summary: "Exercise name, completion type, target, recovery, optional RPE.",
             versions: [
               {
-                n: 1,
-                name: "StationEditorScreen",
-                date: "2026-10-11 21:40 -0400",
-                commits: ["002c288"],
-                changes: ["Added the station editor."],
+                "n": 1,
+                "name": "StationEditorScreen",
+                "date": "2026-10-11 21:40 -0400",
+                "commits": [
+                  "002c288"
+                ],
+                "changes": [
+                  "Added the station editor."
+                ]
               },
               {
-                n: 2,
-                name: "StationEditorScreen",
-                date: "2026-11-02 22:44 -0500",
-                commits: ["45e2f29"],
-                changes: ["Stepper renovation."],
+                "n": 2,
+                "name": "StationEditorScreen",
+                "date": "2026-11-02 22:44 -0500",
+                "commits": [
+                  "45e2f29"
+                ],
+                "changes": [
+                  "Stepper renovation."
+                ]
               },
+              {
+                "n": 3,
+                "name": "StationEditorScreen",
+                "date": "2026-11-20 17:46 -0500",
+                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                "changes": [
+                  "Decimal prescribed load field replaces load increments/presets.",
+                  "Fixed Back/action bar and branch-close guard preserve parent draft."
+                ],
+                "commits": [
+                  "16a4d75"
+                ]
+              }
             ],
           },
           {
@@ -258,21 +340,42 @@ CAPS.trees.conditioning = {
             links: ["architecture:log-time-changer"],
             versions: [
               {
-                n: 1,
-                name: "LogConditioningSessionScreen",
-                date: "2026-10-11 21:40 -0400",
-                commits: ["002c288"],
-                changes: ["Added the manual logger."],
+                "n": 1,
+                "name": "LogConditioningSessionScreen",
+                "date": "2026-10-11 21:40 -0400",
+                "commits": [
+                  "002c288"
+                ],
+                "changes": [
+                  "Added the manual logger."
+                ]
               },
               {
-                n: 2,
-                name: "LogConditioningSessionScreen",
-                date: "2026-11-02 22:44 -0500",
-                commits: ["45e2f29"],
-                changes: ["Stepper renovation."],
+                "n": 2,
+                "name": "LogConditioningSessionScreen",
+                "date": "2026-11-02 22:44 -0500",
+                "commits": [
+                  "45e2f29"
+                ],
+                "changes": [
+                  "Stepper renovation."
+                ]
               },
+              {
+                "n": 3,
+                "name": "LogConditioningSessionScreen",
+                "date": "2026-11-20 17:46 -0500",
+                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                "changes": [
+                  "Header clock replaces body timestamp controls; actual load uses decimal input.",
+                  "Fixed actions and local unsaved guards preserve manual logging."
+                ],
+                "commits": [
+                  "16a4d75"
+                ]
+              }
             ],
-            children: [{ id: "log-session-time", ref: "architecture:log-time-changer", note: "performed-at stepper" }],
+            children: [{ id: "log-session-time", ref: "architecture:log-time-changer", note: "Header performed-time clock opens Log Time modal" }],
           },
           {
             id: "workout-runner",
@@ -288,29 +391,52 @@ CAPS.trees.conditioning = {
             ],
             versions: [
               {
-                n: 1,
-                name: "WorkoutRunnerScreen",
-                date: "2026-10-11 21:40 -0400",
-                commits: ["7e20d09", "6e7f23e"],
-                changes: ["Wired the runner screen and the timestamp-based engine."],
-              },
-              {
-                n: 2,
-                name: "WorkoutRunnerScreen",
-                date: "2026-11-02 22:50 -0500",
-                commits: ["87e259b"],
-                changes: ["Runner renovation."],
-              },
-              {
-                n: 3,
-                name: "Linear timer catch-up and review",
-                date: "2026-11-16 00:20 -0500",
-                commits: ["88f746f"],
-                changes: [
-                  "Record all completed IDs and durations once per reconciliation.",
-                  "Use a set to check completion in occurrence review.",
+                "n": 1,
+                "name": "WorkoutRunnerScreen",
+                "date": "2026-10-11 21:40 -0400",
+                "commits": [
+                  "7e20d09",
+                  "6e7f23e"
                 ],
+                "changes": [
+                  "Wired the runner screen and the timestamp-based engine."
+                ]
               },
+              {
+                "n": 2,
+                "name": "WorkoutRunnerScreen",
+                "date": "2026-11-02 22:50 -0500",
+                "commits": [
+                  "87e259b"
+                ],
+                "changes": [
+                  "Runner renovation."
+                ]
+              },
+              {
+                "n": 3,
+                "name": "Linear timer catch-up and review",
+                "date": "2026-11-16 00:20 -0500",
+                "commits": [
+                  "88f746f"
+                ],
+                "changes": [
+                  "Record all completed IDs and durations once per reconciliation.",
+                  "Use a set to check completion in occurrence review."
+                ]
+              },
+              {
+                "n": 4,
+                "name": "WorkoutRunnerScreen",
+                "date": "2026-11-20 17:46 -0500",
+                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                "changes": [
+                  "Safe shared bars and fixed controls preserve timer/recording progress when leaving."
+                ],
+                "commits": [
+                  "16a4d75"
+                ]
+              }
             ],
           },
           {
@@ -330,19 +456,39 @@ CAPS.trees.conditioning = {
             ],
             versions: [
               {
-                n: 1,
-                name: "Estimated Training Emphasis",
-                date: "2026-10-11 21:44 -0400",
-                commits: ["3c97333"],
-                changes: ["Provisional training-emphasis estimates."],
+                "n": 1,
+                "name": "Estimated Training Emphasis",
+                "date": "2026-10-11 21:44 -0400",
+                "commits": [
+                  "3c97333"
+                ],
+                "changes": [
+                  "Provisional training-emphasis estimates."
+                ]
               },
               {
-                n: 2,
-                name: "Estimated Training Emphasis",
-                date: "2026-11-02 22:50 -0500",
-                commits: ["87e259b"],
-                changes: ["Card renovation."],
+                "n": 2,
+                "name": "Estimated Training Emphasis",
+                "date": "2026-11-02 22:50 -0500",
+                "commits": [
+                  "87e259b"
+                ],
+                "changes": [
+                  "Card renovation."
+                ]
               },
+              {
+                "n": 3,
+                "name": "ConditioningAdaptationsScreen",
+                "date": "2026-11-20 17:46 -0500",
+                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                "changes": [
+                  "Shared safe branch-close header and depth-aware bottom navigation."
+                ],
+                "commits": [
+                  "16a4d75"
+                ]
+              }
             ],
           },
         ],
@@ -399,26 +545,50 @@ CAPS.trees.conditioning = {
             summary: "View a template; start, plan, or log from it.",
             versions: [
               {
-                n: 1,
-                name: "SavedConditioningSessionScreen",
-                date: "2026-10-11 21:40 -0400",
-                commits: ["f2b5a37"],
-                changes: ["Added the saved-session screen."],
+                "n": 1,
+                "name": "SavedConditioningSessionScreen",
+                "date": "2026-10-11 21:40 -0400",
+                "commits": [
+                  "f2b5a37"
+                ],
+                "changes": [
+                  "Added the saved-session screen."
+                ]
               },
               {
-                n: 2,
-                name: "SavedConditioningSessionScreen",
-                date: "2026-11-02 22:39 -0500",
-                commits: ["e9d18be"],
-                changes: ["Card renovation."],
+                "n": 2,
+                "name": "SavedConditioningSessionScreen",
+                "date": "2026-11-02 22:39 -0500",
+                "commits": [
+                  "e9d18be"
+                ],
+                "changes": [
+                  "Card renovation."
+                ]
               },
               {
-                n: 3,
-                name: "SavedConditioningSessionScreen",
-                date: "2026-11-15 15:39 -0500",
-                commits: ["aea27d0"],
-                changes: ["Replaced the page ScrollView with the virtualized saved-workout grid."],
+                "n": 3,
+                "name": "SavedConditioningSessionScreen",
+                "date": "2026-11-15 15:39 -0500",
+                "commits": [
+                  "aea27d0"
+                ],
+                "changes": [
+                  "Replaced the page ScrollView with the virtualized saved-workout grid."
+                ]
               },
+              {
+                "n": 4,
+                "name": "SavedConditioningSessionScreen",
+                "date": "2026-11-20 17:46 -0500",
+                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                "changes": [
+                  "Shared safe branch-close header and depth-aware footer preserve saved workout selection."
+                ],
+                "commits": [
+                  "16a4d75"
+                ]
+              }
             ],
           },
         ],

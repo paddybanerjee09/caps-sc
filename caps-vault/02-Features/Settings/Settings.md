@@ -33,3 +33,7 @@ Bodyweight is the durable exception. Save converts the draft from the selected U
 Source and history reviewed on `main`. Persistence observations are code-derived. Device UI and restart behavior were outside this review.
 
 Related notes: [[Home]], [[Conditioning]], [[Data and Persistence]], [[Project History]], [[Feature Tree Crosswalk]]. Feature Tree: [`settings.html`](../../../docs/feature-tree/settings.html).
+
+## Uniform UI audit (20 November 2026)
+
+All owned subscreens now use shared safe-area headers, branch-wide X, fixed depth-aware Cancel/Back footers, and preserved domain actions. Applicable log timestamps use the header clock and shared scroll-wheel modal; weight/load fields use decimal text input without increments or presets. See [[UI and Interaction Decisions]] for the current contract and [[2026-11-20 UI Audit Review]] for screen/input coverage and verification limits.

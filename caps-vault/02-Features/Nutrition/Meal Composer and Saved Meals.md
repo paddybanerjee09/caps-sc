@@ -31,3 +31,7 @@ aliases:
 - `ce2ba31` persisted the workspace above the tabs, `4b6db09` added the full-screen editor, `60aa964` animated entering/exiting layers, and `1d7f792` migrated the Home and diary entry points.
 - `4c6b3f1` separated reusable saved meals from the diary. `9b8f6e2`, `3b34380`, `7c98213`, `6397e58`, and `a553465` added template repository updates, template draft identity, opening in the composer, and edit/delete controls. `0deafb1`, `0627d77`, `1daf75d`, and `39add05` document composer affordance and density decisions.
 - Tree IDs `nutrition:meal-log-screen`, `nutrition:saved-meals-screen`, `nutrition:nutrition-stack`, and `nutrition:nutrition-workspace` lead to the rest of the version evidence in [[Feature Tree Crosswalk]]. See [[App Architecture]] for provider ownership.
+
+## Uniform UI audit (20 November 2026)
+
+All owned subscreens now use shared safe-area headers, branch-wide X, fixed depth-aware Cancel/Back footers, and preserved domain actions. Applicable log timestamps use the header clock and shared scroll-wheel modal; weight/load fields use decimal text input without increments or presets. See [[UI and Interaction Decisions]] for the current contract and [[2026-11-20 UI Audit Review]] for screen/input coverage and verification limits.

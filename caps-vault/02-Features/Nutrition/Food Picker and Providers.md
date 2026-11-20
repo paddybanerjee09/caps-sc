@@ -23,3 +23,7 @@ aliases:
 - `c4e6bcb` and `02ea54a` fixed initial calories and moved serving choices to a dropdown. `1041599`, `e8925f8`, and `14c1595` refined custom form density, corrected create/edit state reuse, and adjusted the custom-food label.
 - `dde7751` addressed favourites reopening, `f8de697` overlaid sort and added editing/deleting custom foods, `4d8f785` clarified barcode entry, `64d6eb3` made Close return to Nutrition, and `fabae46` surfaced create custom food. `9917cee` renovated the screens.
 - Tree IDs `nutrition:meal-item-screen`, `nutrition:barcode-scan-screen`, `nutrition:create-custom-food-screen`, `nutrition:nutrition-facts-screen`, `nutrition:nutrition-services`, and `nutrition:usda-client` are in [[Feature Tree Crosswalk]]. See [[Nutrition Data and Calculations]] for storage and nutrient math.
+
+## Uniform UI audit (20 November 2026)
+
+All owned subscreens now use shared safe-area headers, branch-wide X, fixed depth-aware Cancel/Back footers, and preserved domain actions. Applicable log timestamps use the header clock and shared scroll-wheel modal; weight/load fields use decimal text input without increments or presets. See [[UI and Interaction Decisions]] for the current contract and [[2026-11-20 UI Audit Review]] for screen/input coverage and verification limits.

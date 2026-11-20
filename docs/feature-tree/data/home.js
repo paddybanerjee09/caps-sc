@@ -13,7 +13,7 @@ CAPS.trees.home = {
     files: ["src/screens/HomeScreen.tsx"],
     entry: "Bottom tab \"Home\" (house icon), center tab. Initial route.",
     summary:
-      "Renders athlete telemetry from `AppStateContext`, a Quick Log expander, inline `WeightLogModal` / `SleepLogModal` cards, and a `SegmentedSelector` for Today / Recovery / Progress. Today loads `timeline_entries` for the selected local day through `scheduleIdleTask`. The selected day is `homeDate` in `NutritionWorkspaceContext` so meal logging and the diary share it.",
+      "Renders athlete telemetry, Quick Log, dedicated weight/sleep logging screens, and Today / Recovery / Progress. The dashboard timeline loads the selected local day through scheduleIdleTask; selected homeDate is shared with Nutrition.",
     modes: [
       {
         name: "Today",
@@ -42,69 +42,101 @@ CAPS.trees.home = {
       "database:table-timeline-entries",
     ],
     versions: [
-      {
-        n: 1,
-        name: "Home",
-        date: "2026-06-30 17:54 -0400",
-        commits: ["e9ddbfb"],
-        changes: [
-          "Added the Expo Router boilerplate tab `app/(tabs)/index.tsx` as the Home tab with a centered title.",
-        ],
-      },
-      {
-        n: 2,
-        name: "Home",
-        date: "2026-07-02 00:35 -0400",
-        commits: ["f0f5834"],
-        changes: [
-          "Custom state navigation replaced Expo Router. Home rendered inline in `Screens.tsx` as `<Screen title=\"Home\" />` and became `initialRoute`.",
-        ],
-      },
-      {
-        n: 3,
-        name: "HomeScreen",
-        date: "2026-07-18 13:55 -0400",
-        commits: ["edd48ce"],
-        changes: ["Moved into `src/screens/HomeScreen.tsx`. Still a title-only placeholder."],
-      },
-      {
-        n: 4,
-        name: "HomeScreen",
-        date: "2026-07-21 01:06 -0400",
-        commits: ["3d09c81"],
-        changes: ["Started the profile-style Home layout while Account Information was being built."],
-      },
-      {
-        n: 5,
-        name: "HomeScreen",
-        date: "2026-07-22 16:45 -0400",
-        commits: ["2d78f4c", "ad01bfe", "59dd4e8"],
-        changes: [
-          "Added the Home dashboard sections (`2d78f4c`) and centered the title in the UI pass (`ad01bfe`).",
-          "`59dd4e8` kept Home wired while SQLite landed.",
-        ],
-      },
-      {
-        n: 6,
-        name: "HomeScreen",
-        date: "2026-10-02 20:27 -0400",
-        commits: ["e8fc8e9", "9fc0f73"],
-        changes: [
-          "`e8fc8e9` was the last Home touch before the 2026-10-02 reset. `9fc0f73` repaired Expo SDK 57 errors on the restored main.",
-        ],
-      },
-      {
-        n: 7,
-        name: "HomeScreen",
-        date: "2026-11-02 22:36 -0500",
-        commits: ["67d99b6"],
-        request:
-          "Renovate Home to the card-by-card style guide: steppers, preset strips, no data-entry modals, high contrast.",
-        changes: [
-          "Rebuilt Home as telemetry, Quick Log, and section cards. Weight and sleep logging became inline cards. Date stepping uses -1d / +1d targets.",
-        ],
-      },
-    ],
+            {
+              "n": 1,
+              "name": "Home",
+              "date": "2026-06-30 17:54 -0400",
+              "commits": [
+                "e9ddbfb"
+              ],
+              "changes": [
+                "Added the Expo Router boilerplate tab `app/(tabs)/index.tsx` as the Home tab with a centered title."
+              ]
+            },
+            {
+              "n": 2,
+              "name": "Home",
+              "date": "2026-07-02 00:35 -0400",
+              "commits": [
+                "f0f5834"
+              ],
+              "changes": [
+                "Custom state navigation replaced Expo Router. Home rendered inline in `Screens.tsx` as `<Screen title=\"Home\" />` and became `initialRoute`."
+              ]
+            },
+            {
+              "n": 3,
+              "name": "HomeScreen",
+              "date": "2026-07-18 13:55 -0400",
+              "commits": [
+                "edd48ce"
+              ],
+              "changes": [
+                "Moved into `src/screens/HomeScreen.tsx`. Still a title-only placeholder."
+              ]
+            },
+            {
+              "n": 4,
+              "name": "HomeScreen",
+              "date": "2026-07-21 01:06 -0400",
+              "commits": [
+                "3d09c81"
+              ],
+              "changes": [
+                "Started the profile-style Home layout while Account Information was being built."
+              ]
+            },
+            {
+              "n": 5,
+              "name": "HomeScreen",
+              "date": "2026-07-22 16:45 -0400",
+              "commits": [
+                "2d78f4c",
+                "ad01bfe",
+                "59dd4e8"
+              ],
+              "changes": [
+                "Added the Home dashboard sections (`2d78f4c`) and centered the title in the UI pass (`ad01bfe`).",
+                "`59dd4e8` kept Home wired while SQLite landed."
+              ]
+            },
+            {
+              "n": 6,
+              "name": "HomeScreen",
+              "date": "2026-10-02 20:27 -0400",
+              "commits": [
+                "e8fc8e9",
+                "9fc0f73"
+              ],
+              "changes": [
+                "`e8fc8e9` was the last Home touch before the 2026-10-02 reset. `9fc0f73` repaired Expo SDK 57 errors on the restored main."
+              ]
+            },
+            {
+              "n": 7,
+              "name": "HomeScreen",
+              "date": "2026-11-02 22:36 -0500",
+              "commits": [
+                "67d99b6"
+              ],
+              "request": "Renovate Home to the card-by-card style guide: steppers, preset strips, no data-entry modals, high contrast.",
+              "changes": [
+                "Rebuilt Home as telemetry, Quick Log, and section cards. Weight and sleep logging became inline cards. Date stepping uses -1d / +1d targets."
+              ]
+            },
+            {
+              "n": 8,
+              "name": "HomeScreen",
+              "date": "2026-11-20 17:46 -0500",
+              "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+              "changes": [
+                "Weight and sleep now open screen overlays outside dashboard scroll content."
+              ],
+              "commits": [
+                "b971c0d"
+              ]
+            }
+          ],
     children: [
       {
         id: "athlete-telemetry",
@@ -140,7 +172,7 @@ CAPS.trees.home = {
         tagline: "Expander: strength, conditioning, skill, meal, weight, sleep",
         files: ["src/screens/HomeScreen.tsx"],
         summary:
-          "Animated expander (220ms) with a 2x3 grid of kinds. Weight and sleep open inline cards on Home. Meal calls `openNewMeal(selectedDate)`. Strength, conditioning, and skill tiles have no destination yet.",
+          "Animated 220ms expander with a 2x3 grid. Weight and Sleep open dedicated Home logging screens. Meal calls openNewMeal(selectedDate). Existing training tiles retain their current entry behavior.",
         parts: [
           {
             name: "Overlay animation",
@@ -188,21 +220,29 @@ CAPS.trees.home = {
           {
             id: "weight-log",
             title: "WeightLogModal",
-            kind: "card",
-            tagline: "Inline weight log / edit / delete",
+            kind: "subscreen",
+            tagline: "Bodyweight log / edit / delete",
             files: ["src/components/WeightLogModal.tsx", "src/utils/weight.ts"],
             entry: "Quick Log > Weight, or a weight marker on `DayTimeline`.",
             summary:
-              "Despite the filename, this is an inline card (no `Modal`) shown when `visible`. Create, edit, or delete a `weight_logs` row linked to `timeline_entries`. Stores kilograms; converts with `unitSettings.weight`. Logging also updates `athleteProfile.weightKg`.",
+              "Dedicated screen overlay outside the Home ScrollView. One decimal bodyweight field, shared safe header with log-time trigger, and fixed Cancel/Save/Delete footer. Stores canonical kilograms and preserves unchanged original weight when editing.",
             modes: [
               { name: "Create", detail: "New log at a chosen time, not after now." },
               { name: "Edit", detail: "Opened from a timeline weight marker; can delete." },
             ],
             parts: [
               {
-                name: "Steppers and presets",
-                detail: "+/- weight steps and a horizontal preset strip (kg or lb).",
+                "name": "Weight",
+                "detail": "Labeled decimal field in current kg/lb unit; no increments or presets."
               },
+              {
+                "name": "Log time",
+                "detail": "Compact clock in header right opens shared Log Time modal."
+              },
+              {
+                "name": "Actions",
+                "detail": "Fixed Cancel/Save footer, plus Delete for an existing log."
+              }
             ],
             guardrails: [
               "Keep a single canonical `weightKg` shared with Athlete Information. Convert only for display (fix 5833c71).",
@@ -217,65 +257,94 @@ CAPS.trees.home = {
             ],
             versions: [
               {
-                n: 1,
-                name: "Weight logging",
-                date: "2026-07-24 21:59 -0400",
-                commits: ["ea4cc2b"],
-                changes: ["Started weight logging against `timeline_entries` / `weight_logs`."],
-              },
-              {
-                n: 2,
-                name: "WeightLogModal",
-                date: "2026-07-24 22:09 -0400",
-                commits: ["5833c71"],
-                changes: [
-                  "Extracted `WeightLogModal` and unified `weightKg` across Athlete Info and Home.",
+                "n": 1,
+                "name": "Weight logging",
+                "date": "2026-07-24 21:59 -0400",
+                "commits": [
+                  "ea4cc2b"
                 ],
+                "changes": [
+                  "Started weight logging against `timeline_entries` / `weight_logs`."
+                ]
               },
               {
-                n: 3,
-                name: "WeightLogModal",
-                date: "2026-07-25 23:23 -0400",
-                commits: ["d09b356", "3232443"],
-                changes: [
+                "n": 2,
+                "name": "WeightLogModal",
+                "date": "2026-07-24 22:09 -0400",
+                "commits": [
+                  "5833c71"
+                ],
+                "changes": [
+                  "Extracted `WeightLogModal` and unified `weightKg` across Athlete Info and Home."
+                ]
+              },
+              {
+                "n": 3,
+                "name": "WeightLogModal",
+                "date": "2026-07-25 23:23 -0400",
+                "commits": [
+                  "d09b356",
+                  "3232443"
+                ],
+                "changes": [
                   "Added retroactive logging (`d09b356`).",
-                  "Added log deletion and a refined date-time picker (`3232443`).",
-                ],
+                  "Added log deletion and a refined date-time picker (`3232443`)."
+                ]
               },
               {
-                n: 4,
-                name: "WeightLogModal",
-                date: "2026-07-30 14:10 -0400",
-                commits: ["ea999da"],
-                changes: ["UI pass on the weight log form."],
+                "n": 4,
+                "name": "WeightLogModal",
+                "date": "2026-07-30 14:10 -0400",
+                "commits": [
+                  "ea999da"
+                ],
+                "changes": [
+                  "UI pass on the weight log form."
+                ]
               },
               {
-                n: 5,
-                name: "Weight log card",
-                date: "2026-11-02 22:36 -0500",
-                commits: ["67d99b6"],
-                changes: [
-                  "Rendered inline with +/- steppers and presets instead of a data-entry modal. Filename stayed `WeightLogModal`.",
+                "n": 5,
+                "name": "Weight log card",
+                "date": "2026-11-02 22:36 -0500",
+                "commits": [
+                  "67d99b6"
                 ],
+                "changes": [
+                  "Rendered inline with +/- steppers and presets instead of a data-entry modal. Filename stayed `WeightLogModal`."
+                ]
               },
+              {
+                "n": 6,
+                "name": "WeightLogModal",
+                "date": "2026-11-20 17:46 -0500",
+                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                "changes": [
+                  "One decimal bodyweight field replaces weight increments and presets.",
+                  "Fixed shared header with clock and X; Cancel/Save/Delete footer preserves edit and conversion logic."
+                ],
+                "commits": [
+                  "b971c0d"
+                ]
+              }
             ],
-            children: [{ id: "weight-log-time", ref: "architecture:log-time-changer", note: "logged-at stepper" }],
+            children: [{ id: "weight-log-time", ref: "architecture:log-time-changer", note: "Header clock opens Log Time modal" }],
           },
           {
             id: "sleep-log",
             title: "SleepLogModal",
-            kind: "card",
-            tagline: "Inline sleep window + optional nightly default",
+            kind: "subscreen",
+            tagline: "Sleep window and optional nightly default",
             files: ["src/components/SleepLogModal.tsx"],
             entry: "Quick Log > Sleep.",
             summary:
-              "Inline card (no `Modal`) for a sleep window on the selected wake date. Can also write a `sleep_schedules` nightly default. Times use `LogTimeChanger`.",
+              "Dedicated screen overlay with shared fixed bars. Bed and Wake clock triggers occupy the header right. Local-day selection follows the chosen wake date; one-night logging and nightly schedule replacement remain separate writes.",
             modes: [
               { name: "One night", detail: "Logs a single sleep window for the selected wake date." },
               { name: "Every night", detail: "Also writes/replaces the schedule from that wake date." },
             ],
             guardrails: [
-              "Do not open a data-entry modal for sleep (ui-style-guide.mdc; inline since 67d99b6).",
+              "Keep full sleep form on a screen; only clock selection opens Log Time (user correction, 20 November 2026).",
+              "Preserve overnight local-minute and effective schedule-date semantics."
             ],
             links: [
               "architecture:log-time-changer",
@@ -284,31 +353,56 @@ CAPS.trees.home = {
             ],
             versions: [
               {
-                n: 1,
-                name: "SleepLogModal",
-                date: "2026-07-26 15:56 -0400",
-                commits: ["859b4aa"],
-                changes: ["Added sleep logging and the nightly default toggle."],
-              },
-              {
-                n: 2,
-                name: "Sleep log card",
-                date: "2026-11-02 22:36 -0500",
-                commits: ["67d99b6"],
-                changes: ["Rendered inline with stepper time controls. Filename stayed `SleepLogModal`."],
-              },
-              {
-                n: 3,
-                name: "Shared sleep bounds",
-                date: "2026-11-16 00:18 -0500",
-                commits: ["24a301f"],
-                changes: [
-                  "Share wake-date and overnight calculations between logs and defaults.",
-                  "Reuse the transactional range-closing SQL when replacing or disabling defaults.",
+                "n": 1,
+                "name": "SleepLogModal",
+                "date": "2026-07-26 15:56 -0400",
+                "commits": [
+                  "859b4aa"
                 ],
+                "changes": [
+                  "Added sleep logging and the nightly default toggle."
+                ]
               },
+              {
+                "n": 2,
+                "name": "Sleep log card",
+                "date": "2026-11-02 22:36 -0500",
+                "commits": [
+                  "67d99b6"
+                ],
+                "changes": [
+                  "Rendered inline with stepper time controls. Filename stayed `SleepLogModal`."
+                ]
+              },
+              {
+                "n": 3,
+                "name": "Shared sleep bounds",
+                "date": "2026-11-16 00:18 -0500",
+                "commits": [
+                  "24a301f"
+                ],
+                "changes": [
+                  "Share wake-date and overnight calculations between logs and defaults.",
+                  "Reuse the transactional range-closing SQL when replacing or disabling defaults."
+                ]
+              },
+              {
+                "n": 4,
+                "name": "SleepLogModal",
+                "date": "2026-11-20 17:48 -0500",
+                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+                "changes": [
+                  "Fixed shared screen bars with labeled Bed/Wake clocks in header right.",
+                  "Selected local day follows picker changes while nightly/default persistence stays separate.",
+                  "Schedule-load state updates remain in async callbacks; integrated ESLint passes."
+                ],
+                "commits": [
+                  "b971c0d",
+                  "d41c5c8"
+                ]
+              }
             ],
-            children: [{ id: "sleep-log-time", ref: "architecture:log-time-changer", note: "start/end steppers" }],
+            children: [{ id: "sleep-log-time", ref: "architecture:log-time-changer", note: "Bed/Wake header clocks open Log Time modal" }],
           },
           {
             id: "quick-log-meal",
