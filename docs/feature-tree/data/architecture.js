@@ -222,6 +222,14 @@ CAPS.trees.architecture = {
                 commits: ["5c595dd"],
                 changes: ["Feedback ticks on tab changes."],
               },
+              {
+                n: 4,
+                name: "BottomTabs",
+                date: "2026-11-20 16:58 -0500",
+                commits: ["52d6ba2"],
+                request: "Reduce all five tab labels equally until Conditioning fits on one line.",
+                changes: ["Reduce the shared label font from 10px to 9px and line height from 12px to 11px.", "Desktop Arial bold measurement at 360px width favors 9px over the marginal 9.5px; native device confirmation remains outstanding."],
+              },
             ],
           },
           {

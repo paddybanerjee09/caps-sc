@@ -18,3 +18,5 @@ Evidence is linked in the [Architecture tree](../../docs/feature-tree/architectu
 ## Shared main-screen title card (20 November 2026)
 
 `src/components/ScreenTitleCard.tsx` extracts the Strength banner unchanged: full-height theme accent, left-aligned 26px/800 title, 13px/18px subtitle, 16px vertical padding. Home and Nutrition use it through `Screen`; Strength, Conditioning and Skill use it directly. The user explicitly requested this shared component, an exception to the general screen-local wrapper rule. `Screen.centerTitle` was removed after checking its only callers (Home and Nutrition). Commit `43eab3a`; Home caller updated in `548bbe5`.
+
+Bottom tab labels (20 November 2026, `52d6ba2`): `src/components/BottomTabs.tsx` uses a shared 9px font / 11px line height for all five tabs, reduced from 10px / 12px to address Conditioning wrapping. Incremental desktop Arial bold measurements including 0.2px tracking: 10px = 63.85px, 9.5px = 60.76px, 9px = 57.68px against 61.2px available at 360px viewport. This is a proxy, not native font evidence; device bridge failed to start. Keep font scaling enabled and the existing two-line allowance for Skills Training.
