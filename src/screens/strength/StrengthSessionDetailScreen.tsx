@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
+import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
 import { PressOpacity } from "../../components/PressOpacity";
 import { createId } from "../../conditioning/ids";
 import {
@@ -62,18 +63,13 @@ export function StrengthSessionDetailScreen({ sessionId }: { sessionId: string }
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
+      <WorkflowHeader title={session?.title ?? "Workout"} onClose={workspace.closeBranch} />
       <FlatList
         contentContainerStyle={styles.content}
         data={session?.exercises ?? []}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View style={styles.headerBlock}>
-            <PressOpacity accessibilityLabel="Back" onPress={workspace.pop} style={styles.headerHit}>
-              <Text style={[styles.headerAction, { color: theme.colors.text }]}>Back</Text>
-            </PressOpacity>
-            <Text style={[styles.title, { color: theme.colors.text }]}>
-              {session?.title ?? "Workout"}
-            </Text>
             {error ? (
               <Text style={[styles.hint, { color: theme.colors.tertiary }]}>{error}</Text>
             ) : null}
@@ -112,6 +108,7 @@ export function StrengthSessionDetailScreen({ sessionId }: { sessionId: string }
           <ExerciseCard exercise={item} unit={unitSettings.weight} />
         )}
       />
+      <WorkflowFooter onBack={workspace.pop} backLabel={workspace.stack.length > 1 ? "Back" : "Cancel"} />
     </View>
   );
 }

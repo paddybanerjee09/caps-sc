@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
+import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
 import { LogTimeChanger } from "../../components/LogTimeChanger";
 import { PressOpacity } from "../../components/PressOpacity";
 import { SimpleSwitch } from "../../components/SimpleSwitch";
@@ -76,7 +77,6 @@ export function WorkoutBuilderScreen() {
   const [catalog, setCatalog] = useState<CatalogExercise[]>([]);
   const [templates, setTemplates] = useState<StrengthTemplateSummary[]>([]);
   const [fromSavedOpen, setFromSavedOpen] = useState(false);
-  const [timeOpen, setTimeOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState<StrengthEmphasis | null>(null);
@@ -192,15 +192,6 @@ export function WorkoutBuilderScreen() {
     setFromSavedOpen(false);
   }
 
-  function shiftDay(daysAgo: number) {
-    const now = new Date();
-    const target = new Date(now);
-    target.setDate(now.getDate() - daysAgo);
-    const next = new Date(draft!.endedAt);
-    next.setFullYear(target.getFullYear(), target.getMonth(), target.getDate());
-    update({ ...draft!, endedAt: Math.min(next.getTime(), clockNow()) });
-  }
-
   function addExercise(exercise: CatalogExercise) {
     if (draft!.exercises.length >= MAX_EXERCISES) {
       feedbackWarn();
@@ -278,6 +269,13 @@ export function WorkoutBuilderScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
+      <WorkflowHeader
+        title={mode === "template" ? "Create Workout" : "Log Workout"}
+        onClose={requestClose}
+        right={mode === "log" ? (
+          <LogTimeChanger maximumDate={new Date()} onChange={(date) => update({ ...draft, endedAt: date.getTime() })} value={new Date(draft.endedAt)} />
+        ) : undefined}
+      />
       <FlatList
         contentContainerStyle={styles.results}
         data={results.matches}
@@ -286,18 +284,6 @@ export function WorkoutBuilderScreen() {
         style={styles.scroller}
         ListHeaderComponent={
       <View style={styles.top}>
-        <View style={styles.titleRow}>
-          <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>
-            {mode === "template" ? "CREATE WORKOUT" : "LOG WORKOUT"}
-          </Text>
-          <PressOpacity
-            accessibilityLabel="Close workout"
-            onPress={requestClose}
-            style={styles.closeHit}
-          >
-            <Text style={[styles.closeText, { color: theme.colors.text }]}>Close</Text>
-          </PressOpacity>
-        </View>
         <TextInput
           accessibilityLabel="Workout title"
           maxLength={80}
@@ -371,44 +357,6 @@ export function WorkoutBuilderScreen() {
               { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
             ]}
           >
-            <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>DATE</Text>
-            <Text style={[styles.dateReadout, { color: theme.colors.text }]}>
-              {formatDay(new Date(draft.endedAt))}
-            </Text>
-            <View style={styles.presetRow}>
-              <DayChip label="-1 day" onPress={() => shiftDay(daysFromToday(draft.endedAt) + 1)} />
-              <DayChip label="Today" onPress={() => shiftDay(0)} />
-              <DayChip label="Yesterday" onPress={() => shiftDay(1)} />
-              <DayChip label="7 days" onPress={() => shiftDay(7)} />
-            </View>
-            <PressOpacity
-              accessibilityLabel={`Ends at ${formatClock(new Date(draft.endedAt))}`}
-              onPress={() => setTimeOpen((open) => !open)}
-              style={[
-                styles.secondary,
-                {
-                  backgroundColor: timeOpen ? theme.colors.tertiary : theme.colors.surfaceMuted,
-                  borderColor: theme.colors.borderStrong,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.secondaryText,
-                  { color: timeOpen ? primaryText : theme.colors.text },
-                ]}
-              >
-                Ends at {formatClock(new Date(draft.endedAt))}
-              </Text>
-            </PressOpacity>
-            {timeOpen ? (
-              <LogTimeChanger
-                label="Ends at"
-                maximumDate={new Date()}
-                onChange={(date) => update({ ...draft, endedAt: date.getTime() })}
-                value={new Date(draft.endedAt)}
-              />
-            ) : null}
             <Text style={[styles.duration, { color: theme.colors.text }]}>
               Estimated duration {formatDurationSeconds(duration)}
             </Text>
@@ -550,93 +498,27 @@ export function WorkoutBuilderScreen() {
         )}
       />
 
-      <View
-        style={[
-          styles.footer,
-          { backgroundColor: theme.colors.background, borderColor: theme.colors.borderStrong },
-        ]}
-      >
-        {formError ? (
-          <Text style={[styles.error, { color: "#E11D24" }]}>{formError}</Text>
-        ) : null}
-        {mode === "log" ? (
-          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-            {saveWorkoutConsequence(draft)}
-          </Text>
-        ) : null}
+      {formError ? <Text style={[styles.error, { color: "#E11D24", paddingHorizontal: 16 }]}>{formError}</Text> : null}
+      {mode === "log" ? (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>{saveWorkoutConsequence(draft)}</Text>
+          <View style={styles.toggleRow}>
+            <Text style={[styles.secondaryText, { color: theme.colors.text }]}>Save workout</Text>
+            <SimpleSwitch accessibilityLabel="Save workout" onValueChange={(saveAsTemplate) => update({ ...draft, saveAsTemplate })} value={draft.saveAsTemplate} />
+          </View>
+        </View>
+      ) : null}
+      <WorkflowFooter onBack={requestClose} disabled={saving}>
         <PressOpacity
           accessibilityLabel={mode === "template" ? "Save workout" : "Log workout"}
           disabled={saving}
-          onPress={() => {
-            void commit();
-          }}
-          style={[
-            styles.primary,
-            { backgroundColor: theme.colors.tertiary, opacity: saving ? 0.5 : 1 },
-          ]}
+          onPress={() => { void commit(); }}
+          style={[styles.primary, { flex: 1, backgroundColor: theme.colors.tertiary, opacity: saving ? 0.5 : 1 }]}
         >
-          <Text style={[styles.primaryText, { color: primaryText }]}>
-            {mode === "template" ? "Save Workout" : "Log Workout"}
-          </Text>
+          <Text style={[styles.primaryText, { color: primaryText }]}>{mode === "template" ? "Save Workout" : "Log Workout"}</Text>
         </PressOpacity>
-        {mode === "log" ? (
-          <View style={styles.footerActions}>
-            <PressOpacity
-              accessibilityLabel="Cancel workout"
-              onPress={requestClose}
-              style={[
-                styles.secondary,
-                styles.footerButton,
-                {
-                  backgroundColor: theme.colors.surfaceMuted,
-                  borderColor: theme.colors.borderStrong,
-                },
-              ]}
-            >
-              <Text style={[styles.secondaryText, { color: theme.colors.text }]}>Cancel</Text>
-            </PressOpacity>
-            <View style={styles.toggleRow}>
-              <Text style={[styles.secondaryText, { color: theme.colors.text }]}>Save workout</Text>
-              <SimpleSwitch
-                accessibilityLabel="Save workout"
-                onValueChange={(saveAsTemplate) => update({ ...draft, saveAsTemplate })}
-                value={draft.saveAsTemplate}
-              />
-            </View>
-          </View>
-        ) : (
-          <PressOpacity
-            accessibilityLabel="Cancel workout"
-            onPress={requestClose}
-            style={[
-              styles.secondary,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <Text style={[styles.secondaryText, { color: theme.colors.text }]}>Cancel</Text>
-          </PressOpacity>
-        )}
-      </View>
+      </WorkflowFooter>
     </View>
-  );
-}
-
-function DayChip({ label, onPress }: { label: string; onPress: () => void }) {
-  const { theme } = useAppTheme();
-  return (
-    <PressOpacity
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={[
-        styles.chip,
-        { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong },
-      ]}
-    >
-      <Text style={[styles.chipText, { color: theme.colors.text }]}>{label}</Text>
-    </PressOpacity>
   );
 }
 
@@ -706,27 +588,9 @@ function formatClock(date: Date) {
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-function formatDay(date: Date) {
-  return date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    weekday: "short",
-  });
-}
-
-function daysFromToday(endedAt: number) {
-  const end = new Date(endedAt);
-  const today = new Date();
-  const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
-  const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  return Math.round((todayDay - endDay) / 86_400_000);
-}
-
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    paddingHorizontal: tokens.spacing.md,
-    paddingTop: tokens.spacing.sm,
   },
   scroller: {
     flex: 1,
@@ -815,6 +679,7 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.sm,
   },
   results: {
+    padding: tokens.spacing.md,
     gap: tokens.spacing.sm,
   },
   result: {
@@ -905,12 +770,14 @@ const styles = StyleSheet.create({
   },
   footerButton: {
     flex: 1,
+    minWidth: 90,
   },
   primary: {
     alignItems: "center",
     borderRadius: 12,
     justifyContent: "center",
     minHeight: 52,
+    minWidth: 90,
   },
   primaryText: {
     fontSize: 16,

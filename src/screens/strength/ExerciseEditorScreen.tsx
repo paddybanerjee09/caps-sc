@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
+import { convertKilogramsToWeight, convertWeightToKilograms } from "../../utils/weight";
+import { parseDecimalInput } from "../../utils/numericInput";
 import { PressOpacity } from "../../components/PressOpacity";
 import { SimpleSwitch } from "../../components/SimpleSwitch";
 import {
@@ -18,7 +21,6 @@ import {
   updateSet,
 } from "../../strength/drafts";
 import type { ExerciseDraft, LoadMode, RepeatTarget, SetDraft, StrengthDraft } from "../../strength/types";
-import { adjustLoadKg, formatLoadAmount, loadPresetsKg } from "../../strength/units";
 import { useAppState } from "../../state/AppStateContext";
 import { useStrengthWorkspace } from "../../state/StrengthWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
@@ -117,14 +119,7 @@ export function ExerciseEditorScreen({
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.header}>
-        <PressOpacity accessibilityLabel="Back" onPress={closeEditor} style={styles.headerHit}>
-          <Text style={[styles.headerAction, { color: theme.colors.text }]}>Back</Text>
-        </PressOpacity>
-        <Text numberOfLines={1} style={[styles.title, { color: theme.colors.text }]}>
-          {exercise.name}
-        </Text>
-      </View>
+      <WorkflowHeader title={exercise.name} onClose={workspace.closeBranch} />
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -169,32 +164,11 @@ export function ExerciseEditorScreen({
                 ? "Enter how much assistance the movement uses."
                 : "Weight is for one implement: the bar, one dumbbell, or one kettlebell."}
           </Text>
-          <Stepper
-            coarseLabel={unit === "metric" ? "10" : "10"}
-            fineLabel={unit === "metric" ? "2.5" : "5"}
+          <WeightInput
             label={weightLabel}
-            onChange={(next) =>
-              patchRepeat(
-                exercise.loadMode === "assisted" ? { assistanceKg: next } : { loadKg: next },
-              )
-            }
-            onStep={(direction, coarse) =>
-              patchRepeat(
-                exercise.loadMode === "assisted"
-                  ? { assistanceKg: adjustLoadKg(weightKg, direction, coarse, unit) }
-                  : { loadKg: adjustLoadKg(weightKg, direction, coarse, unit) },
-              )
-            }
-            presets={loadPresetsKg(unit)}
-            readout={
-              weightKg == null || weightKg <= 0
-                ? exercise.loadMode === "bodyweight"
-                  ? "BW"
-                  : "Not set"
-                : formatLoadAmount(weightKg, unit)
-            }
-            renderPreset={(preset) => formatLoadAmount(preset, unit)}
+            unit={unit}
             value={weightKg}
+            onChange={(next) => patchRepeat(exercise.loadMode === "assisted" ? { assistanceKg: next } : { loadKg: next })}
           />
           <View style={styles.switchRow}>
             <View style={styles.switchCopy}>
@@ -364,14 +338,7 @@ export function ExerciseEditorScreen({
           <Text style={[styles.actionText, { color: theme.colors.tertiary }]}>Remove exercise</Text>
         </PressOpacity>
       </ScrollView>
-      <View style={[styles.footer, { borderColor: theme.colors.borderStrong }]}>
-        <PressOpacity
-          accessibilityLabel="Cancel exercise edits"
-          onPress={closeEditor}
-          style={[styles.secondary, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}
-        >
-          <Text style={[styles.actionText, { color: theme.colors.text }]}>Cancel</Text>
-        </PressOpacity>
+      <WorkflowFooter onBack={closeEditor} backLabel="Back">
         <PressOpacity
           accessibilityLabel="Save exercise"
           onPress={save}
@@ -379,7 +346,7 @@ export function ExerciseEditorScreen({
         >
           <Text style={[styles.actionText, { color: primaryText }]}>Save</Text>
         </PressOpacity>
-      </View>
+      </WorkflowFooter>
     </View>
   );
 }
@@ -411,12 +378,6 @@ function SetRow({
       loadKg: loadMode === "assisted" ? null : next,
     });
   }
-  const loadReadout =
-    loadMode === "bodyweight" && (loadKg == null || loadKg <= 0)
-      ? "BW"
-      : loadKg == null || loadKg <= 0
-        ? "Not set"
-        : formatLoadAmount(loadKg, unit);
   return (
     <View style={[styles.setCard, { borderColor: theme.colors.border }]}>
       <View style={styles.switchRow}>
@@ -437,17 +398,7 @@ function SetRow({
         </PressOpacity>
       ) : (
         <View style={styles.setEditor}>
-          <Stepper
-            coarseLabel={unit === "metric" ? "10" : "10"}
-            fineLabel={unit === "metric" ? "2.5" : "5"}
-            label={loadMode === "assisted" ? "Assistance" : loadMode === "bodyweight" ? "Added weight" : "Weight"}
-            onChange={changeLoad}
-            onStep={(direction, coarse) => changeLoad(adjustLoadKg(loadKg, direction, coarse, unit))}
-            presets={loadPresetsKg(unit)}
-            readout={loadReadout}
-            renderPreset={(preset) => formatLoadAmount(preset, unit)}
-            value={loadKg}
-          />
+          <WeightInput label={loadMode === "assisted" ? "Assistance" : loadMode === "bodyweight" ? "Added weight" : "Weight"} onChange={changeLoad} value={loadKg} unit={unit} />
           <CountStepper
             label="Reps"
             maximum={MAX_REPS}
@@ -490,72 +441,37 @@ function SetRow({
   );
 }
 
-function Stepper({
-  coarseLabel,
-  fineLabel,
-  label,
-  onChange,
-  onStep,
-  presets,
-  readout,
-  renderPreset,
-  value,
-}: {
-  coarseLabel: string;
-  fineLabel: string;
+function WeightInput({ label, onChange, unit, value }: {
   label: string;
   onChange: (value: number | null) => void;
-  onStep: (direction: -1 | 1, coarse: boolean) => void;
-  presets: readonly number[];
-  readout: string;
-  renderPreset: (value: number) => string;
+  unit: "metric" | "imperial";
   value: number | null;
 }) {
   const { theme } = useAppTheme();
+  const editing = useRef(false);
+  const display = value == null ? "" : String(Math.round(convertKilogramsToWeight(value, unit) * 1000) / 1000);
+  const [text, setText] = useState(display);
+  useEffect(() => { if (!editing.current) setText(display); }, [display]);
   return (
     <View style={styles.stepBlock}>
-      <View style={styles.switchRow}>
-        <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>{label.toUpperCase()}</Text>
-        <Text style={[styles.readout, { color: theme.colors.text }]}>{readout}</Text>
-      </View>
-      <View style={styles.row}>
-        <StepButton label={`-${coarseLabel}`} onPress={() => onStep(-1, true)} />
-        <StepButton label={`-${fineLabel}`} onPress={() => onStep(-1, false)} />
-        <StepButton label={`+${fineLabel}`} onPress={() => onStep(1, false)} />
-        <StepButton label={`+${coarseLabel}`} onPress={() => onStep(1, true)} />
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.presetRow}>
-          {presets.map((preset) => (
-            <PressOpacity
-              accessibilityLabel={renderPreset(preset)}
-              key={preset}
-              onPress={() => {
-                feedbackStep("up");
-                onChange(preset);
-              }}
-              silent
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: value === preset ? theme.colors.tertiary : theme.colors.surfaceMuted,
-                  borderColor: theme.colors.borderStrong,
-                },
-              ]}
-            >
-              <Text
-                style={{
-                  color: value === preset ? readableTextColor(theme.colors.tertiary) : theme.colors.text,
-                  fontVariant: ["tabular-nums"],
-                  fontWeight: "700",
-                }}
-              >
-                {renderPreset(preset)}
-              </Text>
-            </PressOpacity>
-          ))}
-        </View>
-      </ScrollView>
+      <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>{label.toUpperCase()} ({unit === "metric" ? "kg" : "lb"})</Text>
+      <TextInput
+        accessibilityLabel={label + (unit === "metric" ? " in kilograms" : " in pounds")}
+        keyboardType="decimal-pad"
+        maxLength={10}
+        onFocus={() => { editing.current = true; }}
+        onBlur={() => { editing.current = false; setText(display); }}
+        onChangeText={(next) => {
+          if (!/^\d*(?:[.,]\d*)?$/.test(next)) return;
+          setText(next);
+          const parsed = parseDecimalInput(next);
+          onChange(parsed == null ? null : convertWeightToKilograms(parsed, unit));
+        }}
+        placeholder="Enter weight"
+        placeholderTextColor={theme.colors.textMuted}
+        style={[styles.weightInput, { color: theme.colors.text, backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}
+        value={text}
+      />
     </View>
   );
 }
@@ -786,7 +702,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     minHeight: 52,
+    minWidth: 90,
   },
+  weightInput: { borderRadius: 12, borderWidth: 1, fontSize: 18, fontVariant: ["tabular-nums"], minHeight: 52, paddingHorizontal: 12 },
   stepBlock: { gap: tokens.spacing.sm },
   readout: { fontSize: 16, fontVariant: ["tabular-nums"], fontWeight: "800" },
   step: {

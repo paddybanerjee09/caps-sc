@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
+import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
 import { PressOpacity } from "../../components/PressOpacity";
 import { getStrengthSession, listSameLiftReferences } from "../../data/strengthRepository";
 import {
@@ -77,12 +78,7 @@ export function StrengthAdaptationsScreen({ sessionId }: { sessionId: string | n
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.header}>
-        <PressOpacity accessibilityLabel="Back" onPress={workspace.pop} style={styles.headerHit}>
-          <Text style={[styles.headerAction, { color: theme.colors.text }]}>Back</Text>
-        </PressOpacity>
-        <Text style={[styles.title, { color: theme.colors.text }]}>Estimated focus</Text>
-      </View>
+      <WorkflowHeader title="Estimated focus" onClose={workspace.closeBranch} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View
           style={[
@@ -148,6 +144,7 @@ export function StrengthAdaptationsScreen({ sessionId }: { sessionId: string | n
           );
         })}
       </ScrollView>
+      <WorkflowFooter onBack={workspace.pop} backLabel={workspace.stack.length > 1 ? "Back" : "Cancel"} />
     </View>
   );
 }

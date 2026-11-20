@@ -35,6 +35,7 @@ type ConfirmRequest = {
 
 type StrengthWorkspaceValue = {
   bumpRevision: () => void;
+  closeBranch: () => void;
   confirm: ConfirmRequest | null;
   dismissConfirm: () => void;
   draft: StrengthDraft | null;
@@ -105,6 +106,18 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
   const value = useMemo<StrengthWorkspaceValue>(
     () => ({
       bumpRevision: () => setRevision((current) => current + 1),
+      closeBranch: () => {
+        if (draft && JSON.stringify(draft) !== savedSnapshot) {
+          setConfirm({
+            confirmLabel: "Discard",
+            message: "This workout has unsaved changes.",
+            onConfirm: resetWorkspace,
+            title: "Discard changes?",
+          });
+        } else {
+          resetWorkspace();
+        }
+      },
       confirm,
       dismissConfirm: () => setConfirm(null),
       draft,
