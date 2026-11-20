@@ -136,9 +136,9 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   tabText: {
-    fontSize: 10,
+    fontSize: 9,
     letterSpacing: 0.2,
-    lineHeight: 12,
+    lineHeight: 11,
     textAlign: "center",
   },
   activeLine: {
