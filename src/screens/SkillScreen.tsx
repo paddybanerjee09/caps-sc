@@ -154,7 +154,7 @@ export function SkillTrainingScreen() {
             <Text style={[styles.empty, { color: theme.colors.textMuted }]}>
               No saved sessions.
             </Text>
-          ) : null
+          ) : undefined
         }
         ListHeaderComponent={
           <View style={styles.header}>

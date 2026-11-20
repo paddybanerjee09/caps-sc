@@ -14,6 +14,7 @@ import {
   Text,
   View,
   type LayoutChangeEvent,
+  type ScrollViewInstance,
 } from "react-native";
 
 import { timelineCategories } from "../constants/timelineCategories";
@@ -76,7 +77,7 @@ export function DayTimeline({
   onWeightEntryPress,
 }: DayTimelineProps) {
   const { theme } = useAppTheme();
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
   const initializedScrollKeyRef = useRef<string | null>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
 

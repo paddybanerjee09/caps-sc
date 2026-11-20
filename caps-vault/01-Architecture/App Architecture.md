@@ -6,7 +6,7 @@ Source baseline `e492e06`. See the [Architecture tree](../../docs/feature-tree/a
 
 - `index.ts` imports `src/services/conditioningLocationTask.ts` before registering the app with Expo. Keep that import when changing bootstrap so the task is defined outside React.
 - `src/App.tsx` nests `SafeAreaProvider` → `SQLiteProvider(caps.db, migrateDatabase)` → `AppThemeProvider` → `AppStateProvider` → `NutritionWorkspaceProvider` → `ConditioningWorkspaceProvider` → `AppNavigator`. The workspace providers outlive route changes. See [[Data and Persistence]], [[Nutrition]], and [[Conditioning]].
-- `package.json` pins the project to the Expo SDK 57, React 19.2, and React Native 0.86 generation at this baseline. Check the current package versions before working on native plugins. `app.json` configures SQLite, date/time picker, location and background/foreground services, barcode camera, and audio.
+- `package.json` now targets Expo SDK 58 (installed Expo 58.0.26), React 19.3.0, and React Native 0.88.1. The November 19 upgrade regenerated the stale SDK 57 lockfile before running `npx expo install --fix`; resolving against the old lockfile incorrectly attempted the datetimepicker's optional Windows peer, which requires RN 0.85. No peer-check bypass or Windows dependency is needed. `expo-font` and `expo-asset` are direct native peer dependencies. See [[2026-11-19 SDK 58 Upgrade Handoff]] for verification and migration details. `app.json` configures SQLite, date/time picker, location and background/foreground services, barcode camera, and audio.
 
 ## Navigation and application state
 

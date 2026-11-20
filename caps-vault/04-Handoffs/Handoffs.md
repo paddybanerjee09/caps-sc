@@ -1,5 +1,6 @@
 # Handoffs
 
+- [[2026-11-19 SDK 58 Upgrade Handoff]] · dependency resolution and SDK 58 compatibility migration
 - [[2026-11-16 Skill Screen Implementation Plan]] · built on the Skills tab at `45648a2`; RPE bands replace the prompt's RIR bands
 - [[2026-11-16 Skill Screen Planning Prompt]] · calendar, builder, saved sessions, and provisional calorie model
 - [[2026-11-16 Repository Refactor Handoff]] · shared app, conditioning, nutrition, strength, and Feature Tree review

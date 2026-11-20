@@ -149,7 +149,7 @@ export function StrengthTrainingScreen() {
             <Text style={[styles.empty, { color: theme.colors.textMuted }]}>
               No saved workouts.
             </Text>
-          ) : null
+          ) : undefined
         }
         ListHeaderComponent={
           <View style={styles.header}>

@@ -12,7 +12,6 @@
       "supportsTablet": true
     },
     "android": {
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize"
     },
@@ -37,7 +36,9 @@
           "recordAudioAndroid": false
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      "expo-font",
+      "expo-asset"
     ]
   }
 }

@@ -104,7 +104,6 @@ export function AppNavigator() {
       style={[styles.root, { backgroundColor: theme.colors.background }]}
     >
       <StatusBar
-        backgroundColor={theme.colors.background}
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
       />
       <View style={styles.workspace}>
