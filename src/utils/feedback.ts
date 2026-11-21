@@ -1,4 +1,4 @@
-import { createAudioPlayer, type AudioPlayer } from "expo-audio";
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-audio";
 import * as Haptics from "expo-haptics";
 import { Platform } from "react-native";
 
@@ -119,12 +119,25 @@ function encodeBase64(bytes: Uint8Array): string {
   return output;
 }
 
-function playAudioCue(kind: CueKind) {
+let audioModeReady: Promise<void> | undefined;
+
+async function playAudioCue(kind: CueKind) {
   if (!preferences.audioCuesEnabled) {
     return;
   }
 
   try {
+    // Configure before creating/playing any cue: Android's unconfigured mode
+    // requests transient audio focus, which can interrupt another app's music.
+    audioModeReady ??= setAudioModeAsync({ interruptionMode: "mixWithOthers" })
+      .catch((error: unknown) => {
+        audioModeReady = undefined;
+        throw error;
+      });
+    await audioModeReady;
+    if (!preferences.audioCuesEnabled) {
+      return;
+    }
     let player = playerCache.get(kind);
     if (!player) {
       player = createAudioPlayer({ uri: buildWavDataUri(kind) });
