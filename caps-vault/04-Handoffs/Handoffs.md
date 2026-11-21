@@ -1,5 +1,7 @@
 # Handoffs
 
+- [[2026-11-20 Background Audio Feedback Handoff]] · audio mixing fix and Spotify device acceptance limits
+
 - [[2026-11-20 Uniform Logging and Navigation Handoff]] · shared subscreen bars, decimal weight entry, scrolling log-time modal and integration evidence
 - [[2026-11-20 UI Audit Review]] · exhaustive 30-surface input/navigation audit and device QA limits
 

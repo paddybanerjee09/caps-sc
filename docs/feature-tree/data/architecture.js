@@ -616,6 +616,7 @@ CAPS.trees.architecture = {
         files: ["src/utils/feedback.ts"],
         summary:
           "All interaction feedback routes here: `feedbackSelection` / `feedbackStep`, `feedbackConfirm`, `feedbackPhaseCue` / `feedbackCountdownTick`, `feedbackWarn`. Honors Settings audio and haptic flags.",
+        guardrails: ["Configure mixWithOthers and await success before playing any cue; never duck or interrupt other apps' audio (20 November 2026 user correction)."],
         versions: [
           {
             n: 1,
@@ -631,6 +632,17 @@ CAPS.trees.architecture = {
             commits: ["2073f65"],
             changes: [
               "Calculate the attack sample count once per cue and remove an unused preferences getter.",
+            ],
+          },
+          {
+            n: 3,
+            name: "Non-interrupting feedback audio",
+            date: "2026-11-20 22:29 -0500",
+            commits: ["29c5ad2"],
+            request: "Keep feedback sounds from dimming Spotify or interrupting background activity.",
+            changes: [
+              "Await shared mixWithOthers audio configuration before creating or playing cues on both platforms.",
+              "Keep haptics immediate; skip sound on configuration failure, allow retry, and recheck the audio preference after initialization.",
             ],
           },
         ],
