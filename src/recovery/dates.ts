@@ -66,7 +66,7 @@ export function validateSleepTimes(q: Questionnaire, complete: boolean) {
   const errors: string[] = [];
   for (const [name, value] of [["Sleep onset", q.sleepOnset], ["Wake time", q.wakeTime]] as const) {
     if (value === null) { if (complete) errors.push(`${name} is required.`); }
-    else if (!isQuarterHour(value, q.timezone)) errors.push(`${name} must be a valid datetime in 15-minute increments.`);
+    else if (!isInstant(value) || new Date(value).getUTCSeconds() !== 0 || new Date(value).getUTCMilliseconds() !== 0) errors.push(`${name} must be a valid datetime in whole minutes.`);
   }
   if (q.wakeTime && isInstant(q.wakeTime) && isValidTimezone(q.timezone) && localDateInZone(q.wakeTime, q.timezone) !== q.localDate) errors.push("Wake time must belong to the selected recovery date.");
   if (q.sleepOnset && q.wakeTime && isInstant(q.sleepOnset) && isInstant(q.wakeTime)) {

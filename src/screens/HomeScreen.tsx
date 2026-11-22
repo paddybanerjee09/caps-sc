@@ -1,3 +1,5 @@
+import { formatDisplayDate } from "../utils/displayDate";
+import { QuestionnaireHistoryScreen } from "../recovery/components/QuestionnaireHistoryScreen";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -73,10 +75,11 @@ export function HomeScreen({ registerExitGuard }: { registerExitGuard?: (guard: 
   const recoveryDay = useRecoveryDay();
   const [recoveryRevision, setRecoveryRevision] = useState(0);
   const recovery = useRecoveryData(recoveryDay.localDate, recoveryDay.timezone, recoveryRevision);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [questionnaireForm, setQuestionnaireForm] = useState<{ localDate: string; timezone: string; initial: Questionnaire | null } | null>(null);
   function openQuestionnaire(historical?: Questionnaire) {
-    if (!recovery.data || recovery.loading || recovery.error) return;
-    setQuestionnaireForm(historical ? { localDate: historical.localDate, timezone: historical.timezone, initial: historical } : { ...recoveryDay, initial: recovery.data.questionnaire });
+    if (!historical && (!recovery.data || recovery.loading || recovery.error)) return;
+    setQuestionnaireForm(historical ? { localDate: historical.localDate, timezone: historical.timezone, initial: historical } : { ...recoveryDay, initial: recovery.data!.questionnaire });
   }
 
   const ageText =
@@ -380,7 +383,7 @@ export function HomeScreen({ registerExitGuard }: { registerExitGuard?: (guard: 
         </Animated.View>
       </View>
 
-      {recovery.data && !recovery.loading && !recovery.error && recovery.data.questionnaire?.status !== "completed" ? <PressOpacity accessibilityLabel="Morning questionnaire due. Open Recovery" onPress={() => setSelectedHomeSection("recovery")} style={[styles.recoveryNotice, { borderColor: theme.colors.tertiary, backgroundColor: theme.colors.surface }]}><Text style={{ color: theme.colors.text }}>● Morning questionnaire due · {recoveryDay.localDate}</Text></PressOpacity> : null}
+      {recovery.data && !recovery.loading && !recovery.error && recovery.data.questionnaire?.status !== "completed" ? <PressOpacity accessibilityLabel="Morning questionnaire due. Open Recovery" onPress={() => setSelectedHomeSection("recovery")} style={[styles.recoveryNotice, { borderColor: theme.colors.tertiary, backgroundColor: theme.colors.surface }]}><Text style={{ color: theme.colors.text }}>● Morning questionnaire due · {formatDisplayDate(recoveryDay.localDate)}</Text></PressOpacity> : null}
       {/* Card 3: Section Selector & Daily Timeline Card */}
       <SegmentedSelector
         accessibilityLabel="Home sections"
@@ -496,12 +499,13 @@ export function HomeScreen({ registerExitGuard }: { registerExitGuard?: (guard: 
               onWeightEntryPress={openWeightLog}
             />
           </View> : null}
-          {selectedHomeSection === "recovery" ? <RecoveryPanel recovery={recovery} onQuestionnaire={openQuestionnaire} onChanged={() => setRecoveryRevision((value) => value + 1)} /> : null}
+          {selectedHomeSection === "recovery" ? <RecoveryPanel recovery={recovery} onHistory={() => setHistoryOpen(true)} onQuestionnaire={openQuestionnaire} onChanged={() => setRecoveryRevision((value) => value + 1)} /> : null}
           <ProgressPanel active={selectedHomeSection === "progress"} revision={recoveryRevision} />
         </SlidingPanels>
       </View>
     </Screen>
-      {questionnaireForm ? <MorningQuestionnaire registerExitGuard={registerExitGuard} key={`${questionnaireForm.localDate}:${questionnaireForm.timezone}`} {...questionnaireForm} onClose={() => setQuestionnaireForm(null)} onSaved={() => setRecoveryRevision((value) => value + 1)} /> : null}
+      {historyOpen ? <QuestionnaireHistoryScreen active={!questionnaireForm} revision={recoveryRevision} onClose={() => setHistoryOpen(false)} onEdit={openQuestionnaire} /> : null}
+      {questionnaireForm ? <MorningQuestionnaire onBack={historyOpen ? () => setQuestionnaireForm(null) : undefined} registerExitGuard={registerExitGuard} key={`${questionnaireForm.localDate}:${questionnaireForm.timezone}`} {...questionnaireForm} onClose={() => { setQuestionnaireForm(null); setHistoryOpen(false); }} onSaved={() => setRecoveryRevision((value) => value + 1)} /> : null}
       <WeightLogModal
         entryToEdit={selectedWeightEntry ?? undefined}
         onClose={closeWeightModal}
@@ -546,32 +550,9 @@ function isSameLocalDay(firstDate: Date, secondDate: Date) {
   );
 }
 
-function formatSelectedDate(date: Date) {
-  const today = new Date();
+function formatSelectedDate(date: Date) { return formatDisplayDate(date); }
 
-  if (isSameLocalDay(date, today)) {
-    return `Today, ${date.toLocaleDateString([], {
-      month: "short",
-      day: "numeric",
-    })}`;
-  }
-
-  return date.toLocaleDateString([], {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
-  });
-}
-
-function formatFullDate(date: Date) {
-  return date.toLocaleDateString([], {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+function formatFullDate(date: Date) { return formatDisplayDate(date); }
 
 function formatSports(sports: string[]) {
   if (sports.length === 0) {

@@ -1,13 +1,13 @@
 import { isLocalDate, isValidTimezone, shiftDate, validateSleepTimes } from "./dates";
-import type { HealthMeasurement, PersonalBaseline, Questionnaire } from "./types";
+import type { HealthMeasurement, PersonalBaseline, Questionnaire, SriVersion } from "./types";
 
-export const SRI_VERSION = "sri_v1" as const;
+export const SRI_VERSION = "sri_v2" as const;
 export const BASELINE_DAYS = 28;
 export const BASELINE_MINIMUM = 14;
 const requiredRatings = ["sleepQuality", "fatigue", "soreness", "stress", "motivation"] as const;
 
 export function createEmptyQuestionnaire(localDate: string, timezone: string): Questionnaire {
-  return { localDate, timezone, sleepOnset: null, wakeTime: null, awakenings: null, sleepQuality: null, fatigue: null, soreness: null, stress: null, motivation: null, mood: null, minutesAwake: null, status: "not_started", revision: 0, completedAt: null };
+  return { localDate, timezone, sriVersion: SRI_VERSION, sleepOnset: null, wakeTime: null, awakenings: 0, awakeningsAtLeast: false, sleepQuality: 5, fatigue: 5, soreness: 5, stress: 5, motivation: 5, mood: 5, minutesAwake: null, status: "not_started", revision: 0, completedAt: null };
 }
 
 function ratingValid(value: number | null) { return value !== null && Number.isInteger(value) && value >= 0 && value <= 10; }
@@ -21,6 +21,9 @@ export function validateQuestionnaire(q: Questionnaire, complete: boolean) {
     if (q[field] === null && !complete) continue;
     if (!ratingValid(q[field])) errors.push(`${field} must be an integer from 0 to 10.`);
   }
+  if (q.sriVersion !== undefined && !["sri_v1", "sri_v2"].includes(q.sriVersion)) errors.push("Unknown SRI version.");
+  if (complete && q.sriVersion === "sri_v2" && q.mood === null) errors.push("Mood is required.");
+  if (q.awakeningsAtLeast && (q.awakenings === null || q.awakenings < 10)) errors.push("10+ awakenings must have a lower bound of at least 10.");
   if (q.mood !== null && !ratingValid(q.mood)) errors.push("Mood must be an integer from 0 to 10.");
   if ((complete && q.awakenings === null) || (q.awakenings !== null && (!Number.isSafeInteger(q.awakenings) || q.awakenings < 0))) errors.push("Awakenings must be a nonnegative integer.");
   if (q.minutesAwake !== null && (!Number.isSafeInteger(q.minutesAwake) || q.minutesAwake < 0)) errors.push("Minutes awake must be a nonnegative integer.");
@@ -29,8 +32,12 @@ export function validateQuestionnaire(q: Questionnaire, complete: boolean) {
   return errors;
 }
 
-export function calculateSRI(q: Pick<Questionnaire, "sleepQuality" | "fatigue" | "soreness" | "stress" | "motivation" | "awakenings">) {
+export function calculateSRI(q: Pick<Questionnaire, "sleepQuality" | "fatigue" | "soreness" | "stress" | "motivation" | "awakenings"> & { mood?: number | null; sriVersion?: SriVersion }) {
   if (!requiredRatings.every((key) => ratingValid(q[key])) || q.awakenings === null || !Number.isInteger(q.awakenings) || q.awakenings < 0) return null;
+  if (q.sriVersion === 'sri_v2') {
+    if (q.mood === undefined || !ratingValid(q.mood)) return null;
+    return Math.round(100 * (0.30*q.sleepQuality!/10 + 0.25*(1-q.fatigue!/10) + 0.20*(1-q.soreness!/10) + 0.10*(1-q.stress!/10) + 0.05*q.motivation!/10 + 0.05*q.mood!/10 + 0.05*(1-Math.min(q.awakenings,10)/10)));
+  }
   const total = q.sleepQuality! / 10 + 1 - q.fatigue! / 10 + 1 - q.soreness! / 10 + 1 - q.stress! / 10 + q.motivation! / 10 + 1 - Math.min(q.awakenings, 5) / 5;
   return Math.round(100 * total / 6);
 }

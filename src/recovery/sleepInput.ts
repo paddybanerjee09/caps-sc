@@ -1,6 +1,6 @@
 /** Construct only real local wall times; Date.setHours otherwise silently normalizes DST gaps. */
 export function sleepClockInstant(base: Date, minutes: number): Date | null {
-  if (!Number.isInteger(minutes) || minutes < 0 || minutes >= 1440 || minutes % 15) return null;
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes >= 1440) return null;
   const next = new Date(base);
   next.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
   return next.getHours() * 60 + next.getMinutes() === minutes ? next : null;

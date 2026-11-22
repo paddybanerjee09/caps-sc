@@ -1,3 +1,4 @@
+export type SriVersion = "sri_v1" | "sri_v2";
 export type QuestionnaireStatus = "not_started" | "in_progress" | "completed";
 export type Questionnaire = {
   localDate: string;
@@ -5,6 +6,8 @@ export type Questionnaire = {
   sleepOnset: string | null;
   wakeTime: string | null;
   awakenings: number | null;
+  awakeningsAtLeast?: boolean;
+  sriVersion?: SriVersion;
   sleepQuality: number | null;
   fatigue: number | null;
   soreness: number | null;
@@ -58,7 +61,7 @@ export type RecoverySnapshot = {
   localDate: string;
   sri: number | null;
   ori: number | null;
-  sriVersion: "sri_v1";
+  sriVersion: SriVersion;
   oriVersion: "caps_ori_v1" | null;
   oriDetails?: import("./objectiveRecovery").OriResult;
   inputCount: number;

@@ -1,6 +1,6 @@
 import { calculateORI } from "../recovery/objectiveRecovery";
 import type { SQLiteDatabase } from "expo-sqlite";
-import { BASELINE_DAYS, calculateSRI, comparableKey, personalBaseline, validateQuestionnaire } from "../recovery/calculations";
+import { BASELINE_DAYS, SRI_VERSION, calculateSRI, comparableKey, personalBaseline, validateQuestionnaire } from "../recovery/calculations";
 import { isInstant, isLocalDate, isValidTimezone, localDateInZone, shiftDate } from "../recovery/dates";
 import type { HealthBatch, HealthMeasurement, HealthMetric, HealthPlatform, HealthState, PreferredSources, Questionnaire, RecoverySnapshot } from "../recovery/types";
 
@@ -31,13 +31,14 @@ export async function listQuestionnaires(db: SQLiteDatabase): Promise<Questionna
 }
 
 export async function saveQuestionnaire(db: SQLiteDatabase, questionnaire: Questionnaire, complete: boolean): Promise<Questionnaire> {
-  const errors = validateQuestionnaire(questionnaire, complete);
+  const candidate = { ...questionnaire, sriVersion: SRI_VERSION };
+  const errors = validateQuestionnaire(candidate, complete);
   if (errors.length) throw new Error(errors.join(" "));
   return write(db, async () => {
     const previous = await getQuestionnaire(db, questionnaire.localDate);
     if (previous && previous.revision !== questionnaire.revision) throw new Error("This questionnaire changed elsewhere. Reload before saving.");
     const now = new Date().toISOString();
-    const saved: Questionnaire = { ...questionnaire, status: complete ? "completed" : "in_progress", revision: (previous?.revision ?? 0) + 1, completedAt: complete ? now : null };
+    const saved: Questionnaire = { ...candidate, status: complete ? "completed" : "in_progress", revision: (previous?.revision ?? 0) + 1, completedAt: complete ? now : null };
     await db.runAsync(`INSERT INTO daily_questionnaires(owner_id,local_date,timezone,status,revision,completed_at,response_json,updated_at)
       VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(owner_id,local_date) DO UPDATE SET timezone=excluded.timezone,status=excluded.status,revision=excluded.revision,completed_at=excluded.completed_at,response_json=excluded.response_json,updated_at=excluded.updated_at`, [LOCAL_OWNER, saved.localDate, saved.timezone, saved.status, saved.revision, saved.completedAt, JSON.stringify(saved), now]);
     await db.runAsync("INSERT INTO questionnaire_revisions(owner_id,local_date,revision,response_json,recorded_at) VALUES (?,?,?,?,?)", [LOCAL_OWNER, saved.localDate, saved.revision, JSON.stringify(saved), now]);
@@ -174,7 +175,7 @@ async function recomputeDerived(db: SQLiteDatabase, questionnaireDay?: string) {
     const questionnaire = questionnaireByDay.get(localDate);
     const inputs = measurementsByDay.get(localDate) ?? [];
     const ori = calculateORI(localDate, measurements, preferred);
-    const snapshot: RecoverySnapshot = { localDate, sri: questionnaire?.status === "completed" ? calculateSRI(questionnaire) : null, ori: ori.score, oriDetails: ori, sriVersion: "sri_v1", oriVersion: ori.version, inputCount: new Set(inputs.map((item) => item.metric)).size, computedAt: now };
+    const snapshot: RecoverySnapshot = { localDate, sri: questionnaire?.status === "completed" ? calculateSRI(questionnaire) : null, ori: ori.score, oriDetails: ori, sriVersion: questionnaire?.sriVersion ?? "sri_v1", oriVersion: ori.version, inputCount: new Set(inputs.map((item) => item.metric)).size, computedAt: now };
     await db.runAsync("INSERT INTO recovery_snapshots(owner_id,local_date,snapshot_json) VALUES (?,?,?)", [LOCAL_OWNER, localDate, JSON.stringify(snapshot)]);
     if (questionnaireDay) continue;
     const latest = new Map<string, HealthMeasurement>();

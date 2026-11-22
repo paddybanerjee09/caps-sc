@@ -1,14 +1,15 @@
+import { formatDisplayDate } from "../../utils/displayDate";
 import { useState } from "react";
 import { ActivityIndicator, Alert, Platform, StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 import { PressOpacity } from "../../components/PressOpacity";
-import { deleteImportedHealth, listQuestionnaires, setPreferredSources } from "../../data/recoveryRepository";
+import { deleteImportedHealth, setPreferredSources } from "../../data/recoveryRepository";
 import { connectHealth, deleteHealthData, disconnectHealth, syncHealth } from "../../health/healthService";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { readableTextColor } from "../../theme/theme";
 import { calculateSRI, manualSleep } from "../calculations";
 import { calculateORI } from "../objectiveRecovery";
-import type { HealthMetric, Questionnaire } from "../types";
+import type { HealthMetric } from "../types";
 import type { useRecoveryData } from "../useRecoveryData";
 
 type RecoveryData = ReturnType<typeof useRecoveryData>;
@@ -17,12 +18,10 @@ const descriptions: Record<HealthMetric, string> = { rhr: "Heart rate at rest.",
 const requirements: Record<HealthMetric, string> = { rhr: "Needs a device that records resting heart rate.", hrv: "Needs a device that records HRV.", hrr60: "Needs a standardized heart-rate recovery test.", sleep_duration: "Sync sleep or report sleep times and minutes awake.", sleep_efficiency: "Needs measured sleep and time in bed.", respiratory_rate: "Needs a device that records breathing rate.", temperature_deviation: "Needs comparable skin-temperature readings." };
 const metricOrder: HealthMetric[] = ["rhr", "hrv", "hrr60", "sleep_duration", "sleep_efficiency", "respiratory_rate", "temperature_deviation"];
 
-export function RecoveryPanel({ recovery, onQuestionnaire, onChanged }: { recovery: RecoveryData; onQuestionnaire: (historical?: Questionnaire) => void; onChanged: () => void }) {
+export function RecoveryPanel({ recovery, onQuestionnaire, onHistory, onChanged }: { recovery: RecoveryData; onQuestionnaire: () => void; onHistory: () => void; onChanged: () => void }) {
   const { theme } = useAppTheme();
   const db = useSQLiteContext();
   const [busy, setBusy] = useState(false);
-  const [history, setHistory] = useState<Questionnaire[] | null>(null);
-  const [historyPage, setHistoryPage] = useState(0);
   const [managing, setManaging] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const { data, loading, error, reload } = recovery;
@@ -56,17 +55,12 @@ export function RecoveryPanel({ recovery, onQuestionnaire, onChanged }: { recove
   const connectionHint = data.health?.status === "unsupported" ? /build|Expo Go|bridge/i.test(data.health.error ?? "") ? "Requires a CAPS development build." : "Check health support on this device." : data.health?.status === "sync_error" ? "Check health permissions and retry." : null;
   return <View style={styles.block}>
     <View style={[styles.card, { borderColor: theme.colors.borderStrong, backgroundColor: theme.colors.surface }]}>
-      <Text accessibilityRole="header" style={[styles.heading, muted]}>RECOVERY · {data.localDate}</Text>
+      <Text accessibilityRole="header" style={[styles.heading, muted]}>RECOVERY · {formatDisplayDate(data.localDate)}</Text>
       <View style={styles.row}>
         <Text style={[styles.status, text]}>{completed ? `Completed${questionnaire.completedAt ? ` · ${new Date(questionnaire.completedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}` : questionnaire?.status === "in_progress" ? "Draft saved" : "Morning check-in due"}</Text>
         <PressOpacity disabled={busy || loading} onPress={onQuestionnaire} style={[styles.button, { backgroundColor: theme.colors.tertiary }]}><Text style={{ color: readableTextColor(theme.colors.tertiary), fontWeight: "700" }}>{completed ? "Edit" : "Questionnaire"}</Text></PressOpacity>
       </View>
-      <PressOpacity disabled={busy} accessibilityState={{ expanded: history !== null }} onPress={() => { if (history) setHistory(null); else void action(async () => { setHistory((await listQuestionnaires(db)).filter(q => q.localDate !== data.localDate).reverse()); setHistoryPage(0); }); }} style={styles.historyButton}><Text style={[styles.small, text]}>{history ? "Hide history" : "Questionnaire history"}</Text></PressOpacity>
-      {history ? <>
-        {!history.length ? <Text style={[styles.small, muted]}>No earlier entries.</Text> : null}
-        {history.slice(historyPage * 7, historyPage * 7 + 7).map(q => <PressOpacity key={q.localDate} onPress={() => onQuestionnaire(q)} style={styles.button}><Text style={text}>{q.localDate} · {q.status === "completed" ? "Completed" : "Draft"}</Text></PressOpacity>)}
-        {history.length > 7 ? <View style={styles.row}><PressOpacity disabled={historyPage === 0} onPress={() => setHistoryPage(page => page - 1)} style={styles.button}><Text style={text}>Newer</Text></PressOpacity><PressOpacity disabled={(historyPage + 1) * 7 >= history.length} onPress={() => setHistoryPage(page => page + 1)} style={styles.button}><Text style={text}>Earlier</Text></PressOpacity></View> : null}
-      </> : null}
+      <PressOpacity onPress={onHistory} style={styles.historyButton}><Text style={[styles.small, text]}>Questionnaire history</Text></PressOpacity>
     </View>
     <View style={styles.grid}>
       <Metric title="Subjective Recovery Index" value={sri === null ? "--" : `${sri} / 100`} detail={sri === null ? "Complete the morning questionnaire." : "Your morning check-in score."} />
