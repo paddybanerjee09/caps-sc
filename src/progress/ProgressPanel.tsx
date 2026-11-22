@@ -1,7 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, AppState, BackHandler, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
+import { ActivityIndicator, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SegmentedSelector } from "../components/nutrition/SegmentedSelector";
 import { PressOpacity } from "../components/PressOpacity";
 import { listMeasurements, listQuestionnaires, listSnapshots, listWeights } from "../data/recoveryRepository";
@@ -16,6 +17,10 @@ const TIMEFRAMES: { value: Timeframe; label: string }[] = [{ value: "week", labe
 
 export function ProgressPanel({ revision, active = true }: { revision: number; active?: boolean }) {
   const db = useSQLiteContext();
+  const window = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const chooser = useRef<ComponentRef<typeof View>>(null);
+  const [menuAnchor, setMenuAnchor] = useState({ x: 12, y: 12, width: 280, height: 48 });
   const { theme } = useAppTheme();
   const { unitSettings, timelineRevision } = useAppState();
   const [records, setRecords] = useState<ProgressRecords>(emptyProgressRecords);
@@ -26,6 +31,13 @@ export function ProgressPanel({ revision, active = true }: { revision: number; a
   const [timeframe, setTimeframe] = useState<Timeframe>("week");
   const [group, setGroup] = useState<ProgressGroup>("weight");
   const [graphMenuOpen, setGraphMenuOpen] = useState(false);
+  function openGraphMenu() {
+    chooser.current?.measureInWindow((x,y,width,height) => { setMenuAnchor({x,y,width,height}); setGraphMenuOpen(true); });
+  }
+  function currentPeriod(next: Timeframe = timeframe) {
+    const current = dateKey(new Date());
+    setToday(current); setAnchor(current); setTimeframe(next); setSelectedKey(null);
+  }
   const [hidden, setHidden] = useState<Set<string>>(() => new Set());
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const request = useRef(0);
@@ -54,11 +66,6 @@ export function ProgressPanel({ revision, active = true }: { revision: number; a
     const timer = setInterval(refreshDay, 30_000);
     return () => { subscription.remove(); clearInterval(timer); };
   }, [active, load]);
-  useEffect(() => {
-    if (!active || !graphMenuOpen) return;
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => { setGraphMenuOpen(false); return true; });
-    return () => subscription.remove();
-  }, [active, graphMenuOpen]);
   const period = useMemo(() => buildPeriod(timeframe, anchor, firstProgressDate(records), today), [anchor, records, timeframe, today]);
   const rawGraphs = useMemo(() => buildRawGraphs(records, group, unitSettings.weight === "imperial", today), [group, records, today, unitSettings.weight]);
   const graphs = useMemo(() => aggregateGraphs(rawGraphs, period), [rawGraphs, period]);
@@ -68,23 +75,35 @@ export function ProgressPanel({ revision, active = true }: { revision: number; a
   const select = useCallback((index: number) => setSelectedKey(period.buckets[index]?.key ?? null), [period]);
   const nextAnchor = shiftPeriod(anchor, timeframe, 1);
   const nextPeriod = buildPeriod(timeframe, nextAnchor, null, today);
+  const menuWidth = Math.max(48, Math.min(menuAnchor.width, window.width - 24));
+  const menuHeight = Math.max(48, Math.min(GROUPS.length * 56, window.height - insets.top - insets.bottom - 24));
+  const menuLeft = Math.max(12, Math.min(menuAnchor.x, window.width - menuWidth - 12));
+  const menuTop = Math.max(insets.top + 12, Math.min(menuAnchor.y + menuAnchor.height + 4, window.height - insets.bottom - menuHeight - 12));
   if (!active) return null;
   return <View style={styles.panel}>
-    <View style={[styles.graphChooser, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}>
-      <PressOpacity accessibilityLabel={`Choose graph, ${GROUPS.find(option => option.value === group)!.label}`} accessibilityState={{ expanded: graphMenuOpen }} onPress={() => setGraphMenuOpen(open => !open)} style={styles.graphTrigger}>
+    <View ref={chooser} collapsable={false} style={[styles.graphChooser, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}>
+      <PressOpacity accessibilityLabel={`Choose graph, ${GROUPS.find(option => option.value === group)!.label}`} accessibilityState={{ expanded: graphMenuOpen }} onPress={openGraphMenu} style={styles.graphTrigger}>
         <Text style={[styles.chooserLabel, { color: theme.colors.textMuted }]}>Choose graph</Text>
         <Text style={[styles.graphValue, { color: theme.colors.text }]}>{GROUPS.find(option => option.value === group)!.label}</Text>
         <Ionicons name={graphMenuOpen ? "chevron-up" : "chevron-down"} color={theme.colors.textMuted} size={18} />
       </PressOpacity>
-      {graphMenuOpen ? <View style={[styles.graphMenu, { borderTopColor: theme.colors.border }]}>{GROUPS.map(option => <PressOpacity key={option.value} accessibilityLabel={option.label} accessibilityState={{ selected: option.value === group }} onPress={() => { setGroup(option.value); setGraphMenuOpen(false); }} style={styles.graphOption}>
-        <Text style={[styles.graphOptionText, { color: option.value === group ? theme.colors.tertiary : theme.colors.text }]}>{option.label}</Text>
-        {option.value === group ? <Ionicons name="checkmark" size={18} color={theme.colors.tertiary} /> : null}
-      </PressOpacity>)}</View> : null}
+
     </View>
-    <SegmentedSelector accessibilityLabel="Progress timeframe" options={TIMEFRAMES} value={timeframe} onChange={setTimeframe} />
+    <Modal transparent animationType="none" visible={graphMenuOpen} onRequestClose={() => setGraphMenuOpen(false)} statusBarTranslucent navigationBarTranslucent>
+      <View style={styles.menuOverlay}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close graph menu" onPress={() => setGraphMenuOpen(false)} style={StyleSheet.absoluteFill} />
+        <View accessibilityViewIsModal style={[styles.graphMenu, { top: menuTop, left: menuLeft, width: menuWidth, maxHeight: menuHeight, backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong }]}>
+          <ScrollView keyboardShouldPersistTaps="handled">{GROUPS.map(option => <PressOpacity key={option.value} accessibilityLabel={option.label} accessibilityState={{ selected: option.value === group }} onPress={() => { setGroup(option.value); setGraphMenuOpen(false); }} style={styles.graphOption}>
+            <Text style={[styles.graphOptionText, { color: option.value === group ? theme.colors.tertiary : theme.colors.text }]}>{option.label}</Text>
+            {option.value === group ? <Ionicons name="checkmark" size={18} color={theme.colors.tertiary} /> : null}
+          </PressOpacity>)}</ScrollView>
+        </View>
+      </View>
+    </Modal>
+    <SegmentedSelector accessibilityLabel="Progress timeframe" options={TIMEFRAMES} value={timeframe} onChange={currentPeriod} />
     <View style={styles.periodBar}>
       {timeframe !== "lifetime" ? <PressOpacity accessibilityLabel="Previous progress period" onPress={() => setAnchor(shiftPeriod(anchor, timeframe, -1))} style={styles.iconButton}><Ionicons name="chevron-back" size={20} color={theme.colors.text} /></PressOpacity> : null}
-      <PressOpacity accessibilityLabel={`${period.title}. Show current period`} onPress={() => { setAnchor(today); setSelectedKey(null); }} style={styles.currentPeriod}><Text style={[styles.periodTitle, { color: theme.colors.text }]}>{period.title}</Text></PressOpacity>
+      <PressOpacity accessibilityLabel={`${period.title}. Show current period`} onPress={() => currentPeriod()} style={styles.currentPeriod}><Text style={[styles.periodTitle, { color: theme.colors.text }]}>{period.title}</Text></PressOpacity>
       {timeframe !== "lifetime" ? <PressOpacity accessibilityLabel="Next progress period" disabled={nextPeriod.start > today} onPress={() => setAnchor(nextAnchor)} style={styles.iconButton}><Ionicons name="chevron-forward" size={20} color={theme.colors.text} /></PressOpacity> : null}
       <PressOpacity accessibilityLabel="Refresh progress" disabled={loading} onPress={() => void load()} style={styles.iconButton}><Ionicons name="refresh" size={19} color={theme.colors.text} /></PressOpacity>
     </View>
@@ -96,7 +115,7 @@ const styles = StyleSheet.create({
   graphChooser: { borderRadius: 12, borderWidth: 1, overflow: "hidden" },
   graphTrigger: { minHeight: 48, minWidth: 48, paddingHorizontal: 12, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 8 },
   chooserLabel: { fontSize: 12 }, graphValue: { flex: 1, fontSize: 13, fontWeight: "700", textAlign: "right" },
-  graphMenu: { borderTopWidth: 1 }, graphOption: { minHeight: 48, minWidth: 48, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, graphOptionText: { flex: 1, fontSize: 14, fontWeight: "600" },
+  menuOverlay: { flex: 1 }, graphMenu: { position: "absolute", borderWidth: 1, borderRadius: 12, overflow: "hidden" }, graphOption: { minHeight: 48, minWidth: 48, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, graphOptionText: { flex: 1, fontSize: 14, fontWeight: "600" },
   periodBar: { flexDirection: "row", alignItems: "center" }, periodTitle: { fontSize: 12, textAlign: "center", fontWeight: "700", fontVariant: ["tabular-nums"] },
   currentPeriod: { flex: 1, minHeight: 48, minWidth: 48, justifyContent: "center", paddingHorizontal: 4 }, iconButton: { minHeight: 48, width: 48, alignItems: "center", justifyContent: "center" },
   loading: { alignItems: "center", padding: 16 },
