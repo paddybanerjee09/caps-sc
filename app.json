@@ -13,7 +13,13 @@
     },
     "android": {
       "predictiveBackGestureEnabled": false,
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.health.READ_RESTING_HEART_RATE",
+        "android.permission.health.READ_HEART_RATE_VARIABILITY",
+        "android.permission.health.READ_RESPIRATORY_RATE",
+        "android.permission.health.READ_SLEEP"
+      ]
     },
     "plugins": [
       "@react-native-community/datetimepicker",
@@ -38,7 +44,20 @@
       ],
       "expo-audio",
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "CAPS reads resting heart rate, HRV, breathing rate and sleep to show your recovery markers and personal trends on this device.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": false
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        { "android": { "minSdkVersion": 26 } }
+      ]
     ]
   }
 }
