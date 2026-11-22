@@ -84,7 +84,7 @@ export function LogConditioningSessionScreen() {
       return;
     }
     if (!isLocalDateString(date)) {
-      setError("Enter the performed date as YYYY-MM-DD");
+      setError("Choose a valid performed date.");
       return;
     }
     const performedAt = combineLocalDateAndTime(date, time);

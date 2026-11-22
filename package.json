@@ -17,7 +17,8 @@
     "verify:recovery-input": "node --experimental-strip-types scripts/verify-recovery-input.mjs",
     "verify:health": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-health.mjs",
     "verify:progress": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-progress.mjs",
-    "verify:ori": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-ori.mjs"
+    "verify:ori": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-ori.mjs",
+    "verify:display-dates": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-display-dates.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

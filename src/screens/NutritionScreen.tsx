@@ -1,3 +1,4 @@
+import { formatDisplayDate } from "../utils/displayDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
 import {
@@ -734,30 +735,11 @@ function isSameLocalDay(firstDate: Date, secondDate: Date) {
 }
 
 function formatSelectedDate(date: Date) {
-  const today = new Date();
-
-  if (isSameLocalDay(date, today)) {
-    return `Today, ${date.toLocaleDateString([], {
-      month: "short",
-      day: "numeric",
-    })}`;
-  }
-
-  return date.toLocaleDateString([], {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
-  });
+  return formatDisplayDate(date);
 }
 
 function formatFullDate(date: Date) {
-  return date.toLocaleDateString([], {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatDisplayDate(date);
 }
 
 const styles = StyleSheet.create({

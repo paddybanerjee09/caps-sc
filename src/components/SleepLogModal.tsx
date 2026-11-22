@@ -1,3 +1,4 @@
+import { formatDisplayDate } from "../utils/displayDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -336,11 +337,7 @@ function getMinuteOfDay(date: Date) {
 }
 
 function formatWakeDate(date: Date) {
-  return date.toLocaleDateString([], {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatDisplayDate(date);
 }
 
 const styles = StyleSheet.create({

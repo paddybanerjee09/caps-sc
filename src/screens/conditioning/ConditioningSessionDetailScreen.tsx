@@ -1,3 +1,4 @@
+import { formatDisplayDate } from "../../utils/displayDate";
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -134,7 +135,7 @@ export function ConditioningSessionDetailScreen({
                 </View>
               </View>
               <Text style={[styles.dateText, { color: theme.colors.text }]}>
-                {session.performedLocalDate ?? session.scheduledLocalDate}
+                {session.performedLocalDate || session.scheduledLocalDate ? formatDisplayDate((session.performedLocalDate ?? session.scheduledLocalDate)!) : "--"}
                 {session.scheduledLocalStartTime
                   ? ` · ${session.scheduledLocalStartTime}`
                   : ""}

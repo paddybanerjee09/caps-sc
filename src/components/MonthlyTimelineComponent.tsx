@@ -1,3 +1,4 @@
+import { formatDisplayDate } from "../utils/displayDate";
 import { StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
@@ -151,7 +152,7 @@ export function MonthlyTimelineComponent({
             const statusSummary = summarizeStatuses(cell.events);
             return (
               <PressOpacity
-                accessibilityLabel={`${cell.isoDate}${cell.isToday ? ", today" : ""}${
+                accessibilityLabel={`${formatDisplayDate(cell.isoDate)}${cell.isToday ? ", today" : ""}${
                   cell.isSelected ? ", selected" : ""
                 }${statusSummary ? `, ${statusSummary}` : ""}`}
                 accessibilityState={{ selected: cell.isSelected }}
@@ -218,7 +219,7 @@ export function MonthlyTimelineComponent({
       <View style={styles.eventList}>
         <View style={styles.selectedDateBar}>
           <Text style={[styles.selectedDateHeader, { color: theme.colors.textMuted }]}>
-            SELECTED DATE: {selectedDate}
+            SELECTED DATE: {formatDisplayDate(selectedDate)}
           </Text>
           <Text style={[styles.selectedDateCount, { color: theme.colors.text }]}>
             {selectedEvents.length}{" "}

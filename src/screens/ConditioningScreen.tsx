@@ -1,3 +1,4 @@
+import { formatDisplayDate } from "../utils/displayDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
@@ -276,7 +277,7 @@ export function ConditioningScreen() {
               SESSION LAUNCHER
             </Text>
             <Text style={[styles.cardBadgeText, { color: theme.colors.textMuted }]}>
-              TARGET: {selectedDate}
+              TARGET: {formatDisplayDate(selectedDate)}
             </Text>
           </View>
 
@@ -382,7 +383,7 @@ export function ConditioningScreen() {
                 SELECT PROTOCOL FORMAT
               </Text>
               <Text style={[styles.cardBadgeText, { color: theme.colors.tertiary }]}>
-                {selectedDate}
+                {formatDisplayDate(selectedDate)}
               </Text>
             </View>
             <Text style={[styles.chooserTitle, { color: theme.colors.text }]}>

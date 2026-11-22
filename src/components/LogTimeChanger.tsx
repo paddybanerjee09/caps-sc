@@ -1,3 +1,4 @@
+import { formatDisplayDate } from "../utils/displayDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRef, useState, type ComponentRef } from "react";
 import { Keyboard, Modal, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
@@ -82,7 +83,7 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
   return (
     <>
       <PressOpacity
-        accessibilityLabel={`${label ?? "Log time"}: ${value.toLocaleString()}. Change log time`}
+        accessibilityLabel={`${label ?? "Log time"}: ${formatDisplayDate(value)}, ${value.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. Change log time`}
         accessibilityState={{ expanded: open }}
         onPress={openPicker}
         style={[styles.trigger, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}

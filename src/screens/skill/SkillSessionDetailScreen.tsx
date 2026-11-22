@@ -1,3 +1,4 @@
+import { formatDisplayDate } from "../../utils/displayDate";
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
@@ -135,11 +136,7 @@ function ActivityCard({
 
 function formatWhen(ms: number) {
   const date = new Date(ms);
-  const day = date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    weekday: "short",
-  });
+  const day = formatDisplayDate(date);
   const clock = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   return `${day} ${clock}`;
 }

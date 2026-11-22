@@ -1,3 +1,4 @@
+import { formatDisplayDate } from "../../utils/displayDate";
 import { useEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
@@ -154,12 +155,8 @@ function ExerciseCard({
 }
 
 function formatWhen(instant: number) {
-  return new Date(instant).toLocaleString(undefined, {
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    month: "short",
-  });
+  const date = new Date(instant);
+  return `${formatDisplayDate(date)} ${date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
 }
 
 const styles = StyleSheet.create({

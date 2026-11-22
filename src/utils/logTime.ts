@@ -1,3 +1,4 @@
+import { formatDisplayDate } from "./displayDate";
 /** Change the local calendar day, preserving wall-clock time across DST changes. */
 export function shiftLogDay(value: Date, amount: number) {
   const next = new Date(value);
@@ -13,6 +14,6 @@ export function clampLogDate(value: Date, minimumDate?: Date, maximumDate?: Date
 export function formatLogDay(value: Date, today = new Date()) {
   const sameDay = value.getFullYear() === today.getFullYear()
     && value.getMonth() === today.getMonth() && value.getDate() === today.getDate();
-  const day = `${value.getDate()}, ${value.toLocaleDateString([], { month: "long" })}`;
+  const day = formatDisplayDate(value);
   return sameDay ? `Today, ${day}` : day;
 }
