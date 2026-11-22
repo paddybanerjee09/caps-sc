@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
 import { conditioningMigrationSql } from "./conditioningMigration";
+import { recoveryMigrationSql } from "./recoveryMigration";
 import {
   nutritionV5RebuildSql,
   nutritionV5SequenceSql,
@@ -11,7 +12,7 @@ import { skillMigrationSql } from "./skillMigration";
 import { strengthMigrationSql } from "./strengthMigration";
 import { ensureStrengthCatalog } from "./strengthRepository";
 
-const DATABASE_VERSION = 9;
+const DATABASE_VERSION = 10;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -27,12 +28,14 @@ export async function migrateDatabase(db: SQLiteDatabase) {
   const workspaceReady = await tableExists(db, "nutrition_workspace");
   const strengthReady = await tableExists(db, "strength_sessions");
   const skillReady = await tableExists(db, "skill_sessions");
+  const recoveryReady = await tableExists(db, "daily_questionnaires");
 
   if (
     currentVersion >= DATABASE_VERSION &&
     workspaceReady &&
     strengthReady &&
-    skillReady
+    skillReady &&
+    recoveryReady
   ) {
     await ensureStrengthCatalog(db);
     return;
@@ -168,6 +171,10 @@ export async function migrateDatabase(db: SQLiteDatabase) {
 
   if (currentVersion < 9 || !skillReady) {
     await db.execAsync(skillMigrationSql);
+  }
+
+  if (currentVersion < 10 || !recoveryReady) {
+    await db.execAsync(recoveryMigrationSql);
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

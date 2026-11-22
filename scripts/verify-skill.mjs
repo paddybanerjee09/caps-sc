@@ -250,7 +250,7 @@ function sessionDraft(endedAt, sessionId, activities) {
 const fresh = new DatabaseSync(":memory:");
 const db = adapterFor(fresh);
 await migrateDatabase(db);
-assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 9);
+assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 10);
 assert.ok(fresh.prepare("SELECT name FROM sqlite_master WHERE name = 'skill_sessions'").get());
 assert.ok(fresh.prepare("SELECT name FROM sqlite_master WHERE name = 'strength_sessions'").get());
 
@@ -274,7 +274,7 @@ upgradeDb.exec(`
 `);
 const upgrade = adapterFor(upgradeDb);
 await migrateDatabase(upgrade);
-assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 9);
+assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 10);
 assert.equal(upgradeDb.prepare("SELECT id FROM nutrition_workspace").get().id, "keep");
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'strength_sessions'").get());
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'skill_sessions'").get());

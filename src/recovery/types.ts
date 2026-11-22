@@ -1,0 +1,74 @@
+export type QuestionnaireStatus = "not_started" | "in_progress" | "completed";
+export type Questionnaire = {
+  localDate: string;
+  timezone: string;
+  sleepOnset: string | null;
+  wakeTime: string | null;
+  awakenings: number | null;
+  sleepQuality: number | null;
+  fatigue: number | null;
+  soreness: number | null;
+  stress: number | null;
+  motivation: number | null;
+  mood: number | null;
+  minutesAwake: number | null;
+  status: QuestionnaireStatus;
+  revision: number;
+  completedAt: string | null;
+};
+export type HealthMetric = "rhr" | "hrv" | "hrr60" | "respiratory_rate" | "temperature_deviation" | "sleep_duration" | "sleep_efficiency";
+export type HealthPlatform = "healthkit" | "health_connect";
+export type HealthMeasurement = {
+  id: string;
+  metric: HealthMetric;
+  value: number;
+  unit: string;
+  measuredAt: string;
+  recordedAt: string;
+  localDate: string;
+  timezone: string;
+  platform: HealthPlatform;
+  source: string;
+  externalId: string;
+  subtype: string | null;
+  protocol: string | null;
+  quality: "valid" | "invalid" | "unverified";
+  measuredUntil?: string;
+  sourceDevice?: string;
+  sourceApp?: string;
+  metadata?: Record<string, unknown>;
+};
+export type HealthState = {
+  platform: HealthPlatform;
+  status: "not_connected" | "ready" | "unsupported" | "sync_error";
+  cursor: string | null;
+  lastSuccessfulSync: string | null;
+  error: string | null;
+  capabilities: Record<string, string>;
+};
+export type HealthBatch = {
+  platform: HealthPlatform;
+  measurements: HealthMeasurement[];
+  deletedExternalIds: string[];
+  state: HealthState;
+  replaceWindow?: { from: string; to: string; metrics: HealthMetric[] };
+};
+export type PreferredSources = Partial<Record<HealthMetric, string>>;
+export type RecoverySnapshot = {
+  localDate: string;
+  sri: number | null;
+  ori: null;
+  sriVersion: "sri_v1";
+  oriVersion: null;
+  inputCount: number;
+  computedAt: string;
+};
+export type PersonalBaseline = {
+  mean: number | null;
+  sd: number | null;
+  count: number;
+  zScore: number | null;
+  coefficientOfVariation: number | null;
+  windowStart: string;
+  windowEnd: string;
+};
