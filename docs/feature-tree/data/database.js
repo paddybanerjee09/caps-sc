@@ -795,24 +795,37 @@ CAPS.trees.database = {
       "title": "recovery_snapshots",
       "kind": "table",
       "tagline": "PK(owner,date), reproducible SRI/version/objective coverage and nullable ORI.",
-      "summary": "PK(owner,date), reproducible SRI/version/objective coverage and nullable ORI.",
+      "summary": "PK(owner,date), derived JSON includes SRI and nullable numeric CAPS ORI, model version, per-input provenance/weights/baseline count/coverage/reasons. No DDL change; retained raw samples upgrade old unconfigured caches.",
       "files": [
         "src/data/recoveryMigration.ts",
         "src/data/recoveryRepository.ts"
       ],
       "versions": [
-        {
-          "n": 1,
-          "name": "recovery_snapshots",
-          "date": "2026-11-21 21:31 -0500",
-          "commits": [
-            "ec03ac1"
-          ],
-          "changes": [
-            "PK(owner,date), reproducible SRI/version/objective coverage and nullable ORI."
-          ]
-        }
-      ]
+  {
+    "n": 1,
+    "name": "recovery_snapshots",
+    "date": "2026-11-21 21:31 -0500",
+    "commits": [
+      "ec03ac1"
+    ],
+    "changes": [
+      "PK(owner,date), reproducible SRI/version/objective coverage and nullable ORI."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "recovery_snapshots",
+    "date": "2026-11-22 00:06 -0500",
+    "commits": [
+      "1a2e0fb"
+    ],
+    "changes": [
+      "User explicitly requests CAPS-owned biometric ORI instead of vendor scores.",
+      "Implement caps_ori_v1 with explicit weights/transforms, source-specific baselines, contributor coverage and no manual inputs.",
+      "Persist numeric scores/provenance and partition historical chart source/model identities; experimental, not independently validated."
+    ]
+  }
+]
     },
     {
       "id": "table-metric-baselines",

@@ -21,7 +21,7 @@ With clamp(x)=min(100,max(0,x)):
 - Sleep score = clamp(min(100×min(asleep_minutes/480,1),100−25×max(0,−d))). Eight hours is the fixed v1 reference; long habitual short sleep does not automatically earn a perfect sleep score. This is not an individualized sleep-need estimator.
 - ORI = round(0.40×HRV score + 0.30×RHR score + 0.30×Sleep score), only when all contributors are eligible.
 
-Typical-baseline HRV/RHR and eight-hour sleep yield 100, meaning no model penalties, not proof of full physiological recovery. Weights, reference sleep, reference100, penalties and floors are versioned product choices. The score does not diagnose illness, establish safe training intensity or measure muscle/tendon recovery. Respiratory rate, temperature and HRR remain separate marker cards in v1; they are not silently counted twice or represented as missing score inputs.
+Typical-baseline HRV/RHR and eight-hour sleep yield 100, meaning no model penalties, not proof of full physiological recovery. Weights, reference sleep, reference 100, penalties and floors are versioned product choices. The score does not diagnose illness, establish safe training intensity or measure muscle/tendon recovery. Respiratory rate, temperature and HRR remain separate marker cards in v1; they are not silently counted twice or represented as missing score inputs.
 
 ## Persistence and historical charts
 
@@ -33,4 +33,4 @@ Downgrading code does not undo JSON cache additions; old raw inputs remain. To d
 
 ## Evidence and remaining validation
 
-`verify:ori` exercises exact baseline83, monotonic unfavorable shifts, incomplete/short history, future data, unverified data, source/subtype separation, bounded outputs and Progress rendering. `verify:recovery` includes persisted numeric ORI and deletion invalidation. Existing Recovery, Progress and health verifiers and TypeScript pass; targeted ESLint is run for the changed files. Native-device/measurement-quality and prospective prediction validation remain open. Future calibration should use independent jump/grip/sprint outcomes and held-out dates, keeping subjective questionnaire components out of the objective score.
+`verify:ori` exercises exact baseline100, monotonic unfavorable shifts, incomplete/short history, future data, unverified data, source/subtype separation, bounded outputs and Progress rendering. `verify:recovery` includes persisted numeric ORI and deletion invalidation. Existing Recovery, Progress and health verifiers and TypeScript pass; targeted ESLint is run for the changed files. Native-device/measurement-quality and prospective prediction validation remain open. Future calibration should use independent jump/grip/sprint outcomes and held-out dates, keeping subjective questionnaire components out of the objective score.

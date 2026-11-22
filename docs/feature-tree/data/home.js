@@ -536,37 +536,50 @@ CAPS.trees.home = {
               "src/recovery/useRecoveryData.ts",
               "src/recovery/useRecoveryDay.ts"
             ],
-            summary: "Implemented daily Recovery with current-day notice, versioned offline questionnaire/history, SRI v1, comparable baseline deviations and real-source marker cards. ORI is null. Native permission/sensor/gesture acceptance remains unverified.",
+            summary: "Daily Recovery now includes CAPS-owned experimental ORI v1 calculated only from native HRV, RHR and measured sleep, plus separately subjective SRI. All three ORI inputs require 14 comparable prior days. Device/scientific validation pending.",
             guardrails: [
               "Do not modify this panel until it is explicitly requested (ui-style-guide.mdc, section 7).",
             ],
             versions: [
-              {
-                "n": 1,
-                "name": "Recovery",
-                "date": "2026-07-22 02:01 -0400",
-                "commits": [
-                  "2d78f4c"
-                ],
-                "changes": [
-                  "Placeholder Recovery section on Home."
-                ]
-              },
-              {
-                "n": 2,
-                "name": "Recovery",
-                "date": "2026-11-21 21:40 -0500",
-                "commits": [
-                  "a97bb78"
-                ],
-                "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
-                "changes": [
-                  "Controlled unanswered ratings and 15-minute full-date/dual-clock inputs.",
-                  "Draft/submit/edit/history with timezone/DST handling, save failure retention and route-exit guards.",
-                  "No faux physiological values or unapproved ORI."
-                ]
-              }
-            ],
+  {
+    "n": 1,
+    "name": "Recovery",
+    "date": "2026-07-22 02:01 -0400",
+    "commits": [
+      "2d78f4c"
+    ],
+    "changes": [
+      "Placeholder Recovery section on Home."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Recovery",
+    "date": "2026-11-21 21:40 -0500",
+    "commits": [
+      "a97bb78"
+    ],
+    "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+    "changes": [
+      "Controlled unanswered ratings and 15-minute full-date/dual-clock inputs.",
+      "Draft/submit/edit/history with timezone/DST handling, save failure retention and route-exit guards.",
+      "No faux physiological values or unapproved ORI."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "Recovery",
+    "date": "2026-11-22 00:06 -0500",
+    "commits": [
+      "1a2e0fb"
+    ],
+    "changes": [
+      "User explicitly requests CAPS-owned biometric ORI instead of vendor scores.",
+      "Implement caps_ori_v1 with explicit weights/transforms, source-specific baselines, contributor coverage and no manual inputs.",
+      "Persist numeric scores/provenance and partition historical chart source/model identities; experimental, not independently validated."
+    ]
+  }
+],
 
 children: [
   {
@@ -598,6 +611,34 @@ children: [
       "database:table-daily-questionnaires",
       "architecture:log-time-changer"
     ]
+  },
+  {
+    "id": "objective-recovery",
+    "title": "CAPS Objective Recovery Index",
+    "kind": "logic",
+    "status": "active",
+    "tagline": "caps_ori_v1 · HRV40/RHR30/sleep30",
+    "summary": "Pure CAPS biometric model: prior28/min14 source/subtype-specific baselines, explicit noise-floor transforms, all-input eligibility, source/model provenance and experimental label. No vendor scores or questionnaire inputs. See docs/caps-ori-v1.md.",
+    "files": [
+      "src/recovery/objectiveRecovery.ts",
+      "docs/caps-ori-v1.md"
+    ],
+    "links": [
+      "database:table-recovery-snapshots"
+    ],
+    "versions": [
+      {
+        "n": 1,
+        "name": "CAPS ORI v1",
+        "date": "2026-11-22 00:06 -0500",
+        "commits": [
+          "1a2e0fb"
+        ],
+        "changes": [
+          "Implement own versioned biometric model and deterministic/reference/invalidation tests."
+        ]
+      }
+    ]
   }
 ],
 
@@ -618,37 +659,50 @@ links: [
               "src/progress/progressSeries.ts",
               "src/progress/chartAggregation.ts"
             ],
-            summary: "Weight, recovery indices, cardiac, sleep and fatigue with Week/Month/Year/Lifetime, period navigation, top toggles, broken lines, synchronized date cursor and coverage/source/version tooltips. ORI has no points; native gesture/large-font QA pending.",
+            summary: "Five source-aware graph groups now include numeric CAPS ORI v1 when eligible, with missing-day gaps and separate source/model identities. Native visual/gesture QA pending.",
             guardrails: [
               "Do not modify this panel until it is explicitly requested (ui-style-guide.mdc, section 7).",
             ],
             versions: [
-              {
-                "n": 1,
-                "name": "Progress",
-                "date": "2026-07-22 02:01 -0400",
-                "commits": [
-                  "2d78f4c"
-                ],
-                "changes": [
-                  "Placeholder Progress section on Home."
-                ]
-              },
-              {
-                "n": 2,
-                "name": "Progress",
-                "date": "2026-11-21 21:40 -0500",
-                "commits": [
-                  "9634b61"
-                ],
-                "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
-                "changes": [
-                  "Reuse existing SVG and segmented controls.",
-                  "Keep incompatible units/sources/subtypes/protocols/formulas separate.",
-                  "Use trailing calendar weight averages, partial coverage and explicit missing gaps."
-                ]
-              }
-            ],
+  {
+    "n": 1,
+    "name": "Progress",
+    "date": "2026-07-22 02:01 -0400",
+    "commits": [
+      "2d78f4c"
+    ],
+    "changes": [
+      "Placeholder Progress section on Home."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Progress",
+    "date": "2026-11-21 21:40 -0500",
+    "commits": [
+      "9634b61"
+    ],
+    "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+    "changes": [
+      "Reuse existing SVG and segmented controls.",
+      "Keep incompatible units/sources/subtypes/protocols/formulas separate.",
+      "Use trailing calendar weight averages, partial coverage and explicit missing gaps."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "Progress",
+    "date": "2026-11-22 00:06 -0500",
+    "commits": [
+      "1a2e0fb"
+    ],
+    "changes": [
+      "User explicitly requests CAPS-owned biometric ORI instead of vendor scores.",
+      "Implement caps_ori_v1 with explicit weights/transforms, source-specific baselines, contributor coverage and no manual inputs.",
+      "Persist numeric scores/provenance and partition historical chart source/model identities; experimental, not independently validated."
+    ]
+  }
+],
 
 links: [
   "database:table-weight-logs",

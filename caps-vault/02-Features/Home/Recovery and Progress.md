@@ -12,3 +12,7 @@ Recovery and Progress are implemented under the existing [[Home]] segmented navi
 Verification passes: TypeScript, full ESLint, eight verification commands (four existing domains + recovery/input/health/progress), native config/dependency checks and both platform JS/Hermes bundle exports. Production acceptance remains open for physical iOS/Android builds/permissions/sensors, gestures/keyboard/large fonts, years-of-records profiling, real bundle IDs, retention/security and privacy navigation. Optional notifications are deferred. No authenticated account/backend exists; all data remains device-local. No scientific readiness validation claimed.
 
 Feature Tree ownership: Home recovery/progress nodes, Database v10 table nodes and Architecture health adapter node. See [[2026-11-21 Recovery and Progress Handoff]] for commits, evidence and remaining actions.
+
+## CAPS-owned ORI v1 (22 November 2026)
+
+The user's explicit follow-up requests a CAPS-owned biometric score rather than vendor scores. This supersedes the historical unconfigured-ORI default above. `src/recovery/objectiveRecovery.ts` implements `caps_ori_v1`: 40% HRV,30% RHR,30% measured sleep; all three need 14 comparable prior days/28-day window. Missing inputs remain blank with per-contributor reasons. Source/subtype identities and model version partition history. See docs/caps-ori-v1.md for every transform, noise floor, limitation and JSON persistence/rollback explanation. No SQL migration or added permissions/dependencies. Not independently validated or percent recovered.

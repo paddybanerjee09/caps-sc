@@ -55,3 +55,7 @@ The initializer adds idempotent v10 DDL and a `daily_questionnaires` sentinel wh
 Passed: `npm run typecheck`, full `npm run lint`, `verify:nutrition`, `verify:conditioning`, `verify:strength`, `verify:skill`, `verify:recovery`, `verify:recovery-input`, `verify:health`, `verify:progress`; dependency compatibility and Expo native configuration introspection. Android and iOS Metro/Hermes exports passed with the local native compiler permitted outside the sandbox (1358/1435 modules). These are JavaScript bundle checks, not signed native builds or device proof.
 
 Before release follow the unrun physical-device procedure in `recovery-native-setup.md`, set actual bundle/package identifiers, integrate the Android permission-rationale/privacy-policy destination, establish retention/security policy, and profile long histories. SQL uses the app sandbox/platform device protection; database-level encryption and authenticated cloud sync are absent. Optional device notifications and ORI calibration remain future work. No raw health data is sent to analytics or logs by this implementation.
+
+## Current ORI follow-up (22 November 2026)
+
+The subsequent explicit user request enables CAPS-owned experimental ORI v1. Earlier no-model statements in this initial report describe the previous implementation. Current scoring, eligibility, persistence and validation are in [caps-ori-v1.md](caps-ori-v1.md). No vendor score import is used.
