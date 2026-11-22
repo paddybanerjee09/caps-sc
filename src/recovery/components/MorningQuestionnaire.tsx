@@ -15,9 +15,9 @@ import { SleepTimeRangeSlider } from "./SleepTimeRangeSlider";
 
 type Props = { initial: Questionnaire | null; localDate: string; timezone: string; onClose: () => void; onSaved: () => void; registerExitGuard?: (guard: ((proceed: () => void) => void) | null) => void };
 const ratings = [
-  ["sleepQuality", "Sleep quality", "terrible", "excellent"], ["fatigue", "General fatigue", "none", "extreme"],
-  ["soreness", "Muscle soreness", "none", "extreme"], ["stress", "Mental stress", "none", "extreme"],
-  ["motivation", "Training motivation", "none", "extremely motivated"], ["mood", "Mood (optional)", "very poor", "excellent"],
+  ["sleepQuality", "Sleep quality", "terrible", "excellent"], ["fatigue", "Fatigue", "none", "extreme"],
+  ["soreness", "Soreness", "none", "extreme"], ["stress", "Stress", "none", "extreme"],
+  ["motivation", "Training motivation", "none", "very motivated"], ["mood", "Mood (optional)", "very poor", "excellent"],
 ] as const;
 
 export function MorningQuestionnaire({ initial, localDate, timezone, onClose, onSaved, registerExitGuard }: Props) {
@@ -35,7 +35,7 @@ export function MorningQuestionnaire({ initial, localDate, timezone, onClose, on
     registerExitGuard?.((proceed) => {
       if (pending.current) return;
       if (!dirty) { proceed(); return; }
-      Alert.alert("Leave questionnaire?", "Save a draft before switching screens, or discard these unsaved edits.", [
+      Alert.alert("Unsaved answers", "Save or discard your edits.", [
         { text: "Keep editing", style: "cancel" },
         { text: "Save draft", onPress: () => { void save(false, proceed); } },
         { text: "Discard edits", style: "destructive", onPress: proceed },
@@ -46,7 +46,7 @@ export function MorningQuestionnaire({ initial, localDate, timezone, onClose, on
   function close() {
     if (pending.current) return;
     if (!dirty) { onClose(); return; }
-    Alert.alert("Keep your answers?", "Save a draft to continue later, or discard these unsaved edits.", [
+    Alert.alert("Unsaved answers", "Keep editing or discard?", [
       { text: "Keep editing", style: "cancel" }, { text: "Discard edits", style: "destructive", onPress: onClose },
     ]);
   }
@@ -70,27 +70,23 @@ export function MorningQuestionnaire({ initial, localDate, timezone, onClose, on
     try {
       await saveQuestionnaire(db, candidate, complete);
       feedbackConfirm(); onSaved(); onClose(); afterSave?.();
-    } catch { setError("Couldn’t save your answers. They are still here; try again."); feedbackWarn(); }
+    } catch { setError("Couldn’t save. Try again."); feedbackWarn(); }
     finally { pending.current = false; setSaving(false); }
   }
   return <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.background, zIndex: 10 }]}>
     <WorkflowHeader title="Morning questionnaire" topInset={0} onClose={close} />
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-      <Text selectable style={{ color: theme.colors.text, fontWeight: "700" }}>{localDate} · saved timezone {draft.timezone}</Text>
-      <Text style={{ color: theme.colors.textMuted }}>Answers are stored on this device. Required questions start unanswered. Save a draft anytime; submit after completing your sleep times, awakenings and five required ratings.</Text>
+      <Text selectable style={{ color: theme.colors.text, fontWeight: "700" }}>{localDate} · {deviceTimezone}{draft.timezone !== deviceTimezone ? ` · Day: ${draft.timezone}` : ""}</Text>
       <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <SleepTimeRangeSlider localDate={localDate} onset={draft.sleepOnset} wake={draft.wakeTime} disabled={saving} onChange={update} />
-        <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>The interval is time between reported onset and waking. It is only an estimated asleep duration if you also report minutes awake. Clock controls display {deviceTimezone}. Saved recovery-day assignment uses {draft.timezone}; check dates when editing after travel.</Text>
-        <Text style={[styles.label, { color: theme.colors.text }]}>Number of awakenings (required)</Text>
-        <TextInput accessibilityLabel="Number of awakenings" keyboardType="number-pad" editable={!saving} value={awakenings} onChangeText={(text) => { setAwakenings(text); setDirty(true); }} placeholder="Unanswered" placeholderTextColor={theme.colors.textMuted} style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.borderStrong }]} />
+        <Text style={[styles.label, { color: theme.colors.text }]}>Awakenings</Text>
+        <TextInput accessibilityLabel="Number of awakenings" keyboardType="number-pad" editable={!saving} value={awakenings} onChangeText={(text) => { setAwakenings(text); setDirty(true); }} placeholder="--" placeholderTextColor={theme.colors.textMuted} style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.borderStrong }]} />
         <Text style={[styles.label, { color: theme.colors.text }]}>Minutes awake (optional)</Text>
-        <TextInput accessibilityLabel="Approximate minutes awake during sleep interval" keyboardType="number-pad" editable={!saving} value={awakeMinutes} onChangeText={(text) => { setAwakeMinutes(text); setDirty(true); }} placeholder="Unknown" placeholderTextColor={theme.colors.textMuted} style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.borderStrong }]} />
+        <TextInput accessibilityLabel="Approximate minutes awake during sleep interval" keyboardType="number-pad" editable={!saving} value={awakeMinutes} onChangeText={(text) => { setAwakeMinutes(text); setDirty(true); }} placeholder="--" placeholderTextColor={theme.colors.textMuted} style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.borderStrong }]} />
       </View>
       <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         {ratings.map(([key, label, minLabel, maxLabel]) => <RatingSlider key={key} label={label} value={draft[key]} onChange={(value) => update(key, value)} minLabel={minLabel} maxLabel={maxLabel} disabled={saving} />)}
       </View>
-      <Text selectable style={{ color: theme.colors.textMuted, fontSize: 12 }}>SRI v1 is a CAPS subjective wellness composite, not the Hooper Index or a percentage recovered. Six equal contributions: sleep quality, inverse fatigue, inverse soreness, inverse stress, motivation and inverse awakenings capped at five. The equal weights and cap are app scoring choices. Mood is excluded.</Text>
-      {initial?.status === "completed" ? <Text style={{ color: theme.colors.textMuted }}>Saving these edits as a draft makes this day incomplete until you submit again.</Text> : null}
       {error ? <Text accessibilityRole="alert" selectable style={{ color: theme.colors.text }}>{error}</Text> : null}
     </ScrollView>
     <WorkflowFooter onBack={close} disabled={saving}>
@@ -99,4 +95,4 @@ export function MorningQuestionnaire({ initial, localDate, timezone, onClose, on
     </WorkflowFooter>
   </View>;
 }
-const styles = StyleSheet.create({ content: { padding: 12, gap: 16, paddingBottom: 32 }, card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 16 }, label: { fontSize: 14, fontWeight: "700" }, input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, minHeight: 48, fontSize: 16, fontVariant: ["tabular-nums"] }, action: { minWidth: 72, minHeight: 52, flex: 1, borderWidth: 1, borderRadius: 12, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 } });
+const styles = StyleSheet.create({ content: { padding: 12, gap: 12, paddingBottom: 16 }, card: { borderWidth: 1, borderRadius: 16, padding: 12, gap: 12 }, label: { fontSize: 14, fontWeight: "700" }, input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, minHeight: 48, fontSize: 16, fontVariant: ["tabular-nums"] }, action: { minWidth: 72, minHeight: 52, flex: 1, borderWidth: 1, borderRadius: 12, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 } });

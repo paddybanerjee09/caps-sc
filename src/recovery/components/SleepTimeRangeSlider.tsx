@@ -34,8 +34,7 @@ export function SleepTimeRangeSlider({ localDate, onset, wake, onChange, disable
     onChange(field, date.toISOString());
   }
   return <View style={styles.block}>
-    <Text style={[styles.heading, { color: theme.colors.text }]}>Sleep onset and waking</Text>
-    <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>24-hour clock · 15-minute steps. Use the clocks below to set each calendar date, including daytime sleep or repeated DST hours.</Text>
+    <Text style={[styles.heading, { color: theme.colors.text }]}>Sleep</Text>
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} onStartShouldSetResponder={() => !disabled}
       onResponderGrant={(event) => {
         const at = event.nativeEvent.locationX / width * 1440;
@@ -55,8 +54,8 @@ export function SleepTimeRangeSlider({ localDate, onset, wake, onChange, disable
         const alternative = value ? alternateSleepInstant(new Date(value)) : null;
         return <View key={field} style={styles.time}>
           <Text style={{ color: theme.colors.text, fontWeight: "700" }}>{isBed ? "Sleep onset" : "Wake time"}</Text>
-          <Text selectable style={{ color: theme.colors.textMuted, fontSize: 12 }}>{value ? new Date(value).toLocaleDateString() : "— Unanswered"}</Text>
-          {value ? <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>{new Date(value).toLocaleTimeString([], { timeZoneName: "shortOffset" })}</Text> : null}
+          <Text selectable style={{ color: theme.colors.textMuted, fontSize: 12 }}>{value ? new Date(value).toLocaleDateString() : "--"}</Text>
+          {value && alternative ? <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>{new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" })}</Text> : null}
           <View pointerEvents={disabled ? "none" : "auto"}><LogTimeChanger label={isBed ? "Sleep onset" : "Wake time"} minuteInterval={15} rejectInvalidWallTime value={pickerDate(localDate, value, isBed)} maximumDate={latestQuarter} onChange={(date) => { setError(null); onChange(field, date.toISOString()); }} /></View>
           {alternative ? <PressOpacity disabled={disabled} onPress={() => onChange(field, alternative.toISOString())} style={{ minHeight: 48, minWidth: 48, justifyContent: "center" }} accessibilityLabel={`Choose other occurrence of ${isBed ? "onset" : "wake"} time`}><Text style={{ color: theme.colors.text }}>Use {alternative.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZoneName: "shortOffset" })}</Text></PressOpacity> : null}
         </View>;
@@ -66,12 +65,8 @@ export function SleepTimeRangeSlider({ localDate, onset, wake, onChange, disable
   </View>;
 }
 const styles = StyleSheet.create({
-  block: { gap: 8 }, heading: { fontSize: 15, fontWeight: "700" }, row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  block: { gap: 6 }, heading: { fontSize: 15, fontWeight: "700" }, row: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   trackTouch: { height: 52, marginHorizontal: 12, justifyContent: "center" }, track: { height: 4, borderRadius: 2 },
   thumb: { position: "absolute", height: 28, width: 28, marginLeft: -14, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  time: { flex: 1, gap: 6 },
+  time: { flex: 1, gap: 4 },
 });
-
-
-
-

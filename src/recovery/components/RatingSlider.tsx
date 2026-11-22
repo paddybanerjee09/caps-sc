@@ -18,7 +18,7 @@ export function RatingSlider({ label, value, onChange, min = 0, max = 10, step =
     if (!disabled && snapped !== value) { onChange(snapped); feedbackSelection(); }
   };
   return <View style={styles.field}>
-    <View style={styles.row}><Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text><Text style={[styles.value, { color: theme.colors.tertiary }]}>{value ?? "—"}</Text></View>
+    <View style={styles.row}><Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text><Text style={[styles.value, { color: theme.colors.tertiary }]}>{value ?? "--"}</Text></View>
     <View style={styles.row}>
       <PressOpacity accessibilityLabel={`Decrease ${label}`} disabled={disabled || value === min} onPress={() => change(value === null ? min : value - step)} style={[styles.step, { borderColor: theme.colors.borderStrong }]}><Text style={{ color: theme.colors.text }}>−</Text></PressOpacity>
       <View accessibilityRole="adjustable" accessibilityLabel={label} accessibilityValue={{ min, max, ...(value === null ? { text: "Unanswered" } : { now: value }) }} accessibilityActions={[{ name: "increment" }, { name: "decrement" }]} onAccessibilityAction={({ nativeEvent }) => change(value === null ? min : value + (nativeEvent.actionName === "increment" ? step : -step))} accessibilityState={{ disabled }} onLayout={(event) => setWidth(event.nativeEvent.layout.width)} onStartShouldSetResponder={() => !disabled}
@@ -26,7 +26,7 @@ export function RatingSlider({ label, value, onChange, min = 0, max = 10, step =
         onResponderMove={(event) => change(min + (event.nativeEvent.locationX / width) * (max - min))}
         onResponderTerminationRequest={() => false} style={styles.trackTouch}>
         <View pointerEvents="none" style={[styles.track, { backgroundColor: theme.colors.borderStrong }]} />
-        {value !== null ? <View pointerEvents="none" style={[styles.thumb, { backgroundColor: theme.colors.tertiary, left: `${((value - min) / (max - min)) * 100}%` }]} /> : <Text pointerEvents="none" style={{ color: theme.colors.textMuted, textAlign: "center", backgroundColor: theme.colors.surface }}>Tap or drag to answer</Text>}
+        {value !== null ? <View pointerEvents="none" style={[styles.thumb, { backgroundColor: theme.colors.tertiary, left: `${((value - min) / (max - min)) * 100}%` }]} /> : null}
       </View>
       <PressOpacity accessibilityLabel={`Increase ${label}`} disabled={disabled || value === max} onPress={() => change(value === null ? min : value + step)} style={[styles.step, { borderColor: theme.colors.borderStrong }]}><Text style={{ color: theme.colors.text }}>+</Text></PressOpacity>
     </View>
@@ -34,10 +34,9 @@ export function RatingSlider({ label, value, onChange, min = 0, max = 10, step =
   </View>;
 }
 const styles = StyleSheet.create({
-  field: { gap: 4 }, row: { flexDirection: "row", alignItems: "center", gap: 12, justifyContent: "space-between" },
+  field: { gap: 4 }, row: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "space-between" },
   label: { fontSize: 14, fontWeight: "700", flex: 1 }, value: { fontSize: 20, fontWeight: "800", fontVariant: ["tabular-nums"] },
   step: { minWidth: 48, minHeight: 48, borderWidth: 1, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  trackTouch: { flex: 1, height: 48, justifyContent: "center", marginHorizontal: 12 }, track: { height: 4, borderRadius: 2 },
+  trackTouch: { flex: 1, height: 48, justifyContent: "center", marginHorizontal: 8 }, track: { height: 4, borderRadius: 2 },
   thumb: { width: 24, height: 24, borderRadius: 12, position: "absolute", marginLeft: -12 }, anchor: { flex: 1, fontSize: 12 },
 });
-
