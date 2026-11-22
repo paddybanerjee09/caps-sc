@@ -101,6 +101,18 @@ CAPS.trees.conditioning = {
       "Remove generic subtitle and shorten workout choices; missing display uses --.",
       "Presentation only; data, calculations and validation remain."
     ]
+  },
+  {
+    "n": 7,
+    "name": "ConditioningScreen",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "75c7dd4"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Use readable full day/timestamp presentation in selected-day, calendar accessibility, launch and detail views; storage unchanged."
+    ]
   }
 ],
     children: [
@@ -116,30 +128,52 @@ CAPS.trees.conditioning = {
           "Do not query SQLite from `MonthlyTimelineComponent` (calendar-session-state.mdc).",
         ],
         versions: [
-          {
-            n: 1,
-            name: "MonthlyTimelineComponent",
-            date: "2026-10-11 21:40 -0400",
-            commits: ["50427a5"],
-            changes: ["Reusable monthly calendar with explicit planned and logged markers."],
-          },
-          {
-            n: 2,
-            name: "MonthlyTimelineComponent",
-            date: "2026-11-02 22:39 -0500",
-            commits: ["e9d18be"],
-            changes: ["Card renovation on the hub."],
-          },
-          {
-            n: 3,
-            name: "Optional event detail",
-            date: "2026-11-16 11:01 -0500",
-            commits: ["80f1155"],
-            changes: [
-              "MonthEvent.detail, when set, is the selected-day subtitle and the row accessibility label. Strength and Conditioning leave it unset.",
-            ],
-          },
-        ],
+  {
+    "n": 1,
+    "name": "MonthlyTimelineComponent",
+    "date": "2026-10-11 21:40 -0400",
+    "commits": [
+      "50427a5"
+    ],
+    "changes": [
+      "Reusable monthly calendar with explicit planned and logged markers."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "MonthlyTimelineComponent",
+    "date": "2026-11-02 22:39 -0500",
+    "commits": [
+      "e9d18be"
+    ],
+    "changes": [
+      "Card renovation on the hub."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "Optional event detail",
+    "date": "2026-11-16 11:01 -0500",
+    "commits": [
+      "80f1155"
+    ],
+    "changes": [
+      "MonthEvent.detail, when set, is the selected-day subtitle and the row accessibility label. Strength and Conditioning leave it unset."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "MonthlyTimelineComponent",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "75c7dd4"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Use readable full day/timestamp presentation in selected-day, calendar accessibility, launch and detail views; storage unchanged."
+    ]
+  }
+],
       },
       {
         id: "day-sessions",
@@ -167,42 +201,54 @@ CAPS.trees.conditioning = {
             entry: "A session row on the hub, or the runner summary.",
             summary: "Shows snapshot, status, optional recorded route (`RouteMap`), and emphasis entry.",
             versions: [
-              {
-                "n": 1,
-                "name": "ConditioningSessionDetailScreen",
-                "date": "2026-10-11 21:43 -0400",
-                "commits": [
-                  "002c288",
-                  "4123903"
-                ],
-                "changes": [
-                  "Detail screen (`002c288`). Recorded route (`4123903`)."
-                ]
-              },
-              {
-                "n": 2,
-                "name": "ConditioningSessionDetailScreen",
-                "date": "2026-11-02 22:50 -0500",
-                "commits": [
-                  "87e259b"
-                ],
-                "changes": [
-                  "Card renovation."
-                ]
-              },
-              {
-                "n": 3,
-                "name": "ConditioningSessionDetailScreen",
-                "date": "2026-11-20 17:46 -0500",
-                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-                "changes": [
-                  "Moved log/start/resume/discard/cancel-plan actions to fixed footer with depth-aware navigation."
-                ],
-                "commits": [
-                  "16a4d75"
-                ]
-              }
-            ],
+  {
+    "n": 1,
+    "name": "ConditioningSessionDetailScreen",
+    "date": "2026-10-11 21:43 -0400",
+    "commits": [
+      "002c288",
+      "4123903"
+    ],
+    "changes": [
+      "Detail screen (`002c288`). Recorded route (`4123903`)."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "ConditioningSessionDetailScreen",
+    "date": "2026-11-02 22:50 -0500",
+    "commits": [
+      "87e259b"
+    ],
+    "changes": [
+      "Card renovation."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "ConditioningSessionDetailScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Moved log/start/resume/discard/cancel-plan actions to fixed footer with depth-aware navigation."
+    ],
+    "commits": [
+      "16a4d75"
+    ]
+  },
+  {
+    "n": 4,
+    "name": "ConditioningSessionDetailScreen",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "75c7dd4"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Use readable full day/timestamp presentation in selected-day, calendar accessibility, launch and detail views; storage unchanged."
+    ]
+  }
+],
           },
         ],
       },
@@ -372,42 +418,54 @@ CAPS.trees.conditioning = {
             ],
             links: ["architecture:log-time-changer"],
             versions: [
-              {
-                "n": 1,
-                "name": "LogConditioningSessionScreen",
-                "date": "2026-10-11 21:40 -0400",
-                "commits": [
-                  "002c288"
-                ],
-                "changes": [
-                  "Added the manual logger."
-                ]
-              },
-              {
-                "n": 2,
-                "name": "LogConditioningSessionScreen",
-                "date": "2026-11-02 22:44 -0500",
-                "commits": [
-                  "45e2f29"
-                ],
-                "changes": [
-                  "Stepper renovation."
-                ]
-              },
-              {
-                "n": 3,
-                "name": "LogConditioningSessionScreen",
-                "date": "2026-11-20 17:46 -0500",
-                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-                "changes": [
-                  "Header clock replaces body timestamp controls; actual load uses decimal input.",
-                  "Fixed actions and local unsaved guards preserve manual logging."
-                ],
-                "commits": [
-                  "16a4d75"
-                ]
-              }
-            ],
+  {
+    "n": 1,
+    "name": "LogConditioningSessionScreen",
+    "date": "2026-10-11 21:40 -0400",
+    "commits": [
+      "002c288"
+    ],
+    "changes": [
+      "Added the manual logger."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "LogConditioningSessionScreen",
+    "date": "2026-11-02 22:44 -0500",
+    "commits": [
+      "45e2f29"
+    ],
+    "changes": [
+      "Stepper renovation."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "LogConditioningSessionScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Header clock replaces body timestamp controls; actual load uses decimal input.",
+      "Fixed actions and local unsaved guards preserve manual logging."
+    ],
+    "commits": [
+      "16a4d75"
+    ]
+  },
+  {
+    "n": 4,
+    "name": "LogConditioningSessionScreen",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "75c7dd4"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Use readable full day/timestamp presentation in selected-day, calendar accessibility, launch and detail views; storage unchanged."
+    ]
+  }
+],
             children: [{ id: "log-session-time", ref: "architecture:log-time-changer", note: "Header performed-time clock opens Log Time modal" }],
           },
           {

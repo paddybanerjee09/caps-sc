@@ -386,41 +386,53 @@ CAPS.trees.strength = {
         summary:
           "Opens from a month marker. Shows the saved title, end time, estimated duration, exercise snapshots, and the stored focus.",
         versions: [
-          {
-            "n": 1,
-            "name": "Session detail",
-            "date": "2026-11-15 15:39 -0500",
-            "commits": [
-              "21d635f"
-            ],
-            "changes": [
-              "Added the read-only log opened from the Strength month."
-            ]
-          },
-          {
-            "n": 2,
-            "name": "Direct performed-set formatting",
-            "date": "2026-11-16 00:20 -0500",
-            "commits": [
-              "1662f54"
-            ],
-            "changes": [
-              "Format saved sets directly for the detail summary."
-            ]
-          },
-          {
-            "n": 3,
-            "name": "StrengthSessionDetailScreen",
-            "date": "2026-11-20 17:46 -0500",
-            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-            "changes": [
-              "Shared safe centered header and fixed depth-aware navigation."
-            ],
-            "commits": [
-              "6d94ddf"
-            ]
-          }
-        ],
+  {
+    "n": 1,
+    "name": "Session detail",
+    "date": "2026-11-15 15:39 -0500",
+    "commits": [
+      "21d635f"
+    ],
+    "changes": [
+      "Added the read-only log opened from the Strength month."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Direct performed-set formatting",
+    "date": "2026-11-16 00:20 -0500",
+    "commits": [
+      "1662f54"
+    ],
+    "changes": [
+      "Format saved sets directly for the detail summary."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "StrengthSessionDetailScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Shared safe centered header and fixed depth-aware navigation."
+    ],
+    "commits": [
+      "6d94ddf"
+    ]
+  },
+  {
+    "n": 4,
+    "name": "StrengthSessionDetailScreen",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "75c7dd4"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Format saved session timestamp with shared readable date helper."
+    ]
+  }
+],
       },
       {
         id: "strength-planned",

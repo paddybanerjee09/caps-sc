@@ -13,7 +13,7 @@ CAPS.trees.home = {
     files: ["src/screens/HomeScreen.tsx"],
     entry: "Bottom tab \"Home\" (house icon), center tab. Initial route.",
     summary:
-      "Athlete Information, Quick Log, timeline, current-local-day Recovery and historical Progress. Home questionnaires use shared screen chrome and guard unsaved route exits; native health requires a configured development build.",
+      "Athlete Information, Quick Log, readable dates, current-day Recovery and Progress. Questionnaire history is a separate workflow screen; historical edits return there on Back/save and branch X returns Home. Native health still requires a configured development build.",
     modes: [
       {
         "name": "Today",
@@ -21,7 +21,7 @@ CAPS.trees.home = {
       },
       {
         "name": "Recovery",
-        "detail": "Daily biometric missing states, morning questionnaire, SRI and read-only native health connection. Experimental ORI remains unavailable."
+        "detail": "Daily biometric values/missing states, morning questionnaire and separate history, versioned SRI and read-only native health connection. CAPS ORI computes when eligible biometric history is present."
       },
       {
         "name": "Progress",
@@ -160,6 +160,20 @@ CAPS.trees.home = {
     "changes": [
       "Title-only Home and consistent -- empty values.",
       "Presentation only; data, calculations and validation remain."
+    ]
+  },
+  {
+    "n": 11,
+    "name": "HomeScreen",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "75c7dd4",
+      "cb32262"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Format full date captions with the shared formatter; retain ISO keys.",
+      "Open dedicated questionnaire history and preserve editor branch/draft guards."
     ]
   }
 ],
@@ -378,56 +392,68 @@ CAPS.trees.home = {
               "database:table-timeline-entries",
             ],
             versions: [
-              {
-                "n": 1,
-                "name": "SleepLogModal",
-                "date": "2026-07-26 15:56 -0400",
-                "commits": [
-                  "859b4aa"
-                ],
-                "changes": [
-                  "Added sleep logging and the nightly default toggle."
-                ]
-              },
-              {
-                "n": 2,
-                "name": "Sleep log card",
-                "date": "2026-11-02 22:36 -0500",
-                "commits": [
-                  "67d99b6"
-                ],
-                "changes": [
-                  "Rendered inline with stepper time controls. Filename stayed `SleepLogModal`."
-                ]
-              },
-              {
-                "n": 3,
-                "name": "Shared sleep bounds",
-                "date": "2026-11-16 00:18 -0500",
-                "commits": [
-                  "24a301f"
-                ],
-                "changes": [
-                  "Share wake-date and overnight calculations between logs and defaults.",
-                  "Reuse the transactional range-closing SQL when replacing or disabling defaults."
-                ]
-              },
-              {
-                "n": 4,
-                "name": "SleepLogModal",
-                "date": "2026-11-20 17:48 -0500",
-                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-                "changes": [
-                  "Fixed shared screen bars with labeled Bed/Wake clocks in header right.",
-                  "Selected local day follows picker changes while nightly/default persistence stays separate.",
-                  "Schedule-load state updates remain in async callbacks; integrated ESLint passes."
-                ],
-                "commits": [
-                  "b971c0d",
-                  "d41c5c8"
-                ]
-              }
-            ],
+  {
+    "n": 1,
+    "name": "SleepLogModal",
+    "date": "2026-07-26 15:56 -0400",
+    "commits": [
+      "859b4aa"
+    ],
+    "changes": [
+      "Added sleep logging and the nightly default toggle."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Sleep log card",
+    "date": "2026-11-02 22:36 -0500",
+    "commits": [
+      "67d99b6"
+    ],
+    "changes": [
+      "Rendered inline with stepper time controls. Filename stayed `SleepLogModal`."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "Shared sleep bounds",
+    "date": "2026-11-16 00:18 -0500",
+    "commits": [
+      "24a301f"
+    ],
+    "changes": [
+      "Share wake-date and overnight calculations between logs and defaults.",
+      "Reuse the transactional range-closing SQL when replacing or disabling defaults."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "SleepLogModal",
+    "date": "2026-11-20 17:48 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Fixed shared screen bars with labeled Bed/Wake clocks in header right.",
+      "Selected local day follows picker changes while nightly/default persistence stays separate.",
+      "Schedule-load state updates remain in async callbacks; integrated ESLint passes."
+    ],
+    "commits": [
+      "b971c0d",
+      "d41c5c8"
+    ]
+  },
+  {
+    "n": 5,
+    "name": "SleepLogModal",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "75c7dd4"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Format sleep day labels using 22 Nov, 2026; timestamp storage unchanged."
+    ]
+  }
+],
             children: [{ id: "sleep-log-time", ref: "architecture:log-time-changer", note: "Bed/Wake header clocks open Log Time modal" }],
           },
           {
@@ -549,7 +575,7 @@ CAPS.trees.home = {
               "src/recovery/useRecoveryData.ts",
               "src/recovery/useRecoveryDay.ts"
             ],
-            summary: "Daily metric grid with short definitions/requirements and -- missing values. ORI remains experimentally labeled. Questionnaire/history and optional health Manage preserve data/guards without diagnostic paragraphs.",
+            summary: "Concise metric grid with -- missing values. Questionnaire history opens a separate screen. Weighted SRI identifies the saved model; experimental ORI remains CAPS-owned and independently versioned.",
             guardrails: [
               "Do not modify this panel until it is explicitly requested (ui-style-guide.mdc, section 7).",
             ],
@@ -604,6 +630,18 @@ CAPS.trees.home = {
       "Metric values plus one short definition or requirement; no state/baseline/provenance paragraphs. Health management remains expandable.",
       "Presentation only; data, calculations and validation remain."
     ]
+  },
+  {
+    "n": 5,
+    "name": "Recovery",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "cb32262"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Replace inline history rows with dedicated history screen entry."
+    ]
   }
 ],
 
@@ -619,7 +657,7 @@ children: [
       "src/recovery/components/RatingSlider.tsx",
       "src/recovery/components/SleepTimeRangeSlider.tsx"
     ],
-    "summary": "Shared WorkflowChrome screen; six SRI inputs, optional mood/awake minutes, explicit dates/timezones, accessible controls, persistent completion and edit history. Native usability QA pending.",
+    "summary": "Two minute-resolution sleep clocks, calculated interval/estimated total, numbered full-width sliders (ratings 5, awakenings 0–10+ starting 0), no timeline or visible +/- controls. Versioned weighted SRI, required mood, existing answers and draft guards retained. Native usability QA pending.",
     "versions": [
   {
     "n": 1,
@@ -644,13 +682,66 @@ children: [
       "Remove navigation/scoring/helper paragraphs; compact unanswered controls preserve dates, anchors and validation/guards.",
       "Presentation only; data, calculations and validation remain."
     ]
+  },
+  {
+    "n": 3,
+    "name": "Morning questionnaire",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "cb32262"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Use regular minute clocks and calculated sleep total instead of timeline.",
+      "Default six ratings to 5 and awakenings to 0; mark 10+ as a lower bound and preserve exact historical counts.",
+      "History editor Back/save returns to history; X exits branch with guards."
+    ]
   }
 ],
     "links": [
       "database:table-daily-questionnaires",
       "architecture:log-time-changer"
     ]
-  },
+  ,
+children: [
+  {
+    "id": "subjective-recovery",
+    "title": "Weighted SRI",
+    "kind": "logic",
+    "status": "active",
+    "tagline": "Versioned subjective recovery composite",
+    "summary": "sri_v2 weights sleep quality 30%, fatigue 25%, soreness 20%, stress 10%, motivation 5%, mood 5%, awakenings 5% (cap 10). New/edited saves use v2; original responses retain v1 until saved. Experimental app weights, not clinically calibrated.",
+    "files": [
+      "src/recovery/calculations.ts",
+      "src/recovery/types.ts",
+      "docs/questionnaire-sri-v2.md"
+    ],
+    "links": [
+      "database:table-daily-questionnaires",
+      "database:table-recovery-snapshots"
+    ],
+    "versions": [
+      {
+        "n": 1,
+        "name": "Weighted SRI",
+        "date": "2026-11-22 11:32 -0500",
+        "commits": [
+          "cb32262"
+        ],
+        "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+        "changes": [
+          "Prioritize sleep quality/fatigue/soreness while preserving historical formula identity.",
+          "Neutral new defaults produce 53; retain original scores/revisions and separate chart model versions."
+        ]
+      }
+    ]
+  }
+]
+,
+guardrails: [
+  "Preserve raw ratings, DST/date bounds, draft guards and the 10+ lower-bound flag; never silently truncate legacy counts (user request, 22 November 2026)."
+]
+},
   {
     "id": "objective-recovery",
     "title": "CAPS Objective Recovery Index",
@@ -679,6 +770,36 @@ children: [
       }
     ]
   }
+,
+{
+  "id": "questionnaire-history",
+  "title": "Questionnaire history",
+  "kind": "subscreen",
+  "status": "active",
+  "tagline": "Browse and edit saved questionnaires",
+  "summary": "Dedicated virtualized reverse-date screen opened from Recovery. Select a saved date to edit; editor Back/save returns to history, branch X exits. Loading/errors/retry and inactive-overlay accessibility/Back handling retained.",
+  "files": [
+    "src/recovery/components/QuestionnaireHistoryScreen.tsx"
+  ],
+  "links": [
+    "home:morning-questionnaire",
+    "database:table-daily-questionnaires"
+  ],
+  "versions": [
+    {
+      "n": 1,
+      "name": "Questionnaire history",
+      "date": "2026-11-22 11:32 -0500",
+      "commits": [
+        "cb32262"
+      ],
+      "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+      "changes": [
+        "Move history out of Recovery inline content into a separate editable-history screen."
+      ]
+    }
+  ]
+}
 ],
 
 links: [
@@ -698,10 +819,11 @@ links: [
               "src/progress/progressSeries.ts",
               "src/progress/chartAggregation.ts"
             ],
-            summary: "Five chart categories selected through an inline Choose graph dropdown. Compact timeframe/period/refresh controls, source-separated legends, shared date cursor and value-only inspection; concise empty state.",
+            summary: "Five categories in an anchored overlay menu. Current-period timeframe selection, only period arrows, synchronized chart inspection and below-plot value toggles. Higher-is-better wellness, detailed zero-based axes and responsive X labels; source/model gaps preserved.",
             guardrails: [
-              "Do not modify this panel until it is explicitly requested (ui-style-guide.mdc, section 7).",
-            ],
+  "Do not modify this panel until it is explicitly requested (ui-style-guide.mdc, section 7).",
+  "Keep hidden series values tappable, raw wellness inputs unchanged and actual values above 16h visible; no datapoint arrow row (user correction, 22 November 2026)."
+],
             versions: [
   {
     "n": 1,
@@ -753,6 +875,34 @@ links: [
       "Choose graph dropdown, compact period/refresh and empty states, value-only inspection with accessible date.",
       "Presentation only; data, calculations and validation remain."
     ]
+  },
+  {
+    "n": 5,
+    "name": "Progress",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "5544ea6"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Overlay Choose graph; reset timeframe to current local period and remove redundant datapoint arrows.",
+      "Use below-chart values as toggle legend, retaining hidden rows for re-enable.",
+      "Invert fatigue/soreness/stress only for display; label higher-is-better.",
+      "Set 0–10 step 2 / 0–100 step 10, awakening zero minimum and sleep minimum extent 0–16h.",
+      "Adapt X font sizes/tick density and keep SRI versions distinct."
+    ]
+  },
+  {
+    "n": 6,
+    "name": "Progress",
+    "date": "2026-11-22 11:38 -0500",
+    "commits": [
+      "c1193f1"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Use a shared maximum Y-label inset across related plots so synchronized date cursors align at large font scales."
+    ]
   }
 ],
 
@@ -768,23 +918,35 @@ children: [
     "kind": "component",
     "status": "active",
     "tagline": "Inline graph dropdown",
-    "summary": "Body Weight, Recovery Indices, Cardiac Indices, Sleep Indices, Fatigue Indices; closes on selection or Android Back. No new modal or dependency.",
+    "summary": "Anchored transparent Modal overlays the viewport without shifting graphs. Five requested categories; measured/clamped position, scrollable options and outside/selection/Android Back dismissal. No new dependency.",
     "files": [
       "src/progress/ProgressPanel.tsx"
     ],
     "versions": [
-      {
-        "n": 1,
-        "name": "Choose graph",
-        "date": "2026-11-22 00:28 -0500",
-        "commits": [
-          "e3c0c6a"
-        ],
-        "changes": [
-          "Replace chart-category button strip with compact dropdown."
-        ]
-      }
+  {
+    "n": 1,
+    "name": "Choose graph",
+    "date": "2026-11-22 00:28 -0500",
+    "commits": [
+      "e3c0c6a"
+    ],
+    "changes": [
+      "Replace chart-category button strip with compact dropdown."
     ]
+  },
+  {
+    "n": 2,
+    "name": "Choose graph",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "5544ea6"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Replace inline expansion with screen overlay, explicitly requested by user."
+    ]
+  }
+]
   }
 ],
 },

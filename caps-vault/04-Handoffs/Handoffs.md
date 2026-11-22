@@ -1,5 +1,7 @@
 # Handoffs
 
+- [[2026-11-22 Questionnaire and Chart Controls Handoff]] · minute clocks, history screen, weighted SRI, readable dates and refined chart controls
+
 - [[2026-11-22 Minimal UI Handoff]] · compact app copy, Recovery and graph dropdown; health connection prerequisites
 
 - [[2026-11-22 CAPS ORI Handoff]] · CAPS-owned biometric index v1, explicit model and eligibility

@@ -31,3 +31,7 @@ The existing Home selector is reused. Recovery has current-local-day completion 
 ## Compact copy (22 November 2026)
 
 Main title is now title-only; absent age/height/weight use --. Recovery/questionnaire supporting paragraphs and status diagnostics are replaced with concise labels/requirements. Questionnaire history and health management remain accessible. Progress uses the graph dropdown and compact chart inspection. See [[Recovery and Progress]] / [[2026-11-22 Minimal UI Handoff]].
+
+## Questionnaire history screen (22 November 2026)
+
+Recovery now opens a separate QuestionnaireHistoryScreen instead of expanding rows inline. Historical editors return to history on Back/save; X exits the branch, and route/draft guards remain. Home date captions use the shared 22 Nov, 2026 formatter. Current weighted SRI/defaults and Progress interactions: [[Recovery and Progress]], [[2026-11-22 Questionnaire and Chart Controls Handoff]].

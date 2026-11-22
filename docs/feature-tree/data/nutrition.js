@@ -99,6 +99,18 @@ CAPS.trees.nutrition = {
       "Remove generic subtitle and standardize missing nutrient values to --.",
       "Presentation only; data, calculations and validation remain."
     ]
+  },
+  {
+    "n": 7,
+    "name": "NutritionScreen",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "75c7dd4"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Use shared human-readable diary dates; keep ISO query keys."
+    ]
   }
 ],
     children: [

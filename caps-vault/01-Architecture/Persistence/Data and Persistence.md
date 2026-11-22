@@ -40,3 +40,7 @@ Related notes: [[App Architecture]], [[Home]], [[Nutrition]], [[Conditioning]], 
 ## Recovery v10 (21 November 2026)
 
 See [[Recovery and Progress]] and docs/recovery-progress.md for the full relational key/foreign-key map, transaction lifecycle and rollback/retention consequences. The initializer adds daily_questionnaires as a repair sentinel and preserves the existing repair paths. New data is scoped to explicit device-local ownership, not authenticated accounts. No duplicate weight database or fake measured sleep is created. Native import stores sample/cursor atomically, retains provenance and supports edits/deletes; questionnaires keep saved revision history and recompute only their affected snapshot. Imported deletion retains questionnaire/weight history; downgrade/drop is not an implemented rollback. Four existing domain verifiers now expect schema10 and pass, alongside four Recovery/health/chart checks.
+
+## SRI v2 JSON compatibility (22 November 2026)
+
+No new SQL migration: v10 keys/FKs remain. Active response/revision JSON adds optional sriVersion and awakeningsAtLeast. Saved/edited questionnaires use weighted sri_v2; old missing-version/v1 responses keep original SRI during health recalculation. Snapshot JSON retains the chosen SRI version; unlike versions stay separate in Progress. 10+ records are lower bounds and aggregate as bounds. See docs/questionnaire-sri-v2.md for the full transaction, relation and rollback explanation and [[2026-11-22 Questionnaire and Chart Controls Handoff]] for evidence.

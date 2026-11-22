@@ -191,30 +191,42 @@ CAPS.trees.skill = {
         summary:
           "Shows the stored title, start, end, focus, elapsed time, estimated calories, weight basis, and ordered activities. It does not recompute the estimate.",
         versions: [
-          {
-            "n": 1,
-            "name": "Skill session detail",
-            "date": "2026-11-16 11:02 -0500",
-            "commits": [
-              "45648a2"
-            ],
-            "changes": [
-              "Added the read-only session screen opened from a calendar row."
-            ]
-          },
-          {
-            "n": 2,
-            "name": "SkillSessionDetailScreen",
-            "date": "2026-11-20 17:46 -0500",
-            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-            "changes": [
-              "Shared safe centered header and fixed depth-aware footer."
-            ],
-            "commits": [
-              "d56e731"
-            ]
-          }
-        ],
+  {
+    "n": 1,
+    "name": "Skill session detail",
+    "date": "2026-11-16 11:02 -0500",
+    "commits": [
+      "45648a2"
+    ],
+    "changes": [
+      "Added the read-only session screen opened from a calendar row."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "SkillSessionDetailScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Shared safe centered header and fixed depth-aware footer."
+    ],
+    "commits": [
+      "d56e731"
+    ]
+  },
+  {
+    "n": 3,
+    "name": "SkillSessionDetailScreen",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "75c7dd4"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Format saved session start/end with shared readable date helper."
+    ]
+  }
+],
       },
       {
         id: "skill-energy",

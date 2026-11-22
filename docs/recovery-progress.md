@@ -59,3 +59,7 @@ Before release follow the unrun physical-device procedure in `recovery-native-se
 ## Current ORI follow-up (22 November 2026)
 
 The subsequent explicit user request enables CAPS-owned experimental ORI v1. Earlier no-model statements in this initial report describe the previous implementation. Current scoring, eligibility, persistence and validation are in [caps-ori-v1.md](caps-ori-v1.md). No vendor score import is used.
+
+## Questionnaire/chart controls follow-up (22 November 2026)
+
+The newest request replaces quarter-hour sleep inputs, null defaults and equal SRI weights with minute clocks, numbered/defaulted sliders and weighted sri_v2. History is a separate screen. Charts now use an overlay category menu, below-plot value toggles, current-period reset and detailed responsive axes; wellness display directions are all higher-is-better. Full displayed dates are human-readable while ISO storage stays unchanged. Current model/UI/schema compatibility details: [questionnaire-sri-v2.md](questionnaire-sri-v2.md). Earlier phase descriptions above record the original implementation.

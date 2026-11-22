@@ -723,48 +723,73 @@ CAPS.trees.database = {
       "title": "daily_questionnaires",
       "kind": "table",
       "tagline": "PK(owner_id,local_date), active response/timezone/status/revision and original JSON.",
-      "summary": "PK(owner_id,local_date), active response/timezone/status/revision and original JSON.",
+      "summary": "PK(owner_id,local_date), owner FK, active response/timezone/status/revision and response_json. Optional sriVersion/awakeningsAtLeast JSON fields preserve original v1 versus weighted v2 and 10+ lower bounds; no DDL change (schema 10).",
       "files": [
         "src/data/recoveryMigration.ts",
         "src/data/recoveryRepository.ts"
       ],
       "versions": [
-        {
-          "n": 1,
-          "name": "daily_questionnaires",
-          "date": "2026-11-21 21:31 -0500",
-          "commits": [
-            "ec03ac1"
-          ],
-          "changes": [
-            "PK(owner_id,local_date), active response/timezone/status/revision and original JSON."
-          ]
-        }
-      ]
+  {
+    "n": 1,
+    "name": "daily_questionnaires",
+    "date": "2026-11-21 21:31 -0500",
+    "commits": [
+      "ec03ac1"
+    ],
+    "changes": [
+      "PK(owner_id,local_date), active response/timezone/status/revision and original JSON."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "daily_questionnaires",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "cb32262"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Save/edit candidates use sri_v2; legacy missing-version/v1 stays original until saved.",
+      "Store censored 10+ marker alongside numeric lower bound without truncating exact legacy values."
+    ]
+  }
+]
     },
     {
       "id": "table-questionnaire-revisions",
       "title": "questionnaire_revisions",
       "kind": "table",
       "tagline": "PK(owner_id,local_date,revision), composite questionnaire FK with cascade on explicit parent deletion.",
-      "summary": "PK(owner_id,local_date,revision), composite questionnaire FK with cascade on explicit parent deletion.",
+      "summary": "PK(owner_id,local_date,revision), composite active-questionnaire FK with ON DELETE CASCADE. Transactional append retains each save and its model/lower-bound fields in JSON; existing revisions remain intact.",
       "files": [
         "src/data/recoveryMigration.ts",
         "src/data/recoveryRepository.ts"
       ],
       "versions": [
-        {
-          "n": 1,
-          "name": "questionnaire_revisions",
-          "date": "2026-11-21 21:31 -0500",
-          "commits": [
-            "ec03ac1"
-          ],
-          "changes": [
-            "PK(owner_id,local_date,revision), composite questionnaire FK with cascade on explicit parent deletion."
-          ]
-        }
-      ]
+  {
+    "n": 1,
+    "name": "questionnaire_revisions",
+    "date": "2026-11-21 21:31 -0500",
+    "commits": [
+      "ec03ac1"
+    ],
+    "changes": [
+      "PK(owner_id,local_date,revision), composite questionnaire FK with cascade on explicit parent deletion."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "questionnaire_revisions",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "cb32262"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Append versioned response revisions transactionally with active save; no table migration."
+    ]
+  }
+]
     },
     {
       "id": "table-health-measurements",
@@ -795,7 +820,7 @@ CAPS.trees.database = {
       "title": "recovery_snapshots",
       "kind": "table",
       "tagline": "PK(owner,date), reproducible SRI/version/objective coverage and nullable ORI.",
-      "summary": "PK(owner,date), derived JSON includes SRI and nullable numeric CAPS ORI, model version, per-input provenance/weights/baseline count/coverage/reasons. No DDL change; retained raw samples upgrade old unconfigured caches.",
+      "summary": "PK(owner_id,local_date), owner FK independent of questionnaire. Derived JSON preserves SRI original/weighted model identity and CAPS ORI model/provenance separately. Health recomputation retains legacy SRI meaning; schema remains 10.",
       "files": [
         "src/data/recoveryMigration.ts",
         "src/data/recoveryRepository.ts"
@@ -823,6 +848,18 @@ CAPS.trees.database = {
       "User explicitly requests CAPS-owned biometric ORI instead of vendor scores.",
       "Implement caps_ori_v1 with explicit weights/transforms, source-specific baselines, contributor coverage and no manual inputs.",
       "Persist numeric scores/provenance and partition historical chart source/model identities; experimental, not independently validated."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "recovery_snapshots",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "cb32262"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Derive SRI version from response (missing defaults v1); distinguish original and weighted Progress series."
     ]
   }
 ]

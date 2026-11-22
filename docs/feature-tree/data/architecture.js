@@ -447,7 +447,7 @@ CAPS.trees.architecture = {
             tagline: "Compact header clock and scroll-wheel modal",
             files: ["src/components/LogTimeChanger.tsx"],
             summary:
-              "Shared compact clock/time trigger for every logging flow. Opens Log Time with local-day arrows, hour/minute wheels and Cancel/Done; caller bounds and duration calculations remain owned by each flow.",
+              "Shared compact clock/time trigger. Log Time shows readable full day, day arrows, independent hour/minute wheels and Cancel/Done. Questionnaire sleep now uses regular minute resolution; caller bounds and calculations remain owned by each flow.",
             modes: [
               {
                 "name": "Header button",
@@ -463,70 +463,84 @@ CAPS.trees.architecture = {
               "Put the shared trigger in the header right and preserve caller date bounds (ui-style-guide.mdc section 8)."
             ],
             versions: [
-              {
-                "n": 1,
-                "name": "LogTimeChanger",
-                "date": "2026-07-28 23:28 -0400",
-                "commits": [
-                  "3232443",
-                  "859b4aa",
-                  "d94e5c3"
-                ],
-                "changes": [
-                  "Extracted from the weight picker (`3232443`), reused for sleep (`859b4aa`), then as a separate time control (`d94e5c3`)."
-                ]
-              },
-              {
-                "n": 2,
-                "name": "LogTimeChanger",
-                "date": "2026-10-05 22:38 -0400",
-                "commits": [
-                  "9fc0f73",
-                  "ce2ba31",
-                  "39add05"
-                ],
-                "changes": [
-                  "SDK repairs, workspace mount tweaks, and the compact meal-header pill (`39add05`)."
-                ]
-              },
-              {
-                "n": 3,
-                "name": "LogTimeChanger",
-                "date": "2026-11-02 22:36 -0500",
-                "commits": [
-                  "e8fc8e9",
-                  "67d99b6"
-                ],
-                "changes": [
-                  "Stepper time controls in the Home renovation."
-                ]
-              },
-              {
-                "n": 4,
-                "name": "LogTimeChanger",
-                "date": "2026-11-20 17:46 -0500",
-                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-                "changes": [
-                  "Replaced all time cards, increments and presets with a compact header clock/time button.",
-                  "Log Time modal has local-day arrows, independent hour/minute wheels, Cancel and Done with caller date bounds."
-                ],
-                "commits": [
-                  "2a8f16d"
-                ]
-              },
-              {
-                "n": 5,
-                "name": "LogTimeChanger",
-                "date": "2026-11-21 21:40 -0500",
-                "commits": [
-                  "a97bb78"
-                ],
-                "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
-                "changes": [
-                  "Add opt-in quarter-hour display and invalid-DST-wall-time rejection; existing minute callers retain defaults."
-                ]
-              }
-            ],
+  {
+    "n": 1,
+    "name": "LogTimeChanger",
+    "date": "2026-07-28 23:28 -0400",
+    "commits": [
+      "3232443",
+      "859b4aa",
+      "d94e5c3"
+    ],
+    "changes": [
+      "Extracted from the weight picker (`3232443`), reused for sleep (`859b4aa`), then as a separate time control (`d94e5c3`)."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "LogTimeChanger",
+    "date": "2026-10-05 22:38 -0400",
+    "commits": [
+      "9fc0f73",
+      "ce2ba31",
+      "39add05"
+    ],
+    "changes": [
+      "SDK repairs, workspace mount tweaks, and the compact meal-header pill (`39add05`)."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "LogTimeChanger",
+    "date": "2026-11-02 22:36 -0500",
+    "commits": [
+      "e8fc8e9",
+      "67d99b6"
+    ],
+    "changes": [
+      "Stepper time controls in the Home renovation."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "LogTimeChanger",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Replaced all time cards, increments and presets with a compact header clock/time button.",
+      "Log Time modal has local-day arrows, independent hour/minute wheels, Cancel and Done with caller date bounds."
+    ],
+    "commits": [
+      "2a8f16d"
+    ]
+  },
+  {
+    "n": 5,
+    "name": "LogTimeChanger",
+    "date": "2026-11-21 21:40 -0500",
+    "commits": [
+      "a97bb78"
+    ],
+    "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+    "changes": [
+      "Add opt-in quarter-hour display and invalid-DST-wall-time rejection; existing minute callers retain defaults."
+    ]
+  },
+  {
+    "n": 6,
+    "name": "LogTimeChanger",
+    "date": "2026-11-22 11:32 -0500",
+    "commits": [
+      "75c7dd4",
+      "cb32262"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Format picker date as 22 Nov, 2026; retain local date bounds.",
+      "Questionnaire uses default minute resolution without opt-in quarter-hour interval."
+    ]
+  }
+],
           },
 
             {
@@ -555,7 +569,36 @@ CAPS.trees.architecture = {
                 }
               ]
             }
-          ],
+          ,
+{
+  "id": "display-date",
+  "title": "Readable date formatting",
+  "kind": "logic",
+  "status": "active",
+  "tagline": "22 Nov, 2026 presentation",
+  "summary": "Shared displayDate helpers format full dates, months and years. Date keys retain their written calendar date; timestamp instants follow local timezone. Invalid input is --; storage/query ISO formats remain intact.",
+  "files": [
+    "src/utils/displayDate.ts",
+    "src/utils/logTime.ts",
+    "scripts/verify-display-dates.mjs"
+  ],
+  "versions": [
+    {
+      "n": 1,
+      "name": "Readable date formatting",
+      "date": "2026-11-22 11:32 -0500",
+      "commits": [
+        "75c7dd4"
+      ],
+      "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+      "changes": [
+        "Apply consistent readable dates across questionnaire/history, log-time pickers, calendars and domain detail views.",
+        "Verify key/instant/timezone/leap/DST behavior."
+      ]
+    }
+  ]
+}
+],
       },
       {
         id: "app-state",
@@ -770,6 +813,21 @@ CAPS.trees.architecture = {
     "changes": [
       "Persist minimal-copy rule: concise labels/requirements, -- missing values, no generic subtitles or default developer metadata.",
       "Presentation only; data, calculations and validation remain."
+    ]
+  },
+  {
+    "n": 5,
+    "name": "UI style guide",
+    "date": "2026-11-22 11:38 -0500",
+    "commits": [
+      "75c7dd4",
+      "cb32262",
+      "5544ea6",
+      "c1193f1"
+    ],
+    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+    "changes": [
+      "Persist latest questionnaire/history, readable date, overlay menu, below-chart legend, current-period and axis interaction contracts."
     ]
   }
 ],
