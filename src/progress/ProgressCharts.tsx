@@ -4,7 +4,7 @@ import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { PressOpacity } from "../components/PressOpacity";
 import { useAppTheme } from "../theme/ThemeContext";
 import { formatDisplayDate, formatDisplayMonth, formatDisplayYear } from "../utils/displayDate";
-import { chartAxis, chartXTicks, contiguousRuns, type ChartPeriod, type ChartPoint } from "./chartAggregation";
+import { chartAxis, chartLeftInset, chartXTicks, contiguousRuns, type ChartPeriod, type ChartPoint } from "./chartAggregation";
 
 export type PlotSeries = { id: string; label: string; unit: string; color: string; points: ChartPoint[] };
 export type Subgraph = { id: string; title: string; unit: string; range?: readonly [number, number]; zeroBased?: boolean; minimumMax?: number; series: PlotSeries[] };
@@ -37,13 +37,13 @@ export function MetricTooltip({ date, series, index, hidden, onToggle }: { date:
   </View>;
 }
 
-export function TimeSeriesLineChart({ period, series, range, zeroBased, minimumMax, selectedIndex, onSelect, unit }: { period: ChartPeriod; series: PlotSeries[]; range?: readonly [number, number]; zeroBased?: boolean; minimumMax?: number; selectedIndex: number; onSelect: (index: number) => void; unit: string }) {
+export function TimeSeriesLineChart({ period, series, range, zeroBased, minimumMax, leftInset, selectedIndex, onSelect, unit }: { period: ChartPeriod; series: PlotSeries[]; range?: readonly [number, number]; zeroBased?: boolean; minimumMax?: number; leftInset?: number; selectedIndex: number; onSelect: (index: number) => void; unit: string }) {
   const { theme } = useAppTheme();
   const { fontScale } = useWindowDimensions();
   const [width, setWidth] = useState(300);
   const values = series.flatMap(item => item.points.flatMap(p => p.value === null ? [] : [p.value]));
   const axis = chartAxis(values, range, zeroBased, minimumMax);
-  const left = Math.max(44, Math.ceil(Math.max(...axis.ticks.map(value => String(Number(value.toFixed(1))).length)) * 10 * fontScale * 0.65) + 12), right = Math.max(left + 1, width - 14), top = 16;
+  const left = leftInset ?? chartLeftInset([axis], fontScale), right = Math.max(left + 1, width - 14), top = 16;
   const bottom = top + Math.max(156, (axis.ticks.length - 1) * Math.ceil(14 * fontScale));
   const height = bottom + 32;
   const count = period.buckets.length;
@@ -74,10 +74,13 @@ function Plot({ item, x, y }: { item: PlotSeries; x: (i: number) => number; y: (
 
 export function SynchronizedSubgraphGroup({ graphs, period, hidden, onToggle, cursor, onSelect }: { graphs: Subgraph[]; period: ChartPeriod; hidden: ReadonlySet<string>; onToggle: (id: string) => void; cursor: number; onSelect: (index: number) => void }) {
   const { theme } = useAppTheme();
+  const { fontScale } = useWindowDimensions();
+  const axes = graphs.map(graph => chartAxis(graph.series.filter(item => !hidden.has(item.id)).flatMap(item => item.points.flatMap(point => point.value === null ? [] : [point.value])), graph.range, graph.zeroBased, graph.minimumMax));
+  const leftInset = chartLeftInset(axes, fontScale);
   return <View style={styles.group}>
     {graphs.map(graph => { const visible = graph.series.filter(item => !hidden.has(item.id)); return <View key={graph.id} style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong }]}>
       <Text accessibilityRole="header" style={[styles.heading, { color: theme.colors.textMuted }]}>{graph.title.toUpperCase()} · {graph.unit}{period.resolution !== "day" ? " · MEAN" : ""}</Text>
-      <TimeSeriesLineChart period={period} series={visible} range={graph.range} zeroBased={graph.zeroBased} minimumMax={graph.minimumMax} unit={graph.unit} selectedIndex={cursor} onSelect={onSelect} />
+      <TimeSeriesLineChart period={period} series={visible} range={graph.range} zeroBased={graph.zeroBased} minimumMax={graph.minimumMax} leftInset={leftInset} unit={graph.unit} selectedIndex={cursor} onSelect={onSelect} />
       <MetricTooltip date={selectedDate(period, cursor)} series={graph.series} hidden={hidden} onToggle={onToggle} index={cursor} />
     </View>; })}
   </View>;

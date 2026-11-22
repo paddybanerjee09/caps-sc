@@ -113,3 +113,14 @@ assert.ok(mixedScores.series.some(s=>s.label==='SRI (weighted)'));
 assert.equal(buildPeriod('month','2026-11-22',null,'2026-11-22').title,'Nov, 2026');
 assert.match(buildPeriod('week','2026-11-22',null,'2026-11-22').title,/16 Nov, 2026/);
 console.log('Progress detailed axes, responsive tick fonts, higher-is-better wellness, censored counts and score-version labels verified.');
+
+const { chartLeftInset } = await import('../src/progress/chartAggregation.ts');
+const wellnessAxis=chartAxis([2,8],[0,10]);
+const indexAxis=chartAxis([20,80],[0,100]);
+assert.equal(chartLeftInset([wellnessAxis],2),44);
+assert.equal(chartLeftInset([indexAxis],2),51);
+assert.equal(chartLeftInset([wellnessAxis,indexAxis],2),51,'synchronized panels reserve the largest Y-label gutter');
+assert.equal(chartLeftInset([indexAxis,wellnessAxis],2),51,'group order does not change shared date alignment');
+const wideAxis=chartAxis([2000,3000]);
+assert.ok(chartLeftInset([wellnessAxis,indexAxis,wideAxis],3)>=chartLeftInset([wideAxis],3),'large cardiac labels fit the shared gutter');
+console.log('Synchronized chart X alignment across different Y labels and large fonts verified.');

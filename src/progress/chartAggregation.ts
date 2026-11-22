@@ -123,3 +123,8 @@ export function chartXTicks(labels: readonly string[], width: number, preferred:
   }
   return { indices, fontSize: Math.max(8, fontSize) };
 }
+/** Use one Y-label gutter for all synchronized panels so dates share the same X position. */
+export function chartLeftInset(axes: readonly { ticks: readonly number[] }[], fontScale = 1) {
+  const labelLength = Math.max(1, ...axes.flatMap(axis => axis.ticks.map(value => String(Number(value.toFixed(1))).length)));
+  return Math.max(44, Math.ceil(labelLength * 10 * fontScale * 0.65) + 12);
+}
