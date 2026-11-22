@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { migrateDatabase } from "../src/data/database.ts";
 import { recoveryMigrationSql } from "../src/data/recoveryMigration.ts";
 import { deleteImportedHealth, getHealthState, getPreferredSources, getQuestionnaire, listMeasurements, listQuestionnaires, listSnapshots, listWeights, saveQuestionnaire, setHealthState, setPreferredSources, upsertHealthBatch } from "../src/data/recoveryRepository.ts";
-import { calculateSRI, createEmptyQuestionnaire, hrr60, lnRMSSD, manualSleep, objectiveRecovery, personalBaseline, rmssd, sleepEfficiency, sleepTimingSd, standardizedDeviation, validateQuestionnaire } from "../src/recovery/calculations.ts";
+import { calculateSRI, createEmptyQuestionnaire, hrr60, lnRMSSD, manualSleep, personalBaseline, rmssd, sleepEfficiency, sleepTimingSd, standardizedDeviation, validateQuestionnaire } from "../src/recovery/calculations.ts";
 import { fixedOffsetTimezone, isQuarterHour, isValidTimezone, localDateInZone, shiftDate } from "../src/recovery/dates.ts";
 
 function adapterFor(sqlite) {
@@ -62,7 +62,7 @@ assert.equal(lnRMSSD(Math.E), 1);
 assert.equal(rmssd([1000, 1010, 1000]), 10);
 assert.equal(rmssd([1000]), null);
 assert.ok(Math.abs(sleepTimingSd([1430, 10], 0) - Math.sqrt(200)) < 1e-10);
-assert.equal(objectiveRecovery(), null);
+
 assert.equal(standardizedDeviation(61, 55, 3), 2);
 assert.equal(standardizedDeviation(61, 55, 0), null);
 
@@ -140,3 +140,12 @@ assert.equal((await listQuestionnaires(db)).length, 1);
 assert.equal((await getHealthState(db, "healthkit")).cursor, null);
 assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM metric_baselines").get().n, 0);
 console.log("recovery checks passed");
+
+// A complete native biometric history produces ORI and upstream deletion removes eligibility.
+const oriSamples = [];
+for (let i=0;i<=14;i++) { const date=shiftDate("2026-10-30",-i); for (const [metric,value,unit] of [["hrv",50,"ms"],["rhr",60,"bpm"],["sleep_duration",480,"min"]]) oriSamples.push({id:metric+date,externalId:metric+date,metric,value,unit,measuredAt:date+"T10:00:00Z",recordedAt:date+"T11:00:00Z",localDate:date,timezone:"UTC",platform:"healthkit",source:"watch",subtype:metric==="hrv"?"SDNN":null,protocol:null,quality:"valid"}); }
+await upsertHealthBatch(db,{platform:"healthkit",measurements:oriSamples,deletedExternalIds:[],state});
+assert.equal((await listSnapshots(db)).find(s=>s.localDate==="2026-10-30").ori,100);
+await upsertHealthBatch(db,{platform:"healthkit",measurements:[],deletedExternalIds:["hrv2026-10-30"],state});
+assert.equal((await listSnapshots(db)).find(s=>s.localDate==="2026-10-30").ori,null);
+console.log("Persisted ORI and deletion invalidation verified");

@@ -78,6 +78,3 @@ export function sleepTimingSd(minutes: number[], anchor: number) {
   const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
   return Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length - 1));
 }
-
-/** No transformation or weights have been approved. */
-export function objectiveRecovery(): null { return null; }

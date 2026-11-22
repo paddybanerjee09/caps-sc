@@ -57,9 +57,10 @@ export type PreferredSources = Partial<Record<HealthMetric, string>>;
 export type RecoverySnapshot = {
   localDate: string;
   sri: number | null;
-  ori: null;
+  ori: number | null;
   sriVersion: "sri_v1";
-  oriVersion: null;
+  oriVersion: "caps_ori_v1" | null;
+  oriDetails?: import("./objectiveRecovery").OriResult;
   inputCount: number;
   computedAt: string;
 };

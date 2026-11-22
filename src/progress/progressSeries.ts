@@ -52,7 +52,9 @@ function indexSeries(snapshots: RecoverySnapshot[]): RawSeries[] {
   const versions = [...new Set(snapshots.map((s) => s.sriVersion))];
   const result = versions.map((version) => ({ id: `sri:${version}`, label: `SRI · ${version}`, unit: "/100", observations: snapshots.flatMap((s) => s.sriVersion !== version || s.sri === null ? [] : [{ date: s.localDate, value: s.sri, source: "Morning questionnaire", measuredAt: s.computedAt, version: s.sriVersion, detail: `6/6 required subjective inputs; computed ${new Date(s.computedAt).toLocaleString()}` }]) }));
   if (!result.length) result.push({ id: "sri:sri_v1", label: "SRI · sri_v1", unit: "/100", observations: [] });
-  return [...result, { id: "ori:unconfigured", label: "Experimental ORI · no model", unit: "/100", observations: [] }];
+  const sets = [...new Set(snapshots.filter(s => s.ori !== null && s.oriDetails).map(s => JSON.stringify([s.oriVersion,s.oriDetails!.inputSet])))];
+  const objective = sets.map(key => ({id: 'ori:'+key,label:'Experimental ORI · '+JSON.parse(key)[0]+' · '+[...new Set(snapshots.find(s=>s.oriDetails && JSON.stringify([s.oriVersion,s.oriDetails.inputSet])===key)!.oriDetails!.contributors.map(c=>c.source))].join(', '),unit:'/100',observations:snapshots.flatMap(s => s.ori === null || !s.oriDetails || JSON.stringify([s.oriVersion,s.oriDetails.inputSet]) !== key ? [] : [{date:s.localDate,value:s.ori,source:'CAPS biometrics · '+s.oriDetails.contributors.map(c=>c.metric+': '+c.source).join('; '),measuredAt:s.computedAt,version:s.oriVersion ?? undefined,detail:s.oriDetails.coverage+'% input coverage · '+s.oriDetails.contributors.map(c=>c.metric+': '+c.score+' ('+c.source+')').join('; ')}])}));
+  return [...result, ...objective.length ? objective : [{id:'ori:waiting',label:'Experimental ORI · building baseline',unit:'/100',observations:[]}]];
 }
 export function buildRawGraphs(records: ProgressRecords, group: ProgressGroup, imperial: boolean, today: string): RawSubgraph[] {
   const q = records.questionnaires;

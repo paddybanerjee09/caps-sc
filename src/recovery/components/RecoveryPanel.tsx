@@ -1,3 +1,4 @@
+import { calculateORI } from "../objectiveRecovery";
 import { useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
@@ -45,6 +46,7 @@ export function RecoveryPanel({ recovery, onQuestionnaire, onChanged }: { recove
     return candidates.filter((m) => m.localDate === data!.localDate).sort((a, b) => Date.parse(b.measuredAt) - Date.parse(a.measuredAt) || a.source.localeCompare(b.source))[0];
   }
   function changeSource(metric: HealthMetric, source: string) { void action(() => setPreferredSources(db, { ...data!.preferred, [metric]: source })); }
+  const ori = calculateORI(data.localDate, data.measurements, data.preferred);
   const sleep = latest("sleep_duration");
   const sleepStart = typeof sleep?.metadata?.onset === "string" ? sleep.metadata.onset : completed ? questionnaire.sleepOnset : null;
   const sleepEnd = typeof sleep?.metadata?.wake === "string" ? sleep.metadata.wake : completed ? questionnaire.wakeTime : null;
@@ -61,7 +63,7 @@ export function RecoveryPanel({ recovery, onQuestionnaire, onChanged }: { recove
     </View>
     <View style={styles.grid}>
       <Metric title="Subjective Recovery Index" value={sri === null ? "—" : `${sri} / 100`} detail={sri === null ? "Complete the six required scoring inputs and submit." : "sri_v1 · CAPS subjective wellness composite; not the Hooper Index."} />
-      <Metric title="Experimental Objective Recovery Index" value="—" detail={`No approved model or weights. ${new Set(data.measurements.filter((m) => m.localDate === data.localDate && m.quality === "valid").map((m) => m.metric)).size} objective marker types recorded today; no scoring contributors configured. This is never a percentage recovered.`} />
+      <Metric title="Experimental Objective Recovery Index" value={ori.score === null ? "—" : `${ori.score} / 100`} detail={`${ori.version} · ${ori.coverage}% input coverage. ${ori.reason}\n${ori.contributors.map(c => `${labels[c.metric]}: ${c.score === null ? "—" : c.score.toFixed(0)} · weight ${Math.round(c.weight*100)}% · ${c.source ?? "no source"} · ${c.reason} · ${c.baselineCount} prior days`).join("\n")}\nApp-defined weights/thresholds; not independently validated. Sleep reference: 8 h.`} />
       {metricOrder.map((metric) => {
         const reading = latest(metric);
         const sources = [...new Set(data.measurements.filter((m) => m.metric === metric && m.quality === "valid").map((m) => m.source))].sort();

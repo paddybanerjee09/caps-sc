@@ -1,3 +1,4 @@
+import { calculateORI } from "../recovery/objectiveRecovery";
 import type { SQLiteDatabase } from "expo-sqlite";
 import { BASELINE_DAYS, calculateSRI, comparableKey, personalBaseline, validateQuestionnaire } from "../recovery/calculations";
 import { isInstant, isLocalDate, isValidTimezone, localDateInZone, shiftDate } from "../recovery/dates";
@@ -57,7 +58,11 @@ export async function listMeasurements(db: SQLiteDatabase): Promise<HealthMeasur
 }
 
 export async function listSnapshots(db: SQLiteDatabase): Promise<RecoverySnapshot[]> {
-  const rows = await db.getAllAsync<{ snapshot_json: string }>("SELECT snapshot_json FROM recovery_snapshots WHERE owner_id = ? ORDER BY local_date", [LOCAL_OWNER]);
+  let rows = await db.getAllAsync<{ snapshot_json: string }>("SELECT snapshot_json FROM recovery_snapshots WHERE owner_id = ? ORDER BY local_date", [LOCAL_OWNER]);
+  if (rows.some(row => (JSON.parse(row.snapshot_json) as RecoverySnapshot).oriVersion !== 'caps_ori_v1')) {
+    await write(db, () => recomputeDerived(db));
+    rows = await db.getAllAsync<{ snapshot_json: string }>("SELECT snapshot_json FROM recovery_snapshots WHERE owner_id = ? ORDER BY local_date", [LOCAL_OWNER]);
+  }
   return rows.map((row) => JSON.parse(row.snapshot_json) as RecoverySnapshot);
 }
 
@@ -168,7 +173,8 @@ async function recomputeDerived(db: SQLiteDatabase, questionnaireDay?: string) {
   for (const localDate of days) {
     const questionnaire = questionnaireByDay.get(localDate);
     const inputs = measurementsByDay.get(localDate) ?? [];
-    const snapshot: RecoverySnapshot = { localDate, sri: questionnaire?.status === "completed" ? calculateSRI(questionnaire) : null, ori: null, sriVersion: "sri_v1", oriVersion: null, inputCount: new Set(inputs.map((item) => item.metric)).size, computedAt: now };
+    const ori = calculateORI(localDate, measurements, preferred);
+    const snapshot: RecoverySnapshot = { localDate, sri: questionnaire?.status === "completed" ? calculateSRI(questionnaire) : null, ori: ori.score, oriDetails: ori, sriVersion: "sri_v1", oriVersion: ori.version, inputCount: new Set(inputs.map((item) => item.metric)).size, computedAt: now };
     await db.runAsync("INSERT INTO recovery_snapshots(owner_id,local_date,snapshot_json) VALUES (?,?,?)", [LOCAL_OWNER, localDate, JSON.stringify(snapshot)]);
     if (questionnaireDay) continue;
     const latest = new Map<string, HealthMeasurement>();
