@@ -9,31 +9,29 @@ import { contiguousRuns, type ChartPeriod, type ChartPoint } from "./chartAggreg
 export type PlotSeries = { id: string; label: string; unit: string; color: string; points: ChartPoint[] };
 export type Subgraph = { id: string; title: string; unit: string; range?: readonly [number, number]; series: PlotSeries[] };
 
+function seriesLabel(item: PlotSeries) {
+  return item.label
+    .replace(/ · (?:sri_v\d+|caps_ori_v\d+)/g, "")
+    .replace(/ · (?:unavailable|no comparable test|building baseline|min \d+ days)/g, "");
+}
+
 
 export function ToggleableChartLegend({ series, hidden, onToggle }: { series: PlotSeries[]; hidden: ReadonlySet<string>; onToggle: (id: string) => void }) {
   const { theme } = useAppTheme();
-  return <View style={styles.legend}>{series.map((item) => <PressOpacity key={item.id} accessibilityLabel={`${item.label}, ${hidden.has(item.id) ? "hidden" : "visible"}`} accessibilityRole="button" accessibilityState={{ selected: !hidden.has(item.id) }} onPress={() => onToggle(item.id)} style={[styles.legendItem, { borderColor: hidden.has(item.id) ? theme.colors.border : item.color, backgroundColor: theme.colors.surfaceMuted }]}>
-    <View style={[styles.swatch, { backgroundColor: hidden.has(item.id) ? theme.colors.textMuted : item.color }]} /><Text style={[styles.legendText, { color: hidden.has(item.id) ? theme.colors.textMuted : theme.colors.text }]}>{item.label}</Text>
+  return <View style={styles.legend}>{series.map((item) => <PressOpacity key={item.id} accessibilityLabel={`${seriesLabel(item)}, ${hidden.has(item.id) ? "hidden" : "visible"}`} accessibilityRole="button" accessibilityState={{ selected: !hidden.has(item.id) }} onPress={() => onToggle(item.id)} style={[styles.legendItem, { borderColor: hidden.has(item.id) ? theme.colors.border : item.color, backgroundColor: theme.colors.surfaceMuted }]}>
+    <View style={[styles.swatch, { backgroundColor: hidden.has(item.id) ? theme.colors.textMuted : item.color }]} /><Text style={[styles.legendText, { color: hidden.has(item.id) ? theme.colors.textMuted : theme.colors.text }]}>{seriesLabel(item)}</Text>
   </PressOpacity>)}</View>;
 }
 
 export function MetricTooltip({ date, series, index }: { date: string; series: PlotSeries[]; index: number }) {
   const { theme } = useAppTheme();
-  return <View accessibilityLiveRegion="polite" style={[styles.tooltip, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.border }]}>
-    <Text style={[styles.tooltipDate, { color: theme.colors.text }]}>{date}</Text>
-    {series.map((item) => {
-      const point = item.points[index];
-      const observations = point?.observations ?? [];
-      const latest = observations[observations.length - 1];
-      const versions = [...new Set(observations.map((o) => o.version).filter(Boolean))];
-      const detail = [...new Set(observations.map((o) => o.detail).filter(Boolean))];
-      return <View key={item.id} style={styles.tooltipMetric}>
-        <Text style={[styles.number, { color: theme.colors.text }]}>{item.label}: {point?.value == null ? "—" : `${Number(point.value.toFixed(2))} ${item.unit}`}</Text>
-        <Text style={[styles.caption, { color: theme.colors.textMuted }]}>{point?.aggregationMethod ?? "No observation"} · {point?.sampleCount ?? 0}/{point?.eligibleDayCount ?? 0} eligible days · {Math.round(point?.coveragePercent ?? 0)}% coverage</Text>
-        {latest ? <Text style={[styles.caption, { color: theme.colors.textMuted }]}>{latest.source}{versions.length ? ` · ${versions.join(", ")}` : ""}{latest.measuredAt ? ` · ${observations.length > 1 ? "latest " : ""}${new Date(latest.measuredAt).toLocaleString()} (device time)` : ""}</Text> : null}
-        {detail.length ? <Text style={[styles.caption, { color: theme.colors.textMuted }]}>{detail.length <= 2 ? detail.join("; ") : `${detail.length} observation details; ${detail[detail.length - 1]}`}</Text> : null}
-      </View>;
-    })}
+  if (!series.length) return null;
+  return <View accessibilityLiveRegion="polite" style={[styles.tooltip, { borderTopColor: theme.colors.border }]}>
+    {series.map(item => <View key={item.id} style={styles.tooltipMetric}>
+      <View style={[styles.swatch, { backgroundColor: item.color }]} />
+      <Text style={[styles.tooltipLabel, { color: theme.colors.text }]}>{seriesLabel(item)}</Text>
+      <Text selectable accessibilityLabel={`${date}, ${seriesLabel(item)}: ${item.points[index]?.value == null ? "No data" : `${Number(item.points[index].value!.toFixed(2))} ${item.unit}`}`} style={[styles.number, { color: theme.colors.text }]}>{item.points[index]?.value == null ? "--" : `${Number(item.points[index].value!.toFixed(2))} ${item.unit}`}</Text>
+    </View>)}
   </View>;
 }
 
@@ -53,6 +51,7 @@ export function TimeSeriesLineChart({ period, series, range, selectedIndex, onSe
   const responder = useMemo(() => PanResponder.create({ onStartShouldSetPanResponder: () => false, onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 5 && Math.abs(gesture.dx) > Math.abs(gesture.dy), onPanResponderGrant: (event) => selectX(event.nativeEvent.locationX), onPanResponderMove: (event) => selectX(event.nativeEvent.locationX) }), [width, count, onSelect]); // eslint-disable-line react-hooks/exhaustive-deps
   const tickCount = period.resolution === "month" && count === 12 ? 12 : Math.min(count, 7);
   const ticks = [...new Set(Array.from({ length: tickCount }, (_, index) => Math.round(index / (tickCount - 1 || 1) * (count - 1))))];
+  if (!values.length) return <View style={styles.emptyChart}><Text style={[styles.empty, { color: theme.colors.textMuted }]}>{series.length ? "No data" : "All hidden"}</Text></View>;
   return <View onLayout={(event) => setWidth(Math.max(100, event.nativeEvent.layout.width))}>
     <View {...responder.panHandlers} onTouchEnd={(event) => selectX(event.nativeEvent.locationX)} accessible accessibilityLabel={`${unit} chart. Swipe horizontally or use previous and next date controls.`} accessibilityRole="adjustable" accessibilityValue={{ min: 0, max: count - 1, now: selectedIndex, text: period.buckets[selectedIndex]?.key }} accessibilityActions={[{ name: "increment", label: "Next date" }, { name: "decrement", label: "Previous date" }]} onAccessibilityAction={(event) => onSelect(Math.max(0, Math.min(count - 1, selectedIndex + (event.nativeEvent.actionName === "increment" ? 1 : -1))))}>
       <Svg width={width} height={height} accessible={false} pointerEvents="none">
@@ -63,7 +62,6 @@ export function TimeSeriesLineChart({ period, series, range, selectedIndex, onSe
         {series.map((item) => item.points[selectedIndex]?.value != null ? <Circle key={item.id} cx={x(selectedIndex)} cy={y(item.points[selectedIndex].value!)} r={4} fill={item.color} /> : null)}
       </Svg>
     </View>
-    {!values.length ? <Text style={[styles.empty, { color: theme.colors.textMuted }]}>{series.length ? "No eligible observations in this period" : "All variables hidden"}</Text> : null}
   </View>;
 }
 function ViewlessGrid({ value, y, left, right, color, textColor }: { value: number; y: number; left: number; right: number; color: string; textColor: string }) {
@@ -82,16 +80,17 @@ export function SynchronizedSubgraphGroup({ graphs, period, hidden, onToggle, cu
       <PressOpacity accessibilityLabel="Next chart date" disabled={cursor >= period.buckets.length - 1} onPress={() => onSelect(cursor + 1)} style={[styles.dateButton, { borderColor: theme.colors.borderStrong }]}><Text style={{ color: theme.colors.text }}>›</Text></PressOpacity>
     </View>
     {graphs.map((graph) => { const visible = graph.series.filter((item) => !hidden.has(item.id)); return <View key={graph.id} style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong }]}>
-      <Text accessibilityRole="header" style={[styles.heading, { color: theme.colors.textMuted }]}>{graph.title.toUpperCase()} · {graph.unit}</Text>
+      <Text accessibilityRole="header" style={[styles.heading, { color: theme.colors.textMuted }]}>{graph.title.toUpperCase()} · {graph.unit}{period.resolution !== "day" ? " · MEAN" : ""}</Text>
       <ToggleableChartLegend series={graph.series} hidden={hidden} onToggle={onToggle} />
       <TimeSeriesLineChart period={period} series={visible} range={graph.range} unit={graph.unit} selectedIndex={cursor} onSelect={onSelect} />
-      <MetricTooltip date={period.buckets[cursor]?.key ?? "—"} series={visible} index={cursor} />
+      <MetricTooltip date={period.buckets[cursor]?.key ?? "--"} series={visible} index={cursor} />
     </View>; })}
   </View>;
 }
 const styles = StyleSheet.create({
-  group: { gap: 12 }, card: { borderRadius: 16, borderWidth: 1, padding: 12, gap: 12 }, heading: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
-  legend: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, legendItem: { minHeight: 48, minWidth: 48, borderRadius: 10, borderWidth: 1, padding: 8, flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "100%" },
-  swatch: { width: 8, height: 8, borderRadius: 4 }, legendText: { fontSize: 11, fontWeight: "700", flexShrink: 1 }, tooltip: { borderRadius: 10, borderWidth: 1, padding: 10, gap: 8 }, tooltipDate: { fontSize: 13, fontWeight: "800", fontVariant: ["tabular-nums"] }, tooltipMetric: { gap: 3 },
-  number: { fontSize: 12, fontWeight: "700", fontVariant: ["tabular-nums"] }, caption: { fontSize: 11, lineHeight: 16, fontVariant: ["tabular-nums"] }, empty: { fontSize: 12, textAlign: "center" }, cursorBar: { flexDirection: "row", alignItems: "center", gap: 8 }, cursorDate: { flex: 1, textAlign: "center", fontSize: 13, fontVariant: ["tabular-nums"] }, dateButton: { width: 48, minHeight: 48, alignItems: "center", justifyContent: "center", borderWidth: 1, borderRadius: 10 },
+  group: { gap: 8 }, card: { borderRadius: 12, borderWidth: 1, padding: 10, gap: 6 }, heading: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
+  legend: { flexDirection: "row", flexWrap: "wrap", columnGap: 8 }, legendItem: { minHeight: 48, minWidth: 48, borderRadius: 8, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4, flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "100%" },
+  swatch: { width: 6, height: 6, borderRadius: 3 }, legendText: { fontSize: 11, fontWeight: "700", flexShrink: 1 },
+  tooltip: { borderTopWidth: 1, paddingTop: 6, gap: 4 }, tooltipMetric: { flexDirection: "row", alignItems: "center", gap: 6 }, tooltipLabel: { flex: 1, fontSize: 12 },
+  number: { fontSize: 12, fontWeight: "700", fontVariant: ["tabular-nums"] }, emptyChart: { minHeight: 40, justifyContent: "center" }, empty: { fontSize: 12, textAlign: "center" }, cursorBar: { flexDirection: "row", alignItems: "center" }, cursorDate: { flex: 1, textAlign: "center", fontSize: 12, fontVariant: ["tabular-nums"] }, dateButton: { width: 48, minHeight: 48, alignItems: "center", justifyContent: "center" },
 });
