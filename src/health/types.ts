@@ -28,6 +28,9 @@ export type SleepStage = {
   kind: "asleep" | "in_bed" | "awake" | "unknown";
   nativeStage?: number;
   manuallyEntered?: boolean;
+  timezoneBasis?: "source_offset" | "session_end_offset" | "device_at_import";
+  originalStartZoneOffset?: unknown;
+  originalEndZoneOffset?: unknown;
   sessionId?: string;
 };
 

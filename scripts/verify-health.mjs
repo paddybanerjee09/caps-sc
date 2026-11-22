@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { createAppleHealthAdapter } from "../src/health/appleHealthAdapter.ts";
 import { createHealthConnectAdapter } from "../src/health/healthConnectAdapter.ts";
-import { localDateAt, normalizeSleep, reconcileStages, unionMinutes } from "../src/health/normalization.ts";
+import { localDateAt, normalizeSleep, reconcileStages, timezoneFromOffset, unionMinutes } from "../src/health/normalization.ts";
 
 const now = "2026-11-21T14:00:00.000Z";
 const stage = (id, start, end, kind = "asleep", source = "watch") => ({ id, start, end, kind, source, timezone: "America/Toronto" });
@@ -25,6 +25,17 @@ assert.equal(normalized.measurements.length, 0, "conflicting asleep/awake stage 
 normalized = normalizeSleep("healthkit", { stages: [asleep, stage("bed-outside", "2026-11-20T20:00:00Z", "2026-11-21T04:00:00Z", "in_bed")], emittedIds: [] }, now);
 assert.equal(normalized.measurements.some((item) => item.metric === "sleep_efficiency"), false, "asleep intervals must be covered by actual in-bed intervals");
 assert.deepEqual(reconcileStages([asleep], [], ["a"]), []);
+const travelOnset = stage("travel-onset", "2026-11-20T17:00:00Z", "2026-11-20T21:00:00Z");
+const travelWake = { ...stage("travel-wake", "2026-11-20T21:00:00Z", "2026-11-21T01:00:00Z"), timezone: "Asia/Tokyo" };
+normalized = normalizeSleep("healthkit", { stages: [travelOnset, travelWake], emittedIds: [] }, now);
+assert.equal(localDateAt(travelWake.end, travelOnset.timezone), "2026-11-20", "fixture onset zone differs from the wake day");
+assert.equal(normalized.measurements[0].localDate, "2026-11-21", "travel sleep uses the final stage's local wake day");
+assert.equal(normalized.measurements[0].timezone, "Asia/Tokyo");
+assert.equal(normalized.measurements[0].externalId, "sleep:watch:2026-11-21");
+assert.deepEqual(normalized.measurements[0].metadata.stages, [travelOnset, travelWake], "per-stage source timezones remain auditable");
+assert.equal(timezoneFromOffset({ id: "+09:00", totalSeconds: 32_400 }), "UTC+09:00");
+assert.equal(timezoneFromOffset({ id: "-05:00", totalSeconds: -18_000 }), "UTC-05:00");
+assert.equal(timezoneFromOffset({ id: "+09:00", totalSeconds: -18_000 }), null, "contradictory source offsets are not guessed");
 
 let round = 0;
 const nativeSleep = {
@@ -66,6 +77,28 @@ const hcRmssd = createHealthConnectAdapter({
   readRecords: async () => ({ records: [record] }),
 });
 assert.equal((await hcRmssd.read(null)).measurements[0].subtype, "RMSSD");
+const travelQuantity = { ...record, time: "2026-11-21T01:00:00Z", zoneOffset: { id: "+09:00", totalSeconds: 32_400 } };
+const travelSession = { recordType: "SleepSession", startTime: "2026-11-20T17:00:00Z", endTime: "2026-11-21T01:00:00Z",
+  startZoneOffset: { id: "-05:00", totalSeconds: -18_000 }, endZoneOffset: { id: "+09:00", totalSeconds: 32_400 },
+  metadata: { id: "travel-session", dataOrigin: "watch" },
+  stages: [{ startTime: "2026-11-20T17:00:00Z", endTime: "2026-11-21T00:00:00Z", stage: 2 }] };
+const hcTravel = createHealthConnectAdapter({
+  getGrantedPermissions: async () => ["HeartRateVariabilityRmssd", "SleepSession"].map((recordType) => ({ accessType: "read", recordType })),
+  getChanges: async () => ({ nextChangesToken: "travel-token", changesTokenExpired: false, hasMore: false, upsertionChanges: [], deletionChanges: [] }),
+  readRecords: async (recordType) => ({ records: [recordType === "SleepSession" ? travelSession : travelQuantity] }),
+});
+const travelResult = await hcTravel.read(null);
+const travelHrv = travelResult.measurements.find((item) => item.metric === "hrv");
+assert.equal(travelHrv.timezone, "UTC+09:00");
+assert.equal(travelHrv.localDate, "2026-11-21");
+assert.equal(travelHrv.metadata.timezoneBasis, "source_offset");
+const travelSleep = travelResult.measurements.find((item) => item.metric === "sleep_duration");
+assert.equal(travelSleep.timezone, "UTC+09:00");
+assert.equal(travelSleep.localDate, "2026-11-21");
+assert.equal(travelSleep.value, 420, "session boundary does not add unobserved asleep time");
+assert.equal(travelSleep.measuredAt, "2026-11-21T01:00:00.000Z", "wake follows the native session endpoint");
+assert.deepEqual(travelSleep.metadata.stages[0].originalStartZoneOffset, travelSession.startZoneOffset);
+assert.deepEqual(travelSleep.metadata.stages[0].originalEndZoneOffset, travelSession.endZoneOffset);
 const expired = createHealthConnectAdapter({
   getGrantedPermissions: async () => [{ accessType: "read", recordType: "HeartRateVariabilityRmssd" }],
   getChanges: async () => ({ nextChangesToken: "unused", changesTokenExpired: true, hasMore: false, upsertionChanges: [], deletionChanges: [] }),

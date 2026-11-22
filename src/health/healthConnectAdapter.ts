@@ -1,5 +1,5 @@
 import type { HealthMeasurement } from "../recovery/types";
-import { deviceTimezone, localDateAt, normalizeSleep, reconcileStages } from "./normalization";
+import { deviceTimezone, localDateAt, normalizeSleep, reconcileStages, timezoneFromOffset } from "./normalization";
 import { unavailableCapabilities, type HealthAdapter, type SleepCache, type SleepStage } from "./types";
 
 type HealthConnect = typeof import("react-native-health-connect");
@@ -84,11 +84,20 @@ export function createHealthConnectAdapter(hc: HealthConnect): HealthAdapter {
         const sourceApp = record.metadata?.dataOrigin ?? "unknown_health_connect_source";
         const sourceDevice = [record.metadata?.device?.manufacturer, record.metadata?.device?.model].filter(Boolean).join(" ") || undefined;
         const source = `${sourceApp}${sourceDevice ? ` / ${sourceDevice}` : ""}`;
-        const timezone = deviceTimezone();
         if (record.recordType === "SleepSession") {
+          // v4.1.3's Kotlin ReactSleepSessionRecord emits both fields, although its TS interface omits them.
+          const offsets = record as typeof record & { startZoneOffset?: unknown; endZoneOffset?: unknown };
+          const sourceTimezone = timezoneFromOffset(offsets.endZoneOffset);
+          const timezone = sourceTimezone ?? deviceTimezone();
+          const timezoneBasis = sourceTimezone ? "session_end_offset" as const : "device_at_import" as const;
           sleepChangedRecordIds.push(externalId);
+          // Preserve the source session's explicit wake boundary without treating its window as asleep/in-bed.
+          sleepUpserts.push({ id: externalId, sessionId: externalId, source, sourceApp, sourceDevice,
+            start: record.startTime, end: record.endTime, timezone, timezoneBasis, kind: "unknown",
+            originalStartZoneOffset: offsets.startZoneOffset ?? null, originalEndZoneOffset: offsets.endZoneOffset ?? null });
           for (const stage of record.stages ?? []) sleepUpserts.push({ id: externalId, sessionId: externalId, source, sourceApp, sourceDevice,
-            start: stage.startTime, end: stage.endTime, timezone,
+            start: stage.startTime, end: stage.endTime, timezone, timezoneBasis,
+            originalStartZoneOffset: offsets.startZoneOffset ?? null, originalEndZoneOffset: offsets.endZoneOffset ?? null,
             nativeStage: stage.stage, manuallyEntered: record.metadata?.recordingMethod === 3,
             kind: [2, 4, 5, 6].includes(stage.stage) ? "asleep" : stage.stage === 1 ? "awake" : "unknown" });
           continue;
@@ -98,11 +107,13 @@ export function createHealthConnectAdapter(hc: HealthConnect): HealthAdapter {
           : record.recordType === "HeartRateVariabilityRmssd" ? { metric: "hrv" as const, value: record.heartRateVariabilityMillis, unit: "ms", subtype: "RMSSD" }
           : record.recordType === "RespiratoryRate" ? { metric: "respiratory_rate" as const, value: record.rate, unit: "breaths/min", subtype: null } : null;
         if (!normalized || !("time" in record)) continue;
+        const sourceTimezone = timezoneFromOffset(record.zoneOffset);
+        const timezone = sourceTimezone ?? deviceTimezone();
         const measuredAt = new Date(record.time).toISOString();
         measurements.push({ ...normalized, id: `health_connect:${externalId}:${normalized.metric}`, platform: "health_connect", externalId,
           source, sourceApp, sourceDevice, measuredAt, recordedAt: now,
           localDate: localDateAt(measuredAt, timezone), timezone, protocol: null, quality: record.metadata?.recordingMethod === 3 ? "unverified" : "valid",
-          metadata: { originalRecordType: record.recordType, originalMetadata: record.metadata, originalMeasuredAt: record.time, timezoneBasis: "device_at_import", originalZoneOffset: record.zoneOffset ?? null } });
+          metadata: { originalRecordType: record.recordType, originalMetadata: record.metadata, originalMeasuredAt: record.time, timezoneBasis: sourceTimezone ? "source_offset" : "device_at_import", originalZoneOffset: record.zoneOffset ?? null } });
       }
       cursor.sleep.stages = reconcileStages(cursor.sleep.stages, sleepUpserts, [...deletedExternalIds, ...sleepChangedRecordIds]);
       if (granted.includes("SleepSession")) {

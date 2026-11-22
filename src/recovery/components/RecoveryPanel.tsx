@@ -68,7 +68,7 @@ export function RecoveryPanel({ recovery, onQuestionnaire, onChanged }: { recove
         const baseline = reading ? personalBaseline(reading, data.measurements) : null;
         const historical = data.measurements.filter((m) => m.metric === metric && m.localDate < data.localDate && m.quality === "valid" && (!data.preferred[metric] || data.preferred[metric] === m.source)).at(-1);
         let value = reading ? metric === "sleep_duration" ? `${(reading.value / 60).toFixed(1)} h` : `${reading.value.toFixed(1)} ${reading.unit}` : "—";
-        let detail = reading ? `${reading.subtype ?? ""} · ${reading.source}\n${new Date(reading.measuredAt).toLocaleString()} · ${reading.timezone}` : data.health?.capabilities[metric] ?? "No suitable reading for this recovery day.";
+        let detail = reading ? `${reading.subtype ?? ""} · ${reading.source}\n${new Date(reading.measuredAt).toLocaleString()} (device time) · day zone ${reading.timezone}` : data.health?.capabilities[metric] ?? "No suitable reading for this recovery day.";
         if (!reading && metric === "sleep_duration" && manual.asleepMinutes !== null) { value = `${(manual.asleepMinutes / 60).toFixed(1)} h`; detail = "Estimated/manual · reported interval minus reported minutes awake."; }
         if (!reading && historical) detail += `\nHistorical only: ${historical.localDate}; ${historical.value.toFixed(1)} ${historical.unit} · ${historical.source}.`;
         if (baseline) detail += baseline.zScore === null ? `\nInsufficient baseline: ${baseline.count}/14 comparable prior days, or zero variance.` : `\n${reading.subtype === "RMSSD" ? "lnRMSSD " : ""}z ${baseline.zScore >= 0 ? "+" : ""}${baseline.zScore.toFixed(2)} · ${baseline.count} prior days (${baseline.windowStart}–${baseline.windowEnd}).`;

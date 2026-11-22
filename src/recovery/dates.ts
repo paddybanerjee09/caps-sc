@@ -1,6 +1,26 @@
 import type { Questionnaire } from "./types";
 
+/** Preserve a supplied acquisition offset without inventing an IANA location. */
+export function fixedOffsetTimezone(value: unknown): string | null {
+  if (value === "Z" || value === "UTC") return "UTC+00:00";
+  if (typeof value !== "string") return null;
+  const parts = /^(?:UTC)?([+-])(\d{2}):(\d{2})$/.exec(value);
+  if (!parts) return null;
+  const hours = Number(parts[2]);
+  const minutes = Number(parts[3]);
+  if (hours > 14 || minutes >= 60 || (hours === 14 && minutes !== 0)) return null;
+  return hours === 0 && minutes === 0 ? "UTC+00:00" : `UTC${parts[1]}${parts[2]}:${parts[3]}`;
+}
+
+function fixedOffsetMinutes(timezone: string): number | null {
+  const normalized = fixedOffsetTimezone(timezone);
+  if (normalized === null) return null;
+  return (normalized[3] === "-" ? -1 : 1) * (Number(normalized.slice(4, 6)) * 60 + Number(normalized.slice(7, 9)));
+}
+
 export function isValidTimezone(timezone: string) {
+  if (fixedOffsetTimezone(timezone) !== null) return true;
+  if (/^(?:UTC)?[+-]/.test(timezone)) return false;
   try { new Intl.DateTimeFormat("en-US", { timeZone: timezone }); return timezone.trim().length > 0; } catch { return false; }
 }
 
@@ -11,6 +31,8 @@ export function isLocalDate(value: string) {
 }
 
 export function localDateInZone(instant: string | number, timezone: string) {
+  const offset = fixedOffsetMinutes(timezone);
+  if (offset !== null) return new Date(new Date(instant).getTime() + offset * 60_000).toISOString().slice(0, 10);
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(instant));
   const part = (name: string) => parts.find((item) => item.type === name)?.value;
   return `${part("year")}-${part("month")}-${part("day")}`;
@@ -29,7 +51,8 @@ export function isInstant(value: string) {
 
 export function isQuarterHour(value: string, timezone: string) {
   if (!isInstant(value) || !isValidTimezone(timezone)) return false;
-  const minute = new Intl.DateTimeFormat("en-US", { timeZone: timezone, minute: "2-digit" }).format(new Date(value));
+  const offset = fixedOffsetMinutes(timezone);
+  const minute = offset === null ? Number(new Intl.DateTimeFormat("en-US", { timeZone: timezone, minute: "2-digit" }).format(new Date(value))) : new Date(Date.parse(value) + offset * 60_000).getUTCMinutes();
   return Number(minute) % 15 === 0 && new Date(value).getUTCSeconds() === 0 && new Date(value).getUTCMilliseconds() === 0;
 }
 

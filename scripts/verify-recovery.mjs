@@ -4,7 +4,7 @@ import { migrateDatabase } from "../src/data/database.ts";
 import { recoveryMigrationSql } from "../src/data/recoveryMigration.ts";
 import { deleteImportedHealth, getHealthState, getPreferredSources, getQuestionnaire, listMeasurements, listQuestionnaires, listSnapshots, listWeights, saveQuestionnaire, setHealthState, setPreferredSources, upsertHealthBatch } from "../src/data/recoveryRepository.ts";
 import { calculateSRI, createEmptyQuestionnaire, hrr60, lnRMSSD, manualSleep, objectiveRecovery, personalBaseline, rmssd, sleepEfficiency, sleepTimingSd, standardizedDeviation, validateQuestionnaire } from "../src/recovery/calculations.ts";
-import { localDateInZone, shiftDate } from "../src/recovery/dates.ts";
+import { fixedOffsetTimezone, isQuarterHour, isValidTimezone, localDateInZone, shiftDate } from "../src/recovery/dates.ts";
 
 function adapterFor(sqlite) {
   return {
@@ -33,6 +33,23 @@ assert.deepEqual(manualSleep({ ...sample, minutesAwake: 30 }), { intervalMinutes
 assert.equal(manualSleep({ ...sample, sleepOnset: "2026-03-07T23:00:00-05:00", wakeTime: "2026-03-08T07:00:00-04:00" }).intervalMinutes, 420);
 assert.equal(manualSleep({ ...sample, sleepOnset: "2026-10-31T23:00:00-04:00", wakeTime: "2026-11-01T07:00:00-05:00" }).intervalMinutes, 540);
 assert.equal(localDateInZone("2026-11-21T02:00:00Z", "America/Toronto"), "2026-11-20");
+assert.equal(fixedOffsetTimezone("-05:00"), "UTC-05:00");
+assert.equal(fixedOffsetTimezone("+05:30"), "UTC+05:30");
+assert.equal(fixedOffsetTimezone("Z"), "UTC+00:00");
+assert.equal(fixedOffsetTimezone("UTC-00:00"), "UTC+00:00");
+assert.equal(fixedOffsetTimezone("UTC+14:00"), "UTC+14:00");
+assert.equal(fixedOffsetTimezone("+14:30"), null);
+assert.equal(fixedOffsetTimezone("-14:30"), null);
+assert.equal(fixedOffsetTimezone("UTC+15:00"), null);
+assert.equal(fixedOffsetTimezone("America/Toronto"), null);
+assert.equal(isValidTimezone("UTC-05:00"), true);
+assert.equal(isValidTimezone("UTC+14:30"), false);
+// Source offsets determine historical acquisition days independently of import/device zone.
+assert.equal(localDateInZone("2026-11-21T02:00:00Z", "UTC-05:00"), "2026-11-20");
+assert.equal(localDateInZone("2026-11-20T20:00:00Z", "UTC+05:30"), "2026-11-21");
+assert.equal(isQuarterHour("2026-11-20T20:15:00Z", "UTC+05:30"), true);
+assert.equal(isQuarterHour("2026-11-20T20:16:00Z", "UTC+05:30"), false);
+assert.equal(isQuarterHour("2026-11-20T20:15:00Z", "UTC+14:30"), false);
 assert.equal(shiftDate("2024-03-01", -1), "2024-02-29");
 assert.equal(sleepEfficiency(450, null), null);
 assert.equal(sleepEfficiency(450, 500), 90);

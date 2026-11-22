@@ -1,4 +1,5 @@
 import type { HealthMeasurement, HealthPlatform } from "../recovery/types";
+import { fixedOffsetTimezone, isValidTimezone, localDateInZone } from "../recovery/dates";
 import type { SleepCache, SleepStage } from "./types";
 
 export function deviceTimezone() {
@@ -6,16 +7,25 @@ export function deviceTimezone() {
 }
 
 export function localDateAt(instant: string, timezone: string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(instant));
-  const field = (type: string) => parts.find((part) => part.type === type)?.value;
-  return `${field("year")}-${field("month")}-${field("day")}`;
+  return localDateInZone(instant, timezone);
 }
 
 export function validTimezone(value: unknown): string {
   if (typeof value === "string") {
-    try { new Intl.DateTimeFormat("en", { timeZone: value }); return value; } catch { /* Preserve unknown source timezone in metadata, use captured import timezone. */ }
+    if (isValidTimezone(value)) return value;
   }
   return deviceTimezone();
+}
+
+/** A source offset identifies local clock time at acquisition, not an inferred IANA travel zone. */
+export function timezoneFromOffset(offset: unknown): string | null {
+  if (!offset || typeof offset !== "object") return fixedOffsetTimezone(offset);
+  const { id, totalSeconds } = offset as { id?: unknown; totalSeconds?: unknown };
+  const named = fixedOffsetTimezone(id);
+  if (typeof totalSeconds !== "number" || !Number.isInteger(totalSeconds) || totalSeconds % 60 !== 0) return named;
+  const minutes = Math.abs(totalSeconds) / 60;
+  const numeric = fixedOffsetTimezone(`${totalSeconds < 0 ? "-" : "+"}${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`);
+  return named && numeric && named !== numeric ? null : numeric;
 }
 
 export function unionMinutes(intervals: readonly { start: string; end: string }[]): number {
@@ -62,18 +72,23 @@ export function normalizeSleep(platform: HealthPlatform, cache: SleepCache, now:
     if (sameSession) last.push(stage); else groups.push([stage]);
   }
   groups.push(...nativeSessions.values());
-  const principal = new Map<string, { stages: SleepStage[]; asleep: number; end: string }>();
+  const principal = new Map<string, { stages: SleepStage[]; asleep: number; end: string; timezone: string }>();
   for (const stages of groups) {
     const asleep = unionMinutes(stages.filter((stage) => stage.kind === "asleep"));
     const conflictingMinutes = intersectionMinutes(stages.filter((stage) => stage.kind === "asleep"), stages.filter((stage) => stage.kind === "awake"));
     if (asleep <= 0 || asleep > 24 * 60 || conflictingMinutes > 0) continue;
-    const end = new Date(Math.max(...stages.map((stage) => Date.parse(stage.end)))).toISOString();
-    const key = `${stages[0].source}:${localDateAt(end, stages[0].timezone)}`;
-    if ((principal.get(key)?.asleep ?? 0) < asleep) principal.set(key, { stages, asleep, end });
+    const wakeStage = stages.reduce((latest, stage) => {
+      const endDifference = Date.parse(stage.end) - Date.parse(latest.end);
+      return endDifference > 0 || (endDifference === 0 && Date.parse(stage.start) > Date.parse(latest.start)) ? stage : latest;
+    });
+    const end = new Date(wakeStage.end).toISOString();
+    const timezone = wakeStage.timezone;
+    const key = `${stages[0].source}:${localDateAt(end, timezone)}`;
+    if ((principal.get(key)?.asleep ?? 0) < asleep) principal.set(key, { stages, asleep, end, timezone });
   }
   const measurements: HealthMeasurement[] = [];
   const emittedIds: string[] = [];
-  for (const [key, { stages, asleep, end }] of principal) {
+  for (const [key, { stages, asleep, end, timezone }] of principal) {
     const first = stages[0];
     const externalId = `sleep:${key}`;
     emittedIds.push(externalId);
@@ -81,7 +96,7 @@ export function normalizeSleep(platform: HealthPlatform, cache: SleepCache, now:
     const start = new Date(Math.min(...stages.map((stage) => Date.parse(stage.start)))).toISOString();
     const common = {
       platform, externalId, source: first.source, sourceApp: first.sourceApp, sourceDevice: first.sourceDevice,
-      measuredAt: end, measuredUntil: end, recordedAt: now, localDate: localDateAt(end, first.timezone), timezone: first.timezone,
+      measuredAt: end, measuredUntil: end, recordedAt: now, localDate: localDateAt(end, timezone), timezone,
       subtype: "source_segmented_sleep", protocol: null, quality: stages.some((stage) => stage.manuallyEntered) ? "unverified" as const : "valid" as const,
       metadata: { onset: start, wake: end, asleepMinutes: asleep, inBedMinutes: inBed || null,
         sourceSampleIds: [...new Set(stages.map((stage) => stage.id))], stages,

@@ -30,7 +30,7 @@ export function MetricTooltip({ date, series, index }: { date: string; series: P
       return <View key={item.id} style={styles.tooltipMetric}>
         <Text style={[styles.number, { color: theme.colors.text }]}>{item.label}: {point?.value == null ? "—" : `${Number(point.value.toFixed(2))} ${item.unit}`}</Text>
         <Text style={[styles.caption, { color: theme.colors.textMuted }]}>{point?.aggregationMethod ?? "No observation"} · {point?.sampleCount ?? 0}/{point?.eligibleDayCount ?? 0} eligible days · {Math.round(point?.coveragePercent ?? 0)}% coverage</Text>
-        {latest ? <Text style={[styles.caption, { color: theme.colors.textMuted }]}>{latest.source}{versions.length ? ` · ${versions.join(", ")}` : ""}{latest.measuredAt ? ` · ${observations.length > 1 ? "latest " : ""}${new Date(latest.measuredAt).toLocaleString()}` : ""}</Text> : null}
+        {latest ? <Text style={[styles.caption, { color: theme.colors.textMuted }]}>{latest.source}{versions.length ? ` · ${versions.join(", ")}` : ""}{latest.measuredAt ? ` · ${observations.length > 1 ? "latest " : ""}${new Date(latest.measuredAt).toLocaleString()} (device time)` : ""}</Text> : null}
         {detail.length ? <Text style={[styles.caption, { color: theme.colors.textMuted }]}>{detail.length <= 2 ? detail.join("; ") : `${detail.length} observation details; ${detail[detail.length - 1]}`}</Text> : null}
       </View>;
     })}
@@ -95,6 +95,3 @@ const styles = StyleSheet.create({
   swatch: { width: 8, height: 8, borderRadius: 4 }, legendText: { fontSize: 11, fontWeight: "700", flexShrink: 1 }, tooltip: { borderRadius: 10, borderWidth: 1, padding: 10, gap: 8 }, tooltipDate: { fontSize: 13, fontWeight: "800", fontVariant: ["tabular-nums"] }, tooltipMetric: { gap: 3 },
   number: { fontSize: 12, fontWeight: "700", fontVariant: ["tabular-nums"] }, caption: { fontSize: 11, lineHeight: 16, fontVariant: ["tabular-nums"] }, empty: { fontSize: 12, textAlign: "center" }, cursorBar: { flexDirection: "row", alignItems: "center", gap: 8 }, cursorDate: { flex: 1, textAlign: "center", fontSize: 13, fontVariant: ["tabular-nums"] }, dateButton: { width: 48, minHeight: 48, alignItems: "center", justifyContent: "center", borderWidth: 1, borderRadius: 10 },
 });
-
-
-
