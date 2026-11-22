@@ -42,114 +42,127 @@ CAPS.trees.home = {
       "database:table-timeline-entries",
     ],
     versions: [
-      {
-        "n": 1,
-        "name": "Home",
-        "date": "2026-06-30 17:54 -0400",
-        "commits": [
-          "e9ddbfb"
-        ],
-        "changes": [
-          "Added the Expo Router boilerplate tab `app/(tabs)/index.tsx` as the Home tab with a centered title."
-        ]
-      },
-      {
-        "n": 2,
-        "name": "Home",
-        "date": "2026-07-02 00:35 -0400",
-        "commits": [
-          "f0f5834"
-        ],
-        "changes": [
-          "Custom state navigation replaced Expo Router. Home rendered inline in `Screens.tsx` as `<Screen title=\"Home\" />` and became `initialRoute`."
-        ]
-      },
-      {
-        "n": 3,
-        "name": "HomeScreen",
-        "date": "2026-07-18 13:55 -0400",
-        "commits": [
-          "edd48ce"
-        ],
-        "changes": [
-          "Moved into `src/screens/HomeScreen.tsx`. Still a title-only placeholder."
-        ]
-      },
-      {
-        "n": 4,
-        "name": "HomeScreen",
-        "date": "2026-07-21 01:06 -0400",
-        "commits": [
-          "3d09c81"
-        ],
-        "changes": [
-          "Started the profile-style Home layout while Account Information was being built."
-        ]
-      },
-      {
-        "n": 5,
-        "name": "HomeScreen",
-        "date": "2026-07-22 16:45 -0400",
-        "commits": [
-          "2d78f4c",
-          "ad01bfe",
-          "59dd4e8"
-        ],
-        "changes": [
-          "Added the Home dashboard sections (`2d78f4c`) and centered the title in the UI pass (`ad01bfe`).",
-          "`59dd4e8` kept Home wired while SQLite landed."
-        ]
-      },
-      {
-        "n": 6,
-        "name": "HomeScreen",
-        "date": "2026-10-02 20:27 -0400",
-        "commits": [
-          "e8fc8e9",
-          "9fc0f73"
-        ],
-        "changes": [
-          "`e8fc8e9` was the last Home touch before the 2026-10-02 reset. `9fc0f73` repaired Expo SDK 57 errors on the restored main."
-        ]
-      },
-      {
-        "n": 7,
-        "name": "HomeScreen",
-        "date": "2026-11-02 22:36 -0500",
-        "commits": [
-          "67d99b6"
-        ],
-        "request": "Renovate Home to the card-by-card style guide: steppers, preset strips, no data-entry modals, high contrast.",
-        "changes": [
-          "Rebuilt Home as telemetry, Quick Log, and section cards. Weight and sleep logging became inline cards. Date stepping uses -1d / +1d targets."
-        ]
-      },
-      {
-        "n": 8,
-        "name": "HomeScreen",
-        "date": "2026-11-20 17:46 -0500",
-        "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-        "changes": [
-          "Weight and sleep now open screen overlays outside dashboard scroll content."
-        ],
-        "commits": [
-          "b971c0d"
-        ]
-      },
-      {
-        "n": 9,
-        "name": "HomeScreen",
-        "date": "2026-11-21 21:40 -0500",
-        "commits": [
-          "a97bb78"
-        ],
-        "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
-        "changes": [
-          "Replace authorized Recovery placeholder with daily collection using existing Home navigation.",
-          "Retain prior-day questionnaire revisions and protect drafts on route exits."
-        ]
-      }
+  {
+    "n": 1,
+    "name": "Home",
+    "date": "2026-06-30 17:54 -0400",
+    "commits": [
+      "e9ddbfb"
     ],
+    "changes": [
+      "Added the Expo Router boilerplate tab `app/(tabs)/index.tsx` as the Home tab with a centered title."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Home",
+    "date": "2026-07-02 00:35 -0400",
+    "commits": [
+      "f0f5834"
+    ],
+    "changes": [
+      "Custom state navigation replaced Expo Router. Home rendered inline in `Screens.tsx` as `<Screen title=\"Home\" />` and became `initialRoute`."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "HomeScreen",
+    "date": "2026-07-18 13:55 -0400",
+    "commits": [
+      "edd48ce"
+    ],
+    "changes": [
+      "Moved into `src/screens/HomeScreen.tsx`. Still a title-only placeholder."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "HomeScreen",
+    "date": "2026-07-21 01:06 -0400",
+    "commits": [
+      "3d09c81"
+    ],
+    "changes": [
+      "Started the profile-style Home layout while Account Information was being built."
+    ]
+  },
+  {
+    "n": 5,
+    "name": "HomeScreen",
+    "date": "2026-07-22 16:45 -0400",
+    "commits": [
+      "2d78f4c",
+      "ad01bfe",
+      "59dd4e8"
+    ],
+    "changes": [
+      "Added the Home dashboard sections (`2d78f4c`) and centered the title in the UI pass (`ad01bfe`).",
+      "`59dd4e8` kept Home wired while SQLite landed."
+    ]
+  },
+  {
+    "n": 6,
+    "name": "HomeScreen",
+    "date": "2026-10-02 20:27 -0400",
+    "commits": [
+      "e8fc8e9",
+      "9fc0f73"
+    ],
+    "changes": [
+      "`e8fc8e9` was the last Home touch before the 2026-10-02 reset. `9fc0f73` repaired Expo SDK 57 errors on the restored main."
+    ]
+  },
+  {
+    "n": 7,
+    "name": "HomeScreen",
+    "date": "2026-11-02 22:36 -0500",
+    "commits": [
+      "67d99b6"
+    ],
+    "request": "Renovate Home to the card-by-card style guide: steppers, preset strips, no data-entry modals, high contrast.",
+    "changes": [
+      "Rebuilt Home as telemetry, Quick Log, and section cards. Weight and sleep logging became inline cards. Date stepping uses -1d / +1d targets."
+    ]
+  },
+  {
+    "n": 8,
+    "name": "HomeScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Weight and sleep now open screen overlays outside dashboard scroll content."
+    ],
+    "commits": [
+      "b971c0d"
+    ]
+  },
+  {
+    "n": 9,
+    "name": "HomeScreen",
+    "date": "2026-11-21 21:40 -0500",
+    "commits": [
+      "a97bb78"
+    ],
+    "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+    "changes": [
+      "Replace authorized Recovery placeholder with daily collection using existing Home navigation.",
+      "Retain prior-day questionnaire revisions and protect drafts on route exits."
+    ]
+  },
+  {
+    "n": 10,
+    "name": "HomeScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Title-only Home and consistent -- empty values.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
     children: [
       {
         id: "athlete-telemetry",
@@ -536,7 +549,7 @@ CAPS.trees.home = {
               "src/recovery/useRecoveryData.ts",
               "src/recovery/useRecoveryDay.ts"
             ],
-            summary: "Daily Recovery now includes CAPS-owned experimental ORI v1 calculated only from native HRV, RHR and measured sleep, plus separately subjective SRI. All three ORI inputs require 14 comparable prior days. Device/scientific validation pending.",
+            summary: "Daily metric grid with short definitions/requirements and -- missing values. ORI remains experimentally labeled. Questionnaire/history and optional health Manage preserve data/guards without diagnostic paragraphs.",
             guardrails: [
               "Do not modify this panel until it is explicitly requested (ui-style-guide.mdc, section 7).",
             ],
@@ -578,6 +591,19 @@ CAPS.trees.home = {
       "Implement caps_ori_v1 with explicit weights/transforms, source-specific baselines, contributor coverage and no manual inputs.",
       "Persist numeric scores/provenance and partition historical chart source/model identities; experimental, not independently validated."
     ]
+  },
+  {
+    "n": 4,
+    "name": "Recovery",
+    "date": "2026-11-22 00:28 -0500",
+    "commits": [
+      "76e2ec9"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Metric values plus one short definition or requirement; no state/baseline/provenance paragraphs. Health management remains expandable.",
+      "Presentation only; data, calculations and validation remain."
+    ]
   }
 ],
 
@@ -595,18 +621,31 @@ children: [
     ],
     "summary": "Shared WorkflowChrome screen; six SRI inputs, optional mood/awake minutes, explicit dates/timezones, accessible controls, persistent completion and edit history. Native usability QA pending.",
     "versions": [
-      {
-        "n": 1,
-        "name": "Morning questionnaire",
-        "date": "2026-11-21 21:40 -0500",
-        "commits": [
-          "a97bb78"
-        ],
-        "changes": [
-          "Implement controlled manual collection, draft protection and versioned submission."
-        ]
-      }
+  {
+    "n": 1,
+    "name": "Morning questionnaire",
+    "date": "2026-11-21 21:40 -0500",
+    "commits": [
+      "a97bb78"
     ],
+    "changes": [
+      "Implement controlled manual collection, draft protection and versioned submission."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Morning questionnaire",
+    "date": "2026-11-22 00:28 -0500",
+    "commits": [
+      "76e2ec9"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Remove navigation/scoring/helper paragraphs; compact unanswered controls preserve dates, anchors and validation/guards.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
     "links": [
       "database:table-daily-questionnaires",
       "architecture:log-time-changer"
@@ -659,7 +698,7 @@ links: [
               "src/progress/progressSeries.ts",
               "src/progress/chartAggregation.ts"
             ],
-            summary: "Five source-aware graph groups now include numeric CAPS ORI v1 when eligible, with missing-day gaps and separate source/model identities. Native visual/gesture QA pending.",
+            summary: "Five chart categories selected through an inline Choose graph dropdown. Compact timeframe/period/refresh controls, source-separated legends, shared date cursor and value-only inspection; concise empty state.",
             guardrails: [
               "Do not modify this panel until it is explicitly requested (ui-style-guide.mdc, section 7).",
             ],
@@ -701,12 +740,52 @@ links: [
       "Implement caps_ori_v1 with explicit weights/transforms, source-specific baselines, contributor coverage and no manual inputs.",
       "Persist numeric scores/provenance and partition historical chart source/model identities; experimental, not independently validated."
     ]
+  },
+  {
+    "n": 4,
+    "name": "Progress",
+    "date": "2026-11-22 00:28 -0500",
+    "commits": [
+      "e3c0c6a"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Choose graph dropdown, compact period/refresh and empty states, value-only inspection with accessible date.",
+      "Presentation only; data, calculations and validation remain."
+    ]
   }
 ],
 
 links: [
   "database:table-weight-logs",
   "database:recovery-storage"
+],
+
+children: [
+  {
+    "id": "progress-graph-chooser",
+    "title": "Choose graph",
+    "kind": "component",
+    "status": "active",
+    "tagline": "Inline graph dropdown",
+    "summary": "Body Weight, Recovery Indices, Cardiac Indices, Sleep Indices, Fatigue Indices; closes on selection or Android Back. No new modal or dependency.",
+    "files": [
+      "src/progress/ProgressPanel.tsx"
+    ],
+    "versions": [
+      {
+        "n": 1,
+        "name": "Choose graph",
+        "date": "2026-11-22 00:28 -0500",
+        "commits": [
+          "e3c0c6a"
+        ],
+        "changes": [
+          "Replace chart-category button strip with compact dropdown."
+        ]
+      }
+    ]
+  }
 ],
 },
         ],

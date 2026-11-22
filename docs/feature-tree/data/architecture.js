@@ -191,66 +191,79 @@ CAPS.trees.architecture = {
               "Do not extract a global `<Card />` across screens; each screen owns its card markup (ui-style-guide.mdc).",
             ],
             versions: [
-              {
-                "n": 1,
-                "name": "Screen",
-                "date": "2026-07-02 00:35 -0400",
-                "commits": [
-                  "f0f5834"
-                ],
-                "changes": [
-                  "Added the shared screen wrapper."
-                ]
-              },
-              {
-                "n": 2,
-                "name": "Screen",
-                "date": "2026-07-22 02:53 -0400",
-                "commits": [
-                  "edd48ce",
-                  "ad01bfe"
-                ],
-                "changes": [
-                  "Added `centerTitle` in the UI pass."
-                ]
-              },
-              {
-                "n": 3,
-                "name": "Screen",
-                "date": "2026-11-02 22:26 -0500",
-                "commits": [
-                  "5c595dd"
-                ],
-                "changes": [
-                  "High-contrast chrome renovation."
-                ]
-              },
-              {
-                "n": 4,
-                "name": "Screen",
-                "date": "2026-11-20 16:53 -0500",
-                "commits": [
-                  "43eab3a"
-                ],
-                "request": "Uniform Strength-style title cards and balanced Home information and Quick Log layout.",
-                "changes": [
-                  "ScreenTitleCard owns the Strength-style accent bar, left-aligned title and subtitle across Home, Nutrition, Skill, Strength and Conditioning.",
-                  "Screen delegates its header and removes centered title variants."
-                ]
-              },
-              {
-                "n": 5,
-                "name": "Screen",
-                "date": "2026-11-20 17:46 -0500",
-                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-                "changes": [
-                  "Screen optionally composes fixed WorkflowHeader/WorkflowFooter around scrolling sidebar content."
-                ],
-                "commits": [
-                  "b971c0d"
-                ]
-              }
-            ],
+  {
+    "n": 1,
+    "name": "Screen",
+    "date": "2026-07-02 00:35 -0400",
+    "commits": [
+      "f0f5834"
+    ],
+    "changes": [
+      "Added the shared screen wrapper."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Screen",
+    "date": "2026-07-22 02:53 -0400",
+    "commits": [
+      "edd48ce",
+      "ad01bfe"
+    ],
+    "changes": [
+      "Added `centerTitle` in the UI pass."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "Screen",
+    "date": "2026-11-02 22:26 -0500",
+    "commits": [
+      "5c595dd"
+    ],
+    "changes": [
+      "High-contrast chrome renovation."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "Screen",
+    "date": "2026-11-20 16:53 -0500",
+    "commits": [
+      "43eab3a"
+    ],
+    "request": "Uniform Strength-style title cards and balanced Home information and Quick Log layout.",
+    "changes": [
+      "ScreenTitleCard owns the Strength-style accent bar, left-aligned title and subtitle across Home, Nutrition, Skill, Strength and Conditioning.",
+      "Screen delegates its header and removes centered title variants."
+    ]
+  },
+  {
+    "n": 5,
+    "name": "Screen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Screen optionally composes fixed WorkflowHeader/WorkflowFooter around scrolling sidebar content."
+    ],
+    "commits": [
+      "b971c0d"
+    ]
+  },
+  {
+    "n": 6,
+    "name": "Screen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Main-screen subtitles removed; shared title wrapper omits empty subtitle row.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
           },
           {
             id: "bottom-tabs",
@@ -709,45 +722,62 @@ CAPS.trees.architecture = {
         summary:
           "Theme-based minimalist forms, decimal weight/load fields, shared safe-area headers/footers, compact clock buttons and the explicit Log Time modal exception. Branch X exits all levels; fixed Cancel/Back depends on depth.",
         versions: [
-          {
-            "n": 1,
-            "name": "react-native-patterns skill",
-            "date": "2026-11-02 22:19 -0500",
-            "commits": [
-              "3587129"
-            ],
-            "request": "Install the spencerpauly react-native-patterns skill.",
-            "changes": [
-              "Added `.agents/skills/react-native-patterns/SKILL.md`."
-            ]
-          },
-          {
-            "n": 2,
-            "name": "UI style guide",
-            "date": "2026-11-02 22:20 -0500",
-            "commits": [
-              "cb31dff"
-            ],
-            "request": "Renovate the app to a card-by-card, stepper-driven, high-contrast architecture.",
-            "changes": [
-              "Added `.cursor/rules/ui-style-guide.mdc` and the high-contrast theme tokens."
-            ]
-          },
-          {
-            "n": 3,
-            "name": "UI style guide",
-            "date": "2026-11-20 17:46 -0500",
-            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-            "changes": [
-              "Replaced mandatory weight steppers with decimal text boxes and documented the requested time-modal exception.",
-              "Defined safe centered subscreen bars, branch-wide X and depth-aware fixed Cancel/Back footers."
-            ],
-            "commits": [
-              "2a8f16d"
-            ]
-          }
-        ],
-      },
+  {
+    "n": 1,
+    "name": "react-native-patterns skill",
+    "date": "2026-11-02 22:19 -0500",
+    "commits": [
+      "3587129"
+    ],
+    "request": "Install the spencerpauly react-native-patterns skill.",
+    "changes": [
+      "Added `.agents/skills/react-native-patterns/SKILL.md`."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "UI style guide",
+    "date": "2026-11-02 22:20 -0500",
+    "commits": [
+      "cb31dff"
+    ],
+    "request": "Renovate the app to a card-by-card, stepper-driven, high-contrast architecture.",
+    "changes": [
+      "Added `.cursor/rules/ui-style-guide.mdc` and the high-contrast theme tokens."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "UI style guide",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Replaced mandatory weight steppers with decimal text boxes and documented the requested time-modal exception.",
+      "Defined safe centered subscreen bars, branch-wide X and depth-aware fixed Cancel/Back footers."
+    ],
+    "commits": [
+      "2a8f16d"
+    ]
+  },
+  {
+    "n": 4,
+    "name": "UI style guide",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Persist minimal-copy rule: concise labels/requirements, -- missing values, no generic subtitles or default developer metadata.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
+
+guardrails: [
+  "Keep default UI concise: no filler/scoring/navigation paragraphs or raw developer metadata; use -- missing values and one short metric definition/requirement (user correction,22 November2026)."
+],
+},
       {
         id: "feature-tree-site",
         title: "Feature tree site",

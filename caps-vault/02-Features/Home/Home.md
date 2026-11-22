@@ -27,3 +27,7 @@ Commit `548bbe5` renames the profile card to Athlete Information and Stature to 
 ## Recovery and Progress (21 November 2026)
 
 The existing Home selector is reused. Recovery has current-local-day completion notice, questionnaire overlay/drafts/history, actual-source biometric cards and native health connection controls. Progress has five source-aware chart groups. Inactive feature panels no longer impose their full content height on Today. Questionnaire route exits guard unsaved edits; previous-day edits preserve original timezone. See [[Recovery and Progress]] and [[2026-11-21 Recovery and Progress Handoff]].
+
+## Compact copy (22 November 2026)
+
+Main title is now title-only; absent age/height/weight use --. Recovery/questionnaire supporting paragraphs and status diagnostics are replaced with concise labels/requirements. Questionnaire history and health management remain accessible. Progress uses the graph dropdown and compact chart inspection. See [[Recovery and Progress]] / [[2026-11-22 Minimal UI Handoff]].

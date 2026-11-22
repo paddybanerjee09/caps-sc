@@ -28,48 +28,81 @@ CAPS.trees.conditioning = {
     ],
     links: ["architecture:bottom-tabs", "database:table-conditioning-sessions"],
     versions: [
-      {
-        n: 1,
-        name: "Progress",
-        date: "2026-07-02 00:35 -0400",
-        commits: ["e9ddbfb", "f0f5834"],
-        changes: ["Boilerplate Progress tab, then custom-nav placeholder."],
-      },
-      {
-        n: 2,
-        name: "ProgressScreen",
-        date: "2026-07-18 13:55 -0400",
-        commits: ["edd48ce"],
-        changes: ["Own file `ProgressScreen.tsx`. Still a title placeholder."],
-      },
-      {
-        n: 3,
-        name: "ConditioningScreen",
-        date: "2026-07-22 02:53 -0400",
-        commits: ["dd88e65", "37c812d", "ad01bfe"],
-        request: "Change the Progress tab into Conditioning with a running-man icon.",
-        changes: [
-          "Renamed the tab (`dd88e65`). Renamed the file `ProgressScreen.tsx` → `ConditioningScreen.tsx` (`37c812d`). Centered title (`ad01bfe`).",
-        ],
-      },
-      {
-        n: 4,
-        name: "ConditioningScreen",
-        date: "2026-10-11 21:40 -0400",
-        commits: ["f2b5a37"],
-        request: "Full-screen conditioning: calendar, saved workouts, session chooser (chat e7a72760).",
-        changes: ["Showed the calendar, saved workouts, and session chooser on the hub."],
-      },
-      {
-        n: 5,
-        name: "ConditioningScreen",
-        date: "2026-11-02 22:39 -0500",
-        commits: ["17e5a94", "e9d18be"],
-        changes: [
-          "Derive load state from a fetch key (`17e5a94`). Card-by-card hub renovation (`e9d18be`).",
-        ],
-      },
+  {
+    "n": 1,
+    "name": "Progress",
+    "date": "2026-07-02 00:35 -0400",
+    "commits": [
+      "e9ddbfb",
+      "f0f5834"
     ],
+    "changes": [
+      "Boilerplate Progress tab, then custom-nav placeholder."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "ProgressScreen",
+    "date": "2026-07-18 13:55 -0400",
+    "commits": [
+      "edd48ce"
+    ],
+    "changes": [
+      "Own file `ProgressScreen.tsx`. Still a title placeholder."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "ConditioningScreen",
+    "date": "2026-07-22 02:53 -0400",
+    "commits": [
+      "dd88e65",
+      "37c812d",
+      "ad01bfe"
+    ],
+    "request": "Change the Progress tab into Conditioning with a running-man icon.",
+    "changes": [
+      "Renamed the tab (`dd88e65`). Renamed the file `ProgressScreen.tsx` → `ConditioningScreen.tsx` (`37c812d`). Centered title (`ad01bfe`)."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "ConditioningScreen",
+    "date": "2026-10-11 21:40 -0400",
+    "commits": [
+      "f2b5a37"
+    ],
+    "request": "Full-screen conditioning: calendar, saved workouts, session chooser (chat e7a72760).",
+    "changes": [
+      "Showed the calendar, saved workouts, and session chooser on the hub."
+    ]
+  },
+  {
+    "n": 5,
+    "name": "ConditioningScreen",
+    "date": "2026-11-02 22:39 -0500",
+    "commits": [
+      "17e5a94",
+      "e9d18be"
+    ],
+    "changes": [
+      "Derive load state from a fetch key (`17e5a94`). Card-by-card hub renovation (`e9d18be`)."
+    ]
+  },
+  {
+    "n": 6,
+    "name": "ConditioningScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Remove generic subtitle and shorten workout choices; missing display uses --.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
     children: [
       {
         id: "monthly-calendar",
@@ -455,41 +488,54 @@ CAPS.trees.conditioning = {
               "Emphasis is heuristic-v0.1, low confidence, and its colors must not leak into Home or other tabs (conditioning-emphasis.mdc).",
             ],
             versions: [
-              {
-                "n": 1,
-                "name": "Estimated Training Emphasis",
-                "date": "2026-10-11 21:44 -0400",
-                "commits": [
-                  "3c97333"
-                ],
-                "changes": [
-                  "Provisional training-emphasis estimates."
-                ]
-              },
-              {
-                "n": 2,
-                "name": "Estimated Training Emphasis",
-                "date": "2026-11-02 22:50 -0500",
-                "commits": [
-                  "87e259b"
-                ],
-                "changes": [
-                  "Card renovation."
-                ]
-              },
-              {
-                "n": 3,
-                "name": "ConditioningAdaptationsScreen",
-                "date": "2026-11-20 17:46 -0500",
-                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-                "changes": [
-                  "Shared safe branch-close header and depth-aware bottom navigation."
-                ],
-                "commits": [
-                  "16a4d75"
-                ]
-              }
-            ],
+  {
+    "n": 1,
+    "name": "Estimated Training Emphasis",
+    "date": "2026-10-11 21:44 -0400",
+    "commits": [
+      "3c97333"
+    ],
+    "changes": [
+      "Provisional training-emphasis estimates."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Estimated Training Emphasis",
+    "date": "2026-11-02 22:50 -0500",
+    "commits": [
+      "87e259b"
+    ],
+    "changes": [
+      "Card renovation."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "ConditioningAdaptationsScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Shared safe branch-close header and depth-aware bottom navigation."
+    ],
+    "commits": [
+      "16a4d75"
+    ]
+  },
+  {
+    "n": 4,
+    "name": "ConditioningAdaptationsScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Keep concise Estimated label, remove repeated paragraphs/developer metadata, use -- for missing scores.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
           },
         ],
       },
@@ -544,52 +590,65 @@ CAPS.trees.conditioning = {
             entry: "A card in `SavedWorkoutGrid`.",
             summary: "View a template; start, plan, or log from it.",
             versions: [
-              {
-                "n": 1,
-                "name": "SavedConditioningSessionScreen",
-                "date": "2026-10-11 21:40 -0400",
-                "commits": [
-                  "f2b5a37"
-                ],
-                "changes": [
-                  "Added the saved-session screen."
-                ]
-              },
-              {
-                "n": 2,
-                "name": "SavedConditioningSessionScreen",
-                "date": "2026-11-02 22:39 -0500",
-                "commits": [
-                  "e9d18be"
-                ],
-                "changes": [
-                  "Card renovation."
-                ]
-              },
-              {
-                "n": 3,
-                "name": "SavedConditioningSessionScreen",
-                "date": "2026-11-15 15:39 -0500",
-                "commits": [
-                  "aea27d0"
-                ],
-                "changes": [
-                  "Replaced the page ScrollView with the virtualized saved-workout grid."
-                ]
-              },
-              {
-                "n": 4,
-                "name": "SavedConditioningSessionScreen",
-                "date": "2026-11-20 17:46 -0500",
-                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-                "changes": [
-                  "Shared safe branch-close header and depth-aware footer preserve saved workout selection."
-                ],
-                "commits": [
-                  "16a4d75"
-                ]
-              }
-            ],
+  {
+    "n": 1,
+    "name": "SavedConditioningSessionScreen",
+    "date": "2026-10-11 21:40 -0400",
+    "commits": [
+      "f2b5a37"
+    ],
+    "changes": [
+      "Added the saved-session screen."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "SavedConditioningSessionScreen",
+    "date": "2026-11-02 22:39 -0500",
+    "commits": [
+      "e9d18be"
+    ],
+    "changes": [
+      "Card renovation."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "SavedConditioningSessionScreen",
+    "date": "2026-11-15 15:39 -0500",
+    "commits": [
+      "aea27d0"
+    ],
+    "changes": [
+      "Replaced the page ScrollView with the virtualized saved-workout grid."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "SavedConditioningSessionScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Shared safe branch-close header and depth-aware footer preserve saved workout selection."
+    ],
+    "commits": [
+      "16a4d75"
+    ]
+  },
+  {
+    "n": 5,
+    "name": "SavedConditioningSessionScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Remove repeated composer instructions.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
           },
         ],
       },

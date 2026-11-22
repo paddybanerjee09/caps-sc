@@ -2,6 +2,14 @@
 
 Implemented code is not physical-device validation. These adapters have deterministic JavaScript fixtures; native permission prompts, bridge linking, device data and background behavior require the checks below.
 
+## Connect health import
+
+1. Install a **CAPS development build**, not Expo Go. The native health libraries and read permissions are configured. Before the first native build, set the actual iOS bundle identifier / Android package name. For cloud builds, configure the EAS project and development profile; none is currently checked in. Local Android builds need the Android toolchain; local iOS builds need macOS/Xcode. From Windows, an iOS client can be built through EAS with Apple signing setup.
+2. Have a wearable or compatible app write measurements to **Apple Health** (iOS) or **Health Connect** (Android). On Android 14+, Health Connect is built in; Android 9–13 uses the separate app. Enable sharing in the source app where needed.
+3. In CAPS, open **Home → Recovery → Connect health data**, allow the required read categories, then **Refresh**. No vendor API key or vendor readiness score is needed. ORI needs HRV, resting HR and measured asleep duration with 14 comparable prior days each; the initial 28-day import can supply existing history.
+
+Native physical-device validation remains unrun. Android release setup also needs the product privacy-policy/rationale destination. See [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/), [Health Connect setup](https://developer.android.com/health-and-fitness/health-connect/get-started), and [Apple Health sharing](https://support.apple.com/en-us/108779).
+
 ## Installed bridge versions and configuration
 
 The Expo SDK 58 / React Native 0.88 application installs `@kingstinct/react-native-healthkit` 16.2.0, its `@react-native-healthkit/core` dependency, the direct Nitro Modules peer, `react-native-health-connect` 4.1.3, `expo-dev-client`, `expo-constants`, and `expo-build-properties`. Versions are locked in `package-lock.json`; compatibility is inferred from package peer ranges and configuration checks, not an executed native build.

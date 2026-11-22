@@ -28,90 +28,120 @@ CAPS.trees.strength = {
       "database:table-strength-sessions",
     ],
     versions: [
-      {
-        n: 1,
-        name: "S&C",
-        date: "2026-06-30 17:54 -0400",
-        commits: ["e9ddbfb"],
-        changes: [
-          "Added the Expo Router boilerplate tab `app/(tabs)/strength-conditioning.tsx` with a centered \"S&C\" title.",
-          "Tab order was Nutrition, Sport Training, Home, S&C, Progress. The tab used the SF Symbol `dumbbell`.",
-        ],
-      },
-      {
-        n: 2,
-        name: "S&C",
-        date: "2026-07-02 00:35 -0400",
-        commits: ["f0f5834"],
-        changes: [
-          "Removed Expo Router. Custom state navigation replaced it (`routes.ts`, `AppNavigator`, `Screens.tsx`).",
-          "The route key became `strength` and the label stayed \"S&C\". The screen rendered inline in `Screens.tsx` as `<Screen title=\"S&C\" />`.",
-          "The tab icon became the MaterialCommunityIcons `dumbbell`.",
-        ],
-      },
-      {
-        n: 3,
-        name: "StrengthConditioningScreen",
-        date: "2026-07-18 13:55 -0400",
-        commits: ["edd48ce"],
-        changes: [
-          "Moved into its own file, `src/screens/StrengthConditioningScreen.tsx`. It was still a title-only placeholder.",
-        ],
-      },
-      {
-        n: 4,
-        name: "Strength",
-        date: "2026-07-18 15:32 -0400",
-        commits: ["dd88e65"],
-        request:
-          "Change the S&C tab into Strength. Keep the strength icon the same. Change the Progress tab into Conditioning with a running-man icon.",
-        changes: [
-          "Renamed the tab label from \"S&C\" to \"Strength\". The Progress tab became Conditioning in the same commit.",
-          "Switched the tab icon from MaterialCommunityIcons `dumbbell` to Ionicons `barbell-outline`.",
-        ],
-      },
-      {
-        n: 5,
-        name: "StrengthConditioningScreen",
-        date: "2026-07-22 02:53 -0400",
-        commits: ["ad01bfe"],
-        changes: ["Centered the title (`centerTitle`) as part of the app-wide UI pass."],
-      },
-      {
-        n: 6,
-        name: "StrengthTrainingScreen",
-        date: "2026-07-22 16:45 -0400",
-        commits: ["59dd4e8"],
-        changes: [
-          "Deleted `StrengthConditioningScreen.tsx` and replaced it with `src/screens/StrengthTrainingScreen.tsx`, which exports `StrengthTrainingScreen`.",
-          "The screen stayed a centered-title placeholder. The same commit added SQLite and split the remaining combined S&C file away from Skills.",
-        ],
-      },
-      {
-        n: 7,
-        name: "Strength logging",
-        date: "2026-11-15 15:39 -0500",
-        commits: ["21d635f"],
-        request: "Execute the 15 Nov 2026 strength implementation plan.",
-        changes: [
-          "Replaced the title placeholder with the month calendar, Log Workout, Create Workout, and Saved Workouts.",
-          "Logging and template creation share one builder. The draft stays in the strength workspace across the exercise editor and focus screen.",
-          "Turning Save Workout off archives the source template when the log commits. Past logs keep their own snapshots.",
-        ],
-      },
-      {
-        n: 8,
-        name: "Strength logging",
-        date: "2026-11-15 15:48 -0500",
-        commits: ["36bac02"],
-        request: "Apply the pre-build Strength UI review.",
-        changes: [
-          "Month markers use status logged so completed sessions are filled.",
-          "The workout table keeps the exercise name on screen and wraps Weight, Sets, Reps, RPE, Rest, and Notes.",
-          "Log mode can start from a saved workout. Turning Save Workout off explains that the calendar log stays.",
-        ],
-      },
+  {
+    "n": 1,
+    "name": "S&C",
+    "date": "2026-06-30 17:54 -0400",
+    "commits": [
+      "e9ddbfb"
     ],
+    "changes": [
+      "Added the Expo Router boilerplate tab `app/(tabs)/strength-conditioning.tsx` with a centered \"S&C\" title.",
+      "Tab order was Nutrition, Sport Training, Home, S&C, Progress. The tab used the SF Symbol `dumbbell`."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "S&C",
+    "date": "2026-07-02 00:35 -0400",
+    "commits": [
+      "f0f5834"
+    ],
+    "changes": [
+      "Removed Expo Router. Custom state navigation replaced it (`routes.ts`, `AppNavigator`, `Screens.tsx`).",
+      "The route key became `strength` and the label stayed \"S&C\". The screen rendered inline in `Screens.tsx` as `<Screen title=\"S&C\" />`.",
+      "The tab icon became the MaterialCommunityIcons `dumbbell`."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "StrengthConditioningScreen",
+    "date": "2026-07-18 13:55 -0400",
+    "commits": [
+      "edd48ce"
+    ],
+    "changes": [
+      "Moved into its own file, `src/screens/StrengthConditioningScreen.tsx`. It was still a title-only placeholder."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "Strength",
+    "date": "2026-07-18 15:32 -0400",
+    "commits": [
+      "dd88e65"
+    ],
+    "request": "Change the S&C tab into Strength. Keep the strength icon the same. Change the Progress tab into Conditioning with a running-man icon.",
+    "changes": [
+      "Renamed the tab label from \"S&C\" to \"Strength\". The Progress tab became Conditioning in the same commit.",
+      "Switched the tab icon from MaterialCommunityIcons `dumbbell` to Ionicons `barbell-outline`."
+    ]
+  },
+  {
+    "n": 5,
+    "name": "StrengthConditioningScreen",
+    "date": "2026-07-22 02:53 -0400",
+    "commits": [
+      "ad01bfe"
+    ],
+    "changes": [
+      "Centered the title (`centerTitle`) as part of the app-wide UI pass."
+    ]
+  },
+  {
+    "n": 6,
+    "name": "StrengthTrainingScreen",
+    "date": "2026-07-22 16:45 -0400",
+    "commits": [
+      "59dd4e8"
+    ],
+    "changes": [
+      "Deleted `StrengthConditioningScreen.tsx` and replaced it with `src/screens/StrengthTrainingScreen.tsx`, which exports `StrengthTrainingScreen`.",
+      "The screen stayed a centered-title placeholder. The same commit added SQLite and split the remaining combined S&C file away from Skills."
+    ]
+  },
+  {
+    "n": 7,
+    "name": "Strength logging",
+    "date": "2026-11-15 15:39 -0500",
+    "commits": [
+      "21d635f"
+    ],
+    "request": "Execute the 15 Nov 2026 strength implementation plan.",
+    "changes": [
+      "Replaced the title placeholder with the month calendar, Log Workout, Create Workout, and Saved Workouts.",
+      "Logging and template creation share one builder. The draft stays in the strength workspace across the exercise editor and focus screen.",
+      "Turning Save Workout off archives the source template when the log commits. Past logs keep their own snapshots."
+    ]
+  },
+  {
+    "n": 8,
+    "name": "Strength logging",
+    "date": "2026-11-15 15:48 -0500",
+    "commits": [
+      "36bac02"
+    ],
+    "request": "Apply the pre-build Strength UI review.",
+    "changes": [
+      "Month markers use status logged so completed sessions are filled.",
+      "The workout table keeps the exercise name on screen and wraps Weight, Sets, Reps, RPE, Rest, and Notes.",
+      "Log mode can start from a saved workout. Turning Save Workout off explains that the calendar log stays."
+    ]
+  },
+  {
+    "n": 9,
+    "name": "StrengthTrainingScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Remove generic subtitle; standardized -- empty display.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
     children: [
       {
         id: "strength-month",
@@ -206,53 +236,66 @@ CAPS.trees.strength = {
         summary:
           "Full-screen editor for one draft exercise. Repeat fields fill sets that still follow them. Individual sets can be customized or skipped. Saving returns to the builder without clearing search.",
         versions: [
-          {
-            "n": 1,
-            "name": "Exercise editor",
-            "date": "2026-11-15 15:39 -0500",
-            "commits": [
-              "21d635f"
-            ],
-            "changes": [
-              "Added steppers for load, sets, reps, RPE, and rest, plus explosive intent."
-            ]
-          },
-          {
-            "n": 2,
-            "name": "Exercise editor",
-            "date": "2026-11-15 15:57 -0500",
-            "commits": [
-              "6bc5a4c"
-            ],
-            "changes": [
-              "A customized set can change load, reps, RPE, and rest. Cancel restores the workout to the state from when the editor opened."
-            ]
-          },
-          {
-            "n": 3,
-            "name": "Shared set editing",
-            "date": "2026-11-16 00:20 -0500",
-            "commits": [
-              "1662f54"
-            ],
-            "changes": [
-              "Reuse the set updater and keep set IDs when applying repeat targets."
-            ]
-          },
-          {
-            "n": 4,
-            "name": "ExerciseEditorScreen",
-            "date": "2026-11-20 17:46 -0500",
-            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-            "changes": [
-              "Repeat/custom set load, assistance and added weight use decimal inputs with kg/lb conversion.",
-              "Shared branch X and fixed Back/action bar retain exercise and parent draft guards."
-            ],
-            "commits": [
-              "6d94ddf"
-            ]
-          }
-        ],
+  {
+    "n": 1,
+    "name": "Exercise editor",
+    "date": "2026-11-15 15:39 -0500",
+    "commits": [
+      "21d635f"
+    ],
+    "changes": [
+      "Added steppers for load, sets, reps, RPE, and rest, plus explosive intent."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Exercise editor",
+    "date": "2026-11-15 15:57 -0500",
+    "commits": [
+      "6bc5a4c"
+    ],
+    "changes": [
+      "A customized set can change load, reps, RPE, and rest. Cancel restores the workout to the state from when the editor opened."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "Shared set editing",
+    "date": "2026-11-16 00:20 -0500",
+    "commits": [
+      "1662f54"
+    ],
+    "changes": [
+      "Reuse the set updater and keep set IDs when applying repeat targets."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "ExerciseEditorScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Repeat/custom set load, assistance and added weight use decimal inputs with kg/lb conversion.",
+      "Shared branch X and fixed Back/action bar retain exercise and parent draft guards."
+    ],
+    "commits": [
+      "6d94ddf"
+    ]
+  },
+  {
+    "n": 5,
+    "name": "ExerciseEditorScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Shorten load hints and remove repeated toggle explanations.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
       },
       {
         id: "strength-adaptations",
@@ -271,54 +314,67 @@ CAPS.trees.strength = {
           "Do not use these colors on the Home timeline.",
         ],
         versions: [
-          {
-            "n": 1,
-            "name": "Strength focus",
-            "date": "2026-11-15 15:39 -0500",
-            "commits": [
-              "e0f5bb4",
-              "21d635f"
-            ],
-            "changes": [
-              "Added strength-emphasis-v1. A primary requires a score of at least 60 and a 15-point lead.",
-              "The focus screen shows the four indexes and the rationale for each."
-            ]
-          },
-          {
-            "n": 2,
-            "name": "Strength focus",
-            "date": "2026-11-15 15:48 -0500",
-            "commits": [
-              "36bac02"
-            ],
-            "changes": [
-              "A missing score reads Unavailable, and the rationale stays on the screen."
-            ]
-          },
-          {
-            "n": 3,
-            "name": "Latest usable lift reference in SQLite",
-            "date": "2026-11-16 00:20 -0500",
-            "commits": [
-              "1662f54"
-            ],
-            "changes": [
-              "Return only the latest usable reference per lift from historical work sets."
-            ]
-          },
-          {
-            "n": 4,
-            "name": "StrengthAdaptationsScreen",
-            "date": "2026-11-20 17:46 -0500",
-            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-            "changes": [
-              "Shared safe centered header and fixed depth-aware navigation."
-            ],
-            "commits": [
-              "6d94ddf"
-            ]
-          }
-        ],
+  {
+    "n": 1,
+    "name": "Strength focus",
+    "date": "2026-11-15 15:39 -0500",
+    "commits": [
+      "e0f5bb4",
+      "21d635f"
+    ],
+    "changes": [
+      "Added strength-emphasis-v1. A primary requires a score of at least 60 and a 15-point lead.",
+      "The focus screen shows the four indexes and the rationale for each."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Strength focus",
+    "date": "2026-11-15 15:48 -0500",
+    "commits": [
+      "36bac02"
+    ],
+    "changes": [
+      "A missing score reads Unavailable, and the rationale stays on the screen."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "Latest usable lift reference in SQLite",
+    "date": "2026-11-16 00:20 -0500",
+    "commits": [
+      "1662f54"
+    ],
+    "changes": [
+      "Return only the latest usable reference per lift from historical work sets."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "StrengthAdaptationsScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Shared safe centered header and fixed depth-aware navigation."
+    ],
+    "commits": [
+      "6d94ddf"
+    ]
+  },
+  {
+    "n": 5,
+    "name": "StrengthAdaptationsScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Keep Estimated label and on-demand definitions; remove developer metadata and repeated rationales.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
       },
       {
         id: "strength-session-detail",

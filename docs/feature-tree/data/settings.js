@@ -15,26 +15,44 @@ CAPS.trees.settings = {
       "Sidebar routes are not tabs. `AppNavigator` swaps `ScreenForRoute` to `settings`, `accountInfo`, or `athleteInfo`. Shared profile and unit state lives in `AppStateContext`.",
     links: ["architecture:sidebar", "architecture:app-state", "architecture:routes"],
     versions: [
-      {
-        n: 1,
-        name: "Inline settings",
-        date: "2026-07-02 00:35 -0400",
-        commits: ["f0f5834"],
-        changes: [
-          "Settings, Account, and Athlete fields lived inline in `Screens.tsx` with a theme switch, unit switches, notification toggles, and placeholder athlete fields.",
-        ],
-      },
-      {
-        n: 2,
-        name: "Sidebar screens",
-        date: "2026-07-18 13:59 -0400",
-        commits: ["edd48ce", "7f48393"],
-        changes: [
-          "Split into `SettingsScreen`, `AccountInfoScreen`, and `AthleteInfoScreen`, plus `AppStateContext` (`edd48ce`).",
-          "`7f48393` was the \"What the hell is going on\" merge during the 07-18 history tangle.",
-        ],
-      },
+  {
+    "n": 1,
+    "name": "Inline settings",
+    "date": "2026-07-02 00:35 -0400",
+    "commits": [
+      "f0f5834"
     ],
+    "changes": [
+      "Settings, Account, and Athlete fields lived inline in `Screens.tsx` with a theme switch, unit switches, notification toggles, and placeholder athlete fields."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Sidebar screens",
+    "date": "2026-07-18 13:59 -0400",
+    "commits": [
+      "edd48ce",
+      "7f48393"
+    ],
+    "changes": [
+      "Split into `SettingsScreen`, `AccountInfoScreen`, and `AthleteInfoScreen`, plus `AppStateContext` (`edd48ce`).",
+      "`7f48393` was the \"What the hell is going on\" merge during the 07-18 history tangle."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "Sidebar screens",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Remove generic Settings/Account/Athlete subtitles and retain actual controls.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
     children: [
       {
         id: "settings-screen",
@@ -55,77 +73,90 @@ CAPS.trees.settings = {
         ],
         links: ["architecture:theme", "architecture:simple-switch", "architecture:feedback-engine", "architecture:app-state"],
         versions: [
-          {
-            "n": 1,
-            "name": "SettingsScreen",
-            "date": "2026-07-18 13:55 -0400",
-            "commits": [
-              "edd48ce"
-            ],
-            "changes": [
-              "Extracted from `Screens.tsx` into `src/screens/SettingsScreen.tsx`."
-            ]
-          },
-          {
-            "n": 2,
-            "name": "SettingsScreen",
-            "date": "2026-07-21 01:06 -0400",
-            "commits": [
-              "101ec87",
-              "3d09c81"
-            ],
-            "changes": [
-              "Athlete Information settings work (`101ec87`) and the Profile screen pass (`3d09c81`) also touched Settings."
-            ]
-          },
-          {
-            "n": 3,
-            "name": "SettingsScreen",
-            "date": "2026-07-22 02:58 -0400",
-            "commits": [
-              "ad01bfe",
-              "2900198"
-            ],
-            "changes": [
-              "UI pass added per-accent CAPS icons (`ad01bfe`). `2900198` was Settings-only follow-up UI."
-            ]
-          },
-          {
-            "n": 4,
-            "name": "SettingsScreen",
-            "date": "2026-10-11 21:40 -0400",
-            "commits": [
-              "0772f4e"
-            ],
-            "changes": [
-              "Added the shared distance unit setting used by conditioning."
-            ]
-          },
-          {
-            "n": 5,
-            "name": "SettingsScreen",
-            "date": "2026-11-02 22:29 -0500",
-            "commits": [
-              "6b9fc9a"
-            ],
-            "request": "Don't forget to also renovate the settings screens accordingly.",
-            "changes": [
-              "Card-by-card renovation: appearance, units, audio/haptics, and reminder placeholders with large switches and 48px targets."
-            ]
-          },
-          {
-            "n": 6,
-            "name": "SettingsScreen",
-            "date": "2026-11-20 17:46 -0500",
-            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-            "changes": [
-              "Shared fixed header/footer return to previous main tab; autosave settings preserved."
-            ],
-            "commits": [
-              "b971c0d"
-            ]
-          }
-        ],
+  {
+    "n": 1,
+    "name": "SettingsScreen",
+    "date": "2026-07-18 13:55 -0400",
+    "commits": [
+      "edd48ce"
+    ],
+    "changes": [
+      "Extracted from `Screens.tsx` into `src/screens/SettingsScreen.tsx`."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "SettingsScreen",
+    "date": "2026-07-21 01:06 -0400",
+    "commits": [
+      "101ec87",
+      "3d09c81"
+    ],
+    "changes": [
+      "Athlete Information settings work (`101ec87`) and the Profile screen pass (`3d09c81`) also touched Settings."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "SettingsScreen",
+    "date": "2026-07-22 02:58 -0400",
+    "commits": [
+      "ad01bfe",
+      "2900198"
+    ],
+    "changes": [
+      "UI pass added per-accent CAPS icons (`ad01bfe`). `2900198` was Settings-only follow-up UI."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "SettingsScreen",
+    "date": "2026-10-11 21:40 -0400",
+    "commits": [
+      "0772f4e"
+    ],
+    "changes": [
+      "Added the shared distance unit setting used by conditioning."
+    ]
+  },
+  {
+    "n": 5,
+    "name": "SettingsScreen",
+    "date": "2026-11-02 22:29 -0500",
+    "commits": [
+      "6b9fc9a"
+    ],
+    "request": "Don't forget to also renovate the settings screens accordingly.",
+    "changes": [
+      "Card-by-card renovation: appearance, units, audio/haptics, and reminder placeholders with large switches and 48px targets."
+    ]
+  },
+  {
+    "n": 6,
+    "name": "SettingsScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Shared fixed header/footer return to previous main tab; autosave settings preserved."
+    ],
+    "commits": [
+      "b971c0d"
+    ]
+  },
+  {
+    "n": 7,
+    "name": "SettingsScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Remove redundant subtitle.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
         children: [
           {
             id: "appearance-card",
@@ -251,52 +282,65 @@ CAPS.trees.settings = {
         ],
         links: ["architecture:app-state", "home:home-screen"],
         versions: [
-          {
-            "n": 1,
-            "name": "AccountInfoScreen",
-            "date": "2026-07-18 13:55 -0400",
-            "commits": [
-              "edd48ce"
-            ],
-            "changes": [
-              "Created as a separate sidebar screen."
-            ]
-          },
-          {
-            "n": 2,
-            "name": "AccountInfoScreen",
-            "date": "2026-07-21 01:06 -0400",
-            "commits": [
-              "3d09c81"
-            ],
-            "changes": [
-              "Started the Profile/Account identity fields."
-            ]
-          },
-          {
-            "n": 3,
-            "name": "AccountInfoScreen",
-            "date": "2026-11-02 22:29 -0500",
-            "commits": [
-              "6b9fc9a"
-            ],
-            "changes": [
-              "Renovated to ACTIVE ACCOUNT TELEMETRY plus USERNAME & CALLSIGN with preset chips and suffix steps."
-            ]
-          },
-          {
-            "n": 4,
-            "name": "AccountInfoScreen",
-            "date": "2026-11-20 17:46 -0500",
-            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-            "changes": [
-              "Shared safe header and fixed Cancel/Reset/Save footer with unsaved username guards."
-            ],
-            "commits": [
-              "b971c0d"
-            ]
-          }
-        ],
+  {
+    "n": 1,
+    "name": "AccountInfoScreen",
+    "date": "2026-07-18 13:55 -0400",
+    "commits": [
+      "edd48ce"
+    ],
+    "changes": [
+      "Created as a separate sidebar screen."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "AccountInfoScreen",
+    "date": "2026-07-21 01:06 -0400",
+    "commits": [
+      "3d09c81"
+    ],
+    "changes": [
+      "Started the Profile/Account identity fields."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "AccountInfoScreen",
+    "date": "2026-11-02 22:29 -0500",
+    "commits": [
+      "6b9fc9a"
+    ],
+    "changes": [
+      "Renovated to ACTIVE ACCOUNT TELEMETRY plus USERNAME & CALLSIGN with preset chips and suffix steps."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "AccountInfoScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Shared safe header and fixed Cancel/Reset/Save footer with unsaved username guards."
+    ],
+    "commits": [
+      "b971c0d"
+    ]
+  },
+  {
+    "n": 5,
+    "name": "AccountInfoScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Remove redundant subtitle.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
         children: [
           {
             id: "account-telemetry",
@@ -360,82 +404,95 @@ CAPS.trees.settings = {
         ],
         links: ["architecture:app-state", "home:weight-log", "database:table-weight-logs"],
         versions: [
-          {
-            "n": 1,
-            "name": "AthleteInfoScreen",
-            "date": "2026-07-18 13:55 -0400",
-            "commits": [
-              "edd48ce"
-            ],
-            "request": "Later the same day: \"I dont WANT to keep my athlete info screen, i want to revert to what i had before it all.\" The screen remained; history was tangled by a GitHub README commit vs local work.",
-            "changes": [
-              "Created the Athlete Information sidebar screen."
-            ]
-          },
-          {
-            "n": 2,
-            "name": "AthleteInfoScreen",
-            "date": "2026-07-20 22:58 -0400",
-            "commits": [
-              "37c812d",
-              "101ec87"
-            ],
-            "changes": [
-              "`37c812d` was Boilerplate #3 during the 07-18/20 reset sequence.",
-              "`101ec87` created the Athlete Information settings fields."
-            ]
-          },
-          {
-            "n": 3,
-            "name": "AthleteInfoScreen",
-            "date": "2026-07-24 22:09 -0400",
-            "commits": [
-              "3d09c81",
-              "5904f45",
-              "5833c71"
-            ],
-            "changes": [
-              "Profile work (`3d09c81`) and Quick Log (`5904f45`) also touched this screen.",
-              "Unified `weightKg` with Home (`5833c71`)."
-            ]
-          },
-          {
-            "n": 4,
-            "name": "AthleteInfoScreen",
-            "date": "2026-11-02 22:31 -0500",
-            "commits": [
-              "ce8f0d6"
-            ],
-            "request": "Renovated with the rest of the settings screens: card-by-card steppers and scroll presets.",
-            "changes": [
-              "Rebuilt as BIOMETRIC OVERVIEW plus sex, age, bodyweight, stature, and sports cards with steppers and presets."
-            ]
-          },
-          {
-            "n": 5,
-            "name": "Shared height formatting",
-            "date": "2026-11-16 00:18 -0500",
-            "commits": [
-              "24a301f"
-            ],
-            "changes": [
-              "Share Home and Athlete Information formatting and use one conversion for imperial edits."
-            ]
-          },
-          {
-            "n": 6,
-            "name": "AthleteInfoScreen",
-            "date": "2026-11-20 17:46 -0500",
-            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-            "changes": [
-              "Direct decimal bodyweight field replaces weight increments/presets.",
-              "Header clock sets performed time; fixed Cancel/Log footer and unlogged-weight close guard."
-            ],
-            "commits": [
-              "b971c0d"
-            ]
-          }
-        ],
+  {
+    "n": 1,
+    "name": "AthleteInfoScreen",
+    "date": "2026-07-18 13:55 -0400",
+    "commits": [
+      "edd48ce"
+    ],
+    "request": "Later the same day: \"I dont WANT to keep my athlete info screen, i want to revert to what i had before it all.\" The screen remained; history was tangled by a GitHub README commit vs local work.",
+    "changes": [
+      "Created the Athlete Information sidebar screen."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "AthleteInfoScreen",
+    "date": "2026-07-20 22:58 -0400",
+    "commits": [
+      "37c812d",
+      "101ec87"
+    ],
+    "changes": [
+      "`37c812d` was Boilerplate #3 during the 07-18/20 reset sequence.",
+      "`101ec87` created the Athlete Information settings fields."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "AthleteInfoScreen",
+    "date": "2026-07-24 22:09 -0400",
+    "commits": [
+      "3d09c81",
+      "5904f45",
+      "5833c71"
+    ],
+    "changes": [
+      "Profile work (`3d09c81`) and Quick Log (`5904f45`) also touched this screen.",
+      "Unified `weightKg` with Home (`5833c71`)."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "AthleteInfoScreen",
+    "date": "2026-11-02 22:31 -0500",
+    "commits": [
+      "ce8f0d6"
+    ],
+    "request": "Renovated with the rest of the settings screens: card-by-card steppers and scroll presets.",
+    "changes": [
+      "Rebuilt as BIOMETRIC OVERVIEW plus sex, age, bodyweight, stature, and sports cards with steppers and presets."
+    ]
+  },
+  {
+    "n": 5,
+    "name": "Shared height formatting",
+    "date": "2026-11-16 00:18 -0500",
+    "commits": [
+      "24a301f"
+    ],
+    "changes": [
+      "Share Home and Athlete Information formatting and use one conversion for imperial edits."
+    ]
+  },
+  {
+    "n": 6,
+    "name": "AthleteInfoScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Direct decimal bodyweight field replaces weight increments/presets.",
+      "Header clock sets performed time; fixed Cancel/Log footer and unlogged-weight close guard."
+    ],
+    "commits": [
+      "b971c0d"
+    ]
+  },
+  {
+    "n": 7,
+    "name": "AthleteInfoScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Remove redundant subtitle and use -- for missing age.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
         children: [
           {
             id: "biometric-overview",

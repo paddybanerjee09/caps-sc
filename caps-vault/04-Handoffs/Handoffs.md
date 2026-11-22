@@ -1,5 +1,7 @@
 # Handoffs
 
+- [[2026-11-22 Minimal UI Handoff]] · compact app copy, Recovery and graph dropdown; health connection prerequisites
+
 - [[2026-11-22 CAPS ORI Handoff]] · CAPS-owned biometric index v1, explicit model and eligibility
 
 - [[2026-11-21 Recovery and Progress Handoff]] · daily questionnaire, real-source health adapters, five chart groups, SQLite v10 and native acceptance limits

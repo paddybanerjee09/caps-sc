@@ -29,65 +29,95 @@ CAPS.trees.skill = {
       "database:table-skill-templates",
     ],
     versions: [
-      {
-        n: 1,
-        name: "Sport Training",
-        date: "2026-06-30 17:54 -0400",
-        commits: ["e9ddbfb"],
-        changes: [
-          "Added the Expo Router boilerplate tab `app/(tabs)/sport-training.tsx` with a centered \"Sport Training\" title.",
-          "Tab order was Nutrition, Sport Training, Home, S&C, Progress. The tab used the SF Symbol `figure.boxing`.",
-        ],
-      },
-      {
-        n: 2,
-        name: "Sport",
-        date: "2026-07-02 00:35 -0400",
-        commits: ["f0f5834"],
-        changes: [
-          "Removed Expo Router. Custom state navigation replaced it (`routes.ts`, `AppNavigator`, `Screens.tsx`).",
-          "The route key became `sportTraining` and the label was shortened to \"Sport\". The screen rendered inline in `Screens.tsx` as `<Screen title=\"Sport\" />`.",
-          "The tab icon became the MaterialCommunityIcons `boxing-glove`.",
-        ],
-      },
-      {
-        n: 3,
-        name: "SportScreen",
-        date: "2026-07-18 13:55 -0400",
-        commits: ["edd48ce"],
-        changes: ["Moved into its own file, `src/screens/SportScreen.tsx`. It was still a title-only placeholder."],
-      },
-      {
-        n: 4,
-        name: "SportScreen",
-        date: "2026-07-22 02:53 -0400",
-        commits: ["ad01bfe"],
-        changes: ["Centered the title (`centerTitle`) as part of the app-wide UI pass."],
-      },
-      {
-        n: 5,
-        name: "SkillTrainingScreen",
-        date: "2026-07-22 16:45 -0400",
-        commits: ["59dd4e8"],
-        changes: [
-          "Deleted `SportScreen.tsx` and replaced it with `src/screens/SkillScreen.tsx`, which exports `SkillTrainingScreen`.",
-          "Changed the route key from `sportTraining` to `skill` and the tab label to \"Skills Training\".",
-          "The same commit split the S&C tab into Strength and Conditioning.",
-        ],
-      },
-      {
-        n: 6,
-        name: "Skill logging",
-        date: "2026-11-16 11:02 -0500",
-        commits: ["80f1155", "45648a2"],
-        request: "Build the Skills Training tab from the approved plan, using RPE instead of RIR.",
-        changes: [
-          "The hub shows the month, a focus legend, Build Skill Session, and an inline Saved Sessions list.",
-          "Logged rows open detail by session id and keep the selected day when you go back.",
-          "Schema version 9 stores templates, session snapshots, and a skill timeline row.",
-        ],
-      },
+  {
+    "n": 1,
+    "name": "Sport Training",
+    "date": "2026-06-30 17:54 -0400",
+    "commits": [
+      "e9ddbfb"
     ],
+    "changes": [
+      "Added the Expo Router boilerplate tab `app/(tabs)/sport-training.tsx` with a centered \"Sport Training\" title.",
+      "Tab order was Nutrition, Sport Training, Home, S&C, Progress. The tab used the SF Symbol `figure.boxing`."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Sport",
+    "date": "2026-07-02 00:35 -0400",
+    "commits": [
+      "f0f5834"
+    ],
+    "changes": [
+      "Removed Expo Router. Custom state navigation replaced it (`routes.ts`, `AppNavigator`, `Screens.tsx`).",
+      "The route key became `sportTraining` and the label was shortened to \"Sport\". The screen rendered inline in `Screens.tsx` as `<Screen title=\"Sport\" />`.",
+      "The tab icon became the MaterialCommunityIcons `boxing-glove`."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "SportScreen",
+    "date": "2026-07-18 13:55 -0400",
+    "commits": [
+      "edd48ce"
+    ],
+    "changes": [
+      "Moved into its own file, `src/screens/SportScreen.tsx`. It was still a title-only placeholder."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "SportScreen",
+    "date": "2026-07-22 02:53 -0400",
+    "commits": [
+      "ad01bfe"
+    ],
+    "changes": [
+      "Centered the title (`centerTitle`) as part of the app-wide UI pass."
+    ]
+  },
+  {
+    "n": 5,
+    "name": "SkillTrainingScreen",
+    "date": "2026-07-22 16:45 -0400",
+    "commits": [
+      "59dd4e8"
+    ],
+    "changes": [
+      "Deleted `SportScreen.tsx` and replaced it with `src/screens/SkillScreen.tsx`, which exports `SkillTrainingScreen`.",
+      "Changed the route key from `sportTraining` to `skill` and the tab label to \"Skills Training\".",
+      "The same commit split the S&C tab into Strength and Conditioning."
+    ]
+  },
+  {
+    "n": 6,
+    "name": "Skill logging",
+    "date": "2026-11-16 11:02 -0500",
+    "commits": [
+      "80f1155",
+      "45648a2"
+    ],
+    "request": "Build the Skills Training tab from the approved plan, using RPE instead of RIR.",
+    "changes": [
+      "The hub shows the month, a focus legend, Build Skill Session, and an inline Saved Sessions list.",
+      "Logged rows open detail by session id and keep the selected day when you go back.",
+      "Schema version 9 stores templates, session snapshots, and a skill timeline row."
+    ]
+  },
+  {
+    "n": 7,
+    "name": "SkillTrainingScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Remove generic subtitle and standardize -- empty values.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
     children: [
       {
         id: "skill-month",
@@ -110,33 +140,46 @@ CAPS.trees.skill = {
         ],
         links: ["architecture:log-time-changer"],
         versions: [
-          {
-            "n": 1,
-            "name": "Skill session builder",
-            "date": "2026-11-16 11:02 -0500",
-            "commits": [
-              "45648a2"
-            ],
-            "request": "Build the Skills Training tab from the approved plan, using RPE instead of RIR.",
-            "changes": [
-              "Added inline activity cards with steppers, presets, and up/down reordering.",
-              "Save writes a template immediately. Saved asks before removing it. Log does not change the template."
-            ]
-          },
-          {
-            "n": 2,
-            "name": "SkillSessionBuilderScreen",
-            "date": "2026-11-20 17:46 -0500",
-            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-            "changes": [
-              "Header-only clock modal replaces time card/day increments.",
-              "Shared safe branch-close header and fixed footer preserve template/log actions and discard guard."
-            ],
-            "commits": [
-              "d56e731"
-            ]
-          }
-        ],
+  {
+    "n": 1,
+    "name": "Skill session builder",
+    "date": "2026-11-16 11:02 -0500",
+    "commits": [
+      "45648a2"
+    ],
+    "request": "Build the Skills Training tab from the approved plan, using RPE instead of RIR.",
+    "changes": [
+      "Added inline activity cards with steppers, presets, and up/down reordering.",
+      "Save writes a template immediately. Saved asks before removing it. Log does not change the template."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "SkillSessionBuilderScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Header-only clock modal replaces time card/day increments.",
+      "Shared safe branch-close header and fixed footer preserve template/log actions and discard guard."
+    ],
+    "commits": [
+      "d56e731"
+    ]
+  },
+  {
+    "n": 3,
+    "name": "SkillSessionBuilderScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Remove repeated RPE definition; retain actual weight basis and units.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
       },
       {
         id: "skill-detail",

@@ -25,51 +25,82 @@ CAPS.trees.nutrition = {
       "database:table-meal-items",
     ],
     versions: [
-      {
-        n: 1,
-        name: "Nutrition",
-        date: "2026-07-02 00:35 -0400",
-        commits: ["e9ddbfb", "f0f5834"],
-        changes: [
-          "Boilerplate Nutrition tab, then custom-nav placeholder in `Screens.tsx`.",
-        ],
-      },
-      {
-        n: 2,
-        name: "NutritionScreen",
-        date: "2026-07-22 02:53 -0400",
-        commits: ["edd48ce", "ad01bfe"],
-        changes: ["Own file, then centered title."],
-      },
-      {
-        n: 3,
-        name: "NutritionScreen",
-        date: "2026-07-30 14:23 -0400",
-        commits: ["241f556", "a269579", "e8fc8e9"],
-        changes: [
-          "Diary and caloric/macronutrient card (`241f556`, `a269579`). Collapsible meal sections (`e8fc8e9`).",
-        ],
-      },
-      {
-        n: 4,
-        name: "NutritionScreen",
-        date: "2026-10-04 18:49 -0400",
-        commits: ["1d7f792", "6ccb251"],
-        changes: [
-          "Opened the full-screen composer instead of `MealLogModal` (`1d7f792`).",
-          "Stopped reloading meals on unrelated workspace updates (`6ccb251`).",
-        ],
-      },
-      {
-        n: 5,
-        name: "NutritionScreen",
-        date: "2026-11-02 22:58 -0500",
-        commits: ["c8ddb63", "9917cee"],
-        changes: [
-          "Idle deferred loads (`c8ddb63`). Card-by-card diary renovation (`9917cee`).",
-        ],
-      },
+  {
+    "n": 1,
+    "name": "Nutrition",
+    "date": "2026-07-02 00:35 -0400",
+    "commits": [
+      "e9ddbfb",
+      "f0f5834"
     ],
+    "changes": [
+      "Boilerplate Nutrition tab, then custom-nav placeholder in `Screens.tsx`."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "NutritionScreen",
+    "date": "2026-07-22 02:53 -0400",
+    "commits": [
+      "edd48ce",
+      "ad01bfe"
+    ],
+    "changes": [
+      "Own file, then centered title."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "NutritionScreen",
+    "date": "2026-07-30 14:23 -0400",
+    "commits": [
+      "241f556",
+      "a269579",
+      "e8fc8e9"
+    ],
+    "changes": [
+      "Diary and caloric/macronutrient card (`241f556`, `a269579`). Collapsible meal sections (`e8fc8e9`)."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "NutritionScreen",
+    "date": "2026-10-04 18:49 -0400",
+    "commits": [
+      "1d7f792",
+      "6ccb251"
+    ],
+    "changes": [
+      "Opened the full-screen composer instead of `MealLogModal` (`1d7f792`).",
+      "Stopped reloading meals on unrelated workspace updates (`6ccb251`)."
+    ]
+  },
+  {
+    "n": 5,
+    "name": "NutritionScreen",
+    "date": "2026-11-02 22:58 -0500",
+    "commits": [
+      "c8ddb63",
+      "9917cee"
+    ],
+    "changes": [
+      "Idle deferred loads (`c8ddb63`). Card-by-card diary renovation (`9917cee`)."
+    ]
+  },
+  {
+    "n": 6,
+    "name": "NutritionScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Remove generic subtitle and standardize missing nutrient values to --.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
     children: [
       {
         id: "nutrition-diary",
@@ -127,75 +158,88 @@ CAPS.trees.nutrition = {
             ],
             links: ["architecture:log-time-changer", "database:table-meal-logs", "home:quick-log"],
             versions: [
-              {
-                "n": 1,
-                "name": "MealLogModal",
-                "date": "2026-07-30 14:23 -0400",
-                "commits": [
-                  "241f556",
-                  "e845b49",
-                  "bfdcb3a",
-                  "298f627",
-                  "3225bb5",
-                  "e8fc8e9"
-                ],
-                "changes": [
-                  "Modal composer with USDA search, servings, planned vs completed, and collapsible sections."
-                ]
-              },
-              {
-                "n": 2,
-                "name": "MealLogScreen",
-                "date": "2026-10-03 22:33 -0400",
-                "commits": [
-                  "4b6db09",
-                  "1d7f792"
-                ],
-                "request": "Replace the meal modal with a full-screen nutrition stack.",
-                "changes": [
-                  "Added `MealLogScreen` (`4b6db09`) and switched Nutrition and Home to open it (`1d7f792`)."
-                ]
-              },
-              {
-                "n": 3,
-                "name": "MealLogScreen",
-                "date": "2026-10-05 22:38 -0400",
-                "commits": [
-                  "0deafb1",
-                  "0627d77",
-                  "1daf75d",
-                  "39add05",
-                  "6397e58"
-                ],
-                "changes": [
-                  "Add meal item focus, compact meal totals, filled title fields, compact time pill, saved-template editing."
-                ]
-              },
-              {
-                "n": 4,
-                "name": "MealLogScreen",
-                "date": "2026-11-02 22:58 -0500",
-                "commits": [
-                  "9917cee"
-                ],
-                "changes": [
-                  "Card-by-card composer with steppers."
-                ]
-              },
-              {
-                "n": 5,
-                "name": "MealLogScreen",
-                "date": "2026-11-20 17:46 -0500",
-                "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-                "changes": [
-                  "Shared safe header and depth-aware footer; header-only log-time modal.",
-                  "Direct decimal servings input replaces adjustment buttons."
-                ],
-                "commits": [
-                  "20c8b60"
-                ]
-              }
-            ],
+  {
+    "n": 1,
+    "name": "MealLogModal",
+    "date": "2026-07-30 14:23 -0400",
+    "commits": [
+      "241f556",
+      "e845b49",
+      "bfdcb3a",
+      "298f627",
+      "3225bb5",
+      "e8fc8e9"
+    ],
+    "changes": [
+      "Modal composer with USDA search, servings, planned vs completed, and collapsible sections."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "MealLogScreen",
+    "date": "2026-10-03 22:33 -0400",
+    "commits": [
+      "4b6db09",
+      "1d7f792"
+    ],
+    "request": "Replace the meal modal with a full-screen nutrition stack.",
+    "changes": [
+      "Added `MealLogScreen` (`4b6db09`) and switched Nutrition and Home to open it (`1d7f792`)."
+    ]
+  },
+  {
+    "n": 3,
+    "name": "MealLogScreen",
+    "date": "2026-10-05 22:38 -0400",
+    "commits": [
+      "0deafb1",
+      "0627d77",
+      "1daf75d",
+      "39add05",
+      "6397e58"
+    ],
+    "changes": [
+      "Add meal item focus, compact meal totals, filled title fields, compact time pill, saved-template editing."
+    ]
+  },
+  {
+    "n": 4,
+    "name": "MealLogScreen",
+    "date": "2026-11-02 22:58 -0500",
+    "commits": [
+      "9917cee"
+    ],
+    "changes": [
+      "Card-by-card composer with steppers."
+    ]
+  },
+  {
+    "n": 5,
+    "name": "MealLogScreen",
+    "date": "2026-11-20 17:46 -0500",
+    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+    "changes": [
+      "Shared safe header and depth-aware footer; header-only log-time modal.",
+      "Direct decimal servings input replaces adjustment buttons."
+    ],
+    "commits": [
+      "20c8b60"
+    ]
+  },
+  {
+    "n": 6,
+    "name": "MealLogScreen",
+    "date": "2026-11-22 00:29 -0500",
+    "commits": [
+      "40f02f4"
+    ],
+    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+    "changes": [
+      "Shorten empty meal instruction to action label.",
+      "Presentation only; data, calculations and validation remain."
+    ]
+  }
+],
             children: [
               {
                 id: "meal-item-screen",
