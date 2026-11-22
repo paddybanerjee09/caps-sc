@@ -31,6 +31,12 @@ import {
 } from "../data/timelineRepository";
 
 import { Screen } from "../components/Screen";
+import { MorningQuestionnaire } from "../recovery/components/MorningQuestionnaire";
+import { RecoveryPanel } from "../recovery/components/RecoveryPanel";
+import { useRecoveryDay } from "../recovery/useRecoveryDay";
+import { useRecoveryData } from "../recovery/useRecoveryData";
+import type { Questionnaire } from "../recovery/types";
+import { ProgressPanel } from "../progress/ProgressPanel";
 import { timelineCategories } from "../constants/timelineCategories";
 import { useAppState } from "../state/AppStateContext";
 import { useNutritionWorkspace } from "../state/NutritionWorkspaceContext";
@@ -59,11 +65,19 @@ const quickLogKinds: TimelineKind[] = [
   "sleep",
 ];
 
-export function HomeScreen() {
+export function HomeScreen({ registerExitGuard }: { registerExitGuard?: (guard: ((proceed: () => void) => void) | null) => void }) {
   const { theme } = useAppTheme();
   const { athleteProfile, timelineRevision, unitSettings, username } = useAppState();
   const { dataRevision, homeDate, openNewMeal, setHomeDate } = useNutritionWorkspace();
   const selectedDate = homeDate;
+  const recoveryDay = useRecoveryDay();
+  const [recoveryRevision, setRecoveryRevision] = useState(0);
+  const recovery = useRecoveryData(recoveryDay.localDate, recoveryDay.timezone, recoveryRevision);
+  const [questionnaireForm, setQuestionnaireForm] = useState<{ localDate: string; timezone: string; initial: Questionnaire | null } | null>(null);
+  function openQuestionnaire(historical?: Questionnaire) {
+    if (!recovery.data || recovery.loading || recovery.error) return;
+    setQuestionnaireForm(historical ? { localDate: historical.localDate, timezone: historical.timezone, initial: historical } : { ...recoveryDay, initial: recovery.data.questionnaire });
+  }
 
   const ageText =
     athleteProfile.age === null ? "—" : `${athleteProfile.age} yrs`;
@@ -367,12 +381,13 @@ export function HomeScreen() {
         </Animated.View>
       </View>
 
+      {recovery.data && !recovery.loading && !recovery.error && recovery.data.questionnaire?.status !== "completed" ? <PressOpacity accessibilityLabel="Morning questionnaire due. Open Recovery" onPress={() => setSelectedHomeSection("recovery")} style={[styles.recoveryNotice, { borderColor: theme.colors.tertiary, backgroundColor: theme.colors.surface }]}><Text style={{ color: theme.colors.text }}>● Morning questionnaire due · {recoveryDay.localDate}</Text></PressOpacity> : null}
       {/* Card 3: Section Selector & Daily Timeline Card */}
       <SegmentedSelector
         accessibilityLabel="Home sections"
         onChange={setSelectedHomeSection}
         options={homeSections.map((section) => ({
-          label: section.label,
+          label: section.key === "recovery" && recovery.data && !recovery.loading && !recovery.error && recovery.data.questionnaire?.status !== "completed" ? "Recovery •" : section.label,
           value: section.key,
         }))}
         value={selectedHomeSection}
@@ -392,7 +407,7 @@ export function HomeScreen() {
             (section) => section.key === selectedHomeSection,
           )}
         >
-          <View style={styles.todayPanel}>
+          {selectedHomeSection === "today" ? <View style={styles.todayPanel}>
             <View style={styles.dateNavigator}>
               <PressOpacity
                 accessibilityLabel={`Show previous day, ${formatFullDate(
@@ -481,16 +496,13 @@ export function HomeScreen() {
               onRetry={loadSelectedDateEntries}
               onWeightEntryPress={openWeightLog}
             />
-          </View>
-          <Text style={[styles.homeSectionText, { color: theme.colors.text }]}>
-            Recovery information will go here
-          </Text>
-          <Text style={[styles.homeSectionText, { color: theme.colors.text }]}>
-            Progress charts will go here
-          </Text>
+          </View> : null}
+          {selectedHomeSection === "recovery" ? <RecoveryPanel recovery={recovery} onQuestionnaire={openQuestionnaire} onChanged={() => setRecoveryRevision((value) => value + 1)} /> : null}
+          <ProgressPanel active={selectedHomeSection === "progress"} revision={recoveryRevision} />
         </SlidingPanels>
       </View>
     </Screen>
+      {questionnaireForm ? <MorningQuestionnaire registerExitGuard={registerExitGuard} key={`${questionnaireForm.localDate}:${questionnaireForm.timezone}`} {...questionnaireForm} onClose={() => setQuestionnaireForm(null)} onSaved={() => setRecoveryRevision((value) => value + 1)} /> : null}
       <WeightLogModal
         entryToEdit={selectedWeightEntry ?? undefined}
         onClose={closeWeightModal}
@@ -627,6 +639,7 @@ function QuickLogOption({ kind, onPress }: QuickLogOptionProps) {
 }
 
 const styles = StyleSheet.create({
+  recoveryNotice: { borderWidth: 1, borderRadius: 12, minHeight: 48, padding: 12, justifyContent: "center" },
   profileCard: {
     borderRadius: tokens.radius.lg,
     borderWidth: 1,

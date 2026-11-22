@@ -16,23 +16,27 @@ type LogTimeChangerProps = {
   iconOnly?: boolean;
   inline?: boolean;
   label?: string;
+  minuteInterval?: 1 | 15;
+  rejectInvalidWallTime?: boolean;
   maximumDate?: Date;
   minimumDate?: Date;
   onChange: (date: Date) => void;
   value: Date;
 };
 
-export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, value }: LogTimeChangerProps) {
+export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, value, minuteInterval = 1, rejectInvalidWallTime = false }: LogTimeChangerProps) {
   const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
+  const [timeError, setTimeError] = useState<string | null>(null);
   const wheelHour = useRef<number | null>(null);
   const wheelMinute = useRef<number | null>(null);
   const primaryText = readableTextColor(theme.colors.tertiary);
 
   function openPicker() {
     Keyboard.dismiss();
+    setTimeError(null);
     setDraft(clampLogDate(value, minimumDate, maximumDate));
     wheelHour.current = null;
     wheelMinute.current = null;
@@ -40,6 +44,15 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
   }
 
   function selectTime(hour: number, minute: number) {
+    const requested = new Date(draft);
+    requested.setHours(hour, minute, 0, 0);
+    if (rejectInvalidWallTime && (requested.getHours() !== hour || requested.getMinutes() !== minute)) {
+      wheelHour.current = hour;
+      wheelMinute.current = minute;
+      setTimeError("That local time does not exist on this date. Choose another time.");
+      return;
+    }
+    setTimeError(null);
     wheelHour.current = null;
     wheelMinute.current = null;
     setDraft((current) => {
@@ -52,7 +65,13 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
   function changeDay(amount: number) {
     wheelHour.current = null;
     wheelMinute.current = null;
-    setDraft((current) => clampLogDate(shiftLogDay(current, amount), minimumDate, maximumDate));
+    const shifted = shiftLogDay(draft, amount);
+    if (rejectInvalidWallTime && (shifted.getHours() !== draft.getHours() || shifted.getMinutes() !== draft.getMinutes())) {
+      setTimeError("That clock time does not exist on the selected day. Choose another time before changing day.");
+      return;
+    }
+    setTimeError(null);
+    setDraft(clampLogDate(shifted, minimumDate, maximumDate));
   }
 
   const previousDay = shiftLogDay(draft, -1);
@@ -92,16 +111,23 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
                 <View style={styles.wheels}>
                   <TimeWheel label="Hours" count={24} value={draft.getHours()} onPreview={(hour) => { wheelHour.current = hour; }} onChange={(hour) => selectTime(hour, wheelMinute.current ?? draft.getMinutes())} />
                   <Text style={[styles.colon, { color: theme.colors.textMuted }]}>:</Text>
-                  <TimeWheel label="Minutes" count={60} value={draft.getMinutes()} onPreview={(minute) => { wheelMinute.current = minute; }} onChange={(minute) => selectTime(wheelHour.current ?? draft.getHours(), minute)} />
+                  <TimeWheel label="Minutes" displayMultiplier={minuteInterval} count={60 / minuteInterval} value={Math.floor(draft.getMinutes() / minuteInterval)} onPreview={(minute) => { wheelMinute.current = minute * minuteInterval; }} onChange={(minute) => selectTime(wheelHour.current ?? draft.getHours(), minute * minuteInterval)} />
                 </View>
               </ScrollView>
+              {timeError ? <Text accessibilityRole="alert" style={{ color: theme.colors.text, padding: 12 }}>{timeError}</Text> : null}
               <View style={[styles.actions, { borderTopColor: theme.colors.border }]}>
                 <PressOpacity accessibilityLabel="Cancel log time changes" onPress={() => setOpen(false)} style={[styles.action, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}>
                   <Text style={[styles.actionText, { color: theme.colors.text }]}>Cancel</Text>
                 </PressOpacity>
                 <PressOpacity accessibilityLabel="Confirm log time" onPress={() => {
                   const selected = new Date(draft);
-                  selected.setHours(wheelHour.current ?? draft.getHours(), wheelMinute.current ?? draft.getMinutes(), 0, 0);
+                  selected.setHours(wheelHour.current ?? draft.getHours(), wheelMinute.current ?? Math.floor(draft.getMinutes() / minuteInterval) * minuteInterval, 0, 0);
+                  const requestedHour = wheelHour.current ?? draft.getHours();
+                  const requestedMinute = wheelMinute.current ?? Math.floor(draft.getMinutes() / minuteInterval) * minuteInterval;
+                  if (rejectInvalidWallTime && (selected.getHours() !== requestedHour || selected.getMinutes() !== requestedMinute)) {
+                    setTimeError("That local time does not exist on this date. Choose another time.");
+                    return;
+                  }
                   onChange(clampLogDate(selected, minimumDate, maximumDate));
                   setOpen(false);
                 }} style={[styles.action, { backgroundColor: theme.colors.tertiary, borderColor: theme.colors.tertiary }]}>
@@ -116,7 +142,7 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
   );
 }
 
-function TimeWheel({ count, label, onChange, onPreview, value }: { count: number; label: string; onChange: (value: number) => void; onPreview: (value: number) => void; value: number }) {
+function TimeWheel({ count, label, onChange, onPreview, value, displayMultiplier = 1 }: { displayMultiplier?: number; count: number; label: string; onChange: (value: number) => void; onPreview: (value: number) => void; value: number }) {
   const { theme } = useAppTheme();
   const { fontScale } = useWindowDimensions();
   const rowHeight = Math.max(48, Math.ceil(32 * fontScale));
@@ -152,8 +178,8 @@ function TimeWheel({ count, label, onChange, onPreview, value }: { count: number
           snapToInterval={rowHeight}
         >
           {Array.from({ length: count }, (_, index) => (
-            <PressOpacity key={index} accessibilityLabel={`${label}: ${String(index).padStart(2, "0")}`} accessibilityState={{ selected: value === index }} onPress={() => onChange(index)} style={[styles.wheelRow, { height: rowHeight }]}>
-              <Text style={[styles.wheelText, { color: value === index ? theme.colors.tertiary : theme.colors.textMuted }]}>{String(index).padStart(2, "0")}</Text>
+            <PressOpacity key={index} accessibilityLabel={`${label}: ${String(index * displayMultiplier).padStart(2, "0")}`} accessibilityState={{ selected: value === index }} onPress={() => onChange(index)} style={[styles.wheelRow, { height: rowHeight }]}>
+              <Text style={[styles.wheelText, { color: value === index ? theme.colors.tertiary : theme.colors.textMuted }]}>{String(index * displayMultiplier).padStart(2, "0")}</Text>
             </PressOpacity>
           ))}
         </ScrollView>

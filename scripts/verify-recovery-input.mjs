@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { sleepClockInstant, alternateSleepInstant } from '../src/recovery/sleepInput.ts';
+process.env.TZ = 'America/Toronto';
+const spring = new Date('2026-03-08T00:00:00-05:00');
+assert.equal(sleepClockInstant(spring, 150), null);
+assert.equal(sleepClockInstant(spring, 180)?.toISOString(), '2026-03-08T07:00:00.000Z');
+assert.equal(sleepClockInstant(spring, 151), null);
+const fall = new Date('2026-11-01T01:30:00-04:00');
+assert.equal(alternateSleepInstant(fall)?.toISOString(), '2026-11-01T06:30:00.000Z');
+assert.equal(alternateSleepInstant(alternateSleepInstant(fall))?.toISOString(), fall.toISOString());
+assert.equal(alternateSleepInstant(new Date('2026-11-02T01:30:00-05:00')), null);
+console.log('Recovery sleep-control DST gap/repeated-hour tests passed');

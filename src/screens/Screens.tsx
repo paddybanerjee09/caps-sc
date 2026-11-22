@@ -11,10 +11,11 @@ import { StrengthTrainingScreen } from "./StrengthTrainingScreen";
 type ScreenForRouteProps = {
   onClose?: () => void;
   registerCloseHandler?: (handler: (() => void) | null) => void;
+  registerExitGuard?: (guard: ((proceed: () => void) => void) | null) => void;
   route: RouteKey;
 };
 
-export function ScreenForRoute({ onClose, registerCloseHandler, route }: ScreenForRouteProps) {
+export function ScreenForRoute({ onClose, registerCloseHandler, registerExitGuard, route }: ScreenForRouteProps) {
   switch (route) {
     case "nutrition":
       return <NutritionScreen />;
@@ -32,6 +33,6 @@ export function ScreenForRoute({ onClose, registerCloseHandler, route }: ScreenF
       return <AthleteInfoScreen onClose={onClose} registerCloseHandler={registerCloseHandler} />;
     case "home":
     default:
-      return <HomeScreen />;
+      return <HomeScreen registerExitGuard={registerExitGuard} />;
   }
 }

@@ -41,11 +41,18 @@ export function AppNavigator() {
   const sidebarCloseHandler = useRef<(() => void) | null>(null);
   const sidebarActive = sidebarItems.some((item) => item.key === activeRoute);
 
-  const selectRoute = useCallback((route: RouteKey) => {
+  const routeExitGuard = useRef<((proceed: () => void) => void) | null>(null);
+  const registerRouteExitGuard = useCallback((guard: ((proceed: () => void) => void) | null) => { routeExitGuard.current = guard; }, []);
+  const applyRoute = useCallback((route: RouteKey) => {
     if (tabs.some((tab) => tab.key === route)) mainRoute.current = route as TabRoute;
     setActiveRoute(route);
     setSidebarOpen(false);
   }, []);
+
+  const selectRoute = useCallback((route: RouteKey) => {
+    if (route !== activeRoute && routeExitGuard.current) routeExitGuard.current(() => applyRoute(route));
+    else applyRoute(route);
+  }, [activeRoute, applyRoute]);
 
   const closeSidebarScreen = useCallback(() => {
     setActiveRoute(mainRoute.current);
@@ -130,7 +137,7 @@ export function AppNavigator() {
           topInset={insets.top}
         /> : null}
         <View style={styles.content}>
-          <ScreenForRoute route={activeRoute} onClose={closeSidebarScreen} registerCloseHandler={registerCloseHandler} />
+          <ScreenForRoute registerExitGuard={registerRouteExitGuard} route={activeRoute} onClose={closeSidebarScreen} registerCloseHandler={registerCloseHandler} />
         </View>
         {activeRoute === "nutrition" ? <NutritionStack /> : null}
         {activeRoute === "conditioning" ? <ConditioningStack /> : null}
