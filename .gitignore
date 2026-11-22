@@ -43,3 +43,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Local Recovery verification bundles
+/work/recovery-*-export/

@@ -12,7 +12,11 @@
     "verify:conditioning": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-conditioning.mjs",
     "verify:strength": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-strength.mjs",
     "verify:skill": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-skill.mjs",
-    "feature-tree": "node scripts/feature-tree.mjs"
+    "feature-tree": "node scripts/feature-tree.mjs",
+    "verify:recovery": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-recovery.mjs",
+    "verify:recovery-input": "node --experimental-strip-types scripts/verify-recovery-input.mjs",
+    "verify:health": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-health.mjs",
+    "verify:progress": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-progress.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
