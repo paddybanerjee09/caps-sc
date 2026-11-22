@@ -48,19 +48,19 @@ const FORMAT_OPTIONS: {
   title: string;
 }[] = [
   {
-    description: "Work/rest rounds with target RPE & preparation timer",
+    description: "Timed work / rest",
     format: "time_interval",
     icon: "timer-outline",
     title: "Time Interval",
   },
   {
-    description: "Fixed-distance repeats with GPS or manual split tracking",
+    description: "Distance repeats",
     format: "sprint",
     icon: "flash-outline",
     title: "Sprints",
   },
   {
-    description: "Multi-station rounds by time, reps, distance, or calories",
+    description: "Station rounds",
     format: "circuit",
     icon: "repeat-outline",
     title: "Circuit",
@@ -187,7 +187,7 @@ export function ConditioningScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <ScreenTitleCard title="Conditioning" subtitle="Intervals, sprints, circuits, and GPS roadwork" />
+        <ScreenTitleCard title="Conditioning" />
 
         {/* Active Session Banner Card */}
         {activeSession ? (

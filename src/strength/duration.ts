@@ -62,7 +62,7 @@ export function sessionStartMs(endedAt: number, durationSeconds: number) {
 
 export function formatDurationSeconds(seconds: number | null) {
   if (seconds == null) {
-    return "—";
+    return "--";
   }
   const rounded = Math.max(0, Math.round(seconds));
   const minutes = Math.floor(rounded / 60);

@@ -132,23 +132,7 @@ export function ConditioningAdaptationsScreen({
           ]}
         >
           <Text style={[styles.metaHeader, { color: theme.colors.tertiary }]}>
-            PROVISIONAL HEURISTIC ESTIMATE
-          </Text>
-          <Text style={{ color: theme.colors.text, fontSize: 13, lineHeight: 19 }}>
-            A provisional estimate of this session’s training emphasis; it does
-            not measure physiological adaptation.
-          </Text>
-          <Text
-            style={{
-              color: theme.colors.textMuted,
-              fontSize: 11,
-              fontVariant: ["tabular-nums"],
-              fontWeight: "700",
-            }}
-          >
-            {result
-              ? `${result.version} · ${result.coverage.replaceAll("_", " ")} · ${result.confidence} confidence · ${result.source.replaceAll("_", " ")}`
-              : "Not enough information to estimate this session."}
+            ESTIMATED
           </Text>
         </View>
 
@@ -198,7 +182,7 @@ export function ConditioningAdaptationsScreen({
                       },
                     ]}
                   >
-                    {score == null ? "Unavailable" : `${score} / 100`}
+                    {score == null ? "--" : `${score} / 100`}
                   </Text>
                   <Ionicons
                     color={theme.colors.textMuted}
@@ -259,10 +243,6 @@ export function ConditioningAdaptationsScreen({
             </Text>
             <Text style={{ color: theme.colors.textMuted, fontSize: 13 }}>
               Example: {explanation?.example}
-            </Text>
-            <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
-              Timing and RPE cannot establish measured energy contributions.
-              Training response also depends on history and recovery.
             </Text>
             <PressOpacity
               accessibilityLabel="Close"

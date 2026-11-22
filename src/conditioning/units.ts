@@ -2,7 +2,7 @@ export const METERS_PER_MILE = 1609.344;
 export const METERS_PER_YARD = 0.9144;
 export const METERS_PER_FOOT = 0.3048;
 export const KILOGRAMS_PER_POUND = 0.45359237;
-export const UNAVAILABLE_METRIC = "—";
+export const UNAVAILABLE_METRIC = "--";
 
 export type MeasurementSystem = "metric" | "imperial";
 

@@ -154,7 +154,7 @@ export function StrengthTrainingScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <ScreenTitleCard title="Strength" subtitle="Log a workout or save one to repeat." />
+            <ScreenTitleCard title="Strength" />
 
             {loadError ? (
               <PressOpacity

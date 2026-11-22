@@ -120,7 +120,6 @@ export function AccountInfoScreen({ onClose, registerCloseHandler }: {
           </PressOpacity>
         </>
       }
-      subtitle="Athlete callsign and local profile identity"
       title="Account Information"
     >
       {/* Card 1: Active Identity Telemetry */}

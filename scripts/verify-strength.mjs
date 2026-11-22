@@ -178,7 +178,7 @@ assert.deepEqual(restored.sets[0], {
   warmup: false,
 });
 const repsText = (set) => String(set.reps);
-assert.equal(tableField([], repsText), "—");
+assert.equal(tableField([], repsText), "--");
 assert.equal(tableField(restored.sets, repsText), "5");
 assert.equal(tableField(flagExercise.sets, repsText), "Mixed");
 

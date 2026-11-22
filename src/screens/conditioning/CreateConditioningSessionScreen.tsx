@@ -929,7 +929,7 @@ function StepperNumberField({
           accessibilityLabel={label}
           keyboardType="number-pad"
           onChangeText={onChange}
-          placeholder={allowEmpty ? "—" : String(minimum)}
+          placeholder={allowEmpty ? "--" : String(minimum)}
           style={styles.centerInput}
           value={value}
         />

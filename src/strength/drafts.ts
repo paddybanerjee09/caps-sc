@@ -362,7 +362,7 @@ export function tableField<Set extends RepeatTarget>(
   read: (set: Set) => string,
 ): string {
   if (sets.length === 0) {
-    return "—";
+    return "--";
   }
   const first = read(sets[0]!);
   return sets.some((set, index) => index > 0 && read(set) !== first) ? "Mixed" : first;

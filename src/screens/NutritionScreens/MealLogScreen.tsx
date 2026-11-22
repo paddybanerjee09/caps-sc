@@ -640,8 +640,7 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
               ]}
             >
               <Text style={[styles.empty, { color: theme.colors.textMuted }]}>
-                Add a food to this meal. You can search, scan a barcode, or use
-                a custom food.
+                Add food
               </Text>
             </View>
           ) : (

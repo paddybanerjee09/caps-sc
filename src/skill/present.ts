@@ -42,7 +42,7 @@ export function formatMmSs(seconds: number) {
 
 export function formatElapsed(seconds: number | null) {
   if (seconds == null) {
-    return "—";
+    return "--";
   }
   const safe = Math.max(0, Math.round(seconds));
   const minutes = Math.floor(safe / 60);

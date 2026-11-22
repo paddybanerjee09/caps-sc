@@ -433,7 +433,7 @@ export function NutritionFactsScreen() {
             CALORIE-DRIVEN PORTION
           </Text>
           <Text style={[styles.attribution, { color: theme.colors.tertiary }]}>
-            {calorieText ? `${calorieText} KCAL` : "—"}
+            {calorieText ? `${calorieText} KCAL` : "--"}
           </Text>
         </View>
 

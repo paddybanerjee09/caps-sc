@@ -374,7 +374,7 @@ function OptionalNumber({
             const trimmed = text.trim();
             onChange(trimmed ? Number(trimmed) : null);
           }}
-          placeholder="—"
+          placeholder="--"
           style={styles.centerInput}
           value={value === null ? "" : String(value)}
         />

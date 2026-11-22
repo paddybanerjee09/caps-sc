@@ -18,7 +18,7 @@ export function convertKilogramsToWeight(
 
 export function formatWeight(weightKg: number | null, unit: UnitSystem) {
   if (weightKg === null) {
-    return "Not selected";
+    return "--";
   }
 
   return unit === "metric"

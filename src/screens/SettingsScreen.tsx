@@ -50,7 +50,6 @@ export function SettingsScreen({ onClose }: { onClose?: () => void } = {}) {
   return (
     <Screen
       onClose={onClose}
-      subtitle="High-contrast display, unit standards, and sensory feedback"
       title="Settings"
     >
       {/* Card 1: Appearance & Accent */}

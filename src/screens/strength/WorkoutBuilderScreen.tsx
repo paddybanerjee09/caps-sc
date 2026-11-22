@@ -361,7 +361,7 @@ export function WorkoutBuilderScreen() {
               Estimated duration {formatDurationSeconds(duration)}
             </Text>
             <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-              Starts {duration == null ? "—" : formatClock(new Date(sessionStartMs(draft.endedAt, duration)))}
+              Starts {duration == null ? "--" : formatClock(new Date(sessionStartMs(draft.endedAt, duration)))}
               {duration != null &&
               formatLocalDate(new Date(sessionStartMs(draft.endedAt, duration))) !==
                 formatLocalDate(new Date(draft.endedAt))
@@ -438,7 +438,7 @@ export function WorkoutBuilderScreen() {
             <View style={styles.tableWrap}>
               {draft.exercises.length === 0 ? (
                 <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-                  Search above and add an exercise.
+                  Add an exercise
                 </Text>
               ) : (
                 draft.exercises.map((exercise) => (
@@ -545,7 +545,7 @@ function TableRow({
     ["Reps*", tableField(exercise.sets, (set) => String(set.reps))],
     ["RPE", tableField(exercise.sets, (set) => formatRpe(set.rpe))],
     ["Rest", tableField(exercise.sets, (set) => formatRestSeconds(set.restSeconds))],
-    ["Notes", exercise.notes.trim() || "—"],
+    ["Notes", exercise.notes.trim() || "--"],
   ] as const;
   const name = exercise.unilateral ? `${exercise.name} / side` : exercise.name;
   return (

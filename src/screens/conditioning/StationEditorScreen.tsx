@@ -462,7 +462,7 @@ function NullableNumber({
           accessibilityLabel={label}
           keyboardType="decimal-pad"
           onChangeText={(text) => onChange(text.trim() ? Number(text) : null)}
-          placeholder="—"
+          placeholder="--"
           style={styles.centerInput}
           value={value === null ? "" : String(value)}
         />

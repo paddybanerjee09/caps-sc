@@ -74,7 +74,7 @@ export function WeightInput({ label, onChange, value }: {
           setFocused(true);
           setText(value === null ? "" : String(value));
         }}
-        placeholder="—"
+        placeholder="--"
         value={focused ? text : value === null ? "" : String(value)}
       />
     </View>
@@ -214,7 +214,7 @@ export function MeasurementInput({
             setFocused(true);
             setText(canonical === null ? "" : formatValue(canonical));
           }}
-          placeholder="—"
+          placeholder="--"
           style={styles.measurementInput}
           value={focused ? text : canonical === null ? "" : formatValue(canonical)}
         />

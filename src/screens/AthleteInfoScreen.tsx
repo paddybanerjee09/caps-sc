@@ -143,7 +143,7 @@ export function AthleteInfoScreen({ onClose, registerCloseHandler }: { onClose?:
   }
 
   const ageText =
-    athleteProfile.age === null ? "—" : `${athleteProfile.age} yrs`;
+    athleteProfile.age === null ? "--" : `${athleteProfile.age} yrs`;
   const weightText = formatWeight(
     athleteProfile.weightKg,
     unitSettings.weight,
@@ -175,7 +175,6 @@ export function AthleteInfoScreen({ onClose, registerCloseHandler }: { onClose?:
 
   return (
     <Screen
-      subtitle="Your biometric information and training disciplines"
       title="Athlete Information"
       onClose={onClose ? closeProfile : undefined}
       footer={weightAction}

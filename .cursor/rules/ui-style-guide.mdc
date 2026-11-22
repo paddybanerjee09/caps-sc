@@ -65,3 +65,11 @@ All screens—including future implementations of unfinished screens (`src/scree
 - The bottom bar's left action is **Cancel** on the first subscreen only, returning to the main screen. At every deeper level it is **Back**, returning one screen while preserving the parent draft. Use actual branch depth, including nested editors and detail routes.
 - Keep existing Save, Logged, Log, Delete, template, timer, and other primary actions alongside navigation. Preserve their underlying logic unless it conflicts with the user's requirements. Do not bury these actions at the end of scrolling content.
 - Review every new or modified flow for safe-area access, long titles, large text, keyboard access, X exit from deepest nesting, Cancel at depth one, Back at deeper levels, and save failure recovery.
+
+## 9. Minimal copy (22 November 2026)
+
+- Keep the default UI to titles, values, units, labels, controls and short actionable errors. Remove generic screen subtitles, navigation instructions, repeated definitions and supporting paragraphs.
+- Under each Recovery metric, show only one short definition or the concise requirement to obtain it. Use `--` for missing values; do not repeat an unavailable status label. Keep the experimental designation in the ORI title.
+- Keep formulas, model versions, coverage diagnostics, source IDs and sync internals in code/documentation and stored provenance, not as default card or tooltip paragraphs. Source choices remain accessible under health management. Never change calculations or fabricate readings to simplify display.
+- Progress graph categories use the inline Choose graph dropdown. Preserve the existing timeframe selector, accessible 48px controls, legend toggles, source-separated series and synchronized date cursor. Tooltips show date, metric values and units; aggregates need only a short Mean label.
+- Tighten redundant card gaps, stacked status rows and empty charts while keeping readable text, safe areas and touch targets. Preserve field anchors, dates/timezones needed to interpret answers, actual error/retry actions and discard/delete confirmations.

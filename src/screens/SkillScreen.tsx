@@ -159,7 +159,7 @@ export function SkillTrainingScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <ScreenTitleCard title="Skill" subtitle="Log skill sessions or save one to repeat." />
+            <ScreenTitleCard title="Skill" />
             {loadError ? (
               <PressOpacity
                 accessibilityLabel="Retry loading skills"

@@ -181,7 +181,6 @@ export function NutritionScreen() {
 
   return (
     <Screen
-      subtitle="Daily macro targets, meal diary cards, and micronutrient tracking"
       title="Nutrition"
     >
       {notice ? (
@@ -697,7 +696,7 @@ function formatAccessibleTotal(
 }
 
 function formatNullableContribution(value: number | null, quantity: number) {
-  return value === null ? "—" : formatNumber(value * quantity);
+  return value === null ? "--" : formatNumber(value * quantity);
 }
 
 function formatTotal(value: number | null, incomplete: boolean) {

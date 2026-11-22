@@ -50,7 +50,7 @@ export function formatSetLoad(
     return `Assist ${formatLoadAmount(assistanceKg, unit)}`;
   }
   if (loadKg == null || loadKg <= 0) {
-    return "—";
+    return "--";
   }
   return formatLoadAmount(loadKg, unit);
 }
@@ -73,7 +73,7 @@ export function adjustLoadKg(
 
 export function formatRestSeconds(restSeconds: number | null) {
   if (restSeconds == null) {
-    return "—";
+    return "--";
   }
   if (restSeconds === 0) {
     return "0s";
@@ -91,7 +91,7 @@ export function formatRestSeconds(restSeconds: number | null) {
 
 export function formatRpe(rpe: number | null) {
   if (rpe == null) {
-    return "—";
+    return "--";
   }
   return String(rpe);
 }

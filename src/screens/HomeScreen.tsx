@@ -80,7 +80,7 @@ export function HomeScreen({ registerExitGuard }: { registerExitGuard?: (guard: 
   }
 
   const ageText =
-    athleteProfile.age === null ? "—" : `${athleteProfile.age} yrs`;
+    athleteProfile.age === null ? "--" : `${athleteProfile.age} yrs`;
   const heightText = formatHeight(athleteProfile.heightCm, unitSettings.height);
   const weightText = formatWeight(athleteProfile.weightKg, unitSettings.weight);
   const sportsText = formatSports(athleteProfile.sports);
@@ -208,7 +208,6 @@ export function HomeScreen({ registerExitGuard }: { registerExitGuard?: (guard: 
   return (
     <View style={{ flex: 1 }}>
     <Screen
-      subtitle="Athlete status, rapid session logging, and 24-hour timeline"
       title="Home"
     >
       {/* Card 1: Athlete Information Card */}

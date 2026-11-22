@@ -86,9 +86,6 @@ export function SavedConditioningSessionScreen() {
               {templates.length} TOTAL
             </Text>
           </View>
-          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-            Opening a workout loads it into the composer—it does not log a session.
-          </Text>
           <SavedWorkoutGrid
             error={error}
             loading={loading}
@@ -132,9 +129,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontVariant: ["tabular-nums"],
     fontWeight: "800",
-  },
-  hint: {
-    fontSize: 13,
-    lineHeight: 18,
   },
 });

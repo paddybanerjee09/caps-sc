@@ -18,9 +18,7 @@ export function ScreenTitleCard({ title, subtitle }: ScreenTitleCardProps) {
       <View style={[styles.accent, { backgroundColor: theme.colors.tertiary }]} />
       <View style={styles.bannerText}>
         <Text accessibilityRole="header" style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
-        <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-          {subtitle}
-        </Text>
+        {subtitle ? <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>{subtitle}</Text> : null}
       </View>
     </View>
   );

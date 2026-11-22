@@ -159,10 +159,10 @@ export function ExerciseEditorScreen({
           </View>
           <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
             {exercise.loadMode === "bodyweight"
-              ? "Bodyweight satisfies the weight. Add load only when you are holding extra. Weight is per implement."
+              ? "Added weight per implement."
               : exercise.loadMode === "assisted"
-                ? "Enter how much assistance the movement uses."
-                : "Weight is for one implement: the bar, one dumbbell, or one kettlebell."}
+                ? "Assistance weight."
+                : "Weight per implement."}
           </Text>
           <WeightInput
             label={weightLabel}
@@ -173,9 +173,6 @@ export function ExerciseEditorScreen({
           <View style={styles.switchRow}>
             <View style={styles.switchCopy}>
               <Text style={[styles.switchTitle, { color: theme.colors.text }]}>Reps per side</Text>
-              <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-                Unilateral reps are counted per side.
-              </Text>
             </View>
             <SimpleSwitch
               accessibilityLabel="Reps per side"
@@ -188,9 +185,6 @@ export function ExerciseEditorScreen({
           <View style={styles.switchRow}>
             <View style={styles.switchCopy}>
               <Text style={[styles.switchTitle, { color: theme.colors.text }]}>Explosive intent</Text>
-              <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-                Marks power work. A low rep count alone does not.
-              </Text>
             </View>
             <SimpleSwitch
               accessibilityLabel="Explosive intent"
@@ -394,7 +388,7 @@ function SetRow({
       </View>
       {set.followsRepeat ? (
         <PressOpacity accessibilityLabel={`Customize set ${index + 1}`} onPress={onCustomize} style={styles.linkHit}>
-          <Text style={[styles.hint, { color: theme.colors.text }]}>Same as the repeat fields. Customize</Text>
+          <Text style={[styles.hint, { color: theme.colors.text }]}>Customize set</Text>
         </PressOpacity>
       ) : (
         <View style={styles.setEditor}>

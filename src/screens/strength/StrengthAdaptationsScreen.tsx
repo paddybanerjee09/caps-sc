@@ -22,13 +22,13 @@ const tokens = themes.dark;
 
 const meanings: Record<StrengthQuality, string> = {
   hypertrophy:
-    "Challenging sets in the 5–30 rep range. Effort raises the index when RPE is filled in. This is not a muscle-growth measurement.",
+    "Challenging sets of 5–30 reps.",
   muscular_endurance:
-    "Sets of 15 or more reps with rest or RPE filled in. Short rests raise the index. Missing rest and effort stays unknown.",
+    "High-rep sets with short rests.",
   power:
-    "Work marked with explosive intent. Low reps without that mark stay unknown. This is not a bar-speed measurement.",
+    "Work marked with explosive intent.",
   strength:
-    "Work compared with the latest same-lift load. Without that reference, strength stays unknown.",
+    "Load relative to prior same-lift work.",
 };
 
 export function StrengthAdaptationsScreen({ sessionId }: { sessionId: string | null }) {
@@ -87,14 +87,10 @@ export function StrengthAdaptationsScreen({ sessionId }: { sessionId: string | n
           ]}
         >
           <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>
-            PROVISIONAL HEURISTIC
+            ESTIMATED
           </Text>
           <Text style={[styles.body, { color: theme.colors.text }]}>
-            {result ? emphasisHeadline(result) : "Not enough evidence"}
-          </Text>
-          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-            Four independent indexes. They can overlap, and they do not measure adaptation.
-            {result ? ` ${result.modelVersion}.` : ""}
+            {result ? emphasisHeadline(result) : "Add work sets"}
           </Text>
         </View>
         {strengthQualities.map((quality) => {
@@ -121,7 +117,7 @@ export function StrengthAdaptationsScreen({ sessionId }: { sessionId: string | n
                   {primary ? " · Primary" : ""}
                 </Text>
                 <Text style={[styles.score, { color: theme.colors.text }]}>
-                  {score == null ? "Unavailable" : score.toFixed(0)}
+                  {score == null ? "--" : score.toFixed(0)}
                 </Text>
               </View>
               <View style={[styles.track, { backgroundColor: theme.colors.surfaceMuted }]}>
@@ -134,9 +130,6 @@ export function StrengthAdaptationsScreen({ sessionId }: { sessionId: string | n
                   }}
                 />
               </View>
-              <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-                {result?.qualities[quality].rationale ?? "No work sets yet."}
-              </Text>
               {selected === quality ? (
                 <Text style={[styles.body, { color: theme.colors.text }]}>{meanings[quality]}</Text>
               ) : null}

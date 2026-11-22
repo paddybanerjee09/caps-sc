@@ -285,7 +285,7 @@ export function SkillSessionBuilderScreen() {
             Estimated time {formatElapsed(elapsed)}
           </Text>
           <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-            Starts {startedAt == null ? "—" : formatClock(new Date(startedAt))}
+            Starts {startedAt == null ? "--" : formatClock(new Date(startedAt))}
             {crossesMidnight ? " the day before" : ""}
           </Text>
         </View>
@@ -308,12 +308,12 @@ export function SkillSessionBuilderScreen() {
                 </Text>
               </View>
             ) : (
-              <Text style={[styles.badgeText, { color: theme.colors.textMuted }]}>—</Text>
+              <Text style={[styles.badgeText, { color: theme.colors.textMuted }]}>--</Text>
             )}
           </View>
           <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>FOCUS</Text>
           <Text style={[styles.metric, { color: theme.colors.text }]}>
-            {focus ? focusLabel(focus) : "—"}
+            {focus ? focusLabel(focus) : "--"}
           </Text>
           <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>ESTIMATED TIME</Text>
           <Text style={[styles.metric, { color: theme.colors.text }]}>{formatElapsed(elapsed)}</Text>
@@ -321,11 +321,10 @@ export function SkillSessionBuilderScreen() {
             ESTIMATED CALORIES
           </Text>
           <Text style={[styles.metric, { color: theme.colors.text }]}>
-            {draft.activities.length === 0 ? "—" : formatKcal(sumEnergyKcal(estimates))}
+            {draft.activities.length === 0 ? "--" : formatKcal(sumEnergyKcal(estimates))}
           </Text>
           <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-            {weightBasisText(weight.basis, weight.kg)}. RPE is the rate of perceived exertion for
-            the work.
+            {weightBasisText(weight.basis, weight.kg)}
           </Text>
         </View>
 
@@ -502,7 +501,7 @@ function ActivityCard({
         {activitySettingsLine(activity)}
       </Text>
       <Text style={[styles.body, { color: theme.colors.text }]}>
-        {estimateKcal == null ? "—" : formatKcal(estimateKcal)}
+        {estimateKcal == null ? "--" : formatKcal(estimateKcal)}
       </Text>
       {expanded ? (
         <View style={styles.editor}>

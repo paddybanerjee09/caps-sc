@@ -17,7 +17,7 @@ export function inchesToHeightCm(totalInches: number) {
 
 export function formatHeight(heightCm: number | null, unit: UnitSystem) {
   if (heightCm === null) {
-    return "Not selected";
+    return "--";
   }
 
   if (unit === "metric") {
