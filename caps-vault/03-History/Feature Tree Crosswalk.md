@@ -188,3 +188,15 @@ Snapshot of the eight trees in `docs/feature-tree/data/` at baseline `e492e06`. 
 | [AthleteInfoScreen](../../docs/feature-tree/settings.html#athlete-info-screen) | `athlete-info-screen` | Sidebar screens | active | 4 |
 | [Biometric overview](../../docs/feature-tree/settings.html#biometric-overview) | `biometric-overview` | Sidebar screens / AthleteInfoScreen | active | 1 |
 | [Athlete fields](../../docs/feature-tree/settings.html#athlete-fields) | `athlete-fields` | Sidebar screens / AthleteInfoScreen | active | 2 |
+
+## Recovery and Progress update (21 November 2026)
+
+The tables above remain the historical baseline snapshot. Current implementation: [[Recovery and Progress]]; evidence and unrun native acceptance: [[2026-11-21 Recovery and Progress Handoff]]. Existing Home nodes are now active implementation (not physical-device verification).
+
+| Current node | Canonical ID | Parent |
+| --- | --- | --- |
+| [Recovery](../../docs/feature-tree/home.html#recovery-panel) | `home:recovery-panel` | Home sections |
+| [Morning questionnaire](../../docs/feature-tree/home.html#morning-questionnaire) | `home:morning-questionnaire` | Recovery |
+| [Progress](../../docs/feature-tree/home.html#progress-panel) | `home:progress-panel` | Home sections |
+| [Recovery storage and eight tables](../../docs/feature-tree/database.html#recovery-storage) | `database:recovery-storage` | caps.db v10 |
+| [Native Health Adapters](../../docs/feature-tree/architecture.html#health-adapters) | `architecture:health-adapters` | App |

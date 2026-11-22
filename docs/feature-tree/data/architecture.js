@@ -500,6 +500,18 @@ CAPS.trees.architecture = {
                 "commits": [
                   "2a8f16d"
                 ]
+              },
+              {
+                "n": 5,
+                "name": "LogTimeChanger",
+                "date": "2026-11-21 21:40 -0500",
+                "commits": [
+                  "a97bb78"
+                ],
+                "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+                "changes": [
+                  "Add opt-in quarter-hour display and invalid-DST-wall-time rejection; existing minute callers retain defaults."
+                ]
               }
             ],
           },
@@ -824,6 +836,59 @@ CAPS.trees.architecture = {
           },
         ],
       },
+
+{
+  "id": "health-adapters",
+  "title": "Native Health Adapters",
+  "kind": "service",
+  "status": "active",
+  "tagline": "Read-only HealthKit / Health Connect; physical acceptance pending",
+  "summary": "Lazy per-platform bridges, authorized 28-day backfill, native anchors/change tokens, source-aware sleep normalization, provenance/deletion handling, disconnect and explicit deletion. Expo Go fallback is honest. No HRR60/temperature-deviation fabrication, background guarantees or native-device validation.",
+  "files": [
+    "src/health/healthService.ts",
+    "src/health/appleHealthAdapter.ts",
+    "src/health/healthConnectAdapter.ts",
+    "src/health/normalization.ts",
+    "app.json",
+    "docs/recovery-native-setup.md"
+  ],
+  "links": [
+    "database:recovery-storage",
+    "home:recovery-panel"
+  ],
+  "guardrails": [
+    "Do not turn missing HealthKit samples into claims of denied permission or zero recovery (Recovery specification).",
+    "Do not infer asleep/in-bed duration, HRR protocols or personal temperature deviations from incompatible inputs (Recovery specification)."
+  ],
+  "versions": [
+  {
+    "n": 1,
+    "name": "Native Health Adapters",
+    "date": "2026-11-21 21:36 -0500",
+    "commits": [
+      "c9e7f88"
     ],
+    "changes": [
+      "Add only needed read permissions and real bridge APIs.",
+      "Persist native changes/cursors atomically and retain prior records on failures.",
+      "Document unrun physical-device and release-privacy acceptance."
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Native Health Adapters",
+    "date": "2026-11-21 21:54 -0500",
+    "commits": [
+      "80b09ff"
+    ],
+    "changes": [
+      "Assign native sleep to its wake-ending source zone and explicit session boundary.",
+      "Use supplied acquisition UTC offsets for historical local days after travel, without inventing an IANA zone.",
+      "Add travel/offset fixtures and label localized UI timestamps as device time."
+    ]
+  }
+]
+},
+],
   },
 };

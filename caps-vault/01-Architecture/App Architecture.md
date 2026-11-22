@@ -35,3 +35,7 @@ The package scripts are those at the baseline above. The latest run results are 
 ## Subscreen navigation audit (20 November 2026)
 
 `WorkflowChrome.tsx` provides shared safe top bars and fixed bottom navigation. All four feature stacks use branch-wide X and depth-aware footer Cancel/Back. Home weight/sleep overlay its already-inset content with the same bars. Sidebar routes hide the global header, use `Screen.onClose/footer/right`, and return to the last main tab; Account/Athlete register close guards for hardware Back. See [[UI and Interaction Decisions]] and [[2026-11-20 UI Audit Review]].
+
+## Recovery integration (21 November 2026)
+
+Home owns its current-day Recovery lifecycle; data is in SQLite v10, not a new remote account/provider. AppNavigator passes an optional route-exit guard through Screens to Home so unsaved questionnaire answers are protected during tab/sidebar changes. Shared LogTimeChanger supports opt-in 15-minute wheel labels and invalid-DST-time rejection; default callers retain one-minute input. Native adapters are lazy-loaded by platform and explicitly unavailable in Expo Go. See [[Recovery and Progress]] for configuration, persistence and acceptance limits.

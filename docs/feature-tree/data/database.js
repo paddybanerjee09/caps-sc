@@ -2,7 +2,7 @@ CAPS.trees.database = {
   id: "database",
   title: "Database",
   summary:
-    "Local Expo SQLite database `caps.db`. `SQLiteProvider` runs `migrateDatabase` on init. `PRAGMA user_version` is 9: timeline, weight, sleep, meals, nutrition catalog (v5/v6), conditioning, strength, then skill. Repositories live next to the schema files.",
+    "Local Expo SQLite caps.db schema v10: existing training/nutrition/weight data plus device-local Recovery questionnaire revisions, normalized health samples/cursors, snapshots, baselines and source preferences.",
   rules: ["conditioning-data-and-units.mdc"],
   root: {
     id: "caps-db",
@@ -17,102 +17,166 @@ CAPS.trees.database = {
     ],
     versions: [
       {
-        n: 1,
-        name: "caps.db",
-        date: "2026-07-22 16:49 -0400",
-        commits: ["59dd4e8", "5d1ccde"],
-        changes: [
-          "`59dd4e8` added `src/data/database.ts`. `5d1ccde` actually wired `SQLiteProvider`.",
+        "n": 1,
+        "name": "caps.db",
+        "date": "2026-07-22 16:49 -0400",
+        "commits": [
+          "59dd4e8",
+          "5d1ccde"
         ],
+        "changes": [
+          "`59dd4e8` added `src/data/database.ts`. `5d1ccde` actually wired `SQLiteProvider`."
+        ]
       },
       {
-        n: 2,
-        name: "caps.db",
-        date: "2026-10-11 21:40 -0400",
-        commits: ["3f111e1"],
-        changes: ["DATABASE_VERSION 7: conditioning schema."],
+        "n": 2,
+        "name": "caps.db",
+        "date": "2026-10-11 21:40 -0400",
+        "commits": [
+          "3f111e1"
+        ],
+        "changes": [
+          "DATABASE_VERSION 7: conditioning schema."
+        ]
       },
       {
-        n: 3,
-        name: "caps.db",
-        date: "2026-11-15 15:38 -0500",
-        commits: ["e0f5bb4"],
-        changes: ["DATABASE_VERSION 8: strength catalog, templates, sessions, and set snapshots."],
+        "n": 3,
+        "name": "caps.db",
+        "date": "2026-11-15 15:38 -0500",
+        "commits": [
+          "e0f5bb4"
+        ],
+        "changes": [
+          "DATABASE_VERSION 8: strength catalog, templates, sessions, and set snapshots."
+        ]
       },
       {
-        n: 4,
-        name: "caps.db",
-        date: "2026-11-16 11:01 -0500",
-        commits: ["80f1155"],
-        changes: ["DATABASE_VERSION 9: skill templates, sessions, and activity snapshots."],
+        "n": 4,
+        "name": "caps.db",
+        "date": "2026-11-16 11:01 -0500",
+        "commits": [
+          "80f1155"
+        ],
+        "changes": [
+          "DATABASE_VERSION 9: skill templates, sessions, and activity snapshots."
+        ]
       },
+      {
+        "n": 5,
+        "name": "caps.db",
+        "date": "2026-11-21 21:31 -0500",
+        "commits": [
+          "ec03ac1"
+        ],
+        "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+        "changes": [
+          "Add idempotent v10 Recovery storage without duplicating weight logs.",
+          "Preserve repair paths and add Recovery sentinel."
+        ]
+      }
     ],
     children: [
       {
         id: "migrations",
         title: "migrateDatabase",
         kind: "logic",
-        tagline: "PRAGMA user_version 1..9",
+        tagline: "PRAGMA user_version 1..10",
         files: [
           "src/data/database.ts",
           "src/data/nutritionMigration.ts",
           "src/data/conditioningMigration.ts",
           "src/data/strengthMigration.ts",
           "src/data/skillMigration.ts",
+          "src/data/recoveryMigration.ts"
         ],
         summary:
-          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning, v8 strength, v9 skill.",
+          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning, v8 strength, v9 skill. v10 adds Recovery local ownership, questionnaires/revisions, native samples/connections and derived caches.",
         versions: [
           {
-            n: 1,
-            name: "v1 timeline",
-            date: "2026-07-24 00:10 -0400",
-            commits: ["59dd4e8", "5d1ccde", "fb6ae68"],
-            changes: ["Timeline table and `timelineRepository`."],
-          },
-          {
-            n: 2,
-            name: "v2–v4 logs",
-            date: "2026-07-28 19:39 -0400",
-            commits: ["ea4cc2b", "859b4aa", "241f556"],
-            changes: ["Weight logs, sleep schedules, meal logs."],
-          },
-          {
-            n: 3,
-            name: "v5 nutrition rebuild",
-            date: "2026-10-03 22:47 -0400",
-            commits: ["884864f", "ece0620"],
-            changes: [
-              "Catalog schema (`884864f`). Finished a migration that stopped before its tables existed (`ece0620`).",
+            "n": 1,
+            "name": "v1 timeline",
+            "date": "2026-07-24 00:10 -0400",
+            "commits": [
+              "59dd4e8",
+              "5d1ccde",
+              "fb6ae68"
             ],
+            "changes": [
+              "Timeline table and `timelineRepository`."
+            ]
           },
           {
-            n: 4,
-            name: "v6–v7",
-            date: "2026-10-11 21:40 -0400",
-            commits: ["dde7751", "3f111e1"],
-            changes: [
-              "Favourite snapshots (`dde7751` / v6). Conditioning DDL (`3f111e1` / v7).",
+            "n": 2,
+            "name": "v2–v4 logs",
+            "date": "2026-07-28 19:39 -0400",
+            "commits": [
+              "ea4cc2b",
+              "859b4aa",
+              "241f556"
             ],
+            "changes": [
+              "Weight logs, sleep schedules, meal logs."
+            ]
           },
           {
-            n: 5,
-            name: "v8 strength",
-            date: "2026-11-15 15:38 -0500",
-            commits: ["e0f5bb4"],
-            changes: [
-              "Forward migration adds the strength catalog, templates, sessions, and set rows, then pins the text-only exercise seed.",
+            "n": 3,
+            "name": "v5 nutrition rebuild",
+            "date": "2026-10-03 22:47 -0400",
+            "commits": [
+              "884864f",
+              "ece0620"
             ],
+            "changes": [
+              "Catalog schema (`884864f`). Finished a migration that stopped before its tables existed (`ece0620`)."
+            ]
           },
           {
-            n: 6,
-            name: "v9 skill",
-            date: "2026-11-16 11:01 -0500",
-            commits: ["80f1155"],
-            changes: [
-              "Forward migration adds skill templates, sessions, and ordered activity snapshots.",
+            "n": 4,
+            "name": "v6–v7",
+            "date": "2026-10-11 21:40 -0400",
+            "commits": [
+              "dde7751",
+              "3f111e1"
             ],
+            "changes": [
+              "Favourite snapshots (`dde7751` / v6). Conditioning DDL (`3f111e1` / v7)."
+            ]
           },
+          {
+            "n": 5,
+            "name": "v8 strength",
+            "date": "2026-11-15 15:38 -0500",
+            "commits": [
+              "e0f5bb4"
+            ],
+            "changes": [
+              "Forward migration adds the strength catalog, templates, sessions, and set rows, then pins the text-only exercise seed."
+            ]
+          },
+          {
+            "n": 6,
+            "name": "v9 skill",
+            "date": "2026-11-16 11:01 -0500",
+            "commits": [
+              "80f1155"
+            ],
+            "changes": [
+              "Forward migration adds skill templates, sessions, and ordered activity snapshots."
+            ]
+          },
+          {
+            "n": 7,
+            "name": "migrateDatabase",
+            "date": "2026-11-21 21:31 -0500",
+            "commits": [
+              "ec03ac1"
+            ],
+            "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+            "changes": [
+              "Migrate existing v9 without dropping weights or training history.",
+              "Retain active-day uniqueness and revision audit history."
+            ]
+          }
         ],
       },
       {
@@ -613,6 +677,217 @@ CAPS.trees.database = {
           },
         ],
       },
-    ],
+
+{
+  "id": "recovery-storage",
+  "title": "Recovery storage",
+  "kind": "group",
+  "tagline": "Device-local identity, audit history and atomic native imports",
+  "summary": "Eight additive v10 tables. No authenticated account/backend or database encryption is introduced. See docs/recovery-progress.md for full relational/rollback/deletion consequences.",
+  "files": [
+    "src/data/recoveryMigration.ts",
+    "src/data/recoveryRepository.ts"
+  ],
+  "links": [
+    "home:recovery-panel",
+    "home:progress-panel",
+    "architecture:health-adapters"
+  ],
+  "children": [
+    {
+      "id": "table-recovery-owner",
+      "title": "recovery_owner",
+      "kind": "table",
+      "tagline": "One explicit device-local parent, not authenticated identity.",
+      "summary": "One explicit device-local parent, not authenticated identity.",
+      "files": [
+        "src/data/recoveryMigration.ts",
+        "src/data/recoveryRepository.ts"
+      ],
+      "versions": [
+        {
+          "n": 1,
+          "name": "recovery_owner",
+          "date": "2026-11-21 21:31 -0500",
+          "commits": [
+            "ec03ac1"
+          ],
+          "changes": [
+            "One explicit device-local parent, not authenticated identity."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-daily-questionnaires",
+      "title": "daily_questionnaires",
+      "kind": "table",
+      "tagline": "PK(owner_id,local_date), active response/timezone/status/revision and original JSON.",
+      "summary": "PK(owner_id,local_date), active response/timezone/status/revision and original JSON.",
+      "files": [
+        "src/data/recoveryMigration.ts",
+        "src/data/recoveryRepository.ts"
+      ],
+      "versions": [
+        {
+          "n": 1,
+          "name": "daily_questionnaires",
+          "date": "2026-11-21 21:31 -0500",
+          "commits": [
+            "ec03ac1"
+          ],
+          "changes": [
+            "PK(owner_id,local_date), active response/timezone/status/revision and original JSON."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-questionnaire-revisions",
+      "title": "questionnaire_revisions",
+      "kind": "table",
+      "tagline": "PK(owner_id,local_date,revision), composite questionnaire FK with cascade on explicit parent deletion.",
+      "summary": "PK(owner_id,local_date,revision), composite questionnaire FK with cascade on explicit parent deletion.",
+      "files": [
+        "src/data/recoveryMigration.ts",
+        "src/data/recoveryRepository.ts"
+      ],
+      "versions": [
+        {
+          "n": 1,
+          "name": "questionnaire_revisions",
+          "date": "2026-11-21 21:31 -0500",
+          "commits": [
+            "ec03ac1"
+          ],
+          "changes": [
+            "PK(owner_id,local_date,revision), composite questionnaire FK with cascade on explicit parent deletion."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-health-measurements",
+      "title": "health_measurements",
+      "kind": "table",
+      "tagline": "PK(owner,platform,external_id,metric), normalized provenance JSON and indexed acquisition/day.",
+      "summary": "PK(owner,platform,external_id,metric), normalized provenance JSON and indexed acquisition/day.",
+      "files": [
+        "src/data/recoveryMigration.ts",
+        "src/data/recoveryRepository.ts"
+      ],
+      "versions": [
+        {
+          "n": 1,
+          "name": "health_measurements",
+          "date": "2026-11-21 21:31 -0500",
+          "commits": [
+            "ec03ac1"
+          ],
+          "changes": [
+            "PK(owner,platform,external_id,metric), normalized provenance JSON and indexed acquisition/day."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-recovery-snapshots",
+      "title": "recovery_snapshots",
+      "kind": "table",
+      "tagline": "PK(owner,date), reproducible SRI/version/objective coverage and nullable ORI.",
+      "summary": "PK(owner,date), reproducible SRI/version/objective coverage and nullable ORI.",
+      "files": [
+        "src/data/recoveryMigration.ts",
+        "src/data/recoveryRepository.ts"
+      ],
+      "versions": [
+        {
+          "n": 1,
+          "name": "recovery_snapshots",
+          "date": "2026-11-21 21:31 -0500",
+          "commits": [
+            "ec03ac1"
+          ],
+          "changes": [
+            "PK(owner,date), reproducible SRI/version/objective coverage and nullable ORI."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-metric-baselines",
+      "title": "metric_baselines",
+      "kind": "table",
+      "tagline": "PK(owner,date,comparable_key), prior-window mean/SD/count/Z/CV.",
+      "summary": "PK(owner,date,comparable_key), prior-window mean/SD/count/Z/CV.",
+      "files": [
+        "src/data/recoveryMigration.ts",
+        "src/data/recoveryRepository.ts"
+      ],
+      "versions": [
+        {
+          "n": 1,
+          "name": "metric_baselines",
+          "date": "2026-11-21 21:31 -0500",
+          "commits": [
+            "ec03ac1"
+          ],
+          "changes": [
+            "PK(owner,date,comparable_key), prior-window mean/SD/count/Z/CV."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-health-connections",
+      "title": "health_connections",
+      "kind": "table",
+      "tagline": "PK(owner,platform), read capability/sync state and atomic native cursor/sleep cache.",
+      "summary": "PK(owner,platform), read capability/sync state and atomic native cursor/sleep cache.",
+      "files": [
+        "src/data/recoveryMigration.ts",
+        "src/data/recoveryRepository.ts"
+      ],
+      "versions": [
+        {
+          "n": 1,
+          "name": "health_connections",
+          "date": "2026-11-21 21:31 -0500",
+          "commits": [
+            "ec03ac1"
+          ],
+          "changes": [
+            "PK(owner,platform), read capability/sync state and atomic native cursor/sleep cache."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-recovery-preferences",
+      "title": "recovery_preferences",
+      "kind": "table",
+      "tagline": "One owner row storing per-metric source preference.",
+      "summary": "One owner row storing per-metric source preference.",
+      "files": [
+        "src/data/recoveryMigration.ts",
+        "src/data/recoveryRepository.ts"
+      ],
+      "versions": [
+        {
+          "n": 1,
+          "name": "recovery_preferences",
+          "date": "2026-11-21 21:31 -0500",
+          "commits": [
+            "ec03ac1"
+          ],
+          "changes": [
+            "One owner row storing per-metric source preference."
+          ]
+        }
+      ]
+    }
+  ]
+},
+],
   },
 };

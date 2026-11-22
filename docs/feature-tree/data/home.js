@@ -2,7 +2,7 @@ CAPS.trees.home = {
   id: "home",
   title: "Home",
   summary:
-    "The Home tab is the athlete dashboard: a telemetry card, Quick Log, inline weight and sleep cards, and a Today / Recovery / Progress section strip. Today holds the day stepper and `DayTimeline`. Recovery and Progress are placeholders. Meal Quick Log opens the nutrition composer.",
+    "Home integrates daily Recovery questionnaires and real-source health markers with five Progress chart groups through the existing Today / Recovery / Progress selector. Native/device acceptance remains open.",
   rules: ["ui-style-guide.mdc", "conditioning-emphasis.mdc"],
   root: {
     id: "home-screen",
@@ -13,20 +13,20 @@ CAPS.trees.home = {
     files: ["src/screens/HomeScreen.tsx"],
     entry: "Bottom tab \"Home\" (house icon), center tab. Initial route.",
     summary:
-      "Renders athlete telemetry, Quick Log, dedicated weight/sleep logging screens, and Today / Recovery / Progress. The dashboard timeline loads the selected local day through scheduleIdleTask; selected homeDate is shared with Nutrition.",
+      "Athlete Information, Quick Log, timeline, current-local-day Recovery and historical Progress. Home questionnaires use shared screen chrome and guard unsaved route exits; native health requires a configured development build.",
     modes: [
       {
-        name: "Today",
-        detail: "Date stepper and `DayTimeline` for the selected local day.",
+        "name": "Today",
+        "detail": "Selected-day stepper and existing DayTimeline."
       },
       {
-        name: "Recovery",
-        detail: "Placeholder copy only. Do not build until requested.",
+        "name": "Recovery",
+        "detail": "Daily biometric missing states, morning questionnaire, SRI and read-only native health connection. Experimental ORI remains unavailable."
       },
       {
-        name: "Progress",
-        detail: "Placeholder copy only. Do not build until requested.",
-      },
+        "name": "Progress",
+        "detail": "Five source-aware graph groups, shared calendar controls, gaps/coverage and synchronized date inspection."
+      }
     ],
     guardrails: [
       "Do not modify the Recovery or Progress placeholder panels until explicitly requested (ui-style-guide.mdc, section 7).",
@@ -42,101 +42,114 @@ CAPS.trees.home = {
       "database:table-timeline-entries",
     ],
     versions: [
-            {
-              "n": 1,
-              "name": "Home",
-              "date": "2026-06-30 17:54 -0400",
-              "commits": [
-                "e9ddbfb"
-              ],
-              "changes": [
-                "Added the Expo Router boilerplate tab `app/(tabs)/index.tsx` as the Home tab with a centered title."
-              ]
-            },
-            {
-              "n": 2,
-              "name": "Home",
-              "date": "2026-07-02 00:35 -0400",
-              "commits": [
-                "f0f5834"
-              ],
-              "changes": [
-                "Custom state navigation replaced Expo Router. Home rendered inline in `Screens.tsx` as `<Screen title=\"Home\" />` and became `initialRoute`."
-              ]
-            },
-            {
-              "n": 3,
-              "name": "HomeScreen",
-              "date": "2026-07-18 13:55 -0400",
-              "commits": [
-                "edd48ce"
-              ],
-              "changes": [
-                "Moved into `src/screens/HomeScreen.tsx`. Still a title-only placeholder."
-              ]
-            },
-            {
-              "n": 4,
-              "name": "HomeScreen",
-              "date": "2026-07-21 01:06 -0400",
-              "commits": [
-                "3d09c81"
-              ],
-              "changes": [
-                "Started the profile-style Home layout while Account Information was being built."
-              ]
-            },
-            {
-              "n": 5,
-              "name": "HomeScreen",
-              "date": "2026-07-22 16:45 -0400",
-              "commits": [
-                "2d78f4c",
-                "ad01bfe",
-                "59dd4e8"
-              ],
-              "changes": [
-                "Added the Home dashboard sections (`2d78f4c`) and centered the title in the UI pass (`ad01bfe`).",
-                "`59dd4e8` kept Home wired while SQLite landed."
-              ]
-            },
-            {
-              "n": 6,
-              "name": "HomeScreen",
-              "date": "2026-10-02 20:27 -0400",
-              "commits": [
-                "e8fc8e9",
-                "9fc0f73"
-              ],
-              "changes": [
-                "`e8fc8e9` was the last Home touch before the 2026-10-02 reset. `9fc0f73` repaired Expo SDK 57 errors on the restored main."
-              ]
-            },
-            {
-              "n": 7,
-              "name": "HomeScreen",
-              "date": "2026-11-02 22:36 -0500",
-              "commits": [
-                "67d99b6"
-              ],
-              "request": "Renovate Home to the card-by-card style guide: steppers, preset strips, no data-entry modals, high contrast.",
-              "changes": [
-                "Rebuilt Home as telemetry, Quick Log, and section cards. Weight and sleep logging became inline cards. Date stepping uses -1d / +1d targets."
-              ]
-            },
-            {
-              "n": 8,
-              "name": "HomeScreen",
-              "date": "2026-11-20 17:46 -0500",
-              "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-              "changes": [
-                "Weight and sleep now open screen overlays outside dashboard scroll content."
-              ],
-              "commits": [
-                "b971c0d"
-              ]
-            }
-          ],
+      {
+        "n": 1,
+        "name": "Home",
+        "date": "2026-06-30 17:54 -0400",
+        "commits": [
+          "e9ddbfb"
+        ],
+        "changes": [
+          "Added the Expo Router boilerplate tab `app/(tabs)/index.tsx` as the Home tab with a centered title."
+        ]
+      },
+      {
+        "n": 2,
+        "name": "Home",
+        "date": "2026-07-02 00:35 -0400",
+        "commits": [
+          "f0f5834"
+        ],
+        "changes": [
+          "Custom state navigation replaced Expo Router. Home rendered inline in `Screens.tsx` as `<Screen title=\"Home\" />` and became `initialRoute`."
+        ]
+      },
+      {
+        "n": 3,
+        "name": "HomeScreen",
+        "date": "2026-07-18 13:55 -0400",
+        "commits": [
+          "edd48ce"
+        ],
+        "changes": [
+          "Moved into `src/screens/HomeScreen.tsx`. Still a title-only placeholder."
+        ]
+      },
+      {
+        "n": 4,
+        "name": "HomeScreen",
+        "date": "2026-07-21 01:06 -0400",
+        "commits": [
+          "3d09c81"
+        ],
+        "changes": [
+          "Started the profile-style Home layout while Account Information was being built."
+        ]
+      },
+      {
+        "n": 5,
+        "name": "HomeScreen",
+        "date": "2026-07-22 16:45 -0400",
+        "commits": [
+          "2d78f4c",
+          "ad01bfe",
+          "59dd4e8"
+        ],
+        "changes": [
+          "Added the Home dashboard sections (`2d78f4c`) and centered the title in the UI pass (`ad01bfe`).",
+          "`59dd4e8` kept Home wired while SQLite landed."
+        ]
+      },
+      {
+        "n": 6,
+        "name": "HomeScreen",
+        "date": "2026-10-02 20:27 -0400",
+        "commits": [
+          "e8fc8e9",
+          "9fc0f73"
+        ],
+        "changes": [
+          "`e8fc8e9` was the last Home touch before the 2026-10-02 reset. `9fc0f73` repaired Expo SDK 57 errors on the restored main."
+        ]
+      },
+      {
+        "n": 7,
+        "name": "HomeScreen",
+        "date": "2026-11-02 22:36 -0500",
+        "commits": [
+          "67d99b6"
+        ],
+        "request": "Renovate Home to the card-by-card style guide: steppers, preset strips, no data-entry modals, high contrast.",
+        "changes": [
+          "Rebuilt Home as telemetry, Quick Log, and section cards. Weight and sleep logging became inline cards. Date stepping uses -1d / +1d targets."
+        ]
+      },
+      {
+        "n": 8,
+        "name": "HomeScreen",
+        "date": "2026-11-20 17:46 -0500",
+        "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+        "changes": [
+          "Weight and sleep now open screen overlays outside dashboard scroll content."
+        ],
+        "commits": [
+          "b971c0d"
+        ]
+      },
+      {
+        "n": 9,
+        "name": "HomeScreen",
+        "date": "2026-11-21 21:40 -0500",
+        "commits": [
+          "a97bb78"
+        ],
+        "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+        "changes": [
+          "Replace authorized Recovery placeholder with daily collection using existing Home navigation.",
+          "Retain prior-day questionnaire revisions and protect drafts on route exits."
+        ]
+      }
+    ],
     children: [
       {
         id: "athlete-telemetry",
@@ -418,28 +431,47 @@ CAPS.trees.home = {
         tagline: "Segmented selector + sliding panels",
         files: ["src/screens/HomeScreen.tsx"],
         summary:
-          "Uses nutrition's `SegmentedSelector` and `SlidingPanels` for three Home sections. Only Today is built.",
+          "Existing SegmentedSelector and SlidingPanels host Today, Recovery and Progress; inactive feature content does not impose an offscreen form/chart height.",
         guardrails: [
           "Do not drive the section slider with per-frame React state that retriggers layout forever (fix ccc63a6).",
         ],
         links: ["nutrition:segmented-selector"],
         versions: [
           {
-            n: 1,
-            name: "Home sections",
-            date: "2026-07-22 02:01 -0400",
-            commits: ["2d78f4c"],
-            changes: ["Added the Home section layout that later became Today / Recovery / Progress."],
+            "n": 1,
+            "name": "Home sections",
+            "date": "2026-07-22 02:01 -0400",
+            "commits": [
+              "2d78f4c"
+            ],
+            "changes": [
+              "Added the Home section layout that later became Today / Recovery / Progress."
+            ]
           },
           {
-            n: 2,
-            name: "Home sections",
-            date: "2026-10-03 23:32 -0400",
-            commits: ["ccc63a6"],
-            changes: [
-              "Stopped the Home section slider from retriggering layout forever by fixing `SegmentedSelector` transforms.",
+            "n": 2,
+            "name": "Home sections",
+            "date": "2026-10-03 23:32 -0400",
+            "commits": [
+              "ccc63a6"
             ],
+            "changes": [
+              "Stopped the Home section slider from retriggering layout forever by fixing `SegmentedSelector` transforms."
+            ]
           },
+          {
+            "n": 3,
+            "name": "Today / Recovery / Progress",
+            "date": "2026-11-21 21:40 -0500",
+            "commits": [
+              "9634b61"
+            ],
+            "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+            "changes": [
+              "Integrate Recovery and Progress without another navigation system.",
+              "Retain chart legend/timeframe state while Home remains mounted."
+            ]
+          }
         ],
         children: [
           {
@@ -496,45 +528,133 @@ CAPS.trees.home = {
           {
             id: "recovery-panel",
             title: "Recovery",
-            kind: "card",
-            status: "placeholder",
-            tagline: "\"Recovery information will go here\"",
-            files: ["src/screens/HomeScreen.tsx"],
-            summary: "Placeholder panel. No recovery data or UI yet.",
+            kind: "group",
+            status: "active",
+            tagline: "Daily questionnaire, provenance and experimental index boundaries",
+            files: [
+              "src/recovery/components/RecoveryPanel.tsx",
+              "src/recovery/useRecoveryData.ts",
+              "src/recovery/useRecoveryDay.ts"
+            ],
+            summary: "Implemented daily Recovery with current-day notice, versioned offline questionnaire/history, SRI v1, comparable baseline deviations and real-source marker cards. ORI is null. Native permission/sensor/gesture acceptance remains unverified.",
             guardrails: [
               "Do not modify this panel until it is explicitly requested (ui-style-guide.mdc, section 7).",
             ],
             versions: [
               {
-                n: 1,
-                name: "Recovery",
-                date: "2026-07-22 02:01 -0400",
-                commits: ["2d78f4c"],
-                changes: ["Placeholder Recovery section on Home."],
+                "n": 1,
+                "name": "Recovery",
+                "date": "2026-07-22 02:01 -0400",
+                "commits": [
+                  "2d78f4c"
+                ],
+                "changes": [
+                  "Placeholder Recovery section on Home."
+                ]
               },
+              {
+                "n": 2,
+                "name": "Recovery",
+                "date": "2026-11-21 21:40 -0500",
+                "commits": [
+                  "a97bb78"
+                ],
+                "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+                "changes": [
+                  "Controlled unanswered ratings and 15-minute full-date/dual-clock inputs.",
+                  "Draft/submit/edit/history with timezone/DST handling, save failure retention and route-exit guards.",
+                  "No faux physiological values or unapproved ORI."
+                ]
+              }
             ],
-          },
+
+children: [
+  {
+    "id": "morning-questionnaire",
+    "title": "Morning questionnaire",
+    "kind": "subscreen",
+    "status": "active",
+    "tagline": "Offline draft, completion and revisions",
+    "files": [
+      "src/recovery/components/MorningQuestionnaire.tsx",
+      "src/recovery/components/RatingSlider.tsx",
+      "src/recovery/components/SleepTimeRangeSlider.tsx"
+    ],
+    "summary": "Shared WorkflowChrome screen; six SRI inputs, optional mood/awake minutes, explicit dates/timezones, accessible controls, persistent completion and edit history. Native usability QA pending.",
+    "versions": [
+      {
+        "n": 1,
+        "name": "Morning questionnaire",
+        "date": "2026-11-21 21:40 -0500",
+        "commits": [
+          "a97bb78"
+        ],
+        "changes": [
+          "Implement controlled manual collection, draft protection and versioned submission."
+        ]
+      }
+    ],
+    "links": [
+      "database:table-daily-questionnaires",
+      "architecture:log-time-changer"
+    ]
+  }
+],
+
+links: [
+  "database:recovery-storage",
+  "architecture:health-adapters"
+],
+},
           {
             id: "progress-panel",
             title: "Progress",
-            kind: "card",
-            status: "placeholder",
-            tagline: "\"Progress charts will go here\"",
-            files: ["src/screens/HomeScreen.tsx"],
-            summary: "Placeholder panel. No charts yet. Unrelated to the old Progress tab, which became Conditioning.",
+            kind: "group",
+            status: "active",
+            tagline: "Five calendar/source-aware chart categories",
+            files: [
+              "src/progress/ProgressPanel.tsx",
+              "src/progress/ProgressCharts.tsx",
+              "src/progress/progressSeries.ts",
+              "src/progress/chartAggregation.ts"
+            ],
+            summary: "Weight, recovery indices, cardiac, sleep and fatigue with Week/Month/Year/Lifetime, period navigation, top toggles, broken lines, synchronized date cursor and coverage/source/version tooltips. ORI has no points; native gesture/large-font QA pending.",
             guardrails: [
               "Do not modify this panel until it is explicitly requested (ui-style-guide.mdc, section 7).",
             ],
             versions: [
               {
-                n: 1,
-                name: "Progress",
-                date: "2026-07-22 02:01 -0400",
-                commits: ["2d78f4c"],
-                changes: ["Placeholder Progress section on Home."],
+                "n": 1,
+                "name": "Progress",
+                "date": "2026-07-22 02:01 -0400",
+                "commits": [
+                  "2d78f4c"
+                ],
+                "changes": [
+                  "Placeholder Progress section on Home."
+                ]
               },
+              {
+                "n": 2,
+                "name": "Progress",
+                "date": "2026-11-21 21:40 -0500",
+                "commits": [
+                  "9634b61"
+                ],
+                "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+                "changes": [
+                  "Reuse existing SVG and segmented controls.",
+                  "Keep incompatible units/sources/subtypes/protocols/formulas separate.",
+                  "Use trailing calendar weight averages, partial coverage and explicit missing gaps."
+                ]
+              }
             ],
-          },
+
+links: [
+  "database:table-weight-logs",
+  "database:recovery-storage"
+],
+},
         ],
       },
     ],

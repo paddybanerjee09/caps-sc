@@ -5,7 +5,7 @@ aliases:
 
 # Home
 
-Home is the initial dashboard tab. `src/screens/HomeScreen.tsx` renders athlete telemetry, a Quick Log card, and Today / Recovery / Progress sections. The Today section has a selected-day stepper and the [[Home Day Timeline]]. Recovery and Progress are placeholder panels explicitly held for future requests under the UI rule. The Home Progress panel is distinct from the historical Progress tab that became Conditioning.
+Home is the initial dashboard tab. `src/screens/HomeScreen.tsx` renders athlete telemetry, a Quick Log card, and Today / Recovery / Progress sections. The Today section has a selected-day stepper and the [[Home Day Timeline]]. Recovery and Progress now implement the requested [[Recovery and Progress|daily recovery and historical charts]], with automated checks and native acceptance limits documented. The Home Progress panel is distinct from the historical Progress tab that became Conditioning.
 
 - Athlete telemetry reads `username`, `athleteProfile`, and `unitSettings` from `src/state/AppStateContext.tsx`. Its count comes from the displayed timeline entries, including the selected day when the user steps away from today. Athlete Information and Home share the same canonical profile weight.
 - Quick Log offers Strength, Conditioning, Skill, Meal, Weight, and Sleep. The latter three have wired actions. Weight and Sleep open mutually exclusive [[Weight and Sleep Logging|dedicated logging screens]]. Meal closes Quick Log and calls `openNewMeal(selectedDate)` to switch to [[Meal Composer and Saved Meals|the nutrition composer]]. The Strength, Conditioning, and Skill buttons have no handlers at the audited revision.
@@ -23,3 +23,7 @@ Feature Tree source is `docs/feature-tree/data/home.js`. Begin with `home:home-s
 ## Layout update (20 November 2026)
 
 Commit `548bbe5` renames the profile card to Athlete Information and Stature to Height. Age and Height now divide the stat row equally; the discipline count cell is removed. Quick Log has no parent gap when collapsed; the expanded grid has a 12px top gap matching the card bottom padding, with height calculated from two 92px rows, the 8px row gap and 12px top gap. This retains the current in-flow animation; the historical overlay discrepancy above is unchanged. Both main-screen titles now use `ScreenTitleCard`. Typecheck and targeted ESLint pass; device visual verification remains outstanding.
+
+## Recovery and Progress (21 November 2026)
+
+The existing Home selector is reused. Recovery has current-local-day completion notice, questionnaire overlay/drafts/history, actual-source biometric cards and native health connection controls. Progress has five source-aware chart groups. Inactive feature panels no longer impose their full content height on Today. Questionnaire route exits guard unsaved edits; previous-day edits preserve original timezone. See [[Recovery and Progress]] and [[2026-11-21 Recovery and Progress Handoff]].
