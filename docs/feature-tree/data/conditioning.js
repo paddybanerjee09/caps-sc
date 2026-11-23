@@ -19,14 +19,18 @@ CAPS.trees.conditioning = {
     files: ["src/screens/ConditioningScreen.tsx"],
     entry: "Bottom tab \"Conditioning\" (running-man icon), last tab.",
     summary:
-      "Hub for the current implementation. `MonthlyTimelineComponent` is a pure view of events the screen loads. Selected-day rows open session detail. Free Session, the format chooser, and the Saved Workouts expander push workspace screens. Load state is derived from a fetch key, not `setState` inside an effect.",
+      "Hub retains the existing shared MonthlyTimelineComponent using the preferred direct Strength/Skills presentation, then shared Free Session/Create Session actions and the canonical SavedWorkouts expander. Parent-supplied month events, selected-day detail, format chooser, active-session banner, fetch-key loading/retry and discipline-specific editor behavior remain intact. The redundant Browse Saved Workouts launcher and unreachable library route are removed.",
     guardrails: [
       "Do not `setState` inside an effect to derive load state; key the fetch instead (fix 17e5a94; chat cd59c055).",
       "Saved Workouts expander is the only control that may push content down (navigation-and-overlays.mdc).",
       "`MonthlyTimelineComponent` must not query tables; the screen passes events (calendar-session-state.mdc).",
       "Do not restore the v1 modal stack (reverted 2026-10-02; navigation-and-overlays.mdc).",
     ],
-    links: ["architecture:bottom-tabs", "database:table-conditioning-sessions"],
+    links: [
+      "architecture:bottom-tabs",
+      "database:table-conditioning-sessions",
+      "architecture:training-session-actions"
+    ],
     versions: [
   {
     "n": 1,
@@ -113,7 +117,20 @@ CAPS.trees.conditioning = {
     "changes": [
       "Use readable full day/timestamp presentation in selected-day, calendar accessibility, launch and detail views; storage unchanged."
     ]
-  }
+  },
+      {
+        "n": 8,
+        "name": "ConditioningScreen",
+        "date": "2026-11-23 12:39 -0500",
+        "commits": [
+          "a09ebfe"
+        ],
+        "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+        "changes": [
+          "Remove the extra calendar wrapper to match Strength/Skills while retaining the already-shared calendar implementation.",
+          "Use shared session launch actions and SavedWorkouts; remove redundant Browse and unreachable library UI."
+        ]
+      }
 ],
     children: [
       {
@@ -172,7 +189,20 @@ CAPS.trees.conditioning = {
     "changes": [
       "Use readable full day/timestamp presentation in selected-day, calendar accessibility, launch and detail views; storage unchanged."
     ]
-  }
+  },
+          {
+            "n": 5,
+            "name": "MonthlyTimelineComponent",
+            "date": "2026-11-23 12:39 -0500",
+            "commits": [
+              "a09ebfe"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "All three hubs continue to use this single canonical pure-view calendar; Conditioning now uses the same direct presentation as Strength/Skills.",
+              "Preserve month/day navigation, today/selection styling and discipline-specific session markers."
+            ]
+          }
 ],
       },
       {
@@ -599,11 +629,18 @@ CAPS.trees.conditioning = {
       },
       {
         id: "saved-workouts",
-        title: "SavedWorkoutGrid",
+        title: "SavedWorkouts",
         kind: "card",
-        tagline: "Expander of saved templates",
-        files: ["src/components/conditioning/SavedWorkoutGrid.tsx"],
-        summary: "The only hub control allowed to push content down. Opens a saved template screen.",
+        tagline: "Canonical expander and saved-workout cards for all disciplines",
+        files: [
+          "src/components/training/SavedWorkouts.tsx"
+        ],
+        summary: "Conditioning’s existing saved-workout expander and cards are the shared presentation for all three training hubs. Typed entries carry IDs/titles and optional badge/summary; each owning screen adapts its own schema and selection callback. Conditioning retains unit-aware protocol summaries and opens the existing template editor with start/plan/manual-log actions. Bounded 248px scrolling panel, responsive card columns, empty/loading/error/retry states and press feedback remain.",
+        guardrails: [
+          "Keep domain repositories, IDs and schemas separate; share presentation via typed entries rather than forcing unrelated session data into one domain type (user request, 23 November 2026).",
+          "Use the shared inline expander instead of restoring redundant Browse Saved Workouts buttons.",
+          "Keep the bounded hub scroller and exclude collapsed content from accessibility/hits."
+        ],
         versions: [
           {
             n: 1,
@@ -637,16 +674,30 @@ CAPS.trees.conditioning = {
               "Fetch normalized station rows for visible circuits in one station query.",
             ],
           },
+          {
+            "n": 5,
+            "name": "SavedWorkouts",
+            "date": "2026-11-23 12:39 -0500",
+            "commits": [
+              "a09ebfe"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "Extract the preferred Conditioning expander/cards for all three hubs with typed presentation adapters.",
+              "Preserve discipline-owned actions and data while sharing empty/loading/error states and responsive layout."
+            ]
+          },
         ],
         children: [
           {
             id: "saved-session-screen",
             title: "SavedConditioningSessionScreen",
             kind: "subscreen",
-            tagline: "One saved template",
+            tagline: "Removed redundant full saved-workout library",
             files: ["src/screens/conditioning/SavedConditioningSessionScreen.tsx"],
-            entry: "A card in `SavedWorkoutGrid`.",
-            summary: "View a template; start, plan, or log from it.",
+            entry: "Removed; use the shared SavedWorkouts expander.",
+            summary: "Historical full-screen saved-workout library, despite its singular old name. Its only launcher was the removed Browse Saved Workouts button. The screen and saved workspace route were deleted; templates remain available through the shared inline expander and existing editor.",
+            status: "removed",
             versions: [
   {
     "n": 1,
@@ -705,7 +756,20 @@ CAPS.trees.conditioning = {
       "Remove repeated composer instructions.",
       "Presentation only; data, calculations and validation remain."
     ]
-  }
+  },
+              {
+                "n": 6,
+                "name": "SavedConditioningSessionScreen",
+                "date": "2026-11-23 12:39 -0500",
+                "commits": [
+                  "a09ebfe"
+                ],
+                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                "changes": [
+                  "Remove the unreachable duplicate library screen and its saved workspace route after removing Browse.",
+                  "Preserve access to every saved template and its existing editor actions through the shared dropdown."
+                ]
+              }
 ],
           },
         ],
@@ -734,7 +798,7 @@ CAPS.trees.conditioning = {
         kind: "state",
         tagline: "stack + editor + confirm",
         files: ["src/state/ConditioningWorkspaceContext.tsx"],
-        summary: "Mounted above the tabs. Owns `stack`, `editor`, confirm dialog, and hardware-back handling.",
+        summary: "Mounted above tabs. Owns the existing stack, editor, confirmation and hardware-back handlers. The unreachable saved-library union member is removed; live/free/runner/detail/editor workflows are unchanged.",
         versions: [
           {
             n: 1,
@@ -742,6 +806,18 @@ CAPS.trees.conditioning = {
             date: "2026-10-11 21:40 -0400",
             commits: ["4539314", "7e20d09"],
             changes: ["Added workspace state and wired it into `App` / `AppNavigator`."],
+          },
+          {
+            "n": 2,
+            "name": "ConditioningWorkspaceContext",
+            "date": "2026-11-23 12:39 -0500",
+            "commits": [
+              "a09ebfe"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "Remove only the unreachable saved-library route; preserve editor state, snapshots, active sessions and guards."
+            ]
           },
         ],
       },
@@ -939,6 +1015,11 @@ CAPS.trees.conditioning = {
             ],
           },
         ],
+      },
+      {
+        "id": "conditioning-session-actions",
+        "title": "TrainingSessionActions",
+        "ref": "architecture:training-session-actions"
       },
     ],
   },

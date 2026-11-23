@@ -20,12 +20,14 @@ All screens—including future implementations of unfinished screens (`src/scree
 
 - **Screens and Dropdowns by Default**: Use screens or dropdowns for forms and menus. Do not introduce a modal unless explicitly requested or covered by an existing exception.
 - **Log Time Exception**: `LogTimeChanger` opens the explicitly requested modal with scrollable hour and minute columns. Confirmation dialogs and the documented conditioning overlays remain allowed.
+- **Biometric Exceptions (23 November 2026)**: Age/date of birth, sex, height, and weight use compact editing modals from the interactive Biometric Overview. Reuse one modal foundation. Weight logging and history editing everywhere use the same actual `WeightLogModal`, including Home Quick Log; do not implement it as a screen overlay. Keep its date/time control inside that modal.
 
 ## 3. Simple Inputs & Large Touch Targets
 
 - **Minimum Touch Target**: Every interactive button, stepper, chip, or toggle must have at least `minHeight: 48` and `minWidth: 48` (`52px` height for primary user flow CTAs).
 - **Weight and Load**: Use one labeled decimal text box with the current kg/lb unit for every bodyweight, load, resistance, assistance, or added-weight input. Never add fine/coarse increment buttons or weight preset strips. Preserve canonical kg conversion and existing validation; allow an empty draft while typing without saving invalid values.
 - **Choose the Simplest Control**: Do not require steppers or presets for numeric fields. Use direct input where it is clearer. Existing useful count, duration, and categorical controls may remain; do not apply the rejected weight/time increment design elsewhere.
+- **Dates and Personal Measurements**: Use scrollable date-of-birth and height pickers, direct weight input, and icon-only chevrons for previous/next day or month. Do not expose numeric step labels for these interactions.
 - **Keyboard Access**: Give every field an accessible label and suitable keyboard, preserve drafts on errors, and keep primary actions reachable above the keyboard. Use `keyboardShouldPersistTaps="handled"` on form scroll views.
 
 ## 4. User Flow Buttons
@@ -59,6 +61,7 @@ All screens—including future implementations of unfinished screens (`src/scree
 - Apply these contracts across Home, Nutrition, Strength, Conditioning, and Skills Training, including every nested destination. The five main screens retain their main-screen title cards.
 - Every subscreen has a dedicated fixed top bar and bottom action bar, with scrolling content between them. Account for the phone status bar / cutout at the top exactly once. Existing bottom tabs own their system bottom inset; a standalone flow must provide its own bottom safe area.
 - Center the subscreen title. Put an X at the left that exits the entire feature branch to its main screen, regardless of nesting depth. Route X through existing unsaved-change, active-session, and save-pending guards. Never wire X to a one-level pop.
+- **Settings exception (23 November 2026)**: Settings, Account Information, and Athlete Information use a left menu icon opening the existing sidebar, with no global log-time control. The sidebar X exits settings to the remembered main tab through existing guards. This exception does not change training or other primary workflow headers.
 - Put the compact `LogTimeChanger` at the right of the top bar when a log timestamp applies. Show only a time icon and selected time on the trigger. Sleep may show two labeled compact triggers in this same right-hand area for Bed and Wake.
 - No log-time cards, inline expanders, hour presets, Now buttons, or minute/hour increment buttons. No increment buttons flanking a clock trigger.
 - The picker modal title is **Log Time**. Directly below it, put minimalist previous/next day arrows around **{Day} {Mon}, {Year}** (for example **22 Nov, 2026**). Use independently scrollable hour and minute columns. Cancel leaves the timestamp unchanged; Done applies it. Preserve each caller's date bounds and timestamp/duration logic.

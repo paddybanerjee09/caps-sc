@@ -17,7 +17,7 @@ CAPS.trees.home = {
     modes: [
       {
         "name": "Today",
-        "detail": "Selected-day stepper and existing DayTimeline."
+        "detail": "Selected-day chevrons and existing DayTimeline."
       },
       {
         "name": "Recovery",
@@ -175,7 +175,20 @@ CAPS.trees.home = {
       "Format full date captions with the shared formatter; retain ISO keys.",
       "Open dedicated questionnaire history and preserve editor branch/draft guards."
     ]
-  }
+  },
+      {
+        "n": 12,
+        "name": "HomeScreen",
+        "date": "2026-11-23 12:48 -0500",
+        "commits": [
+          "65e148a"
+        ],
+        "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+        "changes": [
+          "Use the canonical weight modal shared with Athlete Information and retain current biometric displays.",
+          "Keep existing Sleep, Recovery, Progress and training Quick Log behavior."
+        ]
+      }
 ],
     children: [
       {
@@ -212,7 +225,7 @@ CAPS.trees.home = {
         tagline: "Expander: strength, conditioning, skill, meal, weight, sleep",
         files: ["src/screens/HomeScreen.tsx"],
         summary:
-          "Animated 220ms expander with a 2x3 grid. Weight and Sleep open dedicated Home logging screens. Meal calls openNewMeal(selectedDate). Existing training tiles retain their current entry behavior.",
+          "Animated 220ms expander with a 2x3 grid. Weight opens the app-wide actual WeightLogModal; Sleep retains its existing logging screen. Meal calls openNewMeal(selectedDate). Existing training tiles retain their current entry behavior.",
         parts: [
           {
             name: "Overlay animation",
@@ -255,38 +268,65 @@ CAPS.trees.home = {
             ],
           },
           { n: 4, name: "Quick Log", date: "2026-11-20 16:53 -0500", commits: ["548bbe5"], request: "Uniform Strength-style title cards and balanced Home information and Quick Log layout.", changes: ["Remove the collapsed layout gap so the button is centered vertically.","Use a 12px grid top gap and exact two-row expanded height to match the 12px bottom padding."] },
+          {
+            "n": 5,
+            "name": "Quick Log",
+            "date": "2026-11-23 12:48 -0500",
+            "commits": [
+              "65e148a"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "Open the exact same canonical weight modal used by Athlete Information; preserve other Quick Log flows."
+            ]
+          },
         ],
         children: [
           {
             id: "weight-log",
             title: "WeightLogModal",
-            kind: "subscreen",
-            tagline: "Bodyweight log / edit / delete",
-            files: ["src/components/WeightLogModal.tsx", "src/utils/weight.ts"],
-            entry: "Quick Log > Weight, or a weight marker on `DayTimeline`.",
+            kind: "modal",
+            tagline: "One app-wide weight create / edit / delete dialog",
+            files: [
+              "src/components/WeightLogModal.tsx",
+              "src/components/FormModal.tsx",
+              "src/utils/weight.ts"
+            ],
+            entry: "Home Quick Log > Weight, Athlete Information > Bodyweight tile, or a weight marker on DayTimeline.",
             summary:
-              "Dedicated screen overlay outside the Home ScrollView. One decimal bodyweight field, shared safe header with log-time trigger, and fixed Cancel/Save/Delete footer. Stores canonical kilograms and preserves unchanged original weight when editing.",
+              "One app-wide actual React Native Modal, using FormModal at every entrypoint. Decimal input follows the selected kg/lb unit; canonical storage stays kilograms. Date/time selection lives inside the weight dialog and defaults new entries to the current local instant. Create, existing-entry edit and delete share AppState weight helpers, refreshing current weight and timeline/history consumers. Unchanged prefilled weights preserve exact canonical kilograms for both new logs and edits.",
             modes: [
-              { name: "Create", detail: "New log at a chosen time, not after now." },
-              { name: "Edit", detail: "Opened from a timeline weight marker; can delete." },
+              {
+                "name": "Create",
+                "detail": "New log defaults to the current local date/time; chosen timestamps cannot be future."
+              },
+              {
+                "name": "Edit",
+                "detail": "Timeline marker supplies the existing entry ID and timestamp; update or delete only that record."
+              },
+              {
+                "name": "Units",
+                "detail": "Use preferred kg/lb only at input/display boundaries; no separate business logic or persistence schema."
+              }
             ],
             parts: [
               {
                 "name": "Weight",
-                "detail": "Labeled decimal field in current kg/lb unit; no increments or presets."
+                "detail": "One labeled decimal field in kg/lb; no increments or presets."
               },
               {
                 "name": "Log time",
-                "detail": "Compact clock in header right opens shared Log Time modal."
+                "detail": "The existing bounded LogTimeChanger is inside the dialog, never a global settings clock."
               },
               {
                 "name": "Actions",
-                "detail": "Fixed Cancel/Save footer, plus Delete for an existing log."
+                "detail": "Cancel/Save and existing-entry Delete use the shared fixed modal action area; errors preserve drafts."
               }
             ],
             guardrails: [
-              "Keep a single canonical `weightKg` shared with Athlete Information. Convert only for display (fix 5833c71).",
-              "Do not open a data-entry modal for weight (ui-style-guide.mdc; inline since 67d99b6).",
+              "Use this one canonical actual Modal from Home, Athlete Information and timeline editing; do not duplicate weight UI or writers (user request, 23 November 2026; supersedes earlier inline/no-modal design).",
+              "Preserve canonical kg precision for unchanged prefilled new logs and edits; keep timestamp/record identity when editing.",
+              "Profile-only updates never create weight events; backdated logs must not overwrite the latest bodyweight display."
             ],
             links: [
               "architecture:log-time-changer",
@@ -294,6 +334,7 @@ CAPS.trees.home = {
               "database:table-weight-logs",
               "database:table-timeline-entries",
               "settings:athlete-info-screen",
+              "architecture:form-modal"
             ],
             versions: [
               {
@@ -365,9 +406,22 @@ CAPS.trees.home = {
                 "commits": [
                   "b971c0d"
                 ]
+              },
+              {
+                "n": 7,
+                "name": "WeightLogModal",
+                "date": "2026-11-23 12:48 -0500",
+                "commits": [
+                  "65e148a"
+                ],
+                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                "changes": [
+                  "Render one actual modal at all three entrypoints with internal date/time selection and shared persistence.",
+                  "Preserve kg precision, existing record identity, backdated history and latest-weight consumers."
+                ]
               }
             ],
-            children: [{ id: "weight-log-time", ref: "architecture:log-time-changer", note: "Header clock opens Log Time modal" }],
+            children: [{ id: "weight-log-time", ref: "architecture:log-time-changer", note: "Timestamp selection lives inside the canonical weight dialog." }],
           },
           {
             id: "sleep-log",
@@ -518,9 +572,9 @@ CAPS.trees.home = {
             title: "DayTimeline",
             kind: "component",
             tagline: "24-hour strip for the selected day",
-            files: ["src/components/DayTimeline.tsx", "src/constants/timelineCategories.ts"],
+            files: ["src/screens/HomeScreen.tsx", "src/components/DayTimeline.tsx", "src/constants/timelineCategories.ts"],
             summary:
-              "Horizontal 24-hour timeline of `TimelineEntry` rows for the selected local day. Weight markers reopen the weight card. Loads via `getTimelineEntriesForDay` after `scheduleIdleTask`.",
+              "Horizontal 24-hour timeline of TimelineEntry rows for the selected local day. Home’s day navigation uses accessible left/right chevrons around the selected day instead of visible -1/+1 controls; navigation/data loading and date constraints remain unchanged. Weight markers reopen the canonical weight modal.",
             links: [
               "database:table-timeline-entries",
               "architecture:schedule-idle-task",
@@ -561,6 +615,19 @@ CAPS.trees.home = {
                 date: "2026-11-02 22:36 -0500",
                 commits: ["67d99b6"],
                 changes: ["Restyled to match the card-by-card Home dashboard."],
+              },
+              {
+                "n": 5,
+                "name": "DayTimeline",
+                "date": "2026-11-23 12:48 -0500",
+                "commits": [
+                  "65e148a"
+                ],
+                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                "changes": [
+                  "Replace visible numeric previous/next-day increments with established icon-library chevrons.",
+                  "Preserve selected-date updates and all timeline data behavior."
+                ]
               },
             ],
           },

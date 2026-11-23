@@ -2,7 +2,7 @@ CAPS.trees.database = {
   id: "database",
   title: "Database",
   summary:
-    "Local Expo SQLite caps.db schema v10: existing training/nutrition/weight data plus device-local Recovery questionnaire revisions, normalized health samples/cursors, snapshots, baselines and source preferences.",
+    "Local Expo SQLite caps.db schema v10 stores training, nutrition, timeline, weight and Recovery data. Non-weight athlete profile settings additionally use expo-sqlite/kv-store’s separate ExpoSQLiteStorage database; no caps.db schema migration or weight-history duplication accompanies biometric editing.",
   rules: ["conditioning-data-and-units.mdc"],
   root: {
     id: "caps-db",
@@ -938,6 +938,43 @@ CAPS.trees.database = {
     }
   ]
 },
+      {
+        "id": "athlete-profile-kv",
+        "title": "Athlete profile KV storage",
+        "kind": "data",
+        "status": "active",
+        "tagline": "Separate ExpoSQLiteStorage settings, not a caps.db table",
+        "files": [
+          "src/data/athleteProfileStorage.ts",
+          "src/utils/athleteProfile.ts",
+          "src/state/AppStateContext.tsx"
+        ],
+        "summary": "The bundled expo-sqlite/kv-store persists JSON under key caps.athlete-profile.v1 in its separate ExpoSQLiteStorage database/storage table. Payload contains names, legacy age, dateOfBirth, sex, heightCm and sports; validated hydration ignores malformed fields. Bodyweight is explicitly excluded and remains in caps.db weight_logs joined to timeline_entries. Serialized partial profile writes preserve unrelated fields; failed writes retain the previous committed profile. caps.db user_version remains 10 with no migration.",
+        "links": [
+          "architecture:app-state",
+          "settings:athlete-info-screen",
+          "database:table-weight-logs"
+        ],
+        "guardrails": [
+          "Do not describe ExpoSQLiteStorage/storage as a caps.db relational table or persist weight in the profile payload.",
+          "Keep DOB as the canonical date field; a legacy age must not silently invent a saved birthday."
+        ],
+        "versions": [
+          {
+            "n": 1,
+            "name": "Athlete profile KV storage",
+            "date": "2026-11-23 12:48 -0500",
+            "commits": [
+              "65e148a"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "Persist existing non-weight profile fields through the bundled SQLite KV store without introducing dependencies or relational migrations.",
+              "Exclude weight from profile JSON and keep all weight history/timestamps in existing tables."
+            ]
+          }
+        ]
+      },
 ],
   },
 };

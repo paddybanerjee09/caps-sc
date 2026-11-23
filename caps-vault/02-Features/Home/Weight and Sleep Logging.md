@@ -6,15 +6,17 @@ aliases:
 
 # Weight and Sleep Logging
 
-Both filename-suffixed `Modal` components are dedicated screen overlays in [[Home]], rendered outside its dashboard ScrollView. They share `WorkflowHeader`/`WorkflowFooter` and `src/components/LogTimeChanger.tsx`; only time selection opens a modal. The 20 November user correction removes the earlier stepper/preset design.
+Weight uses a real app-wide modal. Sleep retains its dedicated screen overlay and shared WorkflowHeader/WorkflowFooter. Both reuse src/components/LogTimeChanger.tsx. The 23 November user correction explicitly supersedes the former weight screen-overlay convention; it does not change Sleep.
 
 ## Weight
 
-- `src/components/WeightLogModal.tsx` opens from Quick Log or to edit a marker in [[Home Day Timeline]]. New logs are seeded by profile weight or a 70 kg default. The save path clamps the logged-at time to now. The edit flow can move the entry or delete it.
-- `src/utils/weight.ts` converts display kg/lb. The canonical units are kilograms. Preserve original kg when the displayed rounded value was left unchanged during an edit.
-- One labeled decimal text field replaces all +/-0.1, +/-1 and weight presets. Invalid/empty input cannot save, comma decimals are accepted, and pending saves/deletes cannot be submitted twice. The header has X and a clock/time trigger; the fixed footer retains Cancel, Save and edit-mode Delete.
-- `logWeight`, `updateWeightLog`, and `deleteWeightLog` in `src/state/AppStateContext.tsx` refresh the latest weight from SQLite after mutation. This keeps Athlete Information and Home in agreement and prevents a retroactive older log from becoming the current profile weight by default.
+- `src/components/WeightLogModal.tsx` opens from Home Quick Log, weight markers in [[Home Day Timeline]], and Athlete Information's Bodyweight tile. FormModal supplies compact native Modal presentation, safe areas, keyboard handling and Cancel/Save. History editing also retains Delete. No separate weight-entry screen or Athlete weight form remains.
+- New entries initialize to the latest stored weight if present, otherwise an empty draft, and the current local timestamp. The date/time control lives inside the modal. Future/invalid dates and nonpositive/nonfinite weights cannot save; cancellation leaves storage unchanged.
+- `src/utils/weight.ts` converts display kg/lb using existing conventions. Canonical units remain kilograms. An unchanged rounded prefill preserves the original exact kg for both new logs and edits; changing units alone does not rewrite history.
+- One labeled decimal input accepts comma decimals and keeps invalid/empty drafts unsaved. Persistence failures retain the draft and an actionable error. A synchronous save/delete lock prevents double submission. Consumer refresh failures after commit cannot invite a duplicate insert.
+- `logWeight`, `updateWeightLog`, and `deleteWeightLog` in `src/state/AppStateContext.tsx` refresh the latest weight and increment timelineRevision centrally. This updates Home, Progress and Athlete Information, and preserves newest-by-log-time semantics when an older log is added or edited.
 - `src/data/timelineRepository.ts` owns transactional writes linking the `weight_logs` detail to its `timeline_entries` ID. See [[Data and Persistence]].
+- scripts/verify-weight.mjs checks real SQLite precision/timestamps, backdating/latest projection, edit identity, cascade delete and injected transaction rollback. Device modal/keyboard/nested-time-picker acceptance is separate; see [[2026-11-23 UI Refactor Handoff]].
 
 History runs from initial SQLite weight log `ea4cc2b`, canonical profile weight `5833c71`, retroactive logging `d09b356`, deletion and time picker `3232443`, and early UI pass `ea999da` to inline steppers/presets `67d99b6`.
 

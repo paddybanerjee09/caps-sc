@@ -1,6 +1,8 @@
 # Skills Training
 
-**Current status: logging is on the Skills tab** at `45648a2`. The second bottom tab uses route `skill` and the `boxing-glove` icon. `src/screens/Screens.tsx` resolves it to `SkillTrainingScreen` in `src/screens/SkillScreen.tsx`. Schema version is 9.
+**Current status: logging is on the Skills tab**. The second bottom tab uses route `skill` and the `boxing-glove` icon. `src/screens/Screens.tsx` resolves it to `SkillTrainingScreen` in `src/screens/SkillScreen.tsx`. Skill tables arrived at schema 9; current database version is 10 after Recovery.
+
+Since 23 November the hub uses the same MonthlyTimelineComponent, TrainingSessionActions (Free Session/Create Session) and Conditioning-style SavedWorkouts dropdown as Strength/Conditioning. Skills already has one builder with distinct Save-template and Log actions; both launch buttons intentionally open that existing builder. There is no invented separate Skills timer. Focus legend, session markers, saved template IDs, calorie logic and builder/navigation behavior remain discipline-owned. See [[2026-11-23 UI Refactor Handoff]].
 
 [[2026-11-16 Skill Screen Implementation Plan]] is the design that was built. Effort is stored as an RPE band (rate of perceived exertion): Easy is RPE 6 or below, Moderate is RPE 7–8, and Hard is RPE 9–10. The plan's RIR wording was not implemented.
 

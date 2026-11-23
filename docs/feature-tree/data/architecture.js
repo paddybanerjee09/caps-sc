@@ -87,7 +87,7 @@ CAPS.trees.architecture = {
         tagline: "Header, screen, stacks, tabs, sidebar",
         files: ["src/navigation/AppNavigator.tsx"],
         summary:
-          "Owns `activeRoute` and `sidebarOpen`. Renders Header, `ScreenForRoute`, then `NutritionStack` when the nutrition tab is active and `ConditioningStack` when the conditioning tab is active, then BottomTabs and Sidebar. Hardware back closes the sidebar, then the active workspace, then exits.",
+          "Owns active route, sidebar, the remembered main tab, and guarded settings navigation. Settings menu opens the existing drawer; its X exits the settings context to the remembered tab. Android Back closes transient UI, delegates existing draft/workspace guards, then exits as appropriate. No second navigator or duplicate stack is introduced.",
         versions: [
           {
             "n": 1,
@@ -146,6 +146,19 @@ CAPS.trees.architecture = {
             "commits": [
               "b971c0d"
             ]
+          },
+          {
+            "n": 6,
+            "name": "AppNavigator",
+            "date": "2026-11-23 12:47 -0500",
+            "commits": [
+              "8225102"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "Add settings-specific menu/sidebar exit behavior while preserving the previous main tab and existing draft guards.",
+              "Retain primary-screen navigation and hardware Back through the existing custom state navigator."
+            ]
           }
         ],
         children: [
@@ -154,8 +167,11 @@ CAPS.trees.architecture = {
             title: "Header",
             kind: "component",
             tagline: "CAPS mark + hamburger",
-            files: ["src/components/Header.tsx"],
-            summary: "Top bar. Hamburger opens the sidebar. Accent-colored CAPS icon follows `tertiaryColor`.",
+            files: [
+              "src/components/Header.tsx",
+              "src/components/MenuButton.tsx"
+            ],
+            summary: "The main top bar shows the CAPS mark and shared MenuButton. Settings subscreens reuse the same three-bar control through WorkflowHeader rather than showing branch-close X.",
             versions: [
               {
                 n: 1,
@@ -178,6 +194,18 @@ CAPS.trees.architecture = {
                 commits: ["9fc0f73", "5c595dd"],
                 changes: ["SDK 57 repairs (`9fc0f73`) and the chrome renovation (`5c595dd`)."],
               },
+              {
+                "n": 4,
+                "name": "Header",
+                "date": "2026-11-23 12:47 -0500",
+                "commits": [
+                  "8225102"
+                ],
+                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                "changes": [
+                  "Extract the existing hamburger into MenuButton and reuse it on settings headers."
+                ]
+              },
             ],
           },
           {
@@ -186,9 +214,12 @@ CAPS.trees.architecture = {
             kind: "component",
             tagline: "Shared screen chrome",
             files: ["src/components/Screen.tsx", "src/components/ScreenTitleCard.tsx"],
-            summary: "Uniform left-aligned ScreenTitleCard and a padded ScrollView. The same title card is used directly by Skill, Strength and Conditioning. Screens must not be extracted into a generic Card wrapper.",
+            summary: "Shared ScreenTitleCard and padded scrolling content. Settings branches provide onMenu to the safe fixed header and omit global log-time controls. Ordinary subscreens retain their existing branch-close and footer behavior.",
             guardrails: [
               "Do not extract a global `<Card />` across screens; each screen owns its card markup (ui-style-guide.mdc).",
+            ],
+            links: [
+              "architecture:menu-button"
             ],
             versions: [
   {
@@ -262,7 +293,19 @@ CAPS.trees.architecture = {
       "Main-screen subtitles removed; shared title wrapper omits empty subtitle row.",
       "Presentation only; data, calculations and validation remain."
     ]
-  }
+  },
+              {
+                "n": 7,
+                "name": "Screen",
+                "date": "2026-11-23 12:47 -0500",
+                "commits": [
+                  "8225102"
+                ],
+                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                "changes": [
+                  "Support the settings menu header without changing unrelated primary-screen headers."
+                ]
+              }
 ],
           },
           {
@@ -314,7 +357,7 @@ CAPS.trees.architecture = {
             kind: "component",
             tagline: "Settings, Account, Athlete",
             files: ["src/components/Sidebar.tsx"],
-            summary: "Hamburger drawer listing `sidebarItems` from `routes.ts`.",
+            summary: "The existing drawer lists Settings, Account Information and Athlete Information. Opening it from settings preserves that context; the drawer X exits settings to the remembered main tab through registered unsaved-change guards.",
             links: ["settings:settings-root"],
             versions: [
               {
@@ -337,6 +380,18 @@ CAPS.trees.architecture = {
                 date: "2026-11-02 22:26 -0500",
                 commits: ["9fc0f73", "5c595dd"],
                 changes: ["SDK repairs and chrome renovation."],
+              },
+              {
+                "n": 4,
+                "name": "Sidebar",
+                "date": "2026-11-23 12:47 -0500",
+                "commits": [
+                  "8225102"
+                ],
+                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                "changes": [
+                  "Route drawer X through the guarded settings exit when a settings screen is active."
+                ]
               },
             ],
           },
@@ -383,14 +438,14 @@ CAPS.trees.architecture = {
         id: "shared-controls",
         title: "Shared controls",
         kind: "group",
-        tagline: "Shared press, toggle, time and workflow controls",
+        tagline: "Shared presses, modal forms, wheels and training actions",
         files: [
           "src/components/PressOpacity.tsx",
           "src/components/SimpleSwitch.tsx",
           "src/components/LogTimeChanger.tsx",
         ],
         summary:
-          "Shared interaction primitives enforce uniform press feedback, toggles, logging time and subscreen bars across the five tabs.",
+          "Shared interaction primitives enforce theme and feedback across presses, toggles, log time, biometric modal forms, scroll wheels, settings menus, training session actions and safe subscreen bars.",
         children: [
           {
             id: "press-opacity",
@@ -552,7 +607,7 @@ CAPS.trees.architecture = {
               "files": [
                 "src/components/WorkflowChrome.tsx"
               ],
-              "summary": "One header/footer contract across all subscreens. Centered title, safe top inset, branch-wide X, optional right-hand clock. Fixed footer uses Cancel at first depth and Back deeper, next to existing actions.",
+              "summary": "Shared safe fixed header/footer. Ordinary subscreens retain centered title, branch-wide X and optional logging clock. Settings supply a menu action and no global clock; the sidebar X handles settings exit. Fixed Cancel/Back footers retain existing domain actions and guards.",
               "guardrails": [
                 "Apply top safe inset exactly once; Home overlays use their already-inset parent.",
                 "X exits the entire branch with existing guards; footer Back pops one level and preserves parent drafts."
@@ -565,6 +620,18 @@ CAPS.trees.architecture = {
                   "uncommitted": true,
                   "changes": [
                     "Standardized subscreen headers and footers across five tabs and sidebar branches."
+                  ]
+                },
+                {
+                  "n": 2,
+                  "name": "WorkflowHeader and WorkflowFooter",
+                  "date": "2026-11-23 12:47 -0500",
+                  "commits": [
+                    "8225102"
+                  ],
+                  "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                  "changes": [
+                    "Allow settings-only hamburger behavior while retaining normal branch X and footer navigation elsewhere."
                   ]
                 }
               ]
@@ -597,7 +664,153 @@ CAPS.trees.architecture = {
       ]
     }
   ]
-}
+},
+          {
+            "id": "action-button",
+            "title": "ActionButton",
+            "kind": "component",
+            "status": "active",
+            "tagline": "Shared primary, secondary and quiet action",
+            "files": [
+              "src/components/ActionButton.tsx",
+              "src/components/conditioning/ConditioningFields.tsx"
+            ],
+            "summary": "The existing Conditioning button is extracted unchanged into a shared primitive; its old export remains compatible. Training session actions reuse its styling, touch targets and press feedback.",
+            "versions": [
+              {
+                "n": 1,
+                "name": "ActionButton",
+                "date": "2026-11-23 12:39 -0500",
+                "commits": [
+                  "a09ebfe"
+                ],
+                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                "changes": [
+                  "Extract the existing ActionButton without changing domain actions; keep the Conditioning re-export."
+                ]
+              }
+            ]
+          },
+          {
+            "id": "training-session-actions",
+            "title": "TrainingSessionActions",
+            "kind": "component",
+            "status": "active",
+            "tagline": "Free Session followed by Create Session",
+            "files": [
+              "src/components/training/TrainingSessionActions.tsx"
+            ],
+            "summary": "All three training hubs use the same Free Session primary action, then Create Session secondary action, with callbacks supplied by the owning discipline. Strength keeps its log/template modes; Skills retains its existing unified Save/Log builder.",
+            "links": [
+              "architecture:action-button",
+              "conditioning:conditioning-screen",
+              "strength:strength-screen",
+              "skill:skill-screen"
+            ],
+            "versions": [
+              {
+                "n": 1,
+                "name": "TrainingSessionActions",
+                "date": "2026-11-23 12:39 -0500",
+                "commits": [
+                  "a09ebfe"
+                ],
+                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                "changes": [
+                  "Standardize button order, labels, spacing, sizing and feedback across the three training hubs."
+                ]
+              }
+            ]
+          },
+          {
+            "id": "menu-button",
+            "title": "MenuButton",
+            "kind": "component",
+            "status": "active",
+            "tagline": "Existing three-bar navigation control",
+            "files": [
+              "src/components/MenuButton.tsx"
+            ],
+            "summary": "One themed hamburger button is shared by the main Header and settings WorkflowHeader. It opens the existing Sidebar and retains its accessible label and feedback.",
+            "links": [
+              "architecture:sidebar"
+            ],
+            "versions": [
+              {
+                "n": 1,
+                "name": "MenuButton",
+                "date": "2026-11-23 12:47 -0500",
+                "commits": [
+                  "8225102"
+                ],
+                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                "changes": [
+                  "Reuse the existing menu icon on all three settings screens."
+                ]
+              }
+            ]
+          },
+          {
+            "id": "form-modal",
+            "title": "FormModal",
+            "kind": "component",
+            "status": "active",
+            "tagline": "Shared biometric modal lifecycle",
+            "files": [
+              "src/components/FormModal.tsx"
+            ],
+            "summary": "An actual React Native Modal provides the centered, safe-area-aware biometric dialog foundation. Keyboard avoidance, scrolling form content, fixed Cancel/Save controls, pending-save dismissal protection and accessible errors are shared by biometric editing and WeightLogModal. Drafts and persistence stay with each form.",
+            "guardrails": [
+              "Use this explicitly requested biometric modal exception without replacing unrelated screen-based workflows (user request, 23 November 2026)."
+            ],
+            "links": [
+              "home:weight-log",
+              "settings:biometric-overview"
+            ],
+            "versions": [
+              {
+                "n": 1,
+                "name": "FormModal",
+                "date": "2026-11-23 12:48 -0500",
+                "commits": [
+                  "65e148a"
+                ],
+                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                "changes": [
+                  "Provide one modal foundation for age/DOB, sex, height and canonical weight logging."
+                ]
+              }
+            ]
+          },
+          {
+            "id": "scroll-picker",
+            "title": "ScrollPicker",
+            "kind": "component",
+            "status": "active",
+            "tagline": "Accessible vertical measurement and date wheel",
+            "files": [
+              "src/components/ScrollPicker.tsx"
+            ],
+            "summary": "Reusable vertically scrollable options initialize from saved values and settle to a selected row. DOB composes day/month/year wheels; metric height uses centimetres and imperial height independent side-by-side feet/inches wheels. No visible increment buttons.",
+            "links": [
+              "settings:date-of-birth-modal",
+              "settings:height-selection-modal"
+            ],
+            "versions": [
+              {
+                "n": 1,
+                "name": "ScrollPicker",
+                "date": "2026-11-23 12:48 -0500",
+                "commits": [
+                  "65e148a"
+                ],
+                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+                "changes": [
+                  "Reuse one scroll picker for the explicitly requested DOB and height dialogs."
+                ]
+              }
+            ]
+          }
 ],
       },
       {
@@ -607,9 +820,12 @@ CAPS.trees.architecture = {
         tagline: "Profile, units, cues, weight logs",
         files: ["src/state/AppStateContext.tsx"],
         summary:
-          "Username, athlete profile, unit settings, audio/haptic flags, and weight-log helpers. Nutrition and conditioning have their own workspace contexts.",
+          "Owns username, athlete profile, units, feedback flags and timeline revision. Non-weight profile fields hydrate/persist through the bundled SQLite KV store with serialized partial updates; DOB derives current age while a legacy age remains readable until explicitly replaced. Current bodyweight is refreshed from the latest weight_logs event after canonical weight mutations. Profile updates never create weight events.",
         guardrails: [
           "The line-98 `AppStateContext` bug (`2c0cfb4`) was a stale closure / update error. Do not reintroduce it.",
+        ],
+        links: [
+          "database:athlete-profile-kv"
         ],
         versions: [
           {
@@ -641,6 +857,19 @@ CAPS.trees.architecture = {
             date: "2026-11-02 22:26 -0500",
             commits: ["5c595dd"],
             changes: ["Audio and haptic flags for the feedback engine."],
+          },
+          {
+            "n": 5,
+            "name": "AppStateContext",
+            "date": "2026-11-23 12:48 -0500",
+            "commits": [
+              "65e148a"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "Persist validated non-weight athlete fields in the existing bundled KV store; derive age from DOB.",
+              "Keep weight history-owned and serialize profile writes so unrelated updates do not overwrite each other."
+            ]
           },
         ],
       },
@@ -763,7 +992,7 @@ CAPS.trees.architecture = {
         tagline: "ui-style-guide.mdc",
         files: [".cursor/rules/ui-style-guide.mdc"],
         summary:
-          "Theme-based minimalist forms, decimal weight/load fields, shared safe-area headers/footers, compact clock buttons and the explicit Log Time modal exception. Branch X exits all levels; fixed Cancel/Back depends on depth.",
+          "Theme-based minimalist forms and decimal weight/load inputs. Explicit biometric/weight dialogs share FormModal and scrolling DOB/height controls; date navigation uses chevrons. Shared safe-area subscreen bars remain, with settings-only menu/no-clock behavior.",
         versions: [
   {
     "n": 1,
@@ -829,11 +1058,25 @@ CAPS.trees.architecture = {
     "changes": [
       "Persist latest questionnaire/history, readable date, overlay menu, below-chart legend, current-period and axis interaction contracts."
     ]
-  }
+  },
+          {
+            "n": 6,
+            "name": "UI style guide",
+            "date": "2026-11-23 12:48 -0500",
+            "commits": [
+              "65e148a"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "Document the explicit biometric modal exception and direct/scrolling input conventions.",
+              "Preserve established theme, distinct training workflows and settings-only navigation exceptions."
+            ]
+          }
 ],
 
 guardrails: [
-  "Keep default UI concise: no filler/scoring/navigation paragraphs or raw developer metadata; use -- missing values and one short metric definition/requirement (user correction,22 November2026)."
+  "Keep default UI concise: no filler/scoring/navigation paragraphs or raw developer metadata; use -- missing values and one short metric definition/requirement (user correction,22 November2026).",
+  "Use the requested biometric modals and intuitive scroll/date controls; do not restore standalone duplicate biometric cards, measurement steppers or numeric day arrows (user request, 23 November 2026)."
 ],
 },
       {

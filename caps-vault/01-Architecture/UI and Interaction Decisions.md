@@ -2,6 +2,8 @@
 
 ## Current conventions
 
+- 23 November refactor: interactive Biometric Overview replaces redundant input cards. DOB/sex/height editors and app-wide WeightLogModal use FormModal, with theme-matched ScrollPicker columns for DOB/height. Explicit user follow-up requires actual weight modal presentation everywhere, superseding the former screen-overlay contract for weight only. Settings headers use MenuButton without a global log timestamp; sidebar X exits settings. Calendar and saved-workout/session action presentation is shared across all three training hubs. Date navigation uses icon-only chevrons. See [[2026-11-23 UI Refactor Handoff]].
+
 - Latest 22 November control revision: numbered sliders/defaults, minute sleep clocks, dedicated questionnaire history, human-readable full dates, overlay graph menu, current-period reset, below-plot toggle values, higher-is-better wellness and detailed responsive axes. Earlier inline history/top legend/quarter-hour details are historical. See [[2026-11-22 Questionnaire and Chart Controls Handoff]] and docs/questionnaire-sri-v2.md; style guide section 10.
 
 - 22 November user correction: remove filler paragraphs, redundant navigation/scoring explanations, default diagnostic metadata and generic screen subtitles. Metric cards get one short definition or requirement; missing values use --. Progress categories use an overlay dropdown and value-only tooltips. Keep touch targets/labels/validation, compact estimate badges, underlying provenance and calculations. The UI style guide section 9 records this rule. See [[2026-11-22 Minimal UI Handoff]].

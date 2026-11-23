@@ -9,11 +9,11 @@ CAPS.trees.skill = {
     title: "SkillTrainingScreen",
     kind: "screen",
     status: "active",
-    tagline: "Month, builder, saved sessions, and detail",
+    tagline: "Shared month, Free/Create actions and Saved Workouts",
     files: ["src/screens/SkillScreen.tsx", "src/state/SkillWorkspaceContext.tsx"],
     entry: "Bottom tab \"Skills Training\" (boxing-glove icon), second from the left.",
     summary:
-      "The month calendar is the first card. The parent supplies MonthEvent rows. Marker colour is the stored focus, and each row shows the focus name and end time. A legend lists the five focus colours. Build Skill Session opens the builder. Saved Sessions expands inline under its button.",
+      "Month calendar of logged Skill sessions, existing focus legend, shared Free Session/Create Session controls and canonical Conditioning-style SavedWorkouts. Both launch actions use the existing unified Skill builder, whose Save and Log remain distinct writes. Saved template IDs, focus colors, local end-date placement and detail behavior remain unchanged.",
     guardrails: [
       "Use shared subscreen bars, decimal weight/load inputs and the shared Log Time modal; preserve domain validation (user correction, 20 November 2026).",
       "The file is `SkillScreen.tsx`, the component is `SkillTrainingScreen`, and the route key is `skill`. Keep all three in sync with `Screens.tsx` and `routes.ts`.",
@@ -27,6 +27,8 @@ CAPS.trees.skill = {
       "conditioning:monthly-calendar",
       "database:table-skill-sessions",
       "database:table-skill-templates",
+      "conditioning:saved-workouts",
+      "architecture:training-session-actions"
     ],
     versions: [
   {
@@ -116,7 +118,20 @@ CAPS.trees.skill = {
       "Remove generic subtitle and standardize -- empty values.",
       "Presentation only; data, calculations and validation remain."
     ]
-  }
+  },
+      {
+        "n": 8,
+        "name": "SkillTrainingScreen",
+        "date": "2026-11-23 12:39 -0500",
+        "commits": [
+          "a09ebfe"
+        ],
+        "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+        "changes": [
+          "Use the shared saved-workout expander/cards and uniform Free Session/Create Session labels and controls.",
+          "Keep the existing Skill builder for both launches; retain its independent Save/Log actions and saved-template workflow."
+        ]
+      }
 ],
     children: [
       {
@@ -289,6 +304,16 @@ CAPS.trees.skill = {
             ],
           },
         ],
+      },
+      {
+        "id": "skill-saved-workouts",
+        "title": "SavedWorkouts",
+        "ref": "conditioning:saved-workouts"
+      },
+      {
+        "id": "skill-session-actions",
+        "title": "TrainingSessionActions",
+        "ref": "architecture:training-session-actions"
       },
     ],
   },

@@ -4,7 +4,7 @@ CAPS stores conditioning on the device in the existing `caps.db` SQLite database
 
 ## Screen flow
 
-The Conditioning tab shows a monthly calendar, the selected day's sessions, Free Session, Create Session, and a Saved Workouts expander. Create Session opens an overlay for Time Interval, Sprints, or Circuit, then a large editor. Saved workouts use the same grid in the expander and in `SavedConditioningSessionScreen`. Free sessions record now and do not use the log-time control. Planned and logged sessions use `LogTimeChanger` for the clock time.
+The Conditioning tab shows the shared MonthlyTimelineComponent, selected-day sessions, TrainingSessionActions (Free Session/Create Session), and SavedWorkouts expander used by all three training hubs. Create Session opens the existing Time Interval/Sprints/Circuit chooser, then the editor. Saved entries are typed presentation adapters of Conditioning templates; selecting one opens the existing editor with its template ID, configuration and selected date, retaining Start, Plan and Manual Log. The redundant Browse Saved Workouts button, unreachable SavedConditioningSessionScreen and duplicate SavedWorkoutGrid are removed. Free sessions record now and do not use the log-time control. Planned and logged sessions use LogTimeChanger for the clock time.
 
 Planned rows stay `planned` until Start or Log. Opening or saving a template does not create a completed session. Start records now, even if another calendar day is selected. Discarding a recording restores the original plan.
 

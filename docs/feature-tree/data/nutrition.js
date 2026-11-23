@@ -148,6 +148,18 @@ CAPS.trees.nutrition = {
             commits: ["9917cee"],
             changes: ["Card-by-card diary with steppers and compact meal rows."],
           },
+          {
+            "n": 4,
+            "name": "Logged meals diary",
+            "date": "2026-11-23 12:47 -0500",
+            "commits": [
+              "8225102"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "Use icon-library chevrons for previous/next-day navigation while preserving selected-day meal loading."
+            ]
+          },
         ],
         children: [
           {

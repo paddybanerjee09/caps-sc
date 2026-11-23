@@ -13,7 +13,7 @@ Source baseline `e492e06`. See the [Architecture tree](../../docs/feature-tree/a
 - `src/navigation/routes.ts` defines tabs and sidebar routes. `src/screens/Screens.tsx` resolves the route to a screen. `AppNavigator.tsx` owns active route and drawer state, begins at Home, and renders the relevant Nutrition or Conditioning stack over its base screen. The custom navigation dates to `f0f5834`.
 - Android hardware Back handles the sidebar first, then delegates to the active Nutrition, Conditioning, or Strength workspace. A returned `false` allows default handling. `AppNavigator` dismisses transient Nutrition UI when switching away.
 - Since `2073f65`, bottom tabs, sidebar destinations, and Home’s request to open Nutrition use the same callback to set the route and close the sidebar.
-- `src/state/AppStateContext.tsx` owns the in-memory username, profile, unit settings, audio and haptic flags, and timeline revision. Weight is derived from the latest stored weight event. Weight mutators refresh it from SQLite. Conditioning saves signal the Home timeline through `bumpTimeline()`. Theme selection is owned by `src/theme/ThemeContext.tsx`. See [[Settings]] for which controls persist.
+- `src/state/AppStateContext.tsx` owns username, athlete profile, unit settings, audio/haptic flags and timeline revision. Since 23 November, profile-owned fields persist through src/data/athleteProfileStorage.ts in expo-sqlite/kv-store; other app preferences remain in memory. Weight is derived exclusively from the latest stored weight event. Weight mutators refresh it from SQLite and invalidate timelineRevision centrally. Conditioning saves signal the Home timeline through `bumpTimeline()`. Theme selection is owned by `src/theme/ThemeContext.tsx`. See [[Settings]] and [[Data and Persistence]].
 - `2c0cfb4` changed the initial weight load effect to an explicit cancellable read with a functional profile update. Preserve cleanup and merge semantics when changing async hydration. Git shows that concrete change. The tree's more specific description of the original bug has limited evidence.
 
 ## Chrome and identity
@@ -35,6 +35,8 @@ The package scripts are those at the baseline above. The latest run results are 
 ## Subscreen navigation audit (20 November 2026)
 
 `WorkflowChrome.tsx` provides shared safe top bars and fixed bottom navigation. All four feature stacks use branch-wide X and depth-aware footer Cancel/Back. Home weight/sleep overlay its already-inset content with the same bars. Sidebar routes hide the global header, use `Screen.onClose/footer/right`, and return to the last main tab; Account/Athlete register close guards for hardware Back. See [[UI and Interaction Decisions]] and [[2026-11-20 UI Audit Review]].
+
+23 November exceptions: weight is now an actual app-wide FormModal workflow, while Sleep retains its screen overlay. Settings destinations use the shared MenuButton through Screen/WorkflowHeader and no global time selector. Sidebar X exits settings to the remembered main tab; dismissing the drawer leaves the settings route in place. Training hubs share MonthlyTimelineComponent, SavedWorkouts and TrainingSessionActions; domain repositories/workspaces remain separate. See [[2026-11-23 UI Refactor Handoff]].
 
 ## Recovery integration (21 November 2026)
 

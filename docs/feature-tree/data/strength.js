@@ -9,11 +9,11 @@ CAPS.trees.strength = {
     title: "StrengthTrainingScreen",
     kind: "screen",
     status: "active",
-    tagline: "Month, log, create, and saved workouts",
+    tagline: "Shared month, Free/Create actions and Saved Workouts",
     files: ["src/screens/StrengthTrainingScreen.tsx", "src/state/StrengthWorkspaceContext.tsx"],
     entry: "Bottom tab \"Strength\" (barbell-outline icon), second from the right.",
     summary:
-      "Month calendar of logged sessions, then Log Workout, Create Workout, and a Saved Workouts list. The parent supplies MonthEvent rows. Marker color is the stored primary focus, or neutral when the estimate has no primary. Home still uses the Strength category color.",
+      "Month calendar of logged Strength sessions, shared Free Session/Create Session controls and the canonical Conditioning-style SavedWorkouts expander. Free Session retains Strength log mode; Create Session retains template-only mode. Saved template IDs and the existing log builder remain unchanged. Month focus colors and Home category colors remain distinct.",
     guardrails: [
       "Use shared subscreen bars, decimal weight/load inputs and the shared Log Time modal; preserve domain validation (user correction, 20 November 2026).",
       "Do not restore the reverted v1 modal stack (reverted 2026-10-02).",
@@ -26,6 +26,8 @@ CAPS.trees.strength = {
       "architecture:log-time-changer",
       "conditioning:monthly-calendar",
       "database:table-strength-sessions",
+      "conditioning:saved-workouts",
+      "architecture:training-session-actions"
     ],
     versions: [
   {
@@ -140,7 +142,20 @@ CAPS.trees.strength = {
       "Remove generic subtitle; standardized -- empty display.",
       "Presentation only; data, calculations and validation remain."
     ]
-  }
+  },
+      {
+        "n": 10,
+        "name": "StrengthTrainingScreen",
+        "date": "2026-11-23 12:39 -0500",
+        "commits": [
+          "a09ebfe"
+        ],
+        "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+        "changes": [
+          "Use the shared Conditioning-style saved-workout expander/cards and shared session launch controls.",
+          "Preserve Strength log/template modes, stored IDs, focus markers and existing builder behavior."
+        ]
+      }
 ],
     children: [
       {
@@ -899,6 +914,16 @@ CAPS.trees.strength = {
             ],
           },
         ],
+      },
+      {
+        "id": "strength-saved-workouts",
+        "title": "SavedWorkouts",
+        "ref": "conditioning:saved-workouts"
+      },
+      {
+        "id": "strength-session-actions",
+        "title": "TrainingSessionActions",
+        "ref": "architecture:training-session-actions"
       },
     ],
   },

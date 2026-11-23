@@ -1,6 +1,6 @@
 # Strength
 
-Status at `aea27d0` · logging is on the Strength tab. The `strength` route in `src/navigation/routes.ts` opens `StrengthTrainingScreen` via `src/screens/Screens.tsx`. Bottom tabs use `barbell-outline`. The hub shows `MonthlyTimelineComponent`, then Log Workout, Create Workout, and Saved Workouts. Strength tables arrived at schema version 8. The database is version 9 after skill logging. Home still paints strength rows with `timelineCategories.strength`.
+Logging is on the Strength tab. The `strength` route in `src/navigation/routes.ts` opens `StrengthTrainingScreen` via `src/screens/Screens.tsx`. Bottom tabs use `barbell-outline`. Since 23 November the hub shows the common MonthlyTimelineComponent, TrainingSessionActions (Free Session/Create Session) and Conditioning-style SavedWorkouts dropdown. Free Session opens the existing log builder; Create Session opens template mode; saved entries keep their original IDs and domain loading. Strength tables arrived at schema version 8; current database version is 10 after Recovery. Home still paints strength rows with `timelineCategories.strength`.
 
 ## Product intent
 

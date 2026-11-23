@@ -5,10 +5,10 @@ aliases:
 
 # Home
 
-Home is the initial dashboard tab. `src/screens/HomeScreen.tsx` renders athlete telemetry, a Quick Log card, and Today / Recovery / Progress sections. The Today section has a selected-day stepper and the [[Home Day Timeline]]. Recovery and Progress now implement the requested [[Recovery and Progress|daily recovery and historical charts]], with automated checks and native acceptance limits documented. The Home Progress panel is distinct from the historical Progress tab that became Conditioning.
+Home is the initial dashboard tab. `src/screens/HomeScreen.tsx` renders athlete telemetry, a Quick Log card, and Today / Recovery / Progress sections. The Today section has chevron day navigation and the [[Home Day Timeline]]. Recovery and Progress implement the requested [[Recovery and Progress|daily recovery and historical charts]], with automated checks and native acceptance limits documented. The Home Progress panel is distinct from the historical Progress tab that became Conditioning.
 
 - Athlete telemetry reads `username`, `athleteProfile`, and `unitSettings` from `src/state/AppStateContext.tsx`. Its count comes from the displayed timeline entries, including the selected day when the user steps away from today. Athlete Information and Home share the same canonical profile weight.
-- Quick Log offers Strength, Conditioning, Skill, Meal, Weight, and Sleep. The latter three have wired actions. Weight and Sleep open mutually exclusive [[Weight and Sleep Logging|dedicated logging screens]]. Meal closes Quick Log and calls `openNewMeal(selectedDate)` to switch to [[Meal Composer and Saved Meals|the nutrition composer]]. The Strength, Conditioning, and Skill buttons have no handlers at the audited revision.
+- Quick Log offers Strength, Conditioning, Skill, Meal, Weight, and Sleep. The latter three have wired actions. Weight opens the app-wide [[Weight and Sleep Logging|WeightLogModal]]; Sleep retains its dedicated screen overlay. They remain mutually exclusive. Meal closes Quick Log and calls `openNewMeal(selectedDate)` to switch to [[Meal Composer and Saved Meals|the nutrition composer]]. The Strength, Conditioning, and Skill buttons have no handlers at the audited revision.
 - Home owns its selected day through `homeDate` in `NutritionWorkspaceContext`. The workspace has a separate `diaryDate`. `openNewMeal(homeDate)` sets the diary date to that day when Home opens a draft. Stepping Home's day alone leaves the diary date in place.
 - `SegmentedSelector` and `SlidingPanels` live in `src/components/nutrition/SegmentedSelector.tsx`. Keep animation on transform/opacity to avoid the layout feedback loop corrected in `ccc63a6`.
 
@@ -35,3 +35,7 @@ Main title is now title-only; absent age/height/weight use --. Recovery/question
 ## Questionnaire history screen (22 November 2026)
 
 Recovery now opens a separate QuestionnaireHistoryScreen instead of expanding rows inline. Historical editors return to history on Back/save; X exits the branch, and route/draft guards remain. Home date captions use the shared 22 Nov, 2026 formatter. Current weighted SRI/defaults and Progress interactions: [[Recovery and Progress]], [[2026-11-22 Questionnaire and Chart Controls Handoff]].
+
+## Shared weight modal and intuitive dates (23 November 2026)
+
+Home Quick Log and timeline weight edits use the same actual WeightLogModal as Athlete Information. Numeric -1d/+1d captions are removed; chevrons, selected-day formatting, Today action and query bounds remain. Age derives from stored DOB using src/utils/biometrics.ts, with legacy age only when DOB is absent. All weight mutations invalidate timelineRevision centrally. See [[2026-11-23 UI Refactor Handoff]].
