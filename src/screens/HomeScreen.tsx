@@ -46,6 +46,7 @@ import { useAppTheme } from "../theme/ThemeContext";
 import { readableTextColor, themes } from "../theme/theme";
 import { feedbackStep, feedbackToggle } from "../utils/feedback";
 import { formatHeight } from "../utils/height";
+import { calculateAge } from "../utils/biometrics";
 import { formatWeight } from "../utils/weight";
 
 const tokens = themes.dark;
@@ -82,8 +83,8 @@ export function HomeScreen({ registerExitGuard }: { registerExitGuard?: (guard: 
     setQuestionnaireForm(historical ? { localDate: historical.localDate, timezone: historical.timezone, initial: historical } : { ...recoveryDay, initial: recovery.data!.questionnaire });
   }
 
-  const ageText =
-    athleteProfile.age === null ? "--" : `${athleteProfile.age} yrs`;
+  const age = calculateAge(athleteProfile.dateOfBirth) ?? athleteProfile.age;
+  const ageText = age === null ? "--" : `${age} yrs`;
   const heightText = formatHeight(athleteProfile.heightCm, unitSettings.height);
   const weightText = formatWeight(athleteProfile.weightKg, unitSettings.weight);
   const sportsText = formatSports(athleteProfile.sports);
@@ -433,9 +434,6 @@ export function HomeScreen({ registerExitGuard }: { registerExitGuard?: (guard: 
                   name="chevron-back"
                   size={20}
                 />
-                <Text style={[styles.dateStepLabel, { color: theme.colors.text }]}>
-                  -1d
-                </Text>
               </PressOpacity>
 
               <PressOpacity
@@ -478,9 +476,6 @@ export function HomeScreen({ registerExitGuard }: { registerExitGuard?: (guard: 
                   },
                 ]}
               >
-                <Text style={[styles.dateStepLabel, { color: theme.colors.text }]}>
-                  +1d
-                </Text>
                 <Ionicons
                   color={theme.colors.text}
                   name="chevron-forward"
@@ -792,13 +787,8 @@ const styles = StyleSheet.create({
     gap: 2,
     justifyContent: "center",
     minHeight: 48,
-    minWidth: 68,
+    minWidth: 48,
     paddingHorizontal: tokens.spacing.sm,
-  },
-  dateStepLabel: {
-    fontSize: 12,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
   },
   selectedDatePill: {
     alignItems: "center",
