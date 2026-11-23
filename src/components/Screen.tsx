@@ -12,12 +12,13 @@ type ScreenProps = {
   children?: ReactNode;
   footer?: ReactNode;
   onClose?: () => void;
+  onMenu?: () => void;
   right?: ReactNode;
   subtitle?: string;
   title: string;
 };
 
-export function Screen({ children, footer, onClose, right, subtitle, title }: ScreenProps) {
+export function Screen({ children, footer, onClose, onMenu, right, subtitle, title }: ScreenProps) {
   const { theme } = useAppTheme();
 
   const body = (
@@ -42,7 +43,7 @@ export function Screen({ children, footer, onClose, right, subtitle, title }: Sc
   if (!onClose) return body;
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <WorkflowHeader title={title} onClose={onClose} right={right} />
+      <WorkflowHeader title={title} onClose={onClose} onMenu={onMenu} right={onMenu ? undefined : right} />
       {body}
       <WorkflowFooter onBack={onClose}>{footer}</WorkflowFooter>
     </View>

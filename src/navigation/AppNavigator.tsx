@@ -137,7 +137,7 @@ export function AppNavigator() {
           topInset={insets.top}
         /> : null}
         <View style={styles.content}>
-          <ScreenForRoute registerExitGuard={registerRouteExitGuard} route={activeRoute} onClose={closeSidebarScreen} registerCloseHandler={registerCloseHandler} />
+          <ScreenForRoute registerExitGuard={registerRouteExitGuard} route={activeRoute} onClose={closeSidebarScreen} onMenu={() => setSidebarOpen(true)} registerCloseHandler={registerCloseHandler} />
         </View>
         {activeRoute === "nutrition" ? <NutritionStack /> : null}
         {activeRoute === "conditioning" ? <ConditioningStack /> : null}
@@ -152,7 +152,11 @@ export function AppNavigator() {
       <Sidebar
         activeRoute={activeRoute}
         bottomInset={keyboardVisible ? 0 : insets.bottom}
-        onClose={() => setSidebarOpen(false)}
+        onClose={() => {
+          setSidebarOpen(false);
+          if (sidebarActive) (sidebarCloseHandler.current ?? closeSidebarScreen)();
+        }}
+        onDismiss={() => setSidebarOpen(false)}
         onSelect={selectRoute}
         open={sidebarOpen}
         topInset={insets.top}

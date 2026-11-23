@@ -16,7 +16,7 @@ import { feedbackConfirm, feedbackStep } from "../utils/feedback";
 
 const tokens = themes.dark;
 
-export function SettingsScreen({ onClose }: { onClose?: () => void } = {}) {
+export function SettingsScreen({ onClose, onMenu }: { onClose?: () => void; onMenu?: () => void } = {}) {
   const {
     colorScheme,
     setColorScheme,
@@ -50,6 +50,7 @@ export function SettingsScreen({ onClose }: { onClose?: () => void } = {}) {
   return (
     <Screen
       onClose={onClose}
+      onMenu={onMenu}
       title="Settings"
     >
       {/* Card 1: Appearance & Accent */}

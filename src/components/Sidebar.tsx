@@ -40,6 +40,7 @@ type SidebarProps = {
   activeRoute: RouteKey;
   bottomInset: number;
   onClose: () => void;
+  onDismiss?: () => void;
   onSelect: (route: SidebarRoute) => void;
   open: boolean;
   topInset: number;
@@ -49,6 +50,7 @@ export function Sidebar({
   activeRoute,
   bottomInset,
   onClose,
+  onDismiss,
   onSelect,
   open,
   topInset,
@@ -79,9 +81,9 @@ export function Sidebar({
     ],
   }));
 
-  function handleClose() {
+  function handleDismiss() {
     feedbackSelection();
-    onClose();
+    (onDismiss ?? onClose)();
   }
 
   return (
@@ -102,7 +104,7 @@ export function Sidebar({
       >
         <Pressable
           accessibilityLabel="Close sidebar"
-          onPress={handleClose}
+          onPress={handleDismiss}
           style={styles.scrimPress}
         />
       </Animated.View>
@@ -124,7 +126,7 @@ export function Sidebar({
             NAVIGATION & PROFILE
           </Text>
           <PressOpacity
-            accessibilityLabel="Close sidebar"
+            accessibilityLabel={sidebarItems.some((item) => item.key === activeRoute) ? "Exit settings" : "Close sidebar"}
             onPress={onClose}
             style={[
               styles.closeButton,

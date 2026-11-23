@@ -202,7 +202,7 @@ export function NutritionScreen() {
         </PressOpacity>
       ) : null}
 
-      {/* Card 1: Date Stepper Card */}
+      {/* Card 1: Date navigation */}
       <View
         style={[
           styles.card,
@@ -228,9 +228,6 @@ export function NutritionScreen() {
             ]}
           >
             <Ionicons color={theme.colors.text} name="chevron-back" size={20} />
-            <Text style={[styles.dateStepLabel, { color: theme.colors.text }]}>
-              -1d
-            </Text>
           </PressOpacity>
 
           <PressOpacity
@@ -268,9 +265,6 @@ export function NutritionScreen() {
               },
             ]}
           >
-            <Text style={[styles.dateStepLabel, { color: theme.colors.text }]}>
-              +1d
-            </Text>
             <Ionicons
               color={theme.colors.text}
               name="chevron-forward"
@@ -789,13 +783,8 @@ const styles = StyleSheet.create({
     gap: 2,
     justifyContent: "center",
     minHeight: 48,
-    minWidth: 68,
+    minWidth: 48,
     paddingHorizontal: tokens.spacing.sm,
-  },
-  dateStepLabel: {
-    fontSize: 12,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
   },
   selectedDatePill: {
     alignItems: "center",

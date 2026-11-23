@@ -11,7 +11,7 @@ import {
   type ColorScheme,
   type TertiaryColor,
 } from "../theme/theme";
-import { PressOpacity } from "./PressOpacity";
+import { MenuButton } from "./MenuButton";
 
 const tokens = themes.dark;
 const logos = {
@@ -59,27 +59,7 @@ export function Header({ onMenuPress, topInset }: HeaderProps) {
         },
       ]}
     >
-      <PressOpacity
-        accessibilityLabel="Open sidebar"
-        onPress={onMenuPress}
-        style={[
-          styles.iconButton,
-          {
-            backgroundColor: theme.colors.surfaceMuted,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <View style={[styles.menuLine, { backgroundColor: theme.colors.text }]} />
-        <View
-          style={[
-            styles.menuLine,
-            styles.menuLineShort,
-            { backgroundColor: theme.colors.tertiary },
-          ]}
-        />
-        <View style={[styles.menuLine, { backgroundColor: theme.colors.text }]} />
-      </PressOpacity>
+      <MenuButton onPress={onMenuPress} />
 
       <Image
         accessibilityIgnoresInvertColors
@@ -101,28 +81,11 @@ const styles = StyleSheet.create({
     paddingBottom: tokens.spacing.xs,
     paddingHorizontal: tokens.spacing.md,
   },
-  iconButton: {
-    alignItems: "center",
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    height: 48,
-    justifyContent: "center",
-    width: 48,
-  },
   logo: {
     height: 34,
     left: "50%",
     marginLeft: -80,
     position: "absolute",
     width: 160,
-  },
-  menuLine: {
-    borderRadius: 999,
-    height: 2,
-    marginVertical: 2.5,
-    width: 18,
-  },
-  menuLineShort: {
-    width: 14,
   },
 });

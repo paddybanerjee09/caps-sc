@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAppTheme } from "../theme/ThemeContext";
+import { MenuButton } from "./MenuButton";
 import { PressOpacity } from "./PressOpacity";
 
 /** Shared chrome for a branch of screens. X exits the branch; footer navigates it. */
@@ -11,6 +12,7 @@ export function WorkflowHeader({
   title,
   center,
   onClose,
+  onMenu,
   right,
   sideWidth,
   topInset,
@@ -18,6 +20,7 @@ export function WorkflowHeader({
   title?: string;
   center?: ReactNode;
   onClose: () => void;
+  onMenu?: () => void;
   right?: ReactNode;
   sideWidth?: number;
   topInset?: number;
@@ -28,9 +31,9 @@ export function WorkflowHeader({
   return (
     <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.borderStrong, paddingTop: topInset ?? insets.top }]}>
       <View style={[styles.side, { width: reservedWidth }]}>
-        <PressOpacity accessibilityLabel="Close logging flow" onPress={onClose} style={styles.close}>
+        {onMenu ? <MenuButton onPress={onMenu} /> : <PressOpacity accessibilityLabel="Close logging flow" onPress={onClose} style={styles.close}>
           <Ionicons name="close" size={24} color={theme.colors.text} />
-        </PressOpacity>
+        </PressOpacity>}
       </View>
       <View style={styles.center}>
         {center ?? <Text accessibilityRole="header" numberOfLines={2} style={[styles.title, { color: theme.colors.text }]}>{title}</Text>}

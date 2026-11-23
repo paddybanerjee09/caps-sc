@@ -24,9 +24,11 @@ const CALLSIGN_PRESETS = [
 
 const SUFFIX_STEPS = ["_01", "_99", "_HQ", "_SC", "_PRO"] as const;
 
-export function AccountInfoScreen({ onClose, registerCloseHandler }: {
+export function AccountInfoScreen({ onClose, onMenu, registerCloseHandler, registerExitGuard }: {
   onClose?: () => void;
+  onMenu?: () => void;
   registerCloseHandler?: (handler: (() => void) | null) => void;
+  registerExitGuard?: (guard: ((proceed: () => void) => void) | null) => void;
 } = {}) {
   const { username, setUsername } = useAppState();
   const { theme } = useAppTheme();
@@ -63,26 +65,35 @@ export function AccountInfoScreen({ onClose, registerCloseHandler }: {
     setSavedBanner(false);
   }
 
-  const requestClose = useCallback(() => {
-    if (!onClose) return;
+  const requestExit = useCallback((proceed: () => void) => {
     if (hasChanges) {
       Alert.alert("Discard username changes?", "Your unsaved username will be discarded.", [
         { text: "Keep editing", style: "cancel" },
-        { text: "Discard", style: "destructive", onPress: onClose },
+        { text: "Discard", style: "destructive", onPress: proceed },
       ]);
     } else {
-      onClose();
+      proceed();
     }
-  }, [hasChanges, onClose]);
+  }, [hasChanges]);
+
+  const requestClose = useCallback(() => {
+    if (onClose) requestExit(onClose);
+  }, [onClose, requestExit]);
 
   useEffect(() => {
     registerCloseHandler?.(requestClose);
     return () => registerCloseHandler?.(null);
   }, [registerCloseHandler, requestClose]);
 
+  useEffect(() => {
+    registerExitGuard?.(requestExit);
+    return () => registerExitGuard?.(null);
+  }, [registerExitGuard, requestExit]);
+
   return (
     <Screen
       onClose={onClose ? requestClose : undefined}
+      onMenu={onMenu}
       footer={
         <>
           <PressOpacity
