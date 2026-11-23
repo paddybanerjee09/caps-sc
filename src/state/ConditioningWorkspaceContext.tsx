@@ -25,7 +25,6 @@ export type ConditioningStackEntry =
   | { key: string; name: "free" }
   | { key: string; name: "log"; planSessionId: string | null }
   | { key: string; name: "runner"; sessionId: string }
-  | { key: string; name: "saved" }
   | { key: string; name: "station"; stationId: string | null }
   | { key: string; name: "summary"; sessionId: string };
 

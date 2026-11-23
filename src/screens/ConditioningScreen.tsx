@@ -2,26 +2,21 @@ import { formatDisplayDate } from "../utils/displayDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import Animated, {
-  Easing,
-  ReduceMotion,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 import { useSQLiteContext } from "expo-sqlite";
 
 import { ScreenTitleCard } from "../components/ScreenTitleCard";
 import { MonthlyTimelineComponent } from "../components/MonthlyTimelineComponent";
 import { PressOpacity } from "../components/PressOpacity";
-import { SavedWorkoutGrid } from "../components/conditioning/SavedWorkoutGrid";
-import { ActionButton } from "../components/conditioning/ConditioningFields";
+import { SavedWorkouts } from "../components/training/SavedWorkouts";
+import { TrainingSessionActions } from "../components/training/TrainingSessionActions";
+import { ActionButton } from "../components/ActionButton";
 import {
   calendarDateForSession,
   formatLocalDate,
   markerForSessionStatus,
 } from "../conditioning/dates";
 import { createWorkoutDraft, draftFromTemplate } from "../conditioning/drafts";
+import { formatName, formatTemplateSummary } from "../conditioning/summaries";
 import { buildMonthGrid } from "../components/monthGrid";
 import type { MonthEvent } from "../components/monthGrid";
 import { timelineCategories } from "../constants/timelineCategories";
@@ -34,13 +29,12 @@ import {
   type ConditioningTemplateRecord,
 } from "../data/conditioningRepository";
 import { useConditioningWorkspace } from "../state/ConditioningWorkspaceContext";
+import { useAppState } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { readableTextColor, themes } from "../theme/theme";
-import { feedbackToggle } from "../utils/feedback";
 import type { StructuredFormat } from "../conditioning/types";
 
 const tokens = themes.dark;
-const SAVED_PANEL_HEIGHT = 248;
 
 const FORMAT_OPTIONS: {
   description: string;
@@ -72,6 +66,7 @@ export function ConditioningScreen() {
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
   const workspace = useConditioningWorkspace();
+  const { unitSettings } = useAppState();
   const today = formatLocalDate(new Date());
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -84,9 +79,7 @@ export function ConditioningScreen() {
   const [fetchRetry, setFetchRetry] = useState(0);
   const [committedFetchKey, setCommittedFetchKey] = useState<string | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false);
-  const [savedOpen, setSavedOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<ConditioningSessionRecord | null>(null);
-  const panel = useSharedValue(0);
 
   const fetchKey = `${workspace.revision}:${month.monthIndex}:${month.year}:${selectedDate}:${fetchRetry}`;
   const templatesLoading = committedFetchKey !== fetchKey;
@@ -148,24 +141,6 @@ export function ConditioningScreen() {
     return () => workspace.registerBackHandler(null);
   }, [chooserOpen, workspace]);
 
-  function toggleSaved() {
-    const next = !savedOpen;
-    feedbackToggle(next);
-    setSavedOpen(next);
-    panel.set(
-      withTiming(next ? 1 : 0, {
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        reduceMotion: ReduceMotion.System,
-      }),
-    );
-  }
-
-  const panelStyle = useAnimatedStyle(() => ({
-    height: panel.get() * SAVED_PANEL_HEIGHT,
-    opacity: panel.get(),
-  }));
-
   function openEditor(format: StructuredFormat, template?: ConditioningTemplateRecord) {
     const draft = template
       ? draftFromTemplate(template.config, selectedDate)
@@ -189,6 +164,9 @@ export function ConditioningScreen() {
         showsVerticalScrollIndicator={false}
       >
         <ScreenTitleCard title="Conditioning" />
+        {templatesError ? (
+          <ActionButton label={`${templatesError}. Retry`} onPress={() => setFetchRetry((count) => count + 1)} tone="quiet" />
+        ) : null}
 
         {/* Active Session Banner Card */}
         {activeSession ? (
@@ -225,140 +203,44 @@ export function ConditioningScreen() {
           </PressOpacity>
         ) : null}
 
-        {/* Card 1: Monthly Conditioning Calendar */}
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
-              TRAINING CALENDAR
-            </Text>
-            <Text style={[styles.cardBadgeText, { color: theme.colors.tertiary }]}>
-              {events.length} IN VIEW
-            </Text>
-          </View>
-          <MonthlyTimelineComponent
-            emptyLabel="No conditioning on this date"
-            events={events}
-            monthIndex={month.monthIndex}
-            onEventPress={(event) =>
-              workspace.push({
-                key: `detail-${event.id}`,
-                name: "detail",
-                sessionId: event.id,
-              })
-            }
-            onMonthChange={setMonth}
-            onSelectDate={setSelectedDate}
-            selectedDate={selectedDate}
-            today={today}
-            year={month.year}
-          />
-        </View>
+        <MonthlyTimelineComponent
+          emptyLabel={templatesLoading ? "Loading sessions…" : templatesError ? "Couldn’t load sessions" : "No conditioning on this date"}
+          events={events}
+          monthIndex={month.monthIndex}
+          onEventPress={(event) =>
+            workspace.push({
+              key: `detail-${event.id}`,
+              name: "detail",
+              sessionId: event.id,
+            })
+          }
+          onMonthChange={setMonth}
+          onSelectDate={setSelectedDate}
+          selectedDate={selectedDate}
+          today={today}
+          year={month.year}
+        />
 
-        {/* Card 2: Session Launch & User Flow Controls */}
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
-              SESSION LAUNCHER
-            </Text>
-            <Text style={[styles.cardBadgeText, { color: theme.colors.textMuted }]}>
-              TARGET: {formatDisplayDate(selectedDate)}
-            </Text>
-          </View>
+        <TrainingSessionActions
+          onFreeSession={() => workspace.push({ key: `free-${Date.now()}`, name: "free" })}
+          onCreateSession={() => setChooserOpen(true)}
+        />
 
-          <ActionButton
-            label="Free Session"
-            onPress={() =>
-              workspace.push({ key: `free-${Date.now()}`, name: "free" })
-            }
-          />
-          <ActionButton
-            label="Create Session"
-            onPress={() => setChooserOpen(true)}
-            tone="secondary"
-          />
-          <ActionButton
-            label="Browse saved workouts"
-            onPress={() =>
-              workspace.push({ key: `saved-${Date.now()}`, name: "saved" })
-            }
-            tone="quiet"
-          />
-        </View>
-
-        {/* Card 3: Saved Workouts Inline Expander (pushes content down) */}
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <PressOpacity
-            accessibilityLabel="Saved workouts"
-            accessibilityState={{ expanded: savedOpen }}
-            onPress={toggleSaved}
-            silent
-            style={[
-              styles.expander,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <View style={styles.expanderLeft}>
-              <Ionicons
-                color={theme.colors.tertiary}
-                name="bookmarks-outline"
-                size={18}
-              />
-              <Text style={[styles.expanderTitle, { color: theme.colors.text }]}>
-                Saved Workouts ({templates.length})
-              </Text>
-            </View>
-            <View style={styles.expanderRight}>
-              <Text style={[styles.expanderState, { color: theme.colors.textMuted }]}>
-                {savedOpen ? "HIDE" : "SHOW"}
-              </Text>
-              <Ionicons
-                color={theme.colors.textMuted}
-                name={savedOpen ? "chevron-up" : "chevron-down"}
-                size={18}
-              />
-            </View>
-          </PressOpacity>
-
-          <Animated.View style={[styles.panel, panelStyle]}>
-            <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-              <SavedWorkoutGrid
-                bounded
-                error={templatesError}
-                loading={templatesLoading}
-                onPress={(template) => openEditor(template.format, template)}
-                onRetry={() => setFetchRetry((count) => count + 1)}
-                templates={templates}
-              />
-            </ScrollView>
-          </Animated.View>
-        </View>
+        <SavedWorkouts
+          entries={templates.map((template) => ({
+            id: template.id,
+            title: template.title,
+            badge: formatName(template.format),
+            summary: formatTemplateSummary(template.config, unitSettings.distance, unitSettings.height),
+          }))}
+          error={templatesError}
+          loading={templatesLoading}
+          onSelect={(id) => {
+            const template = templates.find((item) => item.id === id);
+            if (template) openEditor(template.format, template);
+          }}
+          onRetry={() => setFetchRetry((count) => count + 1)}
+        />
       </ScrollView>
 
       {chooserOpen ? (
@@ -498,12 +380,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "800",
   },
-  card: {
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    gap: tokens.spacing.md,
-    padding: tokens.spacing.lg,
-  },
   cardHeader: {
     alignItems: "center",
     flexDirection: "row",
@@ -519,38 +395,6 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
     fontWeight: "800",
     letterSpacing: 0.5,
-  },
-  expander: {
-    alignItems: "center",
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: 52,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  expanderLeft: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-  },
-  expanderTitle: {
-    fontSize: 14,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
-  },
-  expanderRight: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 4,
-  },
-  expanderState: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  panel: {
-    overflow: "hidden",
   },
   chooser: {
     alignItems: "center",

@@ -17,6 +17,8 @@ import { WorkflowFooter, WorkflowHeader } from "../WorkflowChrome";
 
 const tokens = themes.dark;
 
+export { ActionButton } from "../ActionButton";
+
 export function FieldLabel({ children }: { children: string }) {
   const { theme } = useAppTheme();
   return (
@@ -333,51 +335,6 @@ export function ChoiceRow({
   );
 }
 
-export function ActionButton({
-  disabled = false,
-  label,
-  onPress,
-  tone = "primary",
-}: {
-  disabled?: boolean;
-  label: string;
-  onPress: () => void;
-  tone?: "primary" | "secondary" | "quiet";
-}) {
-  const { theme } = useAppTheme();
-  const background =
-    tone === "primary"
-      ? theme.colors.tertiary
-      : tone === "secondary"
-        ? theme.colors.surfaceMuted
-        : "transparent";
-  const color =
-    tone === "primary"
-      ? readableTextColor(theme.colors.tertiary)
-      : theme.colors.text;
-  return (
-    <PressOpacity
-      accessibilityLabel={label}
-      disabled={disabled}
-      onPress={onPress}
-      style={[
-        styles.action,
-        tone === "primary" && styles.actionPrimary,
-        {
-          backgroundColor: background,
-          borderColor:
-            tone === "secondary"
-              ? theme.colors.borderStrong
-              : theme.colors.border,
-          borderWidth: tone === "primary" ? 0 : 1,
-        },
-      ]}
-    >
-      <Text style={[styles.actionLabel, { color }]}>{label}</Text>
-    </PressOpacity>
-  );
-}
-
 export function ScreenHeading({
   onClose,
   right,
@@ -513,23 +470,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 48,
     paddingHorizontal: tokens.spacing.md,
-  },
-  action: {
-    alignItems: "center",
-    borderRadius: tokens.radius.md,
-    flexGrow: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    minWidth: 90,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  actionPrimary: {
-    minHeight: 52,
-  },
-  actionLabel: {
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 0.3,
   },
   heading: {
     alignItems: "center",

@@ -1,17 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
-import Animated, {
-  Easing,
-  ReduceMotion,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
 import { ScreenTitleCard } from "../components/ScreenTitleCard";
+import { ActionButton } from "../components/ActionButton";
 import { MonthlyTimelineComponent } from "../components/MonthlyTimelineComponent";
-import { PressOpacity } from "../components/PressOpacity";
+import { SavedWorkouts } from "../components/training/SavedWorkouts";
+import { TrainingSessionActions } from "../components/training/TrainingSessionActions";
 import { buildMonthGrid, parseIsoDate, type MonthEvent } from "../components/monthGrid";
 import { formatLocalDate } from "../conditioning/dates";
 import {
@@ -24,8 +19,8 @@ import { FOCUS_PRESENTATION } from "../skill/focus";
 import type { SkillFocus, SkillSessionSummary } from "../skill/types";
 import { useSkillWorkspace } from "../state/SkillWorkspaceContext";
 import { useAppTheme } from "../theme/ThemeContext";
-import { readableTextColor, themes } from "../theme/theme";
-import { feedbackToggle, feedbackWarn } from "../utils/feedback";
+import { themes } from "../theme/theme";
+import { feedbackWarn } from "../utils/feedback";
 
 const tokens = themes.dark;
 
@@ -46,9 +41,10 @@ export function SkillTrainingScreen() {
   const [sessions, setSessions] = useState<SkillSessionSummary[]>([]);
   const [templates, setTemplates] = useState<SavedRow[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [savedOpen, setSavedOpen] = useState(false);
-  const panel = useSharedValue(savedOpen ? 1 : 0);
-  const primaryText = readableTextColor(theme.colors.tertiary);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const fetchKey = `${month.year}:${month.monthIndex}:${selectedDate}:${workspace.revision}`;
+  const loading = loadedKey !== fetchKey;
 
   const load = useCallback(async () => {
     const grid = buildMonthGrid({
@@ -75,17 +71,19 @@ export function SkillTrainingScreen() {
           setSessions(result.logged);
           setTemplates(result.saved);
           setLoadError(null);
+          setLoadedKey(fetchKey);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setLoadError("Couldn’t load skills.");
+          setLoadedKey(fetchKey);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [load, workspace.revision]);
+  }, [fetchKey, load]);
 
   const focusDate = workspace.calendarDate;
   const focusNonce = workspace.calendarNonce;
@@ -115,154 +113,75 @@ export function SkillTrainingScreen() {
     [sessions],
   );
 
-  function toggleSaved() {
-    const next = !savedOpen;
-    feedbackToggle(next);
-    setSavedOpen(next);
-    panel.set(
-      withTiming(next ? 1 : 0, {
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        reduceMotion: ReduceMotion.System,
-      }),
-    );
-  }
-
-  const savedStyle = useAnimatedStyle(() => ({
-    opacity: panel.get(),
-  }));
-
-  async function openSaved(templateId: string, endedAt: number) {
-    const template = await getSkillTemplate(db, templateId);
-    if (!template || template.archivedAt) {
+  async function openSaved(templateId: string) {
+    try {
+      const template = await getSkillTemplate(db, templateId);
+      if (!template || template.archivedAt) {
+        feedbackWarn();
+        setTemplateError("That saved session is no longer available.");
+        return;
+      }
+      workspace.openBuilder(draftFromTemplate(template, Date.now()));
+    } catch {
       feedbackWarn();
-      setLoadError("That saved session is no longer available.");
-      workspace.bumpRevision();
-      return;
+      setTemplateError("Couldn’t open that saved session. Try again.");
     }
-    workspace.openBuilder(draftFromTemplate(template, endedAt));
   }
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <FlatList
-        contentContainerStyle={styles.content}
-        data={savedOpen ? templates : []}
-        keyboardShouldPersistTaps="handled"
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={
-          savedOpen ? (
-            <Text style={[styles.empty, { color: theme.colors.textMuted }]}>
-              No saved sessions.
-            </Text>
-          ) : undefined
-        }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <ScreenTitleCard title="Skill" />
-            {loadError ? (
-              <PressOpacity
-                accessibilityLabel="Retry loading skills"
-                onPress={() => workspace.bumpRevision()}
-                style={[
-                  styles.secondary,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.borderStrong,
-                  },
-                ]}
-              >
-                <Text style={[styles.secondaryText, { color: theme.colors.text }]}>
-                  {loadError} Tap to retry.
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScreenTitleCard title="Skill" />
+        {loadError ? (
+          <ActionButton label={`${loadError} Retry`} onPress={() => workspace.bumpRevision()} tone="quiet" />
+        ) : null}
+        <MonthlyTimelineComponent
+          emptyLabel={loading ? "Loading sessions…" : loadError ? "Couldn’t load sessions" : "No skill session logged"}
+          events={events}
+          monthIndex={month.monthIndex}
+          onEventPress={(event) => workspace.openDetail(event.id)}
+          onMonthChange={setMonth}
+          onSelectDate={setSelectedDate}
+          selectedDate={selectedDate}
+          today={today}
+          year={month.year}
+        />
+        <View
+          accessibilityLabel="Focus colours"
+          style={[
+            styles.card,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+          ]}
+        >
+          <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>FOCUS</Text>
+          <View style={styles.legend}>
+            {focusOrder.map((focus) => (
+              <View key={focus} style={styles.legendItem}>
+                <View
+                  style={[styles.swatch, { backgroundColor: FOCUS_PRESENTATION[focus].color }]}
+                />
+                <Text style={[styles.legendLabel, { color: theme.colors.text }]}>
+                  {FOCUS_PRESENTATION[focus].label}
                 </Text>
-              </PressOpacity>
-            ) : null}
-
-            <MonthlyTimelineComponent
-              emptyLabel="No skill session logged"
-              events={events}
-              monthIndex={month.monthIndex}
-              onEventPress={(event) => workspace.openDetail(event.id)}
-              onMonthChange={setMonth}
-              onSelectDate={setSelectedDate}
-              selectedDate={selectedDate}
-              today={today}
-              year={month.year}
-            />
-
-            <View
-              accessibilityLabel="Focus colours"
-              style={[
-                styles.card,
-                { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-              ]}
-            >
-              <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>FOCUS</Text>
-              <View style={styles.legend}>
-                {focusOrder.map((focus) => (
-                  <View key={focus} style={styles.legendItem}>
-                    <View
-                      style={[styles.swatch, { backgroundColor: FOCUS_PRESENTATION[focus].color }]}
-                    />
-                    <Text style={[styles.legendLabel, { color: theme.colors.text }]}>
-                      {FOCUS_PRESENTATION[focus].label}
-                    </Text>
-                  </View>
-                ))}
               </View>
-            </View>
-
-            <PressOpacity
-              accessibilityLabel="Build skill session"
-              onPress={() => workspace.openBuilder(createSkillDraft(Date.now()))}
-              style={[styles.primary, { backgroundColor: theme.colors.tertiary }]}
-            >
-              <Text style={[styles.primaryText, { color: primaryText }]}>
-                Build Skill Session
-              </Text>
-            </PressOpacity>
-            <PressOpacity
-              accessibilityLabel="Saved sessions"
-              accessibilityState={{ expanded: savedOpen }}
-              onPress={toggleSaved}
-              style={[
-                styles.secondary,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.borderStrong,
-                },
-              ]}
-            >
-              <Text style={[styles.secondaryText, { color: theme.colors.text }]}>
-                Saved Sessions
-              </Text>
-              <Text style={[styles.count, { color: theme.colors.textMuted }]}>
-                {templates.length}
-              </Text>
-            </PressOpacity>
+            ))}
           </View>
-        }
-        renderItem={({ item }: { item: SavedRow }) => (
-          <Animated.View style={savedStyle}>
-            <PressOpacity
-              accessibilityLabel={`Open saved session ${item.title}`}
-              onPress={() => {
-                void openSaved(item.id, Date.now());
-              }}
-              style={[
-                styles.savedRow,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Text style={[styles.savedTitle, { color: theme.colors.text }]}>{item.title}</Text>
-            </PressOpacity>
-          </Animated.View>
-        )}
-        showsVerticalScrollIndicator={false}
-      />
+        </View>
+        <TrainingSessionActions
+          onFreeSession={() => workspace.openBuilder(createSkillDraft(Date.now()))}
+          onCreateSession={() => workspace.openBuilder(createSkillDraft(Date.now()))}
+        />
+        <SavedWorkouts
+          entries={templates}
+          error={templateError ?? loadError}
+          loading={loading}
+          onRetry={() => {
+            setTemplateError(null);
+            workspace.bumpRevision();
+          }}
+          onSelect={(id) => { void openSaved(id); }}
+        />
+      </ScrollView>
     </View>
   );
 }
@@ -274,12 +193,11 @@ function formatClock(date: Date) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: {
-    gap: tokens.spacing.sm,
+    gap: tokens.spacing.md,
     paddingBottom: tokens.spacing.xxl,
     paddingHorizontal: tokens.spacing.md,
     paddingTop: tokens.spacing.md,
   },
-  header: { gap: tokens.spacing.md, marginBottom: tokens.spacing.sm },
   card: {
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
@@ -300,32 +218,4 @@ const styles = StyleSheet.create({
   },
   swatch: { borderRadius: 6, height: 12, width: 12 },
   legendLabel: { fontSize: 13, fontWeight: "700" },
-  primary: {
-    alignItems: "center",
-    borderRadius: 12,
-    justifyContent: "center",
-    minHeight: 52,
-  },
-  primaryText: { fontSize: 16, fontWeight: "700" },
-  secondary: {
-    alignItems: "center",
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  secondaryText: { fontSize: 15, fontWeight: "700" },
-  count: { fontSize: 15, fontVariant: ["tabular-nums"], fontWeight: "700" },
-  savedRow: {
-    borderRadius: 12,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  savedTitle: { fontSize: 15, fontWeight: "700" },
-  empty: { fontSize: 14, paddingVertical: tokens.spacing.sm },
 });

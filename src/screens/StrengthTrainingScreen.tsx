@@ -1,17 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
-import Animated, {
-  Easing,
-  ReduceMotion,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
 import { ScreenTitleCard } from "../components/ScreenTitleCard";
+import { ActionButton } from "../components/ActionButton";
 import { MonthlyTimelineComponent } from "../components/MonthlyTimelineComponent";
-import { PressOpacity } from "../components/PressOpacity";
+import { SavedWorkouts } from "../components/training/SavedWorkouts";
+import { TrainingSessionActions } from "../components/training/TrainingSessionActions";
 import { buildMonthGrid, type MonthEvent } from "../components/monthGrid";
 import { formatLocalDate } from "../conditioning/dates";
 import {
@@ -29,8 +24,8 @@ import {
 } from "../data/strengthRepository";
 import { useStrengthWorkspace } from "../state/StrengthWorkspaceContext";
 import { useAppTheme } from "../theme/ThemeContext";
-import { readableTextColor, themes } from "../theme/theme";
-import { feedbackToggle, feedbackWarn } from "../utils/feedback";
+import { themes } from "../theme/theme";
+import { feedbackWarn } from "../utils/feedback";
 
 const tokens = themes.dark;
 
@@ -39,8 +34,6 @@ function draftForSavedTemplate(
 ) {
   return draftFromTemplate(template, Date.now());
 }
-
-type SavedRow = StrengthTemplateSummary;
 
 export function StrengthTrainingScreen() {
   const db = useSQLiteContext();
@@ -55,9 +48,10 @@ export function StrengthTrainingScreen() {
   const [sessions, setSessions] = useState<StrengthSessionSummary[]>([]);
   const [templates, setTemplates] = useState<StrengthTemplateSummary[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [savedOpen, setSavedOpen] = useState(false);
-  const panel = useSharedValue(savedOpen ? 1 : 0);
-  const primaryText = readableTextColor(theme.colors.tertiary);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const fetchKey = `${month.year}:${month.monthIndex}:${selectedDate}:${workspace.revision}`;
+  const loading = loadedKey !== fetchKey;
 
   const load = useCallback(async () => {
     const grid = buildMonthGrid({
@@ -84,17 +78,19 @@ export function StrengthTrainingScreen() {
           setSessions(result.logged);
           setTemplates(result.saved);
           setLoadError(null);
+          setLoadedKey(fetchKey);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setLoadError("Couldn’t load strength.");
+          setLoadedKey(fetchKey);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [load, workspace.revision]);
+  }, [fetchKey, load]);
 
   const events = useMemo<MonthEvent[]>(
     () =>
@@ -110,214 +106,64 @@ export function StrengthTrainingScreen() {
     [sessions, theme.colors.textMuted],
   );
 
-  function toggleSaved() {
-    const next = !savedOpen;
-    feedbackToggle(next);
-    setSavedOpen(next);
-    panel.set(
-      withTiming(next ? 1 : 0, {
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        reduceMotion: ReduceMotion.System,
-      }),
-    );
-  }
-
-  const savedStyle = useAnimatedStyle(() => ({
-    opacity: panel.get(),
-  }));
-
   async function openSaved(templateId: string) {
-    const template = await getStrengthTemplate(db, templateId);
-    if (!template || template.archivedAt) {
+    try {
+      const template = await getStrengthTemplate(db, templateId);
+      if (!template || template.archivedAt) {
+        feedbackWarn();
+        setTemplateError("That saved workout is no longer available.");
+        return;
+      }
+      workspace.openBuilder(draftForSavedTemplate(template), "log");
+    } catch {
       feedbackWarn();
-      setLoadError("That saved workout is no longer available.");
-      workspace.bumpRevision();
-      return;
+      setTemplateError("Couldn’t open that saved workout. Try again.");
     }
-    workspace.openBuilder(draftForSavedTemplate(template), "log");
   }
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <FlatList
-        contentContainerStyle={styles.content}
-        data={savedOpen ? templates : []}
-        keyboardShouldPersistTaps="handled"
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={
-          savedOpen ? (
-            <Text style={[styles.empty, { color: theme.colors.textMuted }]}>
-              No saved workouts.
-            </Text>
-          ) : undefined
-        }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <ScreenTitleCard title="Strength" />
-
-            {loadError ? (
-              <PressOpacity
-                accessibilityLabel="Retry loading strength"
-                onPress={() => workspace.bumpRevision()}
-                style={[
-                  styles.secondary,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.borderStrong,
-                  },
-                ]}
-              >
-                <Text style={[styles.secondaryText, { color: theme.colors.text }]}>
-                  {loadError} Tap to retry.
-                </Text>
-              </PressOpacity>
-            ) : null}
-
-            <MonthlyTimelineComponent
-              emptyLabel="No strength workout logged"
-              events={events}
-              monthIndex={month.monthIndex}
-              onEventPress={(event) => workspace.openDetail(event.id)}
-              onMonthChange={setMonth}
-              onSelectDate={setSelectedDate}
-              selectedDate={selectedDate}
-              today={today}
-              year={month.year}
-            />
-
-            <PressOpacity
-              accessibilityLabel="Log workout"
-              onPress={() => workspace.openBuilder(createLogDraft(Date.now()), "log")}
-              style={[styles.primary, { backgroundColor: theme.colors.tertiary }]}
-            >
-              <Text style={[styles.primaryText, { color: primaryText }]}>Log Workout</Text>
-            </PressOpacity>
-            <PressOpacity
-              accessibilityLabel="Create workout"
-              onPress={() => workspace.openBuilder(createTemplateDraft(), "template")}
-              style={[
-                styles.secondary,
-                {
-                  backgroundColor: theme.colors.surfaceMuted,
-                  borderColor: theme.colors.borderStrong,
-                },
-              ]}
-            >
-              <Text style={[styles.secondaryText, { color: theme.colors.text }]}>
-                Create Workout
-              </Text>
-            </PressOpacity>
-            <PressOpacity
-              accessibilityLabel="Saved workouts"
-              accessibilityState={{ expanded: savedOpen }}
-              onPress={toggleSaved}
-              style={[
-                styles.secondary,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.borderStrong,
-                },
-              ]}
-            >
-              <Text style={[styles.secondaryText, { color: theme.colors.text }]}>
-                Saved Workouts
-              </Text>
-              <Text
-                style={[
-                  styles.count,
-                  { color: theme.colors.textMuted },
-                ]}
-              >
-                {templates.length}
-              </Text>
-            </PressOpacity>
-          </View>
-        }
-        renderItem={({ item }: { item: SavedRow }) => (
-          <Animated.View style={savedStyle}>
-            <PressOpacity
-              accessibilityLabel={`Log ${item.title}`}
-              onPress={() => {
-                void openSaved(item.id);
-              }}
-              style={[
-                styles.savedRow,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Text style={[styles.savedTitle, { color: theme.colors.text }]}>
-                {item.title}
-              </Text>
-            </PressOpacity>
-          </Animated.View>
-        )}
-        showsVerticalScrollIndicator={false}
-      />
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScreenTitleCard title="Strength" />
+        {loadError ? (
+          <ActionButton label={`${loadError} Retry`} onPress={() => workspace.bumpRevision()} tone="quiet" />
+        ) : null}
+        <MonthlyTimelineComponent
+          emptyLabel={loading ? "Loading sessions…" : loadError ? "Couldn’t load sessions" : "No strength workout logged"}
+          events={events}
+          monthIndex={month.monthIndex}
+          onEventPress={(event) => workspace.openDetail(event.id)}
+          onMonthChange={setMonth}
+          onSelectDate={setSelectedDate}
+          selectedDate={selectedDate}
+          today={today}
+          year={month.year}
+        />
+        <TrainingSessionActions
+          onFreeSession={() => workspace.openBuilder(createLogDraft(Date.now()), "log")}
+          onCreateSession={() => workspace.openBuilder(createTemplateDraft(), "template")}
+        />
+        <SavedWorkouts
+          entries={templates}
+          error={templateError ?? loadError}
+          loading={loading}
+          onRetry={() => {
+            setTemplateError(null);
+            workspace.bumpRevision();
+          }}
+          onSelect={(id) => { void openSaved(id); }}
+        />
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
+  root: { flex: 1 },
   content: {
-    gap: tokens.spacing.sm,
+    gap: tokens.spacing.md,
     paddingBottom: tokens.spacing.xxl,
     paddingHorizontal: tokens.spacing.md,
     paddingTop: tokens.spacing.md,
-  },
-  header: {
-    gap: tokens.spacing.md,
-    marginBottom: tokens.spacing.sm,
-  },
-  primary: {
-    alignItems: "center",
-    borderRadius: 12,
-    justifyContent: "center",
-    minHeight: 52,
-  },
-  primaryText: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  secondary: {
-    alignItems: "center",
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  secondaryText: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  count: {
-    fontSize: 15,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "700",
-  },
-  savedRow: {
-    borderRadius: 12,
-    borderWidth: 1,
-    justifyContent: "center",
-    marginBottom: tokens.spacing.sm,
-    minHeight: 48,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  savedTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  empty: {
-    fontSize: 14,
-    paddingVertical: tokens.spacing.md,
   },
 });
