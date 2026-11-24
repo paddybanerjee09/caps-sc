@@ -1,5 +1,9 @@
 # Handoffs
 
+- [[2026-11-24 Nutrition Screen Handoff]] · compact composer, logged-food rows, saved-state toggle, flat picker and base-unit portions
+
+- [[2026-11-24 Android Biometric QA Handoff]] · Android modal keyboard, wheel selection and height-boundary fixes; live QA outcomes
+
 - [[2026-11-23 UI Refactor Handoff]] · biometric modals/profile persistence, actual shared weight modal, settings menu and shared training hub presentation
 
 - [[2026-11-22 Questionnaire and Chart Controls Handoff]] · minute clocks, history screen, weighted SRI, readable dates and refined chart controls

@@ -170,7 +170,7 @@ CAPS.trees.nutrition = {
             files: ["src/screens/NutritionScreens/MealLogScreen.tsx"],
             entry: "Add Meal / Edit Meal on the diary, or Home Quick Log > Meal.",
             summary:
-              "Composer for one `MealDraft`. Title, `LogTimeChanger`, items, compact meal totals, saved-meal actions. Add meal item pushes `MealItemScreen`. Replaced `MealLogModal`.",
+              "Composer for one `MealDraft`. A title input sits above embedded compact meal totals in one card. The Meal Items card contains informative editable food rows and Saved Meals browsing; the fixed footer saves or unsaves the current template alongside diary actions. Replaced `MealLogModal`.",
             modes: [
               { name: "New meal", detail: "`openNewMeal(day)`." },
               { name: "Edit logged meal", detail: "`openEditMeal(meal)` from the diary three-dot menu." },
@@ -179,8 +179,9 @@ CAPS.trees.nutrition = {
             guardrails: [
               "Keep Add meal item as the focus; meal actions stay on the composer, not a menu modal (0deafb1).",
               "Do not restore `MealLogModal` (1d7f792).",
+              "Keep template save/unsave separate from diary logging; validate linked saved IDs against storage and preserve draft contents on failure (24 November 2026 nutrition screen request).",
             ],
-            links: ["architecture:log-time-changer", "database:table-meal-logs", "home:quick-log"],
+            links: ["architecture:log-time-changer", "database:table-meal-logs", "home:quick-log", "nutrition:macro-card"],
             versions: [
   {
     "n": 1,
@@ -262,9 +263,40 @@ CAPS.trees.nutrition = {
       "Shorten empty meal instruction to action label.",
       "Presentation only; data, calculations and validation remain."
     ]
+  },
+  {
+    n: 7,
+    name: "Compact meal composer and saved state",
+    date: "2026-11-24 18:07 -0500",
+    commits: ["41499ce"],
+    request: "Combine the meal title and compact nutrition totals, show informative editable logged foods, and replace the Saved Meals footer with Save Meal / Unsave Meal.",
+    changes: [
+      "Replace Meal Identity and inline Save/Discard controls with one title input above embedded compact totals.",
+      "Render LoggedFoodComponent rows with name, portion, scaled calories/macros and a separate left removal target; tapping opens facts with the stored portion.",
+      "Move Saved Meals browsing to the Meal Items header; footer Save/Unsave creates, updates or deletes only the reusable template.",
+      "Validate saved-template links against storage, clear stale IDs, and protect pending mutations/navigation with retryable save checks."
+    ]
   }
 ],
             children: [
+              {
+                id: "logged-food-component",
+                title: "LoggedFoodComponent",
+                kind: "component",
+                tagline: "Editable logged-food details and removal",
+                files: ["src/components/nutrition/LoggedFoodComponent.tsx"],
+                entry: "One row per item in the MealLogScreen Meal Items card.",
+                summary: "Shows the food name, configured serving size and quantity-scaled calories/P/C/F. The left X has its own spaced 48px target; the detail area opens Nutrition Facts with the existing serving and amount.",
+                links: ["nutrition:nutrition-facts-screen"],
+                versions: [{
+                  n: 1,
+                  name: "LoggedFoodComponent",
+                  date: "2026-11-24 18:07 -0500",
+                  commits: ["41499ce"],
+                  request: "Replace numeric-only logged food rows with name, macros, calories, serving size and tap-to-edit facts.",
+                  changes: ["Add a reusable food detail row with scaled nutrition and independent removal and edit targets."]
+                }],
+              },
               {
                 id: "meal-item-screen",
                 title: "MealItemScreen",
@@ -273,7 +305,7 @@ CAPS.trees.nutrition = {
                 files: ["src/screens/NutritionScreens/MealItemScreen.tsx"],
                 entry: "Add meal item on `MealLogScreen`.",
                 summary:
-                  "Search FatSecret plus local favourites and custom foods. Sort overlay. Opens barcode, custom food, or facts.",
+                  "Search FatSecret plus local favourites and custom foods inside one inset scrolling FlatList surface with thin row separators. Compact single-line tabs and Recent/Frequent sorting; barcode icon accompanies the bottom scan action. Opens barcode, custom food, or facts.",
                 modes: [
                   { name: "All", detail: "FatSecret search." },
                   { name: "Favourites", detail: "Starred snapshots." },
@@ -335,6 +367,19 @@ CAPS.trees.nutrition = {
                     ],
                     "commits": [
                       "20c8b60"
+                    ]
+                  },
+                  {
+                    n: 6,
+                    name: "Flat food picker",
+                    date: "2026-11-24 17:35 -0500",
+                    commits: ["80e28c7"],
+                    request: "Fit All/Favourites/Custom on one line, shorten sort labels, add the barcode icon and replace individual result cards with a flat scrolling list.",
+                    changes: [
+                      "Use the optional compact selector presentation with single-line fitting labels and fixed-width sort control.",
+                      "Rename usage sorting to Recent/Frequent and add a barcode icon beside Scan Barcode.",
+                      "Group result rows in one bordered FlatList panel with hairline separators while retaining search, scroll offsets and custom-food actions.",
+                      "Use base-unit defaults for fresh search, known-food and custom selections; preserve explicit favourite and meal-edit portions."
                     ]
                   }
                 ],
@@ -464,9 +509,14 @@ CAPS.trees.nutrition = {
                     kind: "subscreen",
                     tagline: "Serving, macros, favourite",
                     files: ["src/screens/NutritionScreens/NutritionFactsScreen.tsx"],
-                    entry: "Selecting a food in `MealItemScreen`.",
+                    entry: "Selecting a food in MealItemScreen or an existing LoggedFoodComponent row in MealLogScreen.",
                     summary:
-                      "Direct decimal serving amount and calorie inputs, nutrition facts and exact-serving favourites. Default serving calories show on open; shared safe header and fixed Back/action footer.",
+                      "Direct decimal quantity with every supplied portion plus compatible derived units. Fresh metric foods default to 1 g or 1 mL; existing item/favourite serving choices reopen intact. The compact macro ring contains the calorie input; no duplicate calorie-driven card. Shared safe header and fixed Back/action footer.",
+                    guardrails: [
+                      "Derive only units supported by known mass or volume; never assume a grams-to-millilitres density or fabricate a physical size for an unmeasured serving (24 November 2026 nutrition screen request).",
+                      "Preserve stored item/favourite quantities and serving IDs when opening facts; selecting compatible units must retain the physical portion (24 November 2026 nutrition screen request).",
+                    ],
+                    links: ["nutrition:macro-card", "nutrition:serving-units"],
                     versions: [
                       {
                         "n": 1,
@@ -538,6 +588,18 @@ CAPS.trees.nutrition = {
                         "commits": [
                           "20c8b60"
                         ]
+                      },
+                      {
+                        n: 7,
+                        name: "Base-unit nutrition facts",
+                        date: "2026-11-24 18:06 -0500",
+                        commits: ["35ceb0d"],
+                        request: "Default metric foods to 1 g/1 mL, expose available serving units and use the compact centered calorie input instead of a duplicate portion card.",
+                        changes: [
+                          "Normalize available mass/volume portions through withServingUnits while retaining original serving IDs and provider portions.",
+                          "Keep known physical quantities consistent when changing compatible serving units; preserve existing logged/favourite configurations on entry.",
+                          "Remove Calorie-driven portion; use the smaller macro-ring calorie input with a smaller kcal label."
+                        ]
                       }
                     ],
                   },
@@ -549,7 +611,7 @@ CAPS.trees.nutrition = {
                 kind: "subscreen",
                 tagline: "Reusable meal templates",
                 files: ["src/screens/NutritionScreens/SavedMealsScreen.tsx"],
-                entry: "Saved meals action on `MealLogScreen`.",
+                entry: "Saved Meals in the MealLogScreen Meal Items card header.",
                 summary: "List of `saved_meals` templates, separate from diary logs. Edit/delete on the list. Opening one loads the composer.",
                 versions: [
                   {
@@ -611,6 +673,14 @@ CAPS.trees.nutrition = {
                     "commits": [
                       "20c8b60"
                     ]
+                  },
+                  {
+                    n: 6,
+                    name: "Saved Meals browsing entry",
+                    date: "2026-11-24 18:07 -0500",
+                    commits: ["41499ce"],
+                    request: "Repurpose the composer Saved Meals footer action as a Save Meal / Unsave Meal state control.",
+                    changes: ["Keep template browsing accessible from the Meal Items card header while the footer reflects the current composition's saved state."]
                   }
                 ],
               },
@@ -625,10 +695,11 @@ CAPS.trees.nutrition = {
         tagline: "Day totals, expandable micros",
         files: ["src/components/MacronutrientBreakdownCard.tsx"],
         summary:
-          "Protein / carb / fat vs daily targets, plus expandable micronutrients. Compact variant inlines `P: XXg C: XXg F: XXg` for nested screens.",
+          "Protein / carb / fat vs daily targets, plus expandable micronutrients. Compact variant inlines P/C/F and uses a smaller ring for nested screens; optional embedded styling removes duplicate card framing in the meal title group. Optional calorie editing stays centered inside the ring with a smaller kcal label.",
         modes: [
           { name: "Full", detail: "Diary: rings/bars plus expandable micro list." },
           { name: "Compact", detail: "Nested screens; macros in the header (`13b3d68`, `59c7ef6`)." },
+          { name: "Embedded", detail: "Composer title group; compact content without an extra bordered card." },
         ],
         versions: [
           {
@@ -653,6 +724,17 @@ CAPS.trees.nutrition = {
             date: "2026-11-02 22:58 -0500",
             commits: ["9917cee"],
             changes: ["Card-by-card restyle."],
+          },
+          {
+            n: 4,
+            name: "Compact embedded nutrition summary",
+            date: "2026-11-24 18:06 -0500",
+            commits: ["35ceb0d"],
+            request: "Keep composer nutrition compact beneath its title and shrink/center the facts calorie text box and kcal label.",
+            changes: [
+              "Remove nested card borders/padding with optional embedded framing for the existing compact summary.",
+              "Reduce and center the calorie input with a smaller kcal label, preserving the default full diary presentation."
+            ]
           },
         ],
       },
@@ -701,7 +783,7 @@ CAPS.trees.nutrition = {
         tagline: "Sliding segmented control",
         files: ["src/components/nutrition/SegmentedSelector.tsx"],
         summary:
-          "Shared by MealItem tabs and Home's Today/Recovery/Progress. Animation is transform/opacity, not per-frame layout state.",
+          "Shared by MealItem tabs and Home's Today/Recovery/Progress. Animation is transform/opacity, not per-frame layout state. An optional compact presentation fits the food-picker labels on a single line; other callers retain their default styling.",
         guardrails: [
           "Do not drive the slider with React state that retriggers layout every frame (fix ccc63a6).",
         ],
@@ -727,6 +809,14 @@ CAPS.trees.nutrition = {
             commits: ["67d99b6"],
             changes: ["Restyled with the Home renovation."],
           },
+          {
+            n: 4,
+            name: "Compact single-line food tabs",
+            date: "2026-11-24 17:35 -0500",
+            commits: ["80e28c7"],
+            request: "Fit All/Favourites/Custom without text wrapping.",
+            changes: ["Add an opt-in compact label and padding treatment with single-line fitting text; retain existing selector defaults and animation."]
+          },
         ],
       },
       {
@@ -739,7 +829,8 @@ CAPS.trees.nutrition = {
           "src/services/fatsecretApi.ts",
           "src/services/openFoodFactsApi.ts",
         ],
-        summary: "Catalog resolver over FatSecret search and Open Food Facts barcodes. Custom foods are local.",
+        summary: "Catalog resolver over FatSecret search and Open Food Facts barcodes. Custom foods are local. Resolved and session-cached foods expose compatible derived units through the shared serving helper, preserving original provider portions.",
+        links: ["nutrition:serving-units"],
         children: [
           {
             id: "usda-client",
@@ -778,6 +869,14 @@ CAPS.trees.nutrition = {
               "FatSecret search, OFF barcode lookup, and the food proxy docs/verification (`1d8b456`).",
             ],
           },
+          {
+            n: 2,
+            name: "Normalized serving catalog",
+            date: "2026-11-24 18:06 -0500",
+            commits: ["35ceb0d"],
+            request: "Expose available base units and compatible portion choices consistently across foods.",
+            changes: ["Apply withServingUnits to custom, resolved and remembered catalog foods so reference-backed logged items can resolve stable derived serving IDs."]
+          },
         ],
       },
       {
@@ -788,10 +887,38 @@ CAPS.trees.nutrition = {
         files: [
           "src/data/nutritionMigration.ts",
           "src/data/nutritionRepository.ts",
+          "src/data/nutritionCatalogRepository.ts",
+          "src/nutrition/drafts.ts",
           "src/nutrition/calculations.ts",
         ],
         summary: "Versioned meal/custom/favourite/saved-meal tables and nutrient math. Schema details live in the Database tree.",
         links: ["database:migrations"],
+        children: [
+          {
+            id: "serving-units",
+            title: "Serving-unit normalization",
+            kind: "logic",
+            tagline: "Known mass/volume portions and compatible conversions",
+            files: ["src/nutrition/servings.ts"],
+            summary: "withServingUnits retains original portions and derives g/mg/kg/oz/lb from a known mass, or mL/L/US tsp/tbsp/cup/fl oz from a known volume. Fresh defaults use 1 g or 1 mL. Stable caps:unit: IDs can resolve after catalog refresh. convertServingQuantity preserves a portion across compatible dimensions; macros and micronutrients scale together.",
+            guardrails: [
+              "Never infer density between mass and volume or assign grams to an unmeasured piece/serving; preserve supplied portions when no physical basis exists (24 November 2026 nutrition screen request).",
+              "Keep original serving IDs and avoid accumulating duplicate derived options when normalizing an already normalized catalog (24 November 2026 nutrition screen request).",
+            ],
+            links: ["nutrition:nutrition-services", "nutrition:nutrition-facts-screen"],
+            versions: [{
+              n: 1,
+              name: "Serving-unit normalization",
+              date: "2026-11-24 18:06 -0500",
+              commits: ["35ceb0d"],
+              request: "Measure and log foods in base units and offer available compatible serving sizes.",
+              changes: [
+                "Derive nutrient-scaled mass and volume units from known portions, retain original servings, and use base metric defaults.",
+                "Convert existing quantities between compatible units without changing the configured physical amount."
+              ]
+            }],
+          },
+        ],
         versions: [
           {
             n: 1,
@@ -817,6 +944,20 @@ CAPS.trees.nutrition = {
             changes: [
               "Favourite snapshots so starred foods reopen (`dde7751`). Verify meal edits (`3ff3e8a`). Filled contrast fields (`20a5fbb`).",
             ],
+          },
+          {
+            "n": 4,
+            "name": "Precise portions and safe saved-meal replay",
+            "date": "2026-11-24 18:06 -0500",
+            "commits": [
+              "35ceb0d"
+            ],
+            "request": "Preserve base-unit portions and allow safe Save/Unsave without affecting diary meals.",
+            "changes": [
+              "Keep fractional diary quantities and small converted amounts as usable decimal inputs.",
+              "Validate committed saved-meal receipts against existing rows, including retry recovery after deletion; failed inserts cannot return a deleted result.",
+              "Verify template-item cascade deletion, independent diary survival, re-saving and reference-serving restoration without a schema migration."
+            ]
           },
         ],
       },

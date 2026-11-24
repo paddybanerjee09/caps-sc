@@ -13,9 +13,20 @@ aliases:
 | Diary Add Meal | `openNewMeal(diaryDate)` | Create a draft for the selected local day |
 | Diary meal action | `openEditMeal(meal)` | Load the logged row by timeline entry identity |
 | Home Quick Log Meal | `openNewMeal(homeDate)` | Open the composer for Home's selected day and switch to the Nutrition tab |
-| Composer Saved Meals | Saved Meals route | Browse reusable templates, edit or delete templates, or bring a template into the composer |
+| Composer Meal Items header: Saved Meals | Saved Meals route | Browse reusable templates, edit or delete templates, or bring a template into the composer |
 
 `src/screens/NutritionScreens/MealLogScreen.tsx` holds the title, clock controls, items, compact meal totals, and save/template actions. “Add meal item” opens [[Food Picker and Providers|the food picker]]. The screen calls `createMealLog` or `updateMealLog` for diary writes. `src/screens/NutritionScreens/SavedMealsScreen.tsx` handles the list. Template repository writes target `saved_meals` and `saved_meal_items` separately from the diary. Opening a template through `openEditSavedMeal` loads its own draft. Details of durable storage are in [[Nutrition Data and Calculations]].
+
+## Compact composer and saved state (24 November 2026)
+
+- A plain meal-title field sits above the embedded compact `MacronutrientBreakdownCard` inside one content-sized summary card. The separate Meal Identity, title presets, inline Save/Discard controls and bottom totals card are removed. The existing header clock and diary Log/Save Changes actions remain.
+- `src/components/nutrition/LoggedFoodComponent.tsx` shows each food's name, total serving size, calories and P/C/F. Its separate left X has an inset 48px target with no competing inner border. Tapping the details opens Facts with the exact item ID, serving ID and quantity; Update Item replaces that draft item. Portion changes happen in Facts.
+- The footer's template action is Save Meal for an unsaved composition and Unsave Meal for the matching saved composition. Title/item changes make the composition unsaved until Save Meal updates its existing template. Template existence and canonical composition are reconciled from `listSavedMeals`; a deleted template ID is cleared instead of treated as saved. Failed checks have a Retry action.
+- Unsave calls `deleteSavedMeal`, clearing matching workspace drafts' saved IDs, signatures and pending create operation IDs. A later save uses a fresh operation ID. The deletion cascades through `saved_meal_items`; independent diary `meal_logs`/`meal_items` and timeline entries remain. `meal_logs.saved_meal_id` is nullable provenance without a SQL foreign key, so historical diary IDs can outlive a deleted template and must be reconciled when reopened.
+- Template and diary mutations have immediate ref locks, pending action states, guarded header/hardware exits and disabled footer navigation. Failed writes retain the draft. Existing repository transactions and operation receipts are reused; there is no schema migration.
+- Reference-backed items resolve only their exact serving ID. If a provider no longer returns it, leave details unresolved rather than silently replacing the logged portion. Persisted diary quantities reopen without the former three-decimal rounding, preserving small converted portions.
+
+Implementation and verification details: [[2026-11-24 Nutrition Screen Handoff]].
 
 ## Navigation and restoration
 

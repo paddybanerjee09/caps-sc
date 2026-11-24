@@ -17,6 +17,15 @@ aliases:
 - FatSecret Basic rows use references and resolve nutrients when connected, while local and Open Food Facts entries can use stored snapshots. Open Food Facts facts include product-data attribution. The USDA FoodData Central client was removed in `fe847c6`. Preserve migrated USDA diary snapshots as historical records.
 - Since `a556a7a`, the availability of usage-based sorting comes from the same grouped meal-item query that supplies the ranking. It counts diary items through `meal_logs` and `timeline_entries` at or before the query time. FatSecret resolves the preferred raw serving ID once and falls back to the first valid normalized serving if that ID is absent.
 
+## Picker and portions (24 November 2026)
+
+- Picker results share one bordered scrollable FlatList surface with thin row separators. Search, tab scroll offsets, sort overlay and custom edit/delete controls remain. All/Favourites/Custom use the shared selector's optional compact single-line labels; other selector callers keep their existing appearance. Sort labels are Recent and Frequent. Scan Barcode includes a barcode icon through `NutritionActionBar`'s optional icon prop.
+- Fresh search, known-food, custom and barcode selections leave the serving ID unspecified, allowing the normalized 1g or 1mL default. Favourites and meal-item edits retain explicit serving IDs and quantities. `src/nutrition/servings.ts` adds deterministic derived units while preserving provider portions; see [[Nutrition Data and Calculations]].
+- Facts has one calorie editor in the macro ring, with a smaller centered input and kcal caption. The duplicate Calorie-driven portion card is removed. Editing calories still derives the quantity and scales macros and micronutrients. Compatible unit switches preserve the physical portion; unknown household portions do not acquire invented equivalences.
+- Provider metadata supplies a genuine mass or volume basis. FatSecret household portions retain metric equivalents; Open Food Facts uses explicit quantity units and product/serving data to distinguish gram and millilitre nutrition. Grams and millilitres are never equated merely to offer more choices.
+
+Verification and remaining device acceptance: [[2026-11-24 Nutrition Screen Handoff]].
+
 ## History
 
 - `8a1f6a3` added FatSecret and Open Food Facts. `8731d05` added search, `4890a26` scanning, `12b6b40` custom foods, `12171e9` exact-serving facts/favourites, and `1d8b456` proxy documentation and verification.

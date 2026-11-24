@@ -20,6 +20,18 @@ aliases:
 - `src/nutrition/calculations.ts` sums known contributions and separately preserves incomplete or partial flags for missing values. Unit conversion requires compatible dimensions. The registry in `src/nutrition/nutrients.ts` covers micronutrients and other extra values. Preserve nutrient units and scale with selected servings. A custom calorie estimate uses the macro cross-check as an advisory warning.
 - In this domain `getMealStatus` uses logged time to distinguish planned from completed. Conditioning's explicit status model rules have separate semantics.
 
+## Base-unit serving options (24 November 2026)
+
+`src/nutrition/servings.ts` derives nutrient and micronutrient amounts per gram or millilitre from a known physical serving. A 120g portion is divided by 120 for the 1g option. Available compatible mass/volume conversions and original provider portions appear together; unknown dimensions remain provider portions. `withServingUnits` runs at catalog resolution/cache and Facts snapshot boundaries so deterministic `caps:unit:*` serving IDs can resolve again after reference-only workspace/diary restoration. Compatible unit switches scale the entered quantity to retain the physical amount.
+
+Derived choices store their physical amount in the existing `g`/`ml` unit fields and retain their visible label and stable serving ID. No SQL enum or table change is needed. Snapshot sources retain nutrient facts; reference-only provider records still persist identifiers rather than copied catalog facts. Missing exact reference servings stay unresolved. Diary drafts retain full stored quantity precision on reopen instead of rounding to three decimal places.
+
+Repeated normalization retains existing derived servings to avoid floating-point drift while filling missing compatible choices. Derived quantities use ungrouped decimal output with 15 significant digits, preserving small positive converted amounts that the former eight-decimal formatter rounded to zero.
+
+Save/Unsave reuses the template tables: `saved_meals.id` owns `saved_meal_items.saved_meal_id` with cascade deletion. Diary rows own separate item snapshots/references beneath their timeline parent; removing a template never deletes those diary rows. Operation receipts remain durable; the next save after unsaving normally uses a fresh create operation ID. `createSavedMeal` now verifies that a committed receipt still points to an existing template before returning success, including error recovery. Replaying an old receipt after deletion creates an actual new row; an insert failure cannot be mistaken for success from the deleted row's receipt. This also covers process death between deletion and workspace persistence. See [[Timeline and Nutrition Tables]] and [[Meal Composer and Saved Meals]].
+
+Regression evidence and current QA limits are recorded in [[2026-11-24 Nutrition Screen Handoff]].
+
 ## History and verification
 
 - `241f556` created the meal tables with USDA identity. `c4f7af8` established provider-neutral calculation/types. `884864f` introduced v5 storage and `ece0620` repaired incomplete migration. `dde7751` added favourite snapshots and `3ff3e8a` verified edit, custom food, and favourite persistence. `fe847c6` removed USDA fetching while preserving migrated records.
