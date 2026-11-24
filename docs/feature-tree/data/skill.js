@@ -9,11 +9,11 @@ CAPS.trees.skill = {
     title: "SkillTrainingScreen",
     kind: "screen",
     status: "active",
-    tagline: "Shared month, Free/Create actions and Saved Workouts",
+    tagline: "Shared month, Log Session and Saved Workouts",
     files: ["src/screens/SkillScreen.tsx", "src/state/SkillWorkspaceContext.tsx"],
     entry: "Bottom tab \"Skills Training\" (boxing-glove icon), second from the left.",
     summary:
-      "Month calendar of logged Skill sessions, existing focus legend, shared Free Session/Create Session controls and canonical Conditioning-style SavedWorkouts. Both launch actions use the existing unified Skill builder, whose Save and Log remain distinct writes. Saved template IDs, focus colors, local end-date placement and detail behavior remain unchanged.",
+      "Month calendar, focus legend, one Log Session launch and the shared SavedWorkouts expander. Create Session is removed; Log Session opens the existing Skill builder. Saving a reusable template and logging history remain separate actions. Existing template IDs, focus colors, local end-date placement and detail behavior are preserved.",
     guardrails: [
       "Use shared subscreen bars, decimal weight/load inputs and the shared Log Time modal; preserve domain validation (user correction, 20 November 2026).",
       "The file is `SkillScreen.tsx`, the component is `SkillTrainingScreen`, and the route key is `skill`. Keep all three in sync with `Screens.tsx` and `routes.ts`.",
@@ -131,6 +131,17 @@ CAPS.trees.skill = {
           "Use the shared saved-workout expander/cards and uniform Free Session/Create Session labels and controls.",
           "Keep the existing Skill builder for both launches; retain its independent Save/Log actions and saved-template workflow."
         ]
+      },
+      {
+        "n": 9,
+        "name": "SkillTrainingScreen",
+        "date": "2026-11-24 18:20 -0500",
+        commits: ["6dfbf84"],
+        "request": "Simplify all training hub actions and expose Save/Unsave state in Skill and Strength logging.",
+        "changes": [
+          "Remove Create Session and rename Free Session to Log Session using the shared single-action component.",
+          "Preserve saved-workout IDs and the existing builder, calendar and focus behavior."
+        ]
       }
 ],
     children: [
@@ -147,12 +158,13 @@ CAPS.trees.skill = {
         tagline: "Title, end time, activities, save, and log",
         files: ["src/screens/skill/SkillSessionBuilderScreen.tsx"],
         summary:
-          "A scrolling form with the title, Ends at, a live summary, and activity cards. Duration or rounds, one RPE band, and a sparring or rolling mode when the activity has one. The footer is Cancel, Save/Saved/Unsaved, and Log.",
+          "A scrolling form with title, header log time, live summary and activity cards. The fixed footer shows Cancel, Save/Unsave and Log. Save immediately persists a reusable template; Unsave archives it and detaches the draft without changing logged history. Template edits show Save until persisted. Pending writes block repeat actions, edits and exits; failed writes retain the draft and state.",
         guardrails: [
           "Start time is the chosen end time minus elapsed seconds. The calendar day is the local end date, including when the session starts the day before.",
           "Reject a future end time again when logging. The time control's maximum is not the only check.",
           "A failed log stays on the builder and retries with the same session id.",
-        ],
+          "Display only Save or Unsave for template state, and keep pending/failure guards; archiving must preserve logged snapshots (user request, 24 November 2026)."
+],
         links: ["architecture:log-time-changer"],
         versions: [
   {
@@ -193,7 +205,19 @@ CAPS.trees.skill = {
       "Remove repeated RPE definition; retain actual weight basis and units.",
       "Presentation only; data, calculations and validation remain."
     ]
-  }
+  },
+      {
+        "n": 4,
+        "name": "SkillSessionBuilderScreen",
+        "date": "2026-11-24 18:20 -0500",
+        commits: ["6dfbf84"],
+        "request": "Show a persistent Save/Unsave action that changes the reusable workout state.",
+        "changes": [
+          "Show Save or Unsave in the fixed footer and immediately persist/archive templates on press.",
+          "Keep fingerprint-based edited state, detach on archive, and preserve historical log snapshots.",
+          "Guard rapid actions, draft edits and exits while saving; preserve state and errors for retry."
+        ]
+      }
 ],
       },
       {

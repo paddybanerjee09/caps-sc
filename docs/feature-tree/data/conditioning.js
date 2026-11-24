@@ -2,7 +2,7 @@ CAPS.trees.conditioning = {
   id: "conditioning",
   title: "Conditioning",
   summary:
-    "Conditioning tab: monthly calendar of planned and logged sessions, a selected-day list, Free Session, a format chooser (Time Interval / Sprints / Circuit) into the workout editor, Saved Workouts, a timestamp-based runner, GPS free sessions, and provisional training-emphasis estimates. Replaced a modal-based v1 that lived only on the reverted lineage.",
+    "Conditioning tab: monthly calendar of planned and logged sessions, selected-day list, Free Session with GPS, existing Saved Workouts and structured editors/runners, plus provisional training-emphasis estimates. Create Session and its hub format chooser are removed; no new structured-workout launcher replaces them.",
   rules: [
     "ui-style-guide.mdc",
     "navigation-and-overlays.mdc",
@@ -15,17 +15,18 @@ CAPS.trees.conditioning = {
     id: "conditioning-screen",
     title: "ConditioningScreen",
     kind: "screen",
-    tagline: "Calendar, day list, free/create/saved",
+    tagline: "Calendar, day list, Free Session and saved workouts",
     files: ["src/screens/ConditioningScreen.tsx"],
     entry: "Bottom tab \"Conditioning\" (running-man icon), last tab.",
     summary:
-      "Hub retains the existing shared MonthlyTimelineComponent using the preferred direct Strength/Skills presentation, then shared Free Session/Create Session actions and the canonical SavedWorkouts expander. Parent-supplied month events, selected-day detail, format chooser, active-session banner, fetch-key loading/retry and discipline-specific editor behavior remain intact. The redundant Browse Saved Workouts launcher and unreachable library route are removed.",
+      "Hub uses the shared MonthlyTimelineComponent, a single Free Session launch and the canonical SavedWorkouts expander. Create Session and its format chooser are removed. Existing saved entries still open the structured editor with their original template ID/configuration and selected date. The active-session banner, fetch-key loading/retry and discipline-specific editor behavior are preserved.",
     guardrails: [
       "Do not `setState` inside an effect to derive load state; key the fetch instead (fix 17e5a94; chat cd59c055).",
       "Saved Workouts expander is the only control that may push content down (navigation-and-overlays.mdc).",
       "`MonthlyTimelineComponent` must not query tables; the screen passes events (calendar-session-state.mdc).",
       "Do not restore the v1 modal stack (reverted 2026-10-02; navigation-and-overlays.mdc).",
-    ],
+          "Keep Conditioning’s Free Session name and recorder save behavior unchanged for this iteration; the Skill/Strength Save/Unsave change is exempt here (user clarification, 24 November 2026)."
+],
     links: [
       "architecture:bottom-tabs",
       "database:table-conditioning-sessions",
@@ -129,6 +130,18 @@ CAPS.trees.conditioning = {
         "changes": [
           "Remove the extra calendar wrapper to match Strength/Skills while retaining the already-shared calendar implementation.",
           "Use shared session launch actions and SavedWorkouts; remove redundant Browse and unreachable library UI."
+        ]
+      },
+      {
+        "n": 9,
+        "name": "ConditioningScreen",
+        "date": "2026-11-24 18:20 -0500",
+        commits: ["6dfbf84"],
+        "request": "Remove Create Session from all three training hubs; leave Conditioning’s name and save behavior unchanged for now.",
+        "changes": [
+          "Remove Create Session and all chooser-only state, back handling, imports and styles.",
+          "Keep Free Session and its recorder save behavior unchanged per explicit user clarification.",
+          "Open existing saved workouts with the original template ID/configuration and selected date."
         ]
       }
 ],
@@ -335,9 +348,9 @@ CAPS.trees.conditioning = {
         kind: "subscreen",
         tagline: "Plan or save a structured workout",
         files: ["src/screens/conditioning/CreateConditioningSessionScreen.tsx"],
-        entry: "Hub format chooser: Time Interval / Sprints / Circuit.",
+        entry: "Existing saved workout on the hub, or an existing planned session.",
         summary:
-          "One editor at a time (`editor` in the workspace). Drafts survive visiting station and emphasis screens. Same unsaved-change guard for Back / Cancel / X / system back.",
+          "One structured editor at a time (editor in the workspace). Existing saved workouts retain their ID/configuration and selected date. The hub no longer launches new structured workouts through a format chooser. Drafts survive station/emphasis visits, and the same unsaved-change guard handles Back, Cancel, X and system Back.",
         modes: [
           { name: "Time Interval", detail: "Work/rest rounds, target RPE, preparation timer." },
           { name: "Sprints", detail: "Fixed-distance repeats, GPS or manual splits." },
@@ -385,8 +398,19 @@ CAPS.trees.conditioning = {
             "commits": [
               "16a4d75"
             ]
-          }
-        ],
+          },
+      {
+        "n": 4,
+        "name": "CreateConditioningSessionScreen",
+        "date": "2026-11-24 18:20 -0500",
+        commits: ["6dfbf84"],
+        "request": "Remove the hub Create Session launcher while preserving existing saved workouts.",
+        "changes": [
+          "Replace the removed hub chooser entry documentation with existing saved/planned-session entries.",
+          "Preserve structured editor, station, save, plan, manual-log and start behavior; no replacement new-workout launcher is added."
+        ]
+      }
+],
         children: [
           {
             id: "station-editor",

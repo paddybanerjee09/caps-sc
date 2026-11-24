@@ -2,13 +2,15 @@
 
 **Current status: logging is on the Skills tab**. The second bottom tab uses route `skill` and the `boxing-glove` icon. `src/screens/Screens.tsx` resolves it to `SkillTrainingScreen` in `src/screens/SkillScreen.tsx`. Skill tables arrived at schema 9; current database version is 10 after Recovery.
 
-Since 23 November the hub uses the same MonthlyTimelineComponent, TrainingSessionActions (Free Session/Create Session) and Conditioning-style SavedWorkouts dropdown as Strength/Conditioning. Skills already has one builder with distinct Save-template and Log actions; both launch buttons intentionally open that existing builder. There is no invented separate Skills timer. Focus legend, session markers, saved template IDs, calorie logic and builder/navigation behavior remain discipline-owned. See [[2026-11-23 UI Refactor Handoff]].
+The hub shares MonthlyTimelineComponent, TrainingSessionActions and the Conditioning-style SavedWorkouts dropdown with Strength/Conditioning. Since 24 November its single launch is **Log Session**; Create Session is removed. Log Session opens the existing builder, with no separate Skills timer. Focus legend, session markers, saved template IDs and calorie logic remain discipline-owned. See [[2026-11-23 UI Refactor Handoff]] for the original shared-component extraction.
 
 [[2026-11-16 Skill Screen Implementation Plan]] is the design that was built. Effort is stored as an RPE band (rate of perceived exertion): Easy is RPE 6 or below, Moderate is RPE 7–8, and Hard is RPE 9–10. The plan's RIR wording was not implemented.
 
 ## Logging
 
-`src/state/SkillWorkspaceContext.tsx` keeps the draft while the builder is open. `src/screens/skill/SkillSessionBuilderScreen.tsx` is Build Skill Session and a reopened saved session. Save writes only a template. Log writes the session, activity snapshots, `skill-energy-v1`, and a `timeline_entries` row of kind `skill` in one transaction. The session id makes a retry a no-op. Failed writes leave the draft unchanged. Removing a saved session archives the template and leaves earlier logs intact.
+`src/state/SkillWorkspaceContext.tsx` keeps the draft while `src/screens/skill/SkillSessionBuilderScreen.tsx` is open. Its fixed footer always shows **Save** or **Unsave**, alongside Cancel and Log. Save immediately writes a reusable template; a matching saved fingerprint shows Unsave. Editing template fields shows Save until the existing template is updated. Unsave immediately archives the template and detaches the draft; the next Save creates a new template ID. The mutation lock blocks repeated actions, edits and exits while writes are pending; failures keep the draft and saved state available for retry.
+
+Save uses the existing relational tables: `skill_templates.id` owns the ordered `skill_template_activities.template_id` rows. Saving an existing linked template replaces those activity rows in one transaction; Unsave sets the template's `archived_at` without deleting prior logs. Log remains a separate transaction writing `skill_sessions`, independent activity snapshots, `skill-energy-v1`, and a `timeline_entries` row of kind `skill`. The session ID makes a log retry a no-op. This UI change adds no schema or repository changes.
 
 Time is stored in epoch milliseconds and seconds. `started_at` is the chosen end minus elapsed seconds. `local_end_date` is the device-local date of that end, so a session that crosses midnight is placed on the day it finished. `timezone` is the IANA zone captured at commit. Templates store no date or time. Reopening one sets Ends at to the current time.
 
@@ -17,6 +19,8 @@ RPE is a required band, not a 1–10 number: `easy`, `moderate`, or `hard`. Spar
 Calories are gross kilocalories: `weightKg × ((baseMET × rpeMultiplier × workSeconds) + (1.5 × restSeconds)) / 3600`. The multipliers are 0.80, 1.00, and 1.10. The session stores the unrounded sum, the weight used, `logged` or `reference`, and `skill-energy-v1`. Reference weight is 75 kg when no `weight_logs` row has a timeline start at or before the end time. `getLatestWeightKg` is unchanged and still returns the newest log with no cutoff.
 
 There is no skill owner table. Conditioning has a singleton owner because those sessions sync. Skill logs stay on the device, as Strength logs do.
+
+24 November verification: targeted ESLint, `npm run verify:skill` and `npm run verify:conditioning` passed. Device checks for Save/Unsave, failure recovery, rapid taps, keyboard and guarded exits remain unrun.
 
 ## Planned scope
 
