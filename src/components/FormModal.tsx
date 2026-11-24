@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAppTheme } from "../theme/ThemeContext";
@@ -26,7 +26,7 @@ export function FormModal({ children, error, footer, onClose, onSave, saving = f
   const insets = useSafeAreaInsets();
   return (
     <Modal animationType="none" onRequestClose={() => { if (!saving) onClose(); }} transparent visible={visible}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={[styles.backdrop, { backgroundColor: theme.colors.overlay, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
+      <KeyboardAvoidingView behavior="padding" style={[styles.backdrop, { backgroundColor: theme.colors.overlay, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
         <View accessibilityViewIsModal style={[styles.dialog, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong }]}>
           <Text accessibilityRole="header" style={[styles.title, { color: theme.colors.text }]}>{title}</Text>
           <ScrollView bounces={false} style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.body}>
