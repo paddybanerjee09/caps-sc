@@ -515,7 +515,8 @@ CAPS.trees.architecture = {
             ],
             guardrails: [
               "Never restore weight/time increments, presets or body log-time cards (user correction, 20 November 2026).",
-              "Put the shared trigger in the header right and preserve caller date bounds (ui-style-guide.mdc section 8)."
+              "Put the shared trigger in the header right and preserve caller date bounds (ui-style-guide.mdc section 8).",
+              "Keep the centered row, highlighted row and confirmed time aligned after swipes, day changes and rejected future selections; do not remount a native wheel when its selected value changes (Android QA, 24 November 2026)."
             ],
             versions: [
   {
@@ -593,6 +594,18 @@ CAPS.trees.architecture = {
     "changes": [
       "Format picker date as 22 Nov, 2026; retain local date bounds.",
       "Questionnaire uses default minute resolution without opt-in quarter-hour interval."
+    ]
+  },
+  {
+    "n": 7,
+    "name": "LogTimeChanger",
+    "date": "2026-11-24 18:00 -0500",
+    "commits": ["ef645a0"],
+    "request": "Run Android and test biometric modals, keyboard, pickers, persistence and Back navigation; fix discovered issues.",
+    "changes": [
+      "Keep wheel identity stable and synchronize live center highlighting with the final momentum position.",
+      "Carry pending wheel values into day changes and reanchor same-value bounds clamps using the draft Date identity.",
+      "Android runtime checks confirmed future selection clamping and past-day swipe/Done agreement."
     ]
   }
 ],
@@ -696,11 +709,11 @@ CAPS.trees.architecture = {
             "title": "TrainingSessionActions",
             "kind": "component",
             "status": "active",
-            "tagline": "Free Session followed by Create Session",
+            "tagline": "One shared session launch action",
             "files": [
               "src/components/training/TrainingSessionActions.tsx"
             ],
-            "summary": "All three training hubs use the same Free Session primary action, then Create Session secondary action, with callbacks supplied by the owning discipline. Strength keeps its log/template modes; Skills retains its existing unified Save/Log builder.",
+            "summary": "All three training hubs use one shared session launch action with a callback supplied by the owning discipline. Strength and Skill use the default Log Session label; Conditioning overrides it with Free Session. The separate Create Session action has been removed.",
             "links": [
               "architecture:action-button",
               "conditioning:conditioning-screen",
@@ -718,6 +731,17 @@ CAPS.trees.architecture = {
                 "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
                 "changes": [
                   "Standardize button order, labels, spacing, sizing and feedback across the three training hubs."
+                ]
+              },
+              {
+                "n": 2,
+                "name": "TrainingSessionActions",
+                "date": "2026-11-24 18:20 -0500",
+                "commits": ["6dfbf84"],
+                "request": "Simplify the training launch flow and remove the separate Create Session action.",
+                "changes": [
+                  "Render one session launch action shared by all three training hubs.",
+                  "Default to Log Session for Strength and Skill, with Conditioning overriding the label to Free Session."
                 ]
               }
             ]
@@ -759,9 +783,10 @@ CAPS.trees.architecture = {
             "files": [
               "src/components/FormModal.tsx"
             ],
-            "summary": "An actual React Native Modal provides the centered, safe-area-aware biometric dialog foundation. Keyboard avoidance, scrolling form content, fixed Cancel/Save controls, pending-save dismissal protection and accessible errors are shared by biometric editing and WeightLogModal. Drafts and persistence stay with each form.",
+            "summary": "An actual React Native Modal provides the centered, safe-area-aware biometric dialog foundation. Padding-based keyboard avoidance, scrolling form content, fixed Cancel/Save controls, pending-save dismissal protection and accessible errors are shared by biometric editing and WeightLogModal. Android QA confirmed the weight field, timestamp and actions stay visible with the numeric keyboard. Drafts and persistence stay with each form.",
             "guardrails": [
-              "Use this explicitly requested biometric modal exception without replacing unrelated screen-based workflows (user request, 23 November 2026)."
+              "Use this explicitly requested biometric modal exception without replacing unrelated screen-based workflows (user request, 23 November 2026).",
+              "Verify the settled Android keyboard layout; height-based avoidance clipped this dialog and disabling avoidance covered its actions on Android 17 (Android QA, 24 November 2026)."
             ],
             "links": [
               "home:weight-log",
@@ -778,6 +803,17 @@ CAPS.trees.architecture = {
                 "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
                 "changes": [
                   "Provide one modal foundation for age/DOB, sex, height and canonical weight logging."
+                ]
+              },
+              {
+                "n": 2,
+                "name": "FormModal",
+                "date": "2026-11-24 17:25 -0500",
+                "commits": ["1dddd6d"],
+                "request": "Test Android biometric modals and fix keyboard, picker, persistence and Back issues.",
+                "changes": [
+                  "Use padding-based keyboard avoidance on Android to keep the full form and fixed actions reachable.",
+                  "A live Home weight Save with the keyboard open wrote one log and restored correctly after restart."
                 ]
               }
             ]

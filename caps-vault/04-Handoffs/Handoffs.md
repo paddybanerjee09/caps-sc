@@ -2,7 +2,7 @@
 
 - [[2026-11-24 Nutrition Screen Handoff]] · compact composer, logged-food rows, saved-state toggle, flat picker and base-unit portions
 
-- [[2026-11-24 Android Biometric QA Handoff]] · Android modal keyboard, wheel selection and height-boundary fixes; live QA outcomes
+- [[2026-11-24 Android Biometric QA Handoff]] · Android modal keyboard and wheel fixes, height conversion checks and live QA outcomes
 
 - [[2026-11-23 UI Refactor Handoff]] · biometric modals/profile persistence, actual shared weight modal, settings menu and shared training hub presentation
 

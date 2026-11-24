@@ -45,3 +45,9 @@ All owned subscreens now use shared safe-area headers, branch-wide X, fixed dept
 ## Settings navigation exception (23 November 2026)
 
 All three settings destinations have the shared MenuButton in the header and no global log timestamp. It opens the existing Sidebar; sidebar X exits settings to the remembered main tab, while scrim/hardware Back first dismiss the drawer. Existing guarded account edits and primary workflow header behavior remain. See [[2026-11-23 UI Refactor Handoff]].
+
+## Android biometric QA corrections (24 November 2026)
+
+The existing height helper rounds total inches before splitting feet and inches: 60 cm displays as 2 ft 0 in, and 175 cm as 5 ft 9 in. The original 2–9 ft range already represents the supported metric range. An unchanged imperial Save preserves the exact stored centimetres. An initial audit incorrectly proposed a 1 ft option; that change was reverted after executing the actual helper, and a regression fixture now records the minimum-height conversion. No height behavior or storage change is intended. Both modal presentation and timestamp-wheel fixes are shared with Home; see [[Weight and Sleep Logging]] and [[2026-11-24 Android Biometric QA Handoff]].
+
+Android 17 / Expo Go 58 checks exercised independent DOB/height columns, Jan 31 to Feb 29 in 2008, non-leap-year clamping to Feb 28, metric 60 cm Save, imperial 2 ft 0 in unchanged Save, and return to metric 60 cm without conversion drift. Bodyweight correctly prefilled 165.9 lb for the stored 75.25 kg. Cancelled height/weight drafts and hardware Back from a changed sex draft retained saved values. A final fresh process launch restored age 29, Female, 60 cm and 75.3 kg on Athlete Information, with matching Home values. Sidebar X returned to Home; detailed evidence and limits are in the QA handoff.

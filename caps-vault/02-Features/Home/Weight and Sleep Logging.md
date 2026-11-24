@@ -18,6 +18,14 @@ Weight uses a real app-wide modal. Sleep retains its dedicated screen overlay an
 - `src/data/timelineRepository.ts` owns transactional writes linking the `weight_logs` detail to its `timeline_entries` ID. See [[Data and Persistence]].
 - scripts/verify-weight.mjs checks real SQLite precision/timestamps, backdating/latest projection, edit identity, cascade delete and injected transaction rollback. Device modal/keyboard/nested-time-picker acceptance is separate; see [[2026-11-23 UI Refactor Handoff]].
 
+### Android QA corrections (24 November 2026)
+
+FormModal now uses padding-based keyboard avoidance on Android as well as iOS. Android 17 / Expo Go 58 testing reproduced clipping with the old height behavior and covered buttons with avoidance disabled. Padding kept the weight, timestamp and footer visible, and Save with the keyboard open wrote one 75.25 kg test log; Home displayed 75.3 kg and restored it after an Android restart. The draft remains when Back hides the keyboard; cancelling the form does not write a log.
+
+LogTimeChanger keeps native wheel identity stable, previews/highlights the current rounded center, and commits the final momentum position. Day navigation uses pending wheel values. A Date-identity revision reanchors even when a rejected future selection clamps to the same prior numeric value; a dependency on hour/minute alone misses that case. These are presentation/selection fixes, with existing timestamp bounds and canonical storage unchanged. See [[2026-11-24 Android Biometric QA Handoff]] for final device cases and limits.
+
+The Athlete Information test saved an older weight at 23 November 2026, 18:05; Home showed the entry on that date and reopened its detail with the same timestamp and 75.3 kg display. The latest current weight remained the 24 November entry. A final fresh Expo process restored Home's weight, age and height. These device observations complement the SQLite precision, identity and rollback checks rather than extending their coverage to every native environment.
+
 History runs from initial SQLite weight log `ea4cc2b`, canonical profile weight `5833c71`, retroactive logging `d09b356`, deletion and time picker `3232443`, and early UI pass `ea999da` to inline steppers/presets `67d99b6`.
 
 ## Sleep

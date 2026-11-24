@@ -419,6 +419,18 @@ CAPS.trees.home = {
                   "Render one actual modal at all three entrypoints with internal date/time selection and shared persistence.",
                   "Preserve kg precision, existing record identity, backdated history and latest-weight consumers."
                 ]
+              },
+              {
+                "n": 8,
+                "name": "WeightLogModal",
+                "date": "2026-11-24 18:00 -0500",
+                "commits": ["1dddd6d", "ef645a0"],
+                "request": "Run Android and exercise weight logging from Home and Athlete Information, keyboard, timestamp pickers, persistence and Back.",
+                "changes": [
+                  "Keep the weight form and actions visible above the Android numeric keyboard through the shared modal fix.",
+                  "Synchronize timestamp-wheel center, highlight and confirmed selection, including future bounds and day changes.",
+                  "Live QA confirmed Home weight save/restart persistence and Athlete Information backdated logging."
+                ]
               }
             ],
             children: [{ id: "weight-log-time", ref: "architecture:log-time-changer", note: "Timestamp selection lives inside the canonical weight dialog." }],

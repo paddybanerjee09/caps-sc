@@ -663,7 +663,8 @@ CAPS.trees.settings = {
                   "src/components/BiometricEditModal.tsx",
                   "src/components/FormModal.tsx"
                 ],
-                "summary": "Metric height scrolls through 60–275 cm. Imperial uses independent side-by-side feet (2–9) and inches (0–11) columns, with resulting canonical height validated to the same cm bounds. Saved height initializes the wheels; unchanged selections preserve exact original centimetres rather than rounding during unit conversion.",
+                "summary": "Metric height scrolls through 60–275 cm. Imperial uses independent side-by-side feet (2–9) and inches (0–11) columns. The shared helper rounds total inches before splitting: 60 cm displays as 2 ft 0 in. Saved height initializes both wheels, and an unchanged Save preserves exact original centimetres rather than rewriting the rounded display conversion.",
+                "guardrails": ["Execute the shared conversion helper before changing picker bounds; 60 cm rounds to 2 ft 0 in and does not require a 1 ft option (Android QA audit correction, 24 November 2026)."],
                 "links": [
                   "architecture:form-modal",
                   "architecture:scroll-picker",
@@ -680,6 +681,29 @@ CAPS.trees.settings = {
                     "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
                     "changes": [
                       "Use scrollable measurements without step buttons; validate converted height and preserve unchanged canonical precision."
+                    ]
+                  },
+                  {
+                    "n": 2,
+                    "name": "Height selection modal",
+                    "date": "2026-11-24 18:00 -0500",
+                    "commits": ["080eb08"],
+                    "request": "Test the biometric pickers on Android and fix boundary or persistence issues.",
+                    "changes": [
+                      "Temporarily added a 1 ft option and altered validation after an incorrect audit assumption about 60 cm conversion.",
+                      "The actual helper rounds 60 cm to 2 ft 0 in; the unnecessary change was restored in the next QA iteration."
+                    ]
+                  },
+                  {
+                    "n": 3,
+                    "name": "Height selection modal",
+                    "date": "2026-11-24 18:25 -0500",
+                    "commits": ["760688b"],
+                    "request": "Test the biometric pickers on Android and retain correct height conversion and persistence.",
+                    "changes": [
+                      "Restore the existing 2–9 ft picker and validation after executing the actual conversion helper.",
+                      "Add a regression fixture confirming that 60 cm rounds to 2 ft 0 in.",
+                      "Android QA confirmed metric 60 cm Save, imperial 2 ft 0 in initialization and unchanged Save."
                     ]
                   }
                 ]
