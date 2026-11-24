@@ -384,8 +384,14 @@ export async function createSavedMeal(
       );
 
       if (existing?.status === "committed" && existing.result_id) {
-        savedMealId = existing.result_id;
-        return;
+        const saved = await db.getFirstAsync<{ id: string }>(
+          `SELECT id FROM saved_meals WHERE id = ?`,
+          [existing.result_id],
+        );
+        if (saved) {
+          savedMealId = saved.id;
+          return;
+        }
       }
 
       savedMealId = createId();
@@ -417,7 +423,11 @@ export async function createSavedMeal(
     );
 
     if (existing?.result_id) {
-      return existing.result_id;
+      const saved = await db.getFirstAsync<{ id: string }>(
+        `SELECT id FROM saved_meals WHERE id = ?`,
+        [existing.result_id],
+      );
+      if (saved) return saved.id;
     }
 
     throw error;

@@ -434,7 +434,10 @@ export function formatDerivedQuantity(value: number) {
     return "";
   }
 
-  return value.toFixed(8).replace(/\.?0+$/, "");
+  return value.toLocaleString("en-US", {
+    useGrouping: false,
+    maximumSignificantDigits: 15,
+  });
 }
 
 export function formatCalorieInput(value: number) {

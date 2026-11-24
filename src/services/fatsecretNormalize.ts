@@ -141,12 +141,10 @@ function normalizeServing(value: unknown): CatalogServing | null {
   const label = text(serving.serving_description) ?? "1 serving";
   const metricUnit = text(serving.metric_serving_unit)?.toLowerCase() ?? "";
   const metricAmount = nonNegative(serving.metric_serving_amount);
-  const measurement = text(serving.measurement_description)?.toLowerCase() ?? "";
   const metricServing =
     (metricUnit === "g" || metricUnit === "ml") &&
     metricAmount !== null &&
-    metricAmount > 0 &&
-    (measurement === "g" || measurement === "ml" || measurement === metricUnit);
+    metricAmount > 0;
   const numberOfUnits = nonNegative(serving.number_of_units);
 
   return {

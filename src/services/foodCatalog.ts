@@ -5,12 +5,13 @@ import type { CatalogFood, CatalogServing, FoodRef } from "../types/nutrition";
 import { getFatSecretFood } from "./fatsecretApi";
 import { lookupOpenFoodFactsBarcode } from "./openFoodFactsApi";
 import { foodIdentityKey } from "../nutrition/calculations";
+import { withServingUnits } from "../nutrition/servings";
 
 const sessionFoods = new Map<string, CatalogFood>();
 
 export function rememberCatalogFood(food: CatalogFood) {
   if (food.servings.length > 0) {
-    sessionFoods.set(foodIdentityKey(food.ref), food);
+    sessionFoods.set(foodIdentityKey(food.ref), withServingUnits(food));
   }
 }
 
@@ -30,7 +31,7 @@ export function catalogFoodFromCustom(food: {
   fatG: number;
   extras: CatalogServing["extras"];
 }): CatalogFood {
-  return {
+  return withServingUnits({
     ref: { source: "custom", externalId: food.id },
     name: food.name,
     brandName: food.brand,
@@ -52,7 +53,7 @@ export function catalogFoodFromCustom(food: {
         extras: food.extras,
       },
     ],
-  };
+  });
 }
 
 export async function resolveCatalogFood(
@@ -75,17 +76,18 @@ export async function resolveCatalogFood(
 
     const food = catalogFoodFromCustom(custom);
     rememberCatalogFood(food);
-    return food;
+    return withServingUnits(food);
   }
 
   if (ref.source === "fatsecret") {
     const food = await getFatSecretFood(ref.externalId, signal);
     rememberCatalogFood(food);
-    return food;
+    return withServingUnits(food);
   }
 
   if (ref.source === "openfoodfacts") {
-    return lookupOpenFoodFactsBarcode(ref.externalId, signal);
+    const food = await lookupOpenFoodFactsBarcode(ref.externalId, signal);
+    return food ? withServingUnits(food) : null;
   }
 
   return null;

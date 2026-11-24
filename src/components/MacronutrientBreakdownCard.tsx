@@ -28,6 +28,7 @@ type MacroKey = Exclude<NutrientKey, "energyKcal">;
 
 type MacronutrientBreakdownCardProps = {
   compact?: boolean;
+  embedded?: boolean;
   energyInput?: {
     editable: boolean;
     invalid: boolean;
@@ -107,6 +108,7 @@ const nutrientPresentations: {
 
 export function MacronutrientBreakdownCard({
   compact = false,
+  embedded = false,
   energyInput,
   incomplete,
   micronutrients,
@@ -141,6 +143,7 @@ export function MacronutrientBreakdownCard({
       style={[
         styles.card,
         compact && styles.cardCompact,
+        embedded && styles.cardEmbedded,
         {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.borderStrong,
@@ -331,7 +334,7 @@ export function MacronutrientBreakdownCard({
           selectable
           style={[styles.note, { color: theme.colors.textMuted }]}
         >
-          + Some USDA nutrient values are unavailable.
+          + Some nutrient values are unavailable.
         </Text>
       ) : null}
 
@@ -421,6 +424,7 @@ function MacroRing({
             accessibilityLabel="Calories for configured food"
             editable={energyInput.editable}
             keyboardType="decimal-pad"
+            hitSlop={{ bottom: 10, left: 4, right: 4, top: 10 }}
             onChangeText={energyInput.onChangeText}
             placeholder="\u2014"
             placeholderTextColor={theme.colors.textMuted}
@@ -457,7 +461,11 @@ function MacroRing({
         )}
         <Text
           selectable
-          style={[styles.energyUnit, { color: theme.colors.textMuted }]}
+          style={[
+            styles.energyUnit,
+            compact && styles.energyUnitCompact,
+            { color: theme.colors.textMuted },
+          ]}
         >
           kcal
         </Text>
@@ -694,6 +702,10 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.md,
     padding: tokens.spacing.md,
   },
+  cardEmbedded: {
+    borderWidth: 0,
+    padding: 0,
+  },
   title: {
     fontSize: tokens.typography.sectionTitle.fontSize,
     fontWeight: tokens.typography.sectionTitle.fontWeight,
@@ -785,26 +797,30 @@ const styles = StyleSheet.create({
   energyInput: {
     borderRadius: tokens.radius.sm,
     borderWidth: 1,
-    fontSize: 20,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "700",
-    height: 38,
-    paddingHorizontal: tokens.spacing.xs,
-    paddingVertical: 0,
-    textAlign: "center",
-    width: 78,
-  },
-  energyInputCompact: {
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    fontSize: 16,
+    fontSize: 18,
     fontVariant: ["tabular-nums"],
     fontWeight: "700",
     height: 32,
     paddingHorizontal: tokens.spacing.xs,
     paddingVertical: 0,
     textAlign: "center",
-    width: 64,
+    width: 68,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+  energyInputCompact: {
+    borderRadius: tokens.radius.sm,
+    borderWidth: 1,
+    fontSize: 14,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
+    height: 28,
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: 0,
+    textAlign: "center",
+    width: 56,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   energyValueCompact: {
     fontSize: 18,
@@ -818,6 +834,10 @@ const styles = StyleSheet.create({
   energyUnit: {
     fontSize: tokens.typography.label.fontSize,
     lineHeight: tokens.typography.label.lineHeight,
+  },
+  energyUnitCompact: {
+    fontSize: 9,
+    lineHeight: 11,
   },
   macroList: {
     flex: 1,

@@ -1,4 +1,9 @@
-import { normalizeBarcode, convertAmount } from "../nutrition/calculations";
+import {
+  normalizeBarcode,
+  convertAmount,
+  scaleExtras,
+  scaleSnapshot,
+} from "../nutrition/calculations";
 import type {
   CatalogFood,
   CatalogServing,
@@ -44,8 +49,15 @@ export function normalizeOpenFoodFactsProduct(
   const product = asRecord(record.product)!;
   const code = text(product.code) ?? barcode;
   const nutriments = asRecord(product.nutriments) ?? {};
-  const per100 = servingFromBasis(nutriments, "100g", "100 g", 100, "g");
-  const perServing = servingFromProduct(product, nutriments);
+  const metric = metricServing(product);
+  const packageUnit = text(product.product_quantity_unit)?.toLowerCase();
+  const basisUnit = ["ml", "cl", "dl", "l"].includes(packageUnit ?? "")
+    ? "ml"
+    : ["mg", "g", "kg"].includes(packageUnit ?? "")
+      ? "g"
+      : metric?.unit ?? "g";
+  const per100 = servingFromBasis(nutriments, "100g", `100 ${basisUnit === "ml" ? "mL" : "g"}`, 100, basisUnit);
+  const perServing = servingFromProduct(product, nutriments, metric, per100);
   const servings = [per100, perServing].filter(
     (serving): serving is CatalogServing => serving !== null,
   );
@@ -75,9 +87,23 @@ export function normalizeOpenFoodFactsProduct(
 function servingFromProduct(
   product: Record<string, unknown>,
   nutriments: Record<string, unknown>,
+  metric: { amount: number; unit: "g" | "ml" } | null,
+  per100: CatalogServing | null,
 ): CatalogServing | null {
-  const nutrients = readMacros(nutriments, "serving");
-  const extras = readExtras(nutriments, "serving");
+  let nutrients = readMacros(nutriments, "serving");
+  let extras = readExtras(nutriments, "serving");
+  if (metric && per100?.unit === metric.unit) {
+    const derived = scaleSnapshot(per100.nutrients, metric.amount / 100);
+    nutrients = {
+      energyKcal: nutrients.energyKcal ?? derived.energyKcal,
+      proteinG: nutrients.proteinG ?? derived.proteinG,
+      carbohydratesG: nutrients.carbohydratesG ?? derived.carbohydratesG,
+      fatG: nutrients.fatG ?? derived.fatG,
+    };
+    const extraIds = new Set(extras.map((extra) => extra.id));
+    extras = [...extras, ...scaleExtras(per100.extras, metric.amount / 100)
+      .filter((extra) => !extraIds.has(extra.id))];
+  }
   const hasData = hasAnyNutrient(nutrients, extras);
 
   if (!hasData) {
@@ -89,8 +115,8 @@ function servingFromProduct(
   return {
     id: "serving",
     label,
-    amount: 1,
-    unit: "serving",
+    amount: metric?.amount ?? 1,
+    unit: metric?.unit ?? "serving",
     nutrients,
     extras,
   };
@@ -101,7 +127,7 @@ function servingFromBasis(
   suffix: "100g",
   label: string,
   amount: number,
-  unit: "g",
+  unit: "g" | "ml",
 ): CatalogServing | null {
   const nutrients = readMacros(nutriments, suffix);
   const extras = readExtras(nutriments, suffix);
@@ -118,6 +144,26 @@ function servingFromBasis(
     nutrients,
     extras,
   };
+}
+
+function metricServing(
+  product: Record<string, unknown>,
+): { amount: number; unit: "g" | "ml" } | null {
+  const amount = nonNegative(product.serving_quantity);
+  const unit = text(product.serving_quantity_unit)?.toLowerCase();
+  if (amount !== null && amount > 0 && (unit === "g" || unit === "ml")) {
+    return { amount, unit };
+  }
+
+  const match = text(product.serving_size)?.match(/(?:^|\s|\()(\d+(?:[.,]\d+)?)\s*(g|ml)\b/i);
+  if (!match) {
+    return null;
+  }
+
+  const parsed = Number(match[1].replace(",", "."));
+  return Number.isFinite(parsed) && parsed > 0
+    ? { amount: parsed, unit: match[2].toLowerCase() as "g" | "ml" }
+    : null;
 }
 
 function readMacros(

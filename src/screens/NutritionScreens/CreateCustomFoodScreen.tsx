@@ -127,7 +127,7 @@ export function CreateCustomFoodScreen() {
         draftItemId: null,
         food: food.ref,
         inputMode: "amount",
-        servingId: food.defaultServingId,
+        servingId: null,
         snapshot: food,
       });
       push({ screen: "facts" });

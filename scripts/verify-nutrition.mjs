@@ -4,10 +4,13 @@ import { DatabaseSync } from "node:sqlite";
 import { migrateDatabase } from "../src/data/database.ts";
 import {
   createCustomFood,
+  createSavedMeal,
   deleteCustomFood,
+  deleteSavedMeal,
   getFoodUsage,
   listCustomFoods,
   listFavourites,
+  listSavedMeals,
   saveFavouriteSnapshot,
   setFavourite,
 } from "../src/data/nutritionCatalogRepository.ts";
@@ -23,6 +26,7 @@ import {
   calorieCrossCheck,
   convertAmount,
   favouriteConfigKey,
+  formatDerivedQuantity,
   localDayBounds,
   normalizeBarcode,
   sumExtraTotals,
@@ -34,6 +38,7 @@ import {
   draftFromStoredMeal,
   restoreWorkspace,
 } from "../src/nutrition/drafts.ts";
+import { convertServingQuantity, withServingUnits } from "../src/nutrition/servings.ts";
 import {
   FATSECRET_DETAILS_METHOD,
   normalizeFatSecretFood,
@@ -350,6 +355,81 @@ assert.equal(product.ref.externalId, "0123456789012");
 assert.equal(product.servings[0].extras.find((extra) => extra.id === "sodium").amount, 400);
 assert.equal(product.servings[0].extras.find((extra) => extra.id === "sodium").unit, "mg");
 
+// Provider household portions retain their known mass and can be logged per gram.
+const measuredFood = normalizeServings([{
+  serving_id: "120g-piece",
+  serving_description: "1 piece (120 g)",
+  measurement_description: "piece",
+  metric_serving_amount: "120",
+  metric_serving_unit: "g",
+  calories: "240",
+  protein: "12",
+  carbohydrate: "24",
+  fat: "8",
+  sodium: "360",
+}]);
+assert.equal(measuredFood.servings[0].amount, 120);
+assert.equal(measuredFood.servings[0].unit, "g");
+const measuredOptions = withServingUnits(measuredFood);
+const gram = measuredOptions.servings.find((serving) => serving.id === "caps:unit:g");
+assert.equal(measuredOptions.defaultServingId, gram.id);
+assert.equal(gram.amount, 1);
+assert.equal(gram.nutrients.energyKcal, 2);
+assert.equal(gram.nutrients.proteinG * 120, 12);
+assert.equal(gram.extras.find((extra) => extra.id === "sodium").amount, 3);
+assert.equal(measuredOptions.servings.find((serving) => serving.id === "caps:unit:oz").amount, 28.349523125);
+assert.equal(measuredOptions.servings.find((serving) => serving.id === "caps:unit:lb").nutrients.energyKcal, 907.18474);
+const ounce = measuredOptions.servings.find((serving) => serving.id === "caps:unit:oz");
+assert.equal(convertServingQuantity(120, gram, ounce) * ounce.amount, 120);
+assert.equal(convertServingQuantity(120, gram, measuredFood.servings[0]), 1);
+const milligram = measuredOptions.servings.find((serving) => serving.id === "caps:unit:mg");
+const kilogram = measuredOptions.servings.find((serving) => serving.id === "caps:unit:kg");
+assert.equal(formatDerivedQuantity(convertServingQuantity(0.001, milligram, kilogram)), "0.000000001");
+assert.equal(measuredOptions.servings.some((serving) => serving.unit === "ml"), false);
+assert.equal(measuredOptions.servings.find((serving) => serving.id === "120g-piece").nutrients.energyKcal, 240);
+assert.deepEqual(withServingUnits(measuredOptions), measuredOptions);
+const partialOptions = withServingUnits({
+  ...measuredOptions,
+  servings: measuredOptions.servings.filter((serving) => serving.id !== "caps:unit:lb"),
+});
+assert.ok(partialOptions.servings.some((serving) => serving.id === "caps:unit:lb"));
+assert.deepEqual(withServingUnits(partialOptions), partialOptions);
+assert.deepEqual(withServingUnits(food), food); // No invented density for unmeasured cups.
+const volumeFood = withServingUnits(normalizeServings([{
+  serving_id: "cup",
+  serving_description: "1 cup (240 mL)",
+  metric_serving_amount: "240",
+  metric_serving_unit: "ml",
+  calories: "120",
+}]));
+assert.equal(volumeFood.defaultServingId, "caps:unit:ml");
+assert.equal(volumeFood.servings.find((serving) => serving.id === "caps:unit:ml").nutrients.energyKcal, 0.5);
+assert.equal(volumeFood.servings.find((serving) => serving.id === "caps:unit:cup").amount, 236.5882365);
+assert.equal(volumeFood.servings.some((serving) => serving.unit === "g"), false);
+assert.equal(convertServingQuantity(2, gram, volumeFood.servings[0]), 2);
+assert.equal(convertServingQuantity(3, food.servings[0], gram), 3);
+const unknownNutrients = withServingUnits({
+  ...measuredFood,
+  servings: [{ ...measuredFood.servings[0], nutrients: { energyKcal: 240, proteinG: null, carbohydratesG: null, fatG: null } }],
+});
+assert.equal(unknownNutrients.servings[0].nutrients.proteinG, null);
+const liquidProduct = normalizeOpenFoodFactsProduct({ status: 1, product: {
+  serving_size: "1 glass (250 ml)",
+  serving_quantity: 250,
+  serving_quantity_unit: "ml",
+  nutriments: { "energy-kcal_100g": 40, sugars_100g: 10 },
+} }, "0123456789012");
+assert.equal(liquidProduct.servings[0].unit, "ml");
+assert.equal(liquidProduct.servings[1].nutrients.energyKcal, 100);
+assert.equal(withServingUnits(liquidProduct).defaultServingId, "caps:unit:ml");
+const conflictingProduct = normalizeOpenFoodFactsProduct({ status: 1, product: {
+  serving_size: "1 scoop (30 ml)",
+  product_quantity_unit: "g",
+  nutriments: { "energy-kcal_100g": 200 },
+} }, "0123456789012");
+assert.equal(conflictingProduct.servings[0].unit, "g");
+assert.equal(conflictingProduct.servings.length, 1); // No mass-to-volume inference.
+
 const restored = restoreWorkspace(
   JSON.stringify({
     activeDraftKey: null,
@@ -466,6 +546,17 @@ assert.deepEqual(
 );
 
 const discardedDraft = draftFromStoredMeal(editedLunch);
+// Small converted portions must not be rounded when reopening a diary or template.
+const fractionalQuantity = 1 / 453.59237;
+assert.equal(draftFromStoredMeal({
+  ...editedLunch,
+  items: [{ ...editedLunch.items[0], quantity: fractionalQuantity }],
+}).items[0].quantityInput, String(fractionalQuantity));
+assert.equal(draftFromSavedMeal({
+  id: "fractional-template",
+  title: "One gram in pounds",
+  items: [{ ...meal.items[0], quantity: fractionalQuantity }],
+}).items[0].quantityInput, String(fractionalQuantity));
 discardedDraft.title = "Never saved";
 discardedDraft.items = [];
 assert.deepEqual(draftFromStoredMeal(await findLunch()), draftFromStoredMeal(editedLunch));
@@ -584,5 +675,82 @@ await saveFavouriteSnapshot(adapter, "legacy", product);
 await saveFavouriteSnapshot(adapter, "legacy", { ...product, name: "Overwritten" });
 favouriteRows = await listFavourites(adapter);
 assert.equal(favouriteRows.find((favourite) => favourite.id === "legacy").snapshot.name, "Beans");
+
+// Reference-only storage retains derived unit identity and quantity across reloads.
+const referenceItem = {
+  brandName: null,
+  description: "Measured piece",
+  extrasPerServing: gram.extras,
+  food: measuredFood.ref,
+  nutrientsPerServing: gram.nutrients,
+  quantity: 60,
+  servingAmount: gram.amount,
+  servingDescription: gram.label,
+  servingId: gram.id,
+  servingUnit: gram.unit,
+  storagePolicy: "reference",
+};
+const referenceLogId = await createMealLog(adapter, {
+  ...meal,
+  operationId: "op-derived-unit-log",
+  items: [referenceItem],
+});
+const persistedReference = db.prepare(
+  `SELECT * FROM meal_items WHERE meal_timeline_entry_id = ?`,
+).get(referenceLogId);
+assert.equal(persistedReference.serving_id, "caps:unit:g");
+assert.equal(persistedReference.quantity, 60);
+assert.equal(persistedReference.energy_kcal_per_serving, null);
+const rehydratedServing = withServingUnits(measuredFood).servings.find(
+  (serving) => serving.id === persistedReference.serving_id,
+);
+assert.equal(rehydratedServing.nutrients.energyKcal * persistedReference.quantity, 120);
+const referenceTemplateId = await createSavedMeal(adapter, "op-derived-unit-template", "Measured meal", [referenceItem]);
+const reloadedTemplate = (await listSavedMeals(adapter)).find((saved) => saved.id === referenceTemplateId);
+assert.equal(reloadedTemplate.items[0].servingId, gram.id);
+assert.equal(reloadedTemplate.items[0].quantity, 60);
+await deleteSavedMeal(adapter, referenceTemplateId);
+await deleteMealLog(adapter, referenceLogId);
+
+// Unsave removes only the reusable composition; its diary event survives intact.
+const savedMealId = await createSavedMeal(adapter, "op-save-toggle-first", "Toggle meal", meal.items);
+const savedDiaryId = await createMealLog(adapter, {
+  ...meal,
+  operationId: "op-save-toggle-diary",
+  savedMealId,
+});
+assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM saved_meal_items WHERE saved_meal_id = ?`).get(savedMealId).count, 1);
+await deleteSavedMeal(adapter, savedMealId);
+assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM saved_meals WHERE id = ?`).get(savedMealId).count, 0);
+assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM saved_meal_items WHERE saved_meal_id = ?`).get(savedMealId).count, 0);
+assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM meal_logs WHERE timeline_entry_id = ?`).get(savedDiaryId).count, 1);
+assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM meal_items WHERE meal_timeline_entry_id = ?`).get(savedDiaryId).count, 1);
+const savedAgainId = await createSavedMeal(adapter, "op-save-toggle-second", "Toggle meal", meal.items);
+assert.notEqual(savedAgainId, savedMealId);
+assert.ok((await listSavedMeals(adapter)).some((saved) => saved.id === savedAgainId));
+await deleteSavedMeal(adapter, savedAgainId);
+await deleteMealLog(adapter, savedDiaryId);
+
+// Crash recovery can replay a receipt after Unsave deleted its original result.
+const failingTemplateAdapter = {
+  ...adapter,
+  async runAsync(sql, params = []) {
+    if (/INSERT INTO saved_meals\s*\(/.test(sql)) {
+      throw new Error("Injected template insert failure");
+    }
+    return adapter.runAsync(sql, params);
+  },
+};
+await assert.rejects(
+  createSavedMeal(failingTemplateAdapter, "op-save-toggle-first", "Toggle meal", meal.items),
+  /Injected template insert failure/,
+);
+assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM saved_meals WHERE operation_id = ?`)
+  .get("op-save-toggle-first").count, 0);
+const replayedSavedId = await createSavedMeal(adapter, "op-save-toggle-first", "Toggle meal", meal.items);
+assert.notEqual(replayedSavedId, savedMealId);
+assert.ok((await listSavedMeals(adapter)).some((saved) => saved.id === replayedSavedId));
+assert.equal(await createSavedMeal(adapter, "op-save-toggle-first", "Toggle meal", meal.items), replayedSavedId);
+await deleteSavedMeal(adapter, replayedSavedId);
 
 console.log("nutrition verification passed");

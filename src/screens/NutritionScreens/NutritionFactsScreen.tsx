@@ -32,6 +32,7 @@ import {
   sumExtraTotals,
 } from "../../nutrition/calculations";
 import type { DraftMealItem } from "../../nutrition/drafts";
+import { convertServingQuantity, withServingUnits } from "../../nutrition/servings";
 import { resolveCatalogFood } from "../../services/foodCatalog";
 import { providerErrorMessage } from "../../services/providerError";
 import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
@@ -62,7 +63,11 @@ export function NutritionFactsScreen() {
     const index = screens.lastIndexOf("facts");
     return index > 0 && screens[index - 1] === "customFood";
   });
-  const [food, setFood] = useState<CatalogFood | null>(facts?.snapshot ?? null);
+  const foodRef = facts?.food;
+  const snapshot = facts?.snapshot;
+  const [food, setFood] = useState<CatalogFood | null>(() =>
+    snapshot ? withServingUnits(snapshot) : null,
+  );
   const [loading, setLoading] = useState(facts?.snapshot == null);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
@@ -84,7 +89,7 @@ export function NutritionFactsScreen() {
   }, [db, favouritePending]);
 
   useEffect(() => {
-    if (!facts || (facts.snapshot && retry === 0)) {
+    if (!foodRef || (snapshot && retry === 0)) {
       return;
     }
 
@@ -93,7 +98,7 @@ export function NutritionFactsScreen() {
       setLoading(true);
       setError(null);
 
-      void resolveCatalogFood(db, facts.food)
+      void resolveCatalogFood(db, foodRef)
         .then((resolved) => {
           if (cancelled) {
             return;
@@ -105,7 +110,7 @@ export function NutritionFactsScreen() {
             return;
           }
 
-          setFood(resolved);
+          setFood(withServingUnits(resolved));
           setLoading(false);
         })
         .catch((reason: unknown) => {
@@ -120,7 +125,7 @@ export function NutritionFactsScreen() {
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [db, facts, retry]);
+  }, [db, foodRef, snapshot, retry]);
 
   if (!facts) {
     return null;
@@ -193,6 +198,9 @@ export function NutritionFactsScreen() {
     feedbackStep("up");
     setFacts({
       ...session,
+      amountInput: serving && amountValid
+        ? formatDerivedQuantity(convertServingQuantity(amount, serving, next))
+        : session.amountInput,
       inputMode: "amount",
       servingId: next.id,
     });
@@ -333,7 +341,6 @@ export function NutritionFactsScreen() {
         </View>
       ) : null}
 
-      {/* Card 1: Serving Unit ScrollView & Amount Steppers */}
       <View
         style={[
           styles.card,
@@ -401,7 +408,7 @@ export function NutritionFactsScreen() {
         </ScrollView>
 
         <Text style={[styles.subLabel, { color: theme.colors.textMuted }]}>
-          AMOUNT MULTIPLIER
+          QUANTITY
         </Text>
         <View style={styles.inputRow}>
 
@@ -418,49 +425,6 @@ export function NutritionFactsScreen() {
 
       </View>
 
-      {/* Card 2: Target Calories */}
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.borderStrong,
-          },
-        ]}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
-            CALORIE-DRIVEN PORTION
-          </Text>
-          <Text style={[styles.attribution, { color: theme.colors.tertiary }]}>
-            {calorieText ? `${calorieText} KCAL` : "--"}
-          </Text>
-        </View>
-
-        <View style={styles.inputRow}>
-
-          <NutritionTextInput
-            accessibilityLabel="Calories"
-            editable={caloriesCanDrive}
-            keyboardType="decimal-pad"
-            onChangeText={changeCalories}
-            placeholder={
-              caloriesCanDrive
-                ? "Calories"
-                : "Unavailable"
-            }
-            style={[
-              styles.centerInput,
-              !caloriesCanDrive && styles.inputDisabled,
-            ]}
-            value={calorieText}
-          />
-
-        </View>
-
-      </View>
-
-      {/* Card 3: Macronutrient Breakdown */}
       <MacronutrientBreakdownCard
         compact
         energyInput={{
@@ -549,9 +513,6 @@ const styles = StyleSheet.create({
   },
   presetStrip: {
     gap: 6,
-  },
-  inputDisabled: {
-    opacity: tokens.opacity.disabled,
   },
   body: {
     fontSize: tokens.typography.body.fontSize,

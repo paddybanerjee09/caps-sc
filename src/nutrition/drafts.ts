@@ -314,9 +314,7 @@ function storedItemToDraft(
 }
 
 function formatQuantityInput(quantity: number) {
-  return Number.isInteger(quantity)
-    ? quantity.toFixed(0)
-    : String(Number(quantity.toFixed(3)));
+  return String(quantity);
 }
 
 export function compositionSignature(draft: Pick<MealDraft, "title" | "items">) {

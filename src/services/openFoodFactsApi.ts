@@ -16,7 +16,7 @@ export async function lookupOpenFoodFactsBarcode(
     throw new ProviderError("invalid-code", "Invalid barcode");
   }
 
-  const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,serving_size,nutriments,status`;
+  const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,serving_size,serving_quantity,serving_quantity_unit,product_quantity_unit,nutriments,status`;
   const response = await fetchWithTimeout(
     url,
     {
