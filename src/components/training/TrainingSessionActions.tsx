@@ -3,14 +3,13 @@ import { StyleSheet, View } from "react-native";
 import { themes } from "../../theme/theme";
 import { ActionButton } from "../ActionButton";
 
-export function TrainingSessionActions({ onFreeSession, onCreateSession }: {
+export function TrainingSessionActions({ onFreeSession, label = "Log Session" }: {
   onFreeSession: () => void;
-  onCreateSession: () => void;
+  label?: string;
 }) {
   return (
     <View style={styles.actions}>
-      <ActionButton label="Free Session" onPress={onFreeSession} />
-      <ActionButton label="Create Session" onPress={onCreateSession} tone="secondary" />
+      <ActionButton label={label} onPress={onFreeSession} />
     </View>
   );
 }

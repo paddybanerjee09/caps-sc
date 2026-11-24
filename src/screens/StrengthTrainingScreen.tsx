@@ -11,7 +11,6 @@ import { buildMonthGrid, type MonthEvent } from "../components/monthGrid";
 import { formatLocalDate } from "../conditioning/dates";
 import {
   createLogDraft,
-  createTemplateDraft,
   draftFromTemplate,
 } from "../strength/drafts";
 import { emphasisMarkerColor } from "../strength/emphasis";
@@ -141,7 +140,6 @@ export function StrengthTrainingScreen() {
         />
         <TrainingSessionActions
           onFreeSession={() => workspace.openBuilder(createLogDraft(Date.now()), "log")}
-          onCreateSession={() => workspace.openBuilder(createTemplateDraft(), "template")}
         />
         <SavedWorkouts
           entries={templates}

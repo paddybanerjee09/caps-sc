@@ -169,7 +169,6 @@ export function SkillTrainingScreen() {
         </View>
         <TrainingSessionActions
           onFreeSession={() => workspace.openBuilder(createSkillDraft(Date.now()))}
-          onCreateSession={() => workspace.openBuilder(createSkillDraft(Date.now()))}
         />
         <SavedWorkouts
           entries={templates}

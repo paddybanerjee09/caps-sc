@@ -76,6 +76,7 @@ export function SkillSessionBuilderScreen() {
   const [discipline, setDiscipline] = useState<SkillDiscipline>("general");
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const mutationPending = useRef(false);
   const [loggedWeight, setLoggedWeight] = useState<number | null>(null);
   const primaryText = readableTextColor(theme.colors.tertiary);
 
@@ -88,6 +89,9 @@ export function SkillSessionBuilderScreen() {
   }, [draft, workspace.discardBaseline]);
 
   const closeDraft = useCallback(() => {
+    if (mutationPending.current) {
+      return;
+    }
     const current = draftRef.current;
     if (!current) {
       return;
@@ -149,25 +153,19 @@ export function SkillSessionBuilderScreen() {
     formatLocalDate(new Date(startedAt)) !== formatLocalDate(new Date(draft.endedAt));
 
   function update(next: SkillDraft) {
+    if (mutationPending.current) {
+      return;
+    }
     setFormError(null);
     workspace.updateDraft(next);
   }
 
   async function persistTemplate(now: number) {
-    if (!draft || saving) {
+    if (!draft || mutationPending.current) {
       return;
     }
     if (label === "Saved" && draft.sourceTemplateId) {
-      const templateId = draft.sourceTemplateId;
-      workspace.requestConfirm({
-        confirmLabel: "Remove",
-        message:
-          "This removes the template from Saved Sessions. The activities stay here so you can log or save them again.",
-        onConfirm: () => {
-          void removeTemplate(templateId);
-        },
-        title: "Remove saved session?",
-      });
+      await removeTemplate(draft.sourceTemplateId);
       return;
     }
     const error = validateSkillDraft(draft, "template", now);
@@ -176,7 +174,9 @@ export function SkillSessionBuilderScreen() {
       setFormError(error);
       return;
     }
+    mutationPending.current = true;
     setSaving(true);
+    setFormError(null);
     try {
       const id = await saveSkillTemplate(db, draft);
       workspace.markTemplateSaved({
@@ -190,15 +190,18 @@ export function SkillSessionBuilderScreen() {
       feedbackWarn();
       setFormError(error instanceof Error ? error.message : "Couldn’t save.");
     } finally {
+      mutationPending.current = false;
       setSaving(false);
     }
   }
 
   async function removeTemplate(templateId: string) {
-    if (!draft) {
+    if (!draft || mutationPending.current) {
       return;
     }
+    mutationPending.current = true;
     setSaving(true);
+    setFormError(null);
     try {
       await archiveSkillTemplate(db, templateId);
       workspace.markTemplateUnsaved({
@@ -212,12 +215,13 @@ export function SkillSessionBuilderScreen() {
       feedbackWarn();
       setFormError(error instanceof Error ? error.message : "Couldn’t remove that saved session.");
     } finally {
+      mutationPending.current = false;
       setSaving(false);
     }
   }
 
   async function logSession(now: number) {
-    if (!draft || saving) {
+    if (!draft || mutationPending.current) {
       return;
     }
     const error = validateSkillDraft(draft, "log", now, deviceTimeZone());
@@ -226,7 +230,9 @@ export function SkillSessionBuilderScreen() {
       setFormError(error);
       return;
     }
+    mutationPending.current = true;
     setSaving(true);
+    setFormError(null);
     try {
       const result = await logSkillSession(db, draft, { now });
       feedbackConfirm();
@@ -235,6 +241,8 @@ export function SkillSessionBuilderScreen() {
     } catch (error) {
       feedbackWarn();
       setFormError(error instanceof Error ? error.message : "Couldn’t log.");
+    } finally {
+      mutationPending.current = false;
       setSaving(false);
     }
   }
@@ -242,11 +250,14 @@ export function SkillSessionBuilderScreen() {
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <WorkflowHeader title="Build Skill Session" onClose={closeDraft} right={
-        <LogTimeChanger maximumDate={new Date()} onChange={(date) => update({ ...draft, endedAt: date.getTime() })} value={new Date(draft.endedAt)} />
+        <View pointerEvents={saving ? "none" : "auto"}>
+          <LogTimeChanger maximumDate={new Date()} onChange={(date) => update({ ...draft, endedAt: date.getTime() })} value={new Date(draft.endedAt)} />
+        </View>
       } />
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        pointerEvents={saving ? "none" : "auto"}
         showsVerticalScrollIndicator={false}
         style={styles.scroller}
       >
@@ -259,6 +270,7 @@ export function SkillSessionBuilderScreen() {
           <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>TITLE</Text>
           <TextInput
             accessibilityLabel="Session title"
+            editable={!saving}
             maxLength={80}
             onChangeText={(title) => update({ ...draft, title })}
             placeholder="Session title"
@@ -393,13 +405,8 @@ export function SkillSessionBuilderScreen() {
       ) : null}
       <WorkflowFooter onBack={closeDraft} disabled={saving}>
         <PressOpacity
-          accessibilityLabel={
-            label === "Saved"
-              ? "Saved session template"
-              : label === "Unsaved"
-                ? "Unsaved session template"
-                : "Save session template"
-          }
+          accessibilityLabel={label === "Saved" ? "Unsave session template" : "Save session template"}
+          accessibilityState={{ busy: saving, selected: label === "Saved" }}
           disabled={saving}
           onPress={() => {
             void persistTemplate(Date.now());
@@ -412,7 +419,7 @@ export function SkillSessionBuilderScreen() {
             },
           ]}
         >
-          <Text style={[styles.secondaryText, { color: theme.colors.text }]}>{label}</Text>
+          <Text style={[styles.secondaryText, { color: theme.colors.text }]}>{label === "Saved" ? "Unsave" : "Save"}</Text>
         </PressOpacity>
         <PressOpacity
           accessibilityLabel="Log skill session"
