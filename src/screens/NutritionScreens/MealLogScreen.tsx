@@ -1,21 +1,22 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
-import { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, StyleSheet, Text, View } from "react-native";
 
 import {
-  FoodMacroLine,
   NutritionActionBar,
   NutritionPage,
   NutritionTextInput,
-  useDangerColors,
 } from "../../components/nutrition/NutritionChrome";
+import { LoggedFoodComponent } from "../../components/nutrition/LoggedFoodComponent";
 import { LogTimeChanger } from "../../components/LogTimeChanger";
 import { MacronutrientBreakdownCard } from "../../components/MacronutrientBreakdownCard";
 import { PressOpacity } from "../../components/PressOpacity";
 import { DAILY_NUTRIENT_TARGETS } from "../../constants/nutrition";
 import {
   createSavedMeal,
+  deleteSavedMeal,
+  listSavedMeals,
   updateSavedMeal,
 } from "../../data/nutritionCatalogRepository";
 import {
@@ -34,6 +35,7 @@ import {
 } from "../../nutrition/calculations";
 import {
   compositionSignature,
+  savedTemplateItemToDraft,
   type DraftMealItem,
 } from "../../nutrition/drafts";
 import { resolveCatalogFood } from "../../services/foodCatalog";
@@ -45,29 +47,19 @@ import type { NewMealItem } from "../../types/nutrition";
 
 const tokens = themes.dark;
 
-const MEAL_TITLE_PRESETS = [
-  "Breakfast",
-  "Pre-Training",
-  "Post-Training",
-  "Lunch",
-  "Dinner",
-  "Snack",
-  "Refuel",
-] as const;
-
 export function MealLogScreen({ draftKey }: { draftKey: string }) {
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
-  const dangerColors = useDangerColors();
   const workspace = useNutritionWorkspace();
   const {
     closeToRoot,
-    discardDraft,
     drafts,
+    dataRevision,
     flush,
     markNutritionChanged,
     pop,
     push,
+    registerBackHandler,
     removeDraft,
     setFacts,
     transitioning,
@@ -76,6 +68,34 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
   const mealDraft = drafts[draftKey] ?? null;
   const [saving, setSaving] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const mutationPending = useRef(false);
+  const [templateCheck, setTemplateCheck] = useState({ id: "", ready: false, error: false, revision: -1, attempt: -1 });
+  const [checkAttempt, setCheckAttempt] = useState(0);
+  const savedMealId = mealDraft?.savedMealId ?? null;
+
+  useEffect(() => registerBackHandler(() => mutationPending.current), [registerBackHandler]);
+
+  useEffect(() => {
+    if (!savedMealId) return;
+    let cancelled = false;
+    void listSavedMeals(db).then((meals) => {
+      if (cancelled) return;
+      const saved = meals.find((meal) => meal.id === savedMealId);
+      updateDraft(draftKey, (draft) => draft.savedMealId !== savedMealId ? draft : ({
+        ...draft,
+        savedMealId: saved?.id ?? null,
+        savedSignature: saved ? compositionSignature({
+          title: saved.title,
+          items: saved.items.map(savedTemplateItemToDraft),
+        }) : null,
+        pendingTemplateOperationId: null,
+      }));
+      setTemplateCheck({ id: savedMealId, ready: true, error: false, revision: dataRevision, attempt: checkAttempt });
+    }).catch(() => {
+      if (!cancelled) setTemplateCheck({ id: savedMealId, ready: false, error: true, revision: dataRevision, attempt: checkAttempt });
+    });
+    return () => { cancelled = true; };
+  }, [db, draftKey, savedMealId, dataRevision, checkAttempt, updateDraft]);
 
   useEffect(() => {
     if (
@@ -133,7 +153,7 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
           const serving =
             food?.servings.find(
               (candidate) => candidate.id === item.servingId,
-            ) ?? food?.servings[0];
+            );
 
           if (!food || !serving || cancelled) {
             continue;
@@ -188,17 +208,22 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
     mealDraft.items.length === 0 ? [] : contributions,
   );
   const signature = compositionSignature(mealDraft);
+  const templateCheckCurrent = templateCheck.id === savedMealId && templateCheck.revision === dataRevision && templateCheck.attempt === checkAttempt;
+  const templateReady = !savedMealId || (templateCheckCurrent && templateCheck.ready);
+  const templateCheckError = templateCheckCurrent && templateCheck.error;
   const templateSaved =
-    mealDraft.savedSignature !== null && mealDraft.savedSignature === signature;
+    templateReady && savedMealId !== null && mealDraft.savedSignature !== null && mealDraft.savedSignature === signature;
   const itemsValid = mealItemsFromDraft(mealDraft.items);
   const canSaveTemplate =
+    templateReady &&
+    !saving &&
     !savingTemplate &&
     !templateSaved &&
     mealDraft.title.trim().length > 0 &&
     itemsValid !== null;
 
   function editItem(item: DraftMealItem) {
-    if (transitioning) {
+    if (transitioning || mutationPending.current) {
       return;
     }
 
@@ -228,18 +253,19 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
                   unit: item.servingUnit ?? "serving",
                 },
               ],
-              storagePolicy: "snapshot",
+              storagePolicy: item.storagePolicy,
             }
           : null,
     });
     push({ screen: "facts" });
   }
 
-  async function saveTemplate() {
-    if (!canSaveTemplate || !itemsValid || savingTemplate) {
+  async function saveTemplate(closeAfterSave = false) {
+    if (!canSaveTemplate || !itemsValid || mutationPending.current || transitioning) {
       return;
     }
 
+    mutationPending.current = true;
     const operationId = mealDraft.pendingTemplateOperationId ?? createId();
     updateDraft(draftKey, (draft) => ({
       ...draft,
@@ -268,20 +294,48 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
           savedSignature: compositionSignature(next),
         };
       });
+      setTemplateCheck({ id: savedMealId, ready: true, error: false, revision: dataRevision + 1, attempt: checkAttempt });
+      markNutritionChanged();
       feedbackConfirm();
-      if (editingSavedTemplate) {
-        markNutritionChanged();
+      if (closeAfterSave) {
         pop();
       }
     } catch {
       Alert.alert("Couldn't save meal", "Please try again.");
     } finally {
+      mutationPending.current = false;
+      setSavingTemplate(false);
+    }
+  }
+
+  async function unsaveTemplate() {
+    if (!savedMealId || mutationPending.current || transitioning) return;
+    mutationPending.current = true;
+    setSavingTemplate(true);
+    try {
+      await deleteSavedMeal(db, savedMealId);
+      for (const draft of Object.values(drafts)) {
+        if (draft.savedMealId === savedMealId) {
+          updateDraft(draft.key, (current) => current.savedMealId !== savedMealId ? current : ({
+            ...current,
+            savedMealId: null,
+            savedSignature: null,
+            pendingTemplateOperationId: null,
+          }));
+        }
+      }
+      markNutritionChanged();
+      feedbackConfirm();
+    } catch {
+      Alert.alert("Couldn't unsave meal", "Please try again.");
+    } finally {
+      mutationPending.current = false;
       setSavingTemplate(false);
     }
   }
 
   async function submitMeal() {
-    if (saving || transitioning) {
+    if (mutationPending.current || transitioning) {
       return;
     }
 
@@ -298,6 +352,8 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
       return;
     }
 
+    mutationPending.current = true;
+    setSaving(true);
     let committed = false;
 
     try {
@@ -339,34 +395,17 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
         );
         return;
       }
+    } finally {
+      mutationPending.current = false;
+      setSaving(false);
     }
 
     markNutritionChanged();
     closeToRoot();
   }
 
-  function confirmDiscard() {
-    feedbackWarn();
-    Alert.alert(
-      editing ? "Discard changes?" : "Discard draft?",
-      editing
-        ? "This restores the meal as it was logged. The logged meal stays unchanged."
-        : "This clears the meal you are building.",
-      [
-        { style: "cancel", text: "Cancel" },
-        {
-          onPress: () => {
-            void discardDraft(draftKey);
-          },
-          style: "destructive",
-          text: "Discard",
-        },
-      ],
-    );
-  }
-
   function confirmDelete() {
-    if (!mealDraft.timelineEntryId) {
+    if (!mealDraft.timelineEntryId || mutationPending.current) {
       return;
     }
 
@@ -381,6 +420,9 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
           text: "Delete",
           onPress: () => {
             void (async () => {
+              if (mutationPending.current) return;
+              mutationPending.current = true;
+              setSaving(true);
               try {
                 await deleteMealLog(db, mealDraft.timelineEntryId!);
                 removeDraft(draftKey);
@@ -389,6 +431,9 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
                 closeToRoot();
               } catch {
                 Alert.alert("Couldn't delete meal", "Please try again.");
+              } finally {
+                mutationPending.current = false;
+                setSaving(false);
               }
             })();
           },
@@ -403,43 +448,47 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
     <NutritionPage
       footer={
         <NutritionActionBar
+          navigationDisabled={saving || savingTemplate}
           danger={
             editing
               ? {
                   accessibilityLabel: "Delete meal",
-                  disabled: saving,
+                  disabled: saving || savingTemplate,
                   label: "Delete Meal",
                   onPress: confirmDelete,
                 }
               : undefined
           }
-          left={
-            editingSavedTemplate
-              ? undefined
-              : {
-                  accessibilityLabel: "Saved meals",
-                  label: "Saved Meals",
-                  onPress: () => push({ screen: "savedMeals" }),
-                }
-          }
+          left={{
+            accessibilityLabel: !templateReady
+              ? templateCheckError ? "Retry saved meal status" : "Checking saved meal status"
+              : templateSaved ? "Unsave meal" : "Save meal",
+            disabled: saving || savingTemplate || transitioning || (!templateReady && !templateCheckError) || (templateReady && !templateSaved && !canSaveTemplate),
+            label: savingTemplate ? "Saving" : !templateReady ? (templateCheckError ? "Retry" : "Loading") : templateSaved ? "Unsave Meal" : "Save Meal",
+            onPress: () => {
+              if (!templateReady) setCheckAttempt((attempt) => attempt + 1);
+              else if (templateSaved) void unsaveTemplate();
+              else void saveTemplate();
+            },
+          }}
           right={
             editingSavedTemplate
               ? {
                   accessibilityLabel: "Save saved meal",
                   disabled: !canSaveTemplate || savingTemplate,
                   label: savingTemplate ? "Saving" : "Save Changes",
-                  onPress: () => void saveTemplate(),
+                  onPress: () => void saveTemplate(true),
                 }
               : {
                   accessibilityLabel: editing ? "Save changes" : "Log meal",
-                  disabled: saving,
+                  disabled: saving || savingTemplate,
                   label: editing ? "Save Changes" : "Log Meal",
                   onPress: () => void submitMeal(),
                 }
           }
         />
       }
-      onClose={closeToRoot}
+      onClose={() => { if (!mutationPending.current) closeToRoot(); }}
       right={
         editingSavedTemplate ? undefined : (
           <LogTimeChanger
@@ -448,7 +497,7 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
             label="Change Log Time"
             maximumDate={new Date()}
             onChange={(date) =>
-              updateDraft(draftKey, (draft) => ({
+              !mutationPending.current && updateDraft(draftKey, (draft) => ({
                 ...draft,
                 loggedAt: date.getTime(),
               }))
@@ -465,274 +514,80 @@ export function MealLogScreen({ draftKey }: { draftKey: string }) {
             : "Log Meal"
       }
     >
-      {/* Card 1: Meal Identity & Quick Presets */}
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.borderStrong,
-          },
-        ]}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
-            MEAL IDENTITY
-          </Text>
-          <Text style={[styles.cardBadge, { color: theme.colors.tertiary }]}>
-            SWIPE PRESETS
-          </Text>
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.presetStrip}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-        >
-          {MEAL_TITLE_PRESETS.map((preset) => {
-            const selected = mealDraft.title === preset;
-            return (
-              <PressOpacity
-                accessibilityLabel={`Use meal title ${preset}`}
-                key={preset}
-                onPress={() => {
-                  feedbackStep("up");
-                  updateDraft(draftKey, (draft) => ({
-                    ...draft,
-                    title: preset,
-                    titleTouched: true,
-                  }));
-                }}
-                silent
-                style={[
-                  styles.presetChip,
-                  {
-                    backgroundColor: selected
-                      ? theme.colors.tertiary
-                      : theme.colors.surfaceMuted,
-                    borderColor: selected
-                      ? theme.colors.tertiary
-                      : theme.colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.presetChipText,
-                    { color: selected ? addItemTextColor : theme.colors.text },
-                  ]}
-                >
-                  {preset}
-                </Text>
-              </PressOpacity>
-            );
-          })}
-        </ScrollView>
-
-        <View style={styles.titleRow}>
-          <NutritionTextInput
-            accessibilityLabel="Meal title"
-            maxLength={80}
-            onChangeText={(title) =>
-              updateDraft(draftKey, (draft) => ({
-                ...draft,
-                title,
-                titleTouched: true,
-              }))
-            }
-            placeholder="Enter meal title"
-            style={styles.titleInput}
-            value={mealDraft.title}
-          />
-          <View style={styles.titleActions}>
-            <PressOpacity
-              accessibilityLabel={templateSaved ? "Meal saved" : "Save meal"}
-              disabled={!canSaveTemplate}
-              onPress={() => void saveTemplate()}
-              style={[
-                styles.titleAction,
-                {
-                  backgroundColor: theme.colors.surfaceMuted,
-                  borderColor: theme.colors.borderStrong,
-                },
-              ]}
-            >
-              <Text
-                style={[styles.titleActionLabel, { color: theme.colors.text }]}
-              >
-                {templateSaved
-                  ? "Saved"
-                  : savingTemplate
-                    ? "Saving"
-                    : "Save Meal"}
-              </Text>
-            </PressOpacity>
-            {editingSavedTemplate ? null : (
-              <PressOpacity
-                accessibilityLabel="Discard draft"
-                onPress={confirmDiscard}
-                silent
-                style={[
-                  styles.titleAction,
-                  {
-                    backgroundColor: dangerColors.background,
-                    borderColor: dangerColors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.titleActionLabel,
-                    { color: dangerColors.text },
-                  ]}
-                >
-                  Discard draft
-                </Text>
-              </PressOpacity>
-            )}
-          </View>
-        </View>
+      <View style={[styles.card, {
+        backgroundColor: theme.colors.surface,
+        borderColor: theme.colors.borderStrong,
+      }]}>
+        <NutritionTextInput
+          accessibilityLabel="Meal title"
+          editable={!saving && !savingTemplate}
+          maxLength={80}
+          onChangeText={(title) => updateDraft(draftKey, (draft) => ({ ...draft, title, titleTouched: true }))}
+          placeholder="Meal title"
+          style={styles.titleInput}
+          value={mealDraft.title}
+        />
+        <MacronutrientBreakdownCard
+          compact
+          embedded
+          incomplete={totals.incomplete}
+          micronutrients={extraTotals}
+          targets={DAILY_NUTRIENT_TARGETS}
+          values={{
+            carbohydratesG: totals.carbohydratesG,
+            energyKcal: totals.energyKcal,
+            fatG: totals.fatG,
+            proteinG: totals.proteinG,
+          }}
+        />
       </View>
-
-      {/* Card 2: Meal Items & Inline Quantity Steppers */}
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.borderStrong,
-          },
-        ]}
-      >
+      <View style={[styles.card, {
+        backgroundColor: theme.colors.surface,
+        borderColor: theme.colors.borderStrong,
+      }]}>
         <View style={styles.cardHeader}>
           <Text style={[styles.cardHeaderLabel, { color: theme.colors.textMuted }]}>
             MEAL ITEMS ({mealDraft.items.length})
           </Text>
-          <Text style={[styles.cardBadge, { color: theme.colors.textMuted }]}>
-            INLINE +/- SERVINGS
-          </Text>
+          <PressOpacity
+            accessibilityLabel="Browse saved meals"
+            disabled={saving || savingTemplate}
+            onPress={() => push({ screen: "savedMeals" })}
+            style={styles.savedMeals}
+          >
+            <Ionicons color={theme.colors.textMuted} name="bookmarks-outline" size={18} />
+            <Text style={[styles.savedMealsLabel, { color: theme.colors.textMuted }]}>Saved Meals</Text>
+          </PressOpacity>
         </View>
-
         <PressOpacity
           accessibilityLabel="Add meal item"
+          disabled={saving || savingTemplate}
           onPress={() => push({ screen: "mealItem" })}
           style={[styles.addItem, { backgroundColor: theme.colors.tertiary }]}
         >
-          <Ionicons
-            color={addItemTextColor}
-            name="add-circle-outline"
-            size={24}
-          />
-          <Text style={[styles.addItemLabel, { color: addItemTextColor }]}>
-            Add Meal Item
-          </Text>
+          <Ionicons color={addItemTextColor} name="add-circle-outline" size={24} />
+          <Text style={[styles.addItemLabel, { color: addItemTextColor }]}>Add Meal Item</Text>
         </PressOpacity>
-
         <View style={styles.items}>
           {mealDraft.items.length === 0 ? (
-            <View
-              style={[
-                styles.emptyCard,
-                {
-                  backgroundColor: theme.colors.surfaceMuted,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Text style={[styles.empty, { color: theme.colors.textMuted }]}>
-                Add food
-              </Text>
-            </View>
-          ) : (
-            mealDraft.items.map((item) => (
-              <View
-                key={item.clientId}
-                style={[
-                  styles.itemCard,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.borderStrong,
-                  },
-                ]}
-              >
-                <PressOpacity
-                  accessibilityLabel={`Edit ${item.description ?? "food"}`}
-                  onPress={() => editItem(item)}
-                  style={styles.itemMain}
-                >
-                  <Text style={[styles.itemName, { color: theme.colors.text }]}>
-                    {item.description ?? "Food details unavailable"}
-                  </Text>
-                  <Text
-                    style={[styles.itemMeta, { color: theme.colors.textMuted }]}
-                  >
-                    {item.quantityInput} × {item.servingDescription ?? "serving"}
-                  </Text>
-                  <FoodMacroLine nutrients={scaleLine(item)} />
-                </PressOpacity>
-
-                <View style={styles.itemInputRow}>
-                  <NutritionTextInput
-                    accessibilityLabel={`${item.description ?? "Food"} servings`}
-                    keyboardType="decimal-pad"
-                    onChangeText={(quantityInput) => updateDraft(draftKey, (draft) => ({
-                      ...draft,
-                      items: draft.items.map((candidate) => candidate.clientId === item.clientId
-                        ? { ...candidate, quantityInput }
-                        : candidate),
-                    }))}
-                    placeholder="1"
-                    style={{ flex: 1, fontVariant: ["tabular-nums"] }}
-                    value={item.quantityInput}
-                  />
-
-                  <PressOpacity
-                    accessibilityLabel={`Remove ${item.description ?? "food"}`}
-                    onPress={() => {
-                      feedbackStep("down");
-                      updateDraft(draftKey, (draft) => ({
-                        ...draft,
-                        items: draft.items.filter(
-                          (candidate) => candidate.clientId !== item.clientId,
-                        ),
-                      }));
-                    }}
-                    silent
-                    style={[
-                      styles.remove,
-                      {
-                        backgroundColor: theme.colors.surface,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      color={theme.colors.textMuted}
-                      name="close"
-                      size={18}
-                    />
-                  </PressOpacity>
-                </View>
-              </View>
-            ))
-          )}
+            <Text style={[styles.empty, { color: theme.colors.textMuted }]}>Add food</Text>
+          ) : mealDraft.items.map((item) => (
+            <LoggedFoodComponent
+              disabled={saving || savingTemplate}
+              item={item}
+              key={item.clientId}
+              onPress={() => editItem(item)}
+              onRemove={() => {
+                feedbackStep("down");
+                updateDraft(draftKey, (draft) => ({
+                  ...draft,
+                  items: draft.items.filter((candidate) => candidate.clientId !== item.clientId),
+                }));
+              }}
+            />
+          ))}
         </View>
       </View>
-
-      {/* Card 3: Meal Totals */}
-      <MacronutrientBreakdownCard
-        compact
-        incomplete={totals.incomplete}
-        micronutrients={extraTotals}
-        targets={DAILY_NUTRIENT_TARGETS}
-        title="Meal totals"
-        values={{
-          carbohydratesG: totals.carbohydratesG,
-          energyKcal: totals.energyKcal,
-          fatG: totals.fatG,
-          proteinG: totals.proteinG,
-        }}
-      />
     </NutritionPage>
   );
 }
@@ -773,100 +628,30 @@ function mealItemsFromDraft(items: DraftMealItem[]): NewMealItem[] | null {
   return next;
 }
 
-function scaleLine(item: DraftMealItem) {
-  const quantity = Number(item.quantityInput);
-
-  if (!Number.isFinite(quantity) || quantity <= 0) {
-    return item.nutrientsPerServing;
-  }
-
-  return {
-    carbohydratesG:
-      item.nutrientsPerServing.carbohydratesG === null
-        ? null
-        : item.nutrientsPerServing.carbohydratesG * quantity,
-    energyKcal:
-      item.nutrientsPerServing.energyKcal === null
-        ? null
-        : item.nutrientsPerServing.energyKcal * quantity,
-    fatG:
-      item.nutrientsPerServing.fatG === null
-        ? null
-        : item.nutrientsPerServing.fatG * quantity,
-    proteinG:
-      item.nutrientsPerServing.proteinG === null
-        ? null
-        : item.nutrientsPerServing.proteinG * quantity,
-  };
-}
-
 const styles = StyleSheet.create({
   card: {
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
     gap: tokens.spacing.sm,
-    padding: tokens.spacing.lg,
+    padding: tokens.spacing.md,
   },
+  titleInput: { fontWeight: "700", minHeight: 48 },
   cardHeader: {
     alignItems: "center",
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
   },
-  cardHeaderLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-  },
-  cardBadge: {
-    fontSize: 10,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  presetStrip: {
-    gap: 6,
-  },
-  presetChip: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 40,
-    paddingHorizontal: tokens.spacing.sm,
-  },
-  presetChipText: {
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  titleRow: {
+  cardHeaderLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
+  savedMeals: {
     alignItems: "center",
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: tokens.spacing.sm,
-  },
-  titleInput: {
-    flexBasis: 140,
-    flexGrow: 1,
-    fontWeight: "800",
-    minHeight: 48,
-  },
-  titleActions: {
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-    marginLeft: "auto",
-  },
-  titleAction: {
-    alignItems: "center",
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
+    gap: tokens.spacing.xs,
     justifyContent: "center",
     minHeight: 48,
-    paddingHorizontal: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.xs,
   },
-  titleActionLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-  },
+  savedMealsLabel: { fontSize: 12, fontWeight: "700" },
   addItem: {
     alignItems: "center",
     borderRadius: tokens.radius.md,
@@ -876,59 +661,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: tokens.spacing.lg,
   },
-  addItemLabel: {
-    fontSize: 15,
-    fontWeight: "800",
-    lineHeight: 20,
-  },
-  items: {
-    gap: tokens.spacing.sm,
-  },
-  emptyCard: {
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    padding: tokens.spacing.md,
-  },
-  empty: {
-    fontSize: 13,
-    lineHeight: 18,
-    textAlign: "center",
-  },
-  itemCard: {
-    alignItems: "center",
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.spacing.xs,
-    paddingLeft: tokens.spacing.md,
-    paddingRight: tokens.spacing.xs,
-    paddingVertical: tokens.spacing.xs,
-  },
-  itemMain: {
-    flex: 1,
-    gap: 2,
-    paddingVertical: 4,
-  },
-  itemName: {
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "800",
-  },
-  itemMeta: {
-    fontSize: 11,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "700",
-  },
-  itemInputRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 4,
-  },
-  remove: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
-  },
+  addItemLabel: { fontSize: 15, fontWeight: "700", lineHeight: 20 },
+  items: { gap: tokens.spacing.sm },
+  empty: { fontSize: 13, lineHeight: 18, padding: tokens.spacing.sm, textAlign: "center" },
 });
