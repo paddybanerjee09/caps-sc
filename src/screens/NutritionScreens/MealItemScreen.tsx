@@ -433,6 +433,7 @@ export function MealItemScreen() {
         <View style={styles.selector}>
           <SegmentedSelector
             accessibilityLabel="Food lists"
+            compact
             onChange={(tab: PickerTab) => updatePicker((current) => ({ ...current, tab }))}
             options={[
               { label: "All", value: "all" },
@@ -461,7 +462,7 @@ export function MealItemScreen() {
             <Text
               adjustsFontSizeToFit
               minimumFontScale={0.8}
-              numberOfLines={2}
+              numberOfLines={1}
               style={[styles.filterText, { color: theme.colors.text }]}
             >
               {sortLabel}
@@ -484,97 +485,101 @@ export function MealItemScreen() {
           </PressOpacity>
         </View>
       ) : null}
-      <FlatList
-        contentOffset={{ x: 0, y: picker.scrollOffsets[picker.tab] }}
-        ref={listRef}
-        data={rows}
-        keyboardShouldPersistTaps="handled"
-        keyExtractor={(row) => row.key}
-        ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <Text style={[styles.message, { color: theme.colors.textMuted }]}>{emptyMessage}</Text>
-            {picker.tab === "custom" ? (
-              <PressOpacity
-                accessibilityLabel="Create custom food"
-                onPress={() => startCustomFood()}
-                style={[
-                  styles.createCustomFood,
-                  styles.createCustomFoodEmpty,
-                  { backgroundColor: theme.colors.tertiary },
-                ]}
-              >
-                <Ionicons color={addFoodTextColor} name="add-circle-outline" size={24} />
-                <Text style={[styles.createCustomFoodLabel, { color: addFoodTextColor }]}>
-                  Create Custom Food
-                </Text>
-              </PressOpacity>
-            ) : null}
-          </View>
-        }
-        onScroll={(event) => {
-          offsets.current = {
-            ...offsets.current,
-            [picker.tab]: event.nativeEvent.contentOffset.y,
-          };
-        }}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.row,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.borderStrong,
-              },
-            ]}
-          >
-            <PressOpacity
-              accessibilityLabel={item.title}
-              onPress={item.onPress}
-              style={styles.rowMain}
-            >
-              <Text style={[styles.name, { color: theme.colors.text }]}>{item.title}</Text>
-              {item.subtitle ? (
-                <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-                  {item.subtitle}
-                </Text>
+      <View
+        style={[
+          styles.listFrame,
+          { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong },
+        ]}
+      >
+        <FlatList
+          contentContainerStyle={styles.listContent}
+          contentInsetAdjustmentBehavior="automatic"
+          contentOffset={{ x: 0, y: picker.scrollOffsets[picker.tab] }}
+          ref={listRef}
+          data={rows}
+          keyboardShouldPersistTaps="handled"
+          keyExtractor={(row) => row.key}
+          ItemSeparatorComponent={() => (
+            <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              <Text style={[styles.message, { color: theme.colors.textMuted }]}>{emptyMessage}</Text>
+              {picker.tab === "custom" ? (
+                <PressOpacity
+                  accessibilityLabel="Create custom food"
+                  onPress={() => startCustomFood()}
+                  style={[
+                    styles.createCustomFood,
+                    styles.createCustomFoodEmpty,
+                    { backgroundColor: theme.colors.tertiary },
+                  ]}
+                >
+                  <Ionicons color={addFoodTextColor} name="add-circle-outline" size={24} />
+                  <Text style={[styles.createCustomFoodLabel, { color: addFoodTextColor }]}>
+                    Create Custom Food
+                  </Text>
+                </PressOpacity>
               ) : null}
-              <FoodMacroLine nutrients={item.nutrients} />
-            </PressOpacity>
-            {item.onEdit ? (
+            </View>
+          }
+          onScroll={(event) => {
+            offsets.current = {
+              ...offsets.current,
+              [picker.tab]: event.nativeEvent.contentOffset.y,
+            };
+          }}
+          renderItem={({ item }) => (
+            <View style={styles.row}>
               <PressOpacity
-                accessibilityLabel={`Edit ${item.title}`}
-                onPress={item.onEdit}
-                style={[
-                  styles.rowDelete,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
+                accessibilityLabel={item.title}
+                onPress={item.onPress}
+                style={styles.rowMain}
               >
-                <Ionicons color={theme.colors.text} name="create-outline" size={20} />
+                <Text style={[styles.name, { color: theme.colors.text }]}>{item.title}</Text>
+                {item.subtitle ? (
+                  <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
+                    {item.subtitle}
+                  </Text>
+                ) : null}
+                <FoodMacroLine nutrients={item.nutrients} />
               </PressOpacity>
-            ) : null}
-            {item.onDelete ? (
-              <PressOpacity
-                accessibilityLabel={`Delete ${item.title}`}
-                onPress={item.onDelete}
-                style={[
-                  styles.rowDelete,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
-              >
-                <Ionicons color={theme.colors.textMuted} name="close" size={20} />
-              </PressOpacity>
-            ) : null}
-          </View>
-        )}
-        scrollEventThrottle={80}
-        style={styles.list}
-      />
+              {item.onEdit ? (
+                <PressOpacity
+                  accessibilityLabel={`Edit ${item.title}`}
+                  onPress={item.onEdit}
+                  style={[
+                    styles.rowDelete,
+                    {
+                      backgroundColor: theme.colors.surfaceMuted,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <Ionicons color={theme.colors.text} name="create-outline" size={20} />
+                </PressOpacity>
+              ) : null}
+              {item.onDelete ? (
+                <PressOpacity
+                  accessibilityLabel={`Delete ${item.title}`}
+                  onPress={item.onDelete}
+                  style={[
+                    styles.rowDelete,
+                    {
+                      backgroundColor: theme.colors.surfaceMuted,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <Ionicons color={theme.colors.textMuted} name="close" size={20} />
+                </PressOpacity>
+              ) : null}
+            </View>
+          )}
+          scrollEventThrottle={80}
+          style={styles.list}
+        />
+      </View>
       {picker.tab === "custom" ? (
         <PressOpacity
           accessibilityLabel="Create custom food"
@@ -593,6 +598,7 @@ export function MealItemScreen() {
       <NutritionActionBar
         right={{
           accessibilityLabel: "Scan barcode",
+          icon: "barcode-outline",
           label: "Scan Barcode",
           onPress: () => push({ screen: "barcode" }),
         }}
@@ -684,8 +690,8 @@ function sortChoices(tab: PickerTab, query: string, hasUsage: boolean): SortChoi
   }
 
   choices.push(
-    { label: "Most Frequent", sort: "frequent" },
-    { label: "Most Recent", sort: "recent" },
+    { label: "Frequent", sort: "frequent" },
+    { label: "Recent", sort: "recent" },
   );
   return choices;
 }
@@ -697,18 +703,18 @@ function effectiveSortLabel(
   hasUsage: boolean,
 ) {
   if (sort === "frequent") {
-    return "Most Frequent";
+    return "Frequent";
   }
 
   if (sort === "recent") {
-    return "Most Recent";
+    return "Recent";
   }
 
   if (tab === "all" && query.trim()) {
     return "Relevance";
   }
 
-  return hasUsage ? "Most Recent" : "Alphabetical";
+  return hasUsage ? "Recent" : "Alphabetical";
 }
 
 function buildRows(input: {
@@ -863,7 +869,7 @@ function buildRows(input: {
         input.onOpen(
           food.food,
           "1",
-          food.servingId,
+          null,
           catalog && catalog.servings.length > 0 ? catalog : null,
         ),
       subtitle: food.brandName ?? food.servingDescription,
@@ -917,7 +923,7 @@ function favouriteFood(
 
 function openCustom(food: CustomFoodRecord, onOpen: OpenFood) {
   const catalog = catalogFoodFromCustom(food);
-  onOpen(catalog.ref, "1", catalog.defaultServingId, catalog);
+  onOpen(catalog.ref, "1", null, catalog);
 }
 
 function customNutrients(food: CustomFoodRecord): NutrientSnapshot {
@@ -996,14 +1002,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.lg,
+    paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
   },
   selector: {
-    flex: 7,
+    flex: 1,
+    minWidth: 0,
   },
   filterWrap: {
-    flex: 3,
+    width: 84,
   },
   filter: {
     alignItems: "center",
@@ -1012,7 +1019,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: tokens.spacing.xs,
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: tokens.spacing.xs,
   },
   filterText: {
@@ -1036,7 +1043,7 @@ const styles = StyleSheet.create({
   },
   filterChoice: {
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: tokens.spacing.xs,
   },
   filterChoiceText: {
@@ -1046,18 +1053,30 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
-    paddingHorizontal: tokens.spacing.md,
+  },
+  listFrame: {
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    flex: 1,
+    marginHorizontal: tokens.spacing.md,
+    marginBottom: tokens.spacing.sm,
+    overflow: "hidden",
+  },
+  listContent: {
+    flexGrow: 1,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: tokens.spacing.md,
   },
   row: {
     alignItems: "center",
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
     flexDirection: "row",
     gap: 6,
-    marginBottom: tokens.spacing.sm,
     minHeight: 68,
     paddingLeft: tokens.spacing.md,
     paddingRight: tokens.spacing.xs,
+    paddingVertical: tokens.spacing.xs,
   },
   rowMain: {
     flex: 1,

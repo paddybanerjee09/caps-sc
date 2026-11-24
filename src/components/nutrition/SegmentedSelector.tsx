@@ -19,6 +19,7 @@ type SelectorOption<T extends string> = {
 
 type SegmentedSelectorProps<T extends string> = {
   accessibilityLabel: string;
+  compact?: boolean;
   onChange: (value: T) => void;
   options: readonly SelectorOption<T>[];
   value: T;
@@ -26,6 +27,7 @@ type SegmentedSelectorProps<T extends string> = {
 
 export function SegmentedSelector<T extends string>({
   accessibilityLabel,
+  compact = false,
   onChange,
   options,
   value,
@@ -100,11 +102,15 @@ export function SegmentedSelector<T extends string>({
               onChange(option.value);
             }}
             silent
-            style={styles.option}
+            style={[styles.option, compact && styles.compactOption]}
           >
             <Text
+              adjustsFontSizeToFit={compact}
+              minimumFontScale={0.8}
+              numberOfLines={compact ? 1 : undefined}
               style={[
                 styles.label,
+                compact && styles.compactLabel,
                 {
                   color: selected ? activeColor : theme.colors.textMuted,
                 },
@@ -185,6 +191,14 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     textAlign: "center",
     textTransform: "uppercase",
+  },
+  compactOption: {
+    minWidth: 48,
+    paddingHorizontal: 4,
+  },
+  compactLabel: {
+    fontSize: 11,
+    letterSpacing: 0.1,
   },
   clip: {
     alignSelf: "stretch",

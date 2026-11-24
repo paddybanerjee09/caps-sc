@@ -24,13 +24,13 @@ const tokens = themes.dark;
 
 export { WorkflowHeader } from "../WorkflowChrome";
 
-export function NutritionFooter({ children }: { children?: ReactNode }) {
+export function NutritionFooter({ children, disabled = false }: { children?: ReactNode; disabled?: boolean }) {
   const { pop, stack, transitioning } = useNutritionWorkspace();
   const depth = stack.filter((entry) => entry.phase !== "exit").length;
   return (
     <WorkflowFooter
       backLabel={depth > 1 ? "Back" : "Cancel"}
-      disabled={transitioning}
+      disabled={transitioning || disabled}
       onBack={pop}
     >
       {children}
@@ -159,6 +159,7 @@ export function NutritionPage({
 type ActionProps = {
   accessibilityLabel: string;
   disabled?: boolean;
+  icon?: ComponentProps<typeof Ionicons>["name"];
   label: string;
   onPress: () => void;
 };
@@ -166,17 +167,19 @@ type ActionProps = {
 export function NutritionActionBar({
   danger,
   left,
+  navigationDisabled = false,
   right,
 }: {
   danger?: ActionProps;
   left?: ActionProps;
+  navigationDisabled?: boolean;
   right: ActionProps;
 }) {
   const { theme } = useAppTheme();
   const dangerColors = useDangerColors();
 
   return (
-    <NutritionFooter>
+    <NutritionFooter disabled={navigationDisabled}>
       {left ? (
         <PressOpacity
           accessibilityLabel={left.accessibilityLabel}
@@ -191,6 +194,9 @@ export function NutritionActionBar({
             },
           ]}
         >
+          {left.icon ? (
+            <Ionicons color={theme.colors.text} name={left.icon} size={20} />
+          ) : null}
           <Text
             numberOfLines={2}
             style={[styles.actionLabel, { color: theme.colors.text }]}
@@ -205,6 +211,13 @@ export function NutritionActionBar({
         onPress={right.onPress}
         style={[styles.actionSlot, { backgroundColor: theme.colors.tertiary }]}
       >
+        {right.icon ? (
+          <Ionicons
+            color={readableTextColor(theme.colors.tertiary)}
+            name={right.icon}
+            size={20}
+          />
+        ) : null}
         <Text
           numberOfLines={2}
           style={[
@@ -229,6 +242,9 @@ export function NutritionActionBar({
             },
           ]}
         >
+          {danger.icon ? (
+            <Ionicons color={dangerColors.text} name={danger.icon} size={20} />
+          ) : null}
           <Text
             numberOfLines={2}
             style={[styles.actionLabel, { color: dangerColors.text }]}
@@ -304,6 +320,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: tokens.radius.md,
     flex: 1,
+    flexDirection: "row",
+    gap: tokens.spacing.xs,
     justifyContent: "center",
     minHeight: 52,
     minWidth: 90,
@@ -313,6 +331,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   actionLabel: {
+    flexShrink: 1,
     fontSize: 14,
     fontWeight: "800",
     textAlign: "center",
