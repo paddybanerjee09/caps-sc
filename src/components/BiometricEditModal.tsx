@@ -42,9 +42,7 @@ export function BiometricEditModal({ field, onClose }: { field: BiometricField; 
   const selectedDay = Math.min(day, maxDay);
   const dateOfBirth = formatBirthDate(year, selectedMonth, selectedDay);
   const selectedHeight = unitSettings.height === "metric" ? cm : inchesToHeightCm(feet * 12 + inches);
-  const unchangedHeight = unitSettings.height === "metric" ? cm === Math.round(initialHeight) : feet === initialImperial.feet && inches === initialImperial.inches;
-  const heightToSave = unchangedHeight && originalHeight !== null ? originalHeight : selectedHeight;
-  const valid = field === "dateOfBirth" ? isValidBirthDate(dateOfBirth) : field === "heightCm" ? heightToSave >= 60 && heightToSave <= 275 : true;
+  const valid = field === "dateOfBirth" ? isValidBirthDate(dateOfBirth) : field === "heightCm" ? selectedHeight >= 60 && selectedHeight <= 275 : true;
 
   async function save() {
     if (savingRef.current || !valid) return;
@@ -54,7 +52,10 @@ export function BiometricEditModal({ field, onClose }: { field: BiometricField; 
     let patch: AthleteProfilePatch;
     if (field === "dateOfBirth") patch = { dateOfBirth, age: null };
     else if (field === "sex") patch = { sex };
-    else patch = { heightCm: heightToSave };
+    else {
+      const unchanged = unitSettings.height === "metric" ? cm === Math.round(initialHeight) : feet === initialImperial.feet && inches === initialImperial.inches;
+      patch = { heightCm: unchanged && originalHeight !== null ? originalHeight : selectedHeight };
+    }
     try {
       await updateAthleteProfile(patch);
       feedbackConfirm();
@@ -82,7 +83,7 @@ export function BiometricEditModal({ field, onClose }: { field: BiometricField; 
           </View>
         ) : null}
         {field === "heightCm" ? (
-          unitSettings.height === "metric" ? <View style={styles.row}><ScrollPicker label="Centimetres (cm)" options={range(60, 275)} value={cm} onChange={setCm} /></View> : <View style={styles.row}><ScrollPicker label="Feet (ft)" options={range(1, 9)} value={feet} onChange={setFeet} /><ScrollPicker label="Inches (in)" options={range(0, 11)} value={inches} onChange={setInches} /></View>
+          unitSettings.height === "metric" ? <View style={styles.row}><ScrollPicker label="Centimetres (cm)" options={range(60, 275)} value={cm} onChange={setCm} /></View> : <View style={styles.row}><ScrollPicker label="Feet (ft)" options={range(2, 9)} value={feet} onChange={setFeet} /><ScrollPicker label="Inches (in)" options={range(0, 11)} value={inches} onChange={setInches} /></View>
         ) : null}
       </View>
       {!valid ? <Text accessibilityRole="alert" style={{ color: theme.colors.text }}>Select a valid {field === "dateOfBirth" ? "date of birth" : "height"}.</Text> : null}

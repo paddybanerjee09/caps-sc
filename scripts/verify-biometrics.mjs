@@ -38,6 +38,7 @@ assert.deepEqual(deserializeAthleteProfile('{"dateOfBirth":"2026-11-24","heightC
 for (const invalid of ["null", "[]", "17", "invalid json"]) assert.throws(() => deserializeAthleteProfile(invalid, today));
 
 assert.deepEqual(centimetersToImperial(180.34), { feet: 5, inches: 11 });
+assert.deepEqual(centimetersToImperial(60), { feet: 2, inches: 0 }, "Round total inches before splitting at the minimum-height foot boundary");
 assert.equal(inchesToHeightCm(5 * 12 + 11), 180.3);
 assert.deepEqual(centimetersToImperial(inchesToHeightCm(6 * 12)), { feet: 6, inches: 0 });
 for (const unit of ["metric", "imperial"]) {
