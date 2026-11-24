@@ -1,6 +1,6 @@
 import { formatDisplayDate } from "../utils/displayDate";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useRef, useState, type ComponentRef } from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { Keyboard, Modal, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -64,13 +64,17 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
   }
 
   function changeDay(amount: number) {
-    wheelHour.current = null;
-    wheelMinute.current = null;
-    const shifted = shiftLogDay(draft, amount);
-    if (rejectInvalidWallTime && (shifted.getHours() !== draft.getHours() || shifted.getMinutes() !== draft.getMinutes())) {
+    const hour = wheelHour.current ?? draft.getHours();
+    const minute = wheelMinute.current ?? draft.getMinutes();
+    const selected = new Date(draft);
+    selected.setHours(hour, minute, 0, 0);
+    const shifted = shiftLogDay(selected, amount);
+    if (rejectInvalidWallTime && (selected.getHours() !== hour || selected.getMinutes() !== minute || shifted.getHours() !== hour || shifted.getMinutes() !== minute)) {
       setTimeError("That clock time does not exist on the selected day. Choose another time before changing day.");
       return;
     }
+    wheelHour.current = null;
+    wheelMinute.current = null;
     setTimeError(null);
     setDraft(clampLogDate(shifted, minimumDate, maximumDate));
   }
@@ -110,9 +114,9 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
                 </View>
                 {label ? <Text style={[styles.contextLabel, { color: theme.colors.textMuted }]}>{label}</Text> : null}
                 <View style={styles.wheels}>
-                  <TimeWheel label="Hours" count={24} value={draft.getHours()} onPreview={(hour) => { wheelHour.current = hour; }} onChange={(hour) => selectTime(hour, wheelMinute.current ?? draft.getMinutes())} />
+                  <TimeWheel selectionRevision={draft} label="Hours" count={24} value={draft.getHours()} onPreview={(hour) => { wheelHour.current = hour; }} onChange={(hour) => selectTime(hour, wheelMinute.current ?? draft.getMinutes())} />
                   <Text style={[styles.colon, { color: theme.colors.textMuted }]}>:</Text>
-                  <TimeWheel label="Minutes" displayMultiplier={minuteInterval} count={60 / minuteInterval} value={Math.floor(draft.getMinutes() / minuteInterval)} onPreview={(minute) => { wheelMinute.current = minute * minuteInterval; }} onChange={(minute) => selectTime(wheelHour.current ?? draft.getHours(), minute * minuteInterval)} />
+                  <TimeWheel selectionRevision={draft} label="Minutes" displayMultiplier={minuteInterval} count={60 / minuteInterval} value={Math.floor(draft.getMinutes() / minuteInterval)} onPreview={(minute) => { wheelMinute.current = minute * minuteInterval; }} onChange={(minute) => selectTime(wheelHour.current ?? draft.getHours(), minute * minuteInterval)} />
                 </View>
               </ScrollView>
               {timeError ? <Text accessibilityRole="alert" style={{ color: theme.colors.text, padding: 12 }}>{timeError}</Text> : null}
@@ -143,18 +147,39 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
   );
 }
 
-function TimeWheel({ count, label, onChange, onPreview, value, displayMultiplier = 1 }: { displayMultiplier?: number; count: number; label: string; onChange: (value: number) => void; onPreview: (value: number) => void; value: number }) {
+function TimeWheel({ count, label, onChange, onPreview, value, selectionRevision, displayMultiplier = 1 }: { displayMultiplier?: number; count: number; label: string; onChange: (value: number) => void; onPreview: (value: number) => void; value: number; selectionRevision: Date }) {
   const { theme } = useAppTheme();
   const { fontScale } = useWindowDimensions();
   const rowHeight = Math.max(48, Math.ceil(32 * fontScale));
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
-  const dragging = useRef(false);
+  const [initialOffset] = useState(() => ({ x: 0, y: value * rowHeight }));
+  const [preview, setPreview] = useState({ source: selectionRevision, value });
+  const selectedValue = preview.source === selectionRevision ? preview.value : value;
+  const currentValue = useRef(value);
+  const geometry = useRef("");
+
+  useEffect(() => {
+    const nextGeometry = `${count}:${rowHeight}`;
+    // Parent clamps/day changes reposition the wheel, while a value emitted by
+    // this wheel preserves its native snapping and momentum.
+    if (currentValue.current !== value || geometry.current !== nextGeometry) {
+      currentValue.current = value;
+      scroll.current?.scrollTo({ y: value * rowHeight, animated: false });
+    }
+    geometry.current = nextGeometry;
+  }, [count, rowHeight, selectionRevision, value]);
+
+  function previewOffset(offset: number) {
+    const selected = Math.max(0, Math.min(count - 1, Math.round(offset / rowHeight)));
+    currentValue.current = selected;
+    setPreview({ source: selectionRevision, value: selected });
+    onPreview(selected);
+    return selected;
+  }
 
   function settle(offset: number) {
-    dragging.current = false;
-    const selected = Math.max(0, Math.min(count - 1, Math.round(offset / rowHeight)));
+    const selected = previewOffset(offset);
     onChange(selected);
-    scroll.current?.scrollTo({ y: selected * rowHeight, animated: false });
   }
 
   return (
@@ -163,24 +188,26 @@ function TimeWheel({ count, label, onChange, onPreview, value, displayMultiplier
       <View style={{ height: rowHeight * 3 }}>
         <View pointerEvents="none" style={[styles.selection, { top: rowHeight, height: rowHeight, backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]} />
         <ScrollView
-          key={`${rowHeight}-${value}`}
           ref={scroll}
           nestedScrollEnabled
           bounces={false}
-          contentOffset={{ x: 0, y: value * rowHeight }}
+          contentOffset={initialOffset}
           contentContainerStyle={{ paddingVertical: rowHeight }}
           decelerationRate="fast"
-          onScroll={(event) => onPreview(Math.max(0, Math.min(count - 1, Math.round(event.nativeEvent.contentOffset.y / rowHeight))))}
+          onScroll={(event) => { previewOffset(event.nativeEvent.contentOffset.y); }}
           scrollEventThrottle={16}
-          onScrollBeginDrag={() => { dragging.current = true; }}
           onScrollEndDrag={(event) => { if (Math.abs(event.nativeEvent.velocity?.y ?? 0) < 0.1) settle(event.nativeEvent.contentOffset.y); }}
-          onMomentumScrollEnd={(event) => { if (dragging.current) settle(event.nativeEvent.contentOffset.y); }}
+          onMomentumScrollEnd={(event) => settle(event.nativeEvent.contentOffset.y)}
           showsVerticalScrollIndicator={false}
           snapToInterval={rowHeight}
         >
           {Array.from({ length: count }, (_, index) => (
-            <PressOpacity key={index} accessibilityLabel={`${label}: ${String(index * displayMultiplier).padStart(2, "0")}`} accessibilityState={{ selected: value === index }} onPress={() => onChange(index)} style={[styles.wheelRow, { height: rowHeight }]}>
-              <Text style={[styles.wheelText, { color: value === index ? theme.colors.tertiary : theme.colors.textMuted }]}>{String(index * displayMultiplier).padStart(2, "0")}</Text>
+            <PressOpacity key={index} accessibilityLabel={`${label}: ${String(index * displayMultiplier).padStart(2, "0")}`} accessibilityState={{ selected: selectedValue === index }} onPress={() => {
+              previewOffset(index * rowHeight);
+              scroll.current?.scrollTo({ y: index * rowHeight, animated: false });
+              onChange(index);
+            }} style={[styles.wheelRow, { height: rowHeight }]}>
+              <Text style={[styles.wheelText, { color: selectedValue === index ? theme.colors.tertiary : theme.colors.textMuted }]}>{String(index * displayMultiplier).padStart(2, "0")}</Text>
             </PressOpacity>
           ))}
         </ScrollView>
