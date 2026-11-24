@@ -10,6 +10,7 @@ import {
 
 import { createId } from "../conditioning/ids";
 import { STRENGTH_SEARCH_PAGE } from "../strength/catalog";
+import type { ExerciseForm } from "../strength/exerciseForm";
 import type { StrengthDraft } from "../strength/types";
 
 export type StrengthStackEntry =
@@ -21,6 +22,7 @@ export type StrengthStackEntry =
       name: "editor";
     }
   | { key: string; name: "builder" }
+  | { key: string; name: "picker" }
   | { key: string; name: "detail"; sessionId: string }
   | { key: string; name: "emphasis"; sessionId: string | null };
 
@@ -39,17 +41,22 @@ type StrengthWorkspaceValue = {
   confirm: ConfirmRequest | null;
   dismissConfirm: () => void;
   draft: StrengthDraft | null;
+  editorForm: { exerciseId: string; value: ExerciseForm } | null;
+  setEditorForm: (form: { exerciseId: string; value: ExerciseForm } | null) => void;
   handleHardwareBack: () => boolean;
   mode: StrengthBuilderMode | null;
   openBuilder: (draft: StrengthDraft, mode: StrengthBuilderMode) => void;
   openDetail: (sessionId: string) => void;
-  pop: () => void;
+  pop: (count?: number) => void;
   push: (entry: StrengthStackEntry) => void;
   registerBackHandler: (handler: (() => boolean) | null) => void;
   requestConfirm: (request: ConfirmRequest) => void;
   resetWorkspace: () => void;
   revision: number;
   savedSnapshot: string;
+  saving: boolean;
+  setSaving: (saving: boolean) => void;
+  markSaved: (draft: StrengthDraft) => void;
   searchLimit: number;
   searchQuery: string;
   setSearchLimit: (limit: number) => void;
@@ -63,16 +70,20 @@ const StrengthWorkspaceContext = createContext<StrengthWorkspaceValue | null>(nu
 export function StrengthWorkspaceProvider({ children }: { children: ReactNode }) {
   const [stack, setStack] = useState<StrengthStackEntry[]>([]);
   const [draft, setDraft] = useState<StrengthDraft | null>(null);
+  const [editorForm, setEditorForm] = useState<{ exerciseId: string; value: ExerciseForm } | null>(null);
   const [mode, setMode] = useState<StrengthBuilderMode | null>(null);
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLimit, setSearchLimit] = useState(STRENGTH_SEARCH_PAGE);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [revision, setRevision] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const backHandler = useRef<(() => boolean) | null>(null);
 
-  const pop = useCallback(() => {
-    setStack((current) => current.slice(0, -1));
+  const pop = useCallback((count = 1) => {
+    const levels = typeof count === "number" ? count : 1;
+    setStack((current) => current.slice(0, -levels));
   }, []);
 
   const push = useCallback((entry: StrengthStackEntry) => {
@@ -80,8 +91,10 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
   }, []);
 
   const resetWorkspace = useCallback(() => {
+    if (savingRef.current) return;
     setStack([]);
     setDraft(null);
+    setEditorForm(null);
     setMode(null);
     setSavedSnapshot("");
     setSearchQuery("");
@@ -89,6 +102,7 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
   }, []);
 
   const handleHardwareBack = useCallback(() => {
+    if (savingRef.current) return true;
     if (confirm) {
       setConfirm(null);
       return true;
@@ -107,6 +121,7 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
     () => ({
       bumpRevision: () => setRevision((current) => current + 1),
       closeBranch: () => {
+        if (savingRef.current) return;
         if (draft && JSON.stringify(draft) !== savedSnapshot) {
           setConfirm({
             confirmLabel: "Discard",
@@ -121,10 +136,13 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
       confirm,
       dismissConfirm: () => setConfirm(null),
       draft,
+      editorForm,
+      setEditorForm,
       handleHardwareBack,
       mode,
       openBuilder: (next, nextMode) => {
         setDraft(next);
+        setEditorForm(null);
         setMode(nextMode);
         setSavedSnapshot(JSON.stringify(next));
         setSearchQuery("");
@@ -143,6 +161,9 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
       resetWorkspace,
       revision,
       savedSnapshot,
+      saving,
+      setSaving: (next) => { savingRef.current = next; setSaving(next); },
+      markSaved: (next) => { setDraft(next); setSavedSnapshot(JSON.stringify(next)); },
       searchLimit,
       searchQuery,
       setSearchLimit,
@@ -153,6 +174,7 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
     [
       confirm,
       draft,
+      editorForm,
       handleHardwareBack,
       mode,
       pop,
@@ -160,6 +182,7 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
       resetWorkspace,
       revision,
       savedSnapshot,
+      saving,
       searchLimit,
       searchQuery,
       stack,

@@ -229,6 +229,25 @@ export async function createStrengthTemplate(db: SQLiteDatabase, draft: Strength
   return id;
 }
 
+/** Save the current reusable workout, retaining its identity when editing it. */
+export async function saveStrengthTemplate(db: SQLiteDatabase, draft: StrengthDraft) {
+  if (!draft.sourceTemplateId) return createStrengthTemplate(db, draft);
+  const projected = projectTemplateDraft(draft);
+  const now = Date.now();
+  const error = validateStrengthDraft(projected, "template", now);
+  if (error) throw new Error(error);
+  const id = draft.sourceTemplateId;
+  await db.withTransactionAsync(async () => {
+    await replaceTemplate(db, id, projected, now);
+  });
+  return id;
+}
+
+/** Remove a reusable workout while preserving all logged session snapshots. */
+export async function archiveStrengthTemplate(db: SQLiteDatabase, templateId: string) {
+  await archiveTemplate(db, templateId, Date.now());
+}
+
 export async function listStrengthSessionsForDates(
   db: SQLiteDatabase,
   startDate: string,
@@ -362,6 +381,8 @@ export async function logStrengthSession(
   options?: {
     beforeCommit?: () => void;
     now?: number;
+    /** Explicit-save workflows log a snapshot without changing reusable workouts. */
+    persistTemplate?: boolean;
     timeZone?: string;
   },
 ) {
@@ -389,7 +410,8 @@ export async function logStrengthSession(
   if (durationSeconds == null) {
     throw new Error("Add at least one work set.");
   }
-  const templateDraft = draft.saveAsTemplate ? projectTemplateDraft(draft) : null;
+  const persistTemplate = options?.persistTemplate !== false;
+  const templateDraft = persistTemplate && draft.saveAsTemplate ? projectTemplateDraft(draft) : null;
   if (templateDraft) {
     const templateError = validateStrengthDraft(templateDraft, "template", now);
     if (templateError) {
@@ -427,7 +449,7 @@ export async function logStrengthSession(
         templateId = createId();
         await insertTemplate(db, templateId, templateDraft, now);
       }
-    } else if (templateId) {
+    } else if (persistTemplate && templateId) {
       await archiveTemplate(db, templateId, now);
     }
 
@@ -525,13 +547,15 @@ async function insertExercises(
   const performedValues = includePerformed ? ", ?, ?" : "";
 
   for (const [index, exercise] of exercises.entries()) {
+    // Template snapshots own their row identities, including after Save/Unsave/Save.
+    const snapshotExerciseId = includePerformed ? exercise.id : createId();
     await db.runAsync(
       `INSERT INTO strength_${snapshot}_exercises (
         id, ${snapshot}_id, position, exercise_id, name, equipment,
         muscle_groups_json, load_mode, unilateral, explosive_intent, notes
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        exercise.id,
+        snapshotExerciseId,
         parentId,
         index,
         exercise.catalogExerciseId,
@@ -551,8 +575,8 @@ async function insertExercises(
           reps, rpe, rest_seconds${performedColumns}
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?${performedValues})`,
         [
-          set.id,
-          exercise.id,
+          includePerformed ? set.id : createId(),
+          snapshotExerciseId,
           setIndex,
           storedLoad(exercise.loadMode, set.loadKg),
           exercise.loadMode === "assisted" ? set.assistanceKg : null,

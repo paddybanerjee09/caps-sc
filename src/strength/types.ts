@@ -3,6 +3,7 @@ export type LoadMode = "external" | "bodyweight" | "assisted";
 export type CatalogSource = "free_exercise_db" | "custom";
 
 export type CatalogExercise = {
+  imageUrl?: string | null;
   aliases: string[];
   defaultLoadMode: LoadMode;
   defaultUnilateral: boolean;

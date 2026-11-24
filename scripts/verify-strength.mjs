@@ -4,6 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { formatLocalDate } from "../src/conditioning/dates.ts";
 import { searchExercises } from "../src/strength/catalog.ts";
 import { CATALOG_SEED } from "../src/strength/catalogSeed.ts";
+import { exerciseFormValues, exerciseFromForm } from "../src/strength/exerciseForm.ts";
+import { strengthExerciseImageUrl } from "../src/strength/media.ts";
 import {
   addCatalogExercise,
   applyRepeat,
@@ -37,6 +39,7 @@ import {
 import { formatLoadAmount } from "../src/strength/units.ts";
 import { migrateDatabase } from "../src/data/database.ts";
 import {
+  archiveStrengthTemplate,
   createCustomExercise,
   createStrengthTemplate,
   getStrengthSession,
@@ -46,6 +49,7 @@ import {
   listStrengthSessionsForDates,
   listStrengthTemplates,
   logStrengthSession,
+  saveStrengthTemplate,
 } from "../src/data/strengthRepository.ts";
 import { timelineCategories } from "../src/constants/timelineCategories.ts";
 import { appColorPalette } from "../src/theme/theme.ts";
@@ -277,7 +281,7 @@ assert.equal(validateStrengthDraft(pullupDraft, "log", 1_000), null);
 const assisted = updateExercise(pullupDraft, pullupDraft.exercises[0].id, (exercise) =>
   setLoadMode(exercise, "assisted"),
 );
-assert.equal(validateStrengthDraft(assisted, "log", 1_000), "Enter assistance.");
+assert.equal(validateStrengthDraft(assisted, "log", 1_000), null);
 assert.equal(validateStrengthDraft({ ...pullupDraft, endedAt: 5_000 }, "log", 1_000), "Choose an end time that is not in the future.");
 assert.match(formatLoadAmount(100, "imperial"), /220\.5 lb/);
 assert.equal(
@@ -491,5 +495,110 @@ await logStrengthSession(
   historyOptions,
 );
 assert.deepEqual(await referenceAt(40_000), { kind: "assistance", kg: 20 });
+
+// The compact exercise form preserves existing loads and individual set targets.
+const mixedExercise = {
+  ...benchDraft(1_000, { sets: 2 }).exercises[0],
+  sets: [
+    { ...benchDraft(1_000).exercises[0].sets[0], reps: 5, loadKg: 100, warmup: true },
+    { ...benchDraft(1_000).exercises[0].sets[0], reps: 8, loadKg: 90, restSeconds: 0, skipped: true },
+  ],
+};
+const mixedForm = exerciseFormValues(mixedExercise);
+assert.equal(mixedForm.reps, "Mixed");
+assert.equal(mixedForm.restSeconds, "Mixed");
+const unchangedExercise = exerciseFromForm(mixedExercise, mixedForm);
+assert.equal(unchangedExercise.error, null);
+assert.deepEqual(unchangedExercise.exercise.sets.map((set) => [set.reps, set.loadKg, set.restSeconds, set.warmup, set.skipped]),
+  mixedExercise.sets.map((set) => [set.reps, set.loadKg, set.restSeconds, set.warmup, set.skipped]));
+const editedExercise = exerciseFromForm(mixedExercise, { ...mixedForm, rpe: "", restSeconds: "0", notes: "Compact editor" });
+assert.equal(editedExercise.error, null);
+assert.ok(editedExercise.exercise.sets.every((set) => set.rpe === null && set.restSeconds === 0));
+assert.deepEqual(editedExercise.exercise.sets.map((set) => set.loadKg), [100, 90]);
+assert.equal(editedExercise.exercise.notes, "Compact editor");
+for (const form of [
+  { ...mixedForm, sets: "0" }, { ...mixedForm, sets: "21" }, { ...mixedForm, sets: "1.5" },
+  { ...mixedForm, reps: "" }, { ...mixedForm, reps: "101" },
+  { ...mixedForm, rpe: "11" }, { ...mixedForm, restSeconds: "-1" },
+]) assert.ok(exerciseFromForm(mixedExercise, form).error);
+
+// Missing load stays unknown; explicitly invalid entered values never reach SQLite.
+const omittedLoad = addCatalogExercise({ ...createLogDraft(1_000), title: "Without load" }, findSeed("bench press"));
+assert.equal(validateStrengthDraft(omittedLoad, "log", 1_000), null);
+for (const invalid of [0, -1, NaN, Infinity]) {
+  const invalidDraft = updateExercise(omittedLoad, omittedLoad.exercises[0].id, (exercise) =>
+    updateSet(exercise, exercise.sets[0].id, (set) => ({ ...set, loadKg: invalid })));
+  assert.ok(validateStrengthDraft(invalidDraft, "log", 1_000));
+}
+const unknownLoadFocus = emphasisFromDraft(omittedLoad.exercises, new Map([[omittedLoad.exercises[0].catalogExerciseId, { kind: "load", kg: 100 }]]));
+assert.equal(unknownLoadFocus.qualities.strength.score, null);
+const omittedLog = await logStrengthSession(db, { ...omittedLoad, saveAsTemplate: true }, { now: 1_000, timeZone: "UTC" });
+const omittedRecord = await getStrengthSession(db, omittedLog.sessionId);
+assert.equal(omittedRecord.exercises[0].sets[0].loadKg, null);
+assert.equal(omittedRecord.exercises[0].sets[0].assistanceKg, null);
+const omittedTemplate = await getStrengthTemplate(db, omittedLog.templateId);
+assert.equal(omittedTemplate.exercises[0].sets[0].loadKg, null);
+const retainedId = await saveStrengthTemplate(db, { ...omittedLoad, sourceTemplateId: omittedLog.templateId, title: "Updated reusable workout" });
+assert.equal(retainedId, omittedLog.templateId);
+assert.equal((await getStrengthTemplate(db, retainedId)).title, "Updated reusable workout");
+assert.equal((await getStrengthSession(db, omittedLog.sessionId)).title, "Without load");
+await archiveStrengthTemplate(db, omittedLog.templateId);
+await archiveStrengthTemplate(db, omittedLog.templateId);
+assert.ok(!(await listStrengthTemplates(db)).some((row) => row.id === omittedLog.templateId));
+assert.ok((await getStrengthTemplate(db, omittedLog.templateId)).archivedAt != null);
+assert.equal((await getStrengthSession(db, omittedLog.sessionId)).sourceTemplateId, omittedLog.templateId);
+assert.equal((await getStrengthSession(db, omittedLog.sessionId)).exercises[0].sets[0].reps, 5);
+
+assert.equal(strengthExerciseImageUrl(findSeed("bench press")), null);
+assert.equal(strengthExerciseImageUrl({ ...findSeed("bench press"), imageUrl: "https://example.test/exercise.jpg" }), "https://example.test/exercise.jpg");
+assert.equal(strengthExerciseImageUrl({ ...findSeed("bench press"), imageUrl: "javascript:alert(1)" }), null);
+
+// Reusing the same UI draft across Save/Unsave/Save must not reuse archived snapshot IDs.
+const toggleDraft = addCatalogExercise({ ...createLogDraft(50_000), title: "Toggle workout" }, findSeed("bench press"));
+const firstToggleId = await saveStrengthTemplate(db, toggleDraft);
+await archiveStrengthTemplate(db, firstToggleId);
+const secondToggleId = await saveStrengthTemplate(db, toggleDraft);
+assert.notEqual(secondToggleId, firstToggleId);
+const firstToggleSnapshot = await getStrengthTemplate(db, firstToggleId);
+const secondToggleSnapshot = await getStrengthTemplate(db, secondToggleId);
+assert.notEqual(firstToggleSnapshot.exercises[0].id, secondToggleSnapshot.exercises[0].id);
+assert.notEqual(firstToggleSnapshot.exercises[0].sets[0].id, secondToggleSnapshot.exercises[0].sets[0].id);
+const secondToggleDraft = { ...toggleDraft, sourceTemplateId: secondToggleId, saveAsTemplate: true };
+const toggleLog = await logStrengthSession(db, secondToggleDraft, { now: 50_000, timeZone: "UTC" });
+assert.equal(toggleLog.templateId, secondToggleId);
+assert.equal((await getStrengthSession(db, toggleLog.sessionId)).exercises[0].id, toggleDraft.exercises[0].id);
+const failingTemplateDb = { ...db, async runAsync(sql, params) {
+  if (sql.includes("INSERT INTO strength_template_sets")) throw new Error("fail template write");
+  return db.runAsync(sql, params);
+} };
+await assert.rejects(() => saveStrengthTemplate(failingTemplateDb, { ...secondToggleDraft, title: "Must roll back" }), /fail template write/);
+assert.equal((await getStrengthTemplate(db, secondToggleId)).title, "Toggle workout");
+assert.equal((await getStrengthTemplate(db, secondToggleId)).exercises[0].sets.length, 1);
+assert.equal(await saveStrengthTemplate(db, { ...secondToggleDraft, title: "Retry saved" }), secondToggleId);
+assert.equal((await getStrengthTemplate(db, secondToggleId)).title, "Retry saved");
+assert.equal((await getStrengthSession(db, toggleLog.sessionId)).title, "Toggle workout");
+
+// Explicit Save/Unsave workflows log their current draft without silently editing templates.
+const explicitSourceId = await createStrengthTemplate(db, benchDraft(0, { title: "Explicit save source" }));
+const explicitBefore = await getStrengthTemplate(db, explicitSourceId);
+let explicitDraft = draftFromTemplate(explicitBefore, 70_000);
+explicitDraft = { ...explicitDraft, title: "Edited log only" };
+explicitDraft = updateExercise(explicitDraft, explicitDraft.exercises[0].id, (exercise) =>
+  applyRepeat(exercise, { ...exercise.repeat, reps: 7 }));
+const explicitLog = await logStrengthSession(db, explicitDraft, { now: 70_000, timeZone: "UTC", persistTemplate: false });
+assert.equal(explicitLog.templateId, explicitSourceId);
+assert.deepEqual(await getStrengthTemplate(db, explicitSourceId), explicitBefore);
+assert.equal((await getStrengthSession(db, explicitLog.sessionId)).title, "Edited log only");
+assert.equal((await getStrengthSession(db, explicitLog.sessionId)).exercises[0].sets[0].reps, 7);
+const noArchiveDraft = { ...draftFromTemplate(explicitBefore, 80_000), saveAsTemplate: false };
+await logStrengthSession(db, noArchiveDraft, { now: 80_000, timeZone: "UTC", persistTemplate: false });
+assert.deepEqual(await getStrengthTemplate(db, explicitSourceId), explicitBefore);
+const templateCountBeforeExplicitLog = (await listStrengthTemplates(db)).length;
+for (const saveAsTemplate of [false, true]) {
+  const explicitFreeDraft = { ...benchDraft(90_000), saveAsTemplate };
+  const explicitFreeLog = await logStrengthSession(db, explicitFreeDraft, { now: 90_000, timeZone: "UTC", persistTemplate: false });
+  assert.equal(explicitFreeLog.templateId, null);
+  assert.equal((await listStrengthTemplates(db)).length, templateCountBeforeExplicitLog);
+}
 
 console.log("strength checks passed");

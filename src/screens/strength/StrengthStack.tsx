@@ -5,6 +5,7 @@ import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
 import { feedbackWarn } from "../../utils/feedback";
 import { useStrengthWorkspace } from "../../state/StrengthWorkspaceContext";
+import { AddExercisesScreen } from "./AddExercisesScreen";
 import { ExerciseEditorScreen } from "./ExerciseEditorScreen";
 import { StrengthAdaptationsScreen } from "./StrengthAdaptationsScreen";
 import { StrengthSessionDetailScreen } from "./StrengthSessionDetailScreen";
@@ -97,8 +98,10 @@ function Cover() {
         { backgroundColor: theme.colors.background },
       ]}
     >
+      {top.name === "picker" ? <AddExercisesScreen key={top.key} /> : null}
       {top.name === "editor" ? (
         <ExerciseEditorScreen
+          key={top.key}
           baseline={top.baseline}
           exerciseId={top.exerciseId}
           fresh={top.fresh}

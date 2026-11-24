@@ -341,18 +341,15 @@ export function validateStrengthDraft(
 }
 
 function weightErrorFor(mode: LoadMode, set: SetDraft) {
-  if (mode === "external") {
-    if (set.loadKg == null || !(set.loadKg > 0)) {
-      return "Enter a weight or choose bodyweight.";
-    }
+  // The compact editor does not ask for load. Omitted values stay unknown.
+  if (set.loadKg != null && (!Number.isFinite(set.loadKg) || set.loadKg < 0)) {
+    return "Enter a valid weight.";
   }
-  if (mode === "assisted") {
-    if (set.assistanceKg == null || !(set.assistanceKg > 0)) {
-      return "Enter assistance.";
-    }
+  if (mode === "external" && set.loadKg === 0) {
+    return "Enter a positive weight.";
   }
-  if (mode === "bodyweight" && set.loadKg != null && set.loadKg < 0) {
-    return "Enter a weight or choose bodyweight.";
+  if (set.assistanceKg != null && (!Number.isFinite(set.assistanceKg) || set.assistanceKg <= 0)) {
+    return "Enter positive assistance.";
   }
   return null;
 }
