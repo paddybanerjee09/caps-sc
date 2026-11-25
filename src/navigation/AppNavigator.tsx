@@ -125,7 +125,7 @@ export function AppNavigator() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={[styles.root, { backgroundColor: theme.colors.background }]}
     >
       <StatusBar
