@@ -38,7 +38,8 @@ import {
   draftFromStoredMeal,
   restoreWorkspace,
 } from "../src/nutrition/drafts.ts";
-import { convertServingQuantity, withServingUnits } from "../src/nutrition/servings.ts";
+import { convertServingQuantity, servingUnitOptions, withServingUnits } from "../src/nutrition/servings.ts";
+import { calorieFontSize } from "../src/components/nutrition/calorieText.ts";
 import {
   FATSECRET_DETAILS_METHOD,
   normalizeFatSecretFood,
@@ -372,7 +373,7 @@ assert.equal(measuredFood.servings[0].amount, 120);
 assert.equal(measuredFood.servings[0].unit, "g");
 const measuredOptions = withServingUnits(measuredFood);
 const gram = measuredOptions.servings.find((serving) => serving.id === "caps:unit:g");
-assert.equal(measuredOptions.defaultServingId, gram.id);
+assert.equal(measuredOptions.defaultServingId, "120g-piece");
 assert.equal(gram.amount, 1);
 assert.equal(gram.nutrients.energyKcal, 2);
 assert.equal(gram.nutrients.proteinG * 120, 12);
@@ -383,6 +384,8 @@ const ounce = measuredOptions.servings.find((serving) => serving.id === "caps:un
 assert.equal(convertServingQuantity(120, gram, ounce) * ounce.amount, 120);
 assert.equal(convertServingQuantity(120, gram, measuredFood.servings[0]), 1);
 const milligram = measuredOptions.servings.find((serving) => serving.id === "caps:unit:mg");
+assert.ok(milligram); // Historical references still resolve their exact old serving ID.
+assert.equal(servingUnitOptions(measuredOptions).some((serving) => serving.id === milligram.id), false);
 const kilogram = measuredOptions.servings.find((serving) => serving.id === "caps:unit:kg");
 assert.equal(formatDerivedQuantity(convertServingQuantity(0.001, milligram, kilogram)), "0.000000001");
 assert.equal(measuredOptions.servings.some((serving) => serving.unit === "ml"), false);
@@ -402,7 +405,7 @@ const volumeFood = withServingUnits(normalizeServings([{
   metric_serving_unit: "ml",
   calories: "120",
 }]));
-assert.equal(volumeFood.defaultServingId, "caps:unit:ml");
+assert.equal(volumeFood.defaultServingId, "cup");
 assert.equal(volumeFood.servings.find((serving) => serving.id === "caps:unit:ml").nutrients.energyKcal, 0.5);
 assert.equal(volumeFood.servings.find((serving) => serving.id === "caps:unit:cup").amount, 236.5882365);
 assert.equal(volumeFood.servings.some((serving) => serving.unit === "g"), false);
@@ -421,7 +424,7 @@ const liquidProduct = normalizeOpenFoodFactsProduct({ status: 1, product: {
 } }, "0123456789012");
 assert.equal(liquidProduct.servings[0].unit, "ml");
 assert.equal(liquidProduct.servings[1].nutrients.energyKcal, 100);
-assert.equal(withServingUnits(liquidProduct).defaultServingId, "caps:unit:ml");
+assert.equal(withServingUnits(liquidProduct).defaultServingId, "serving");
 const conflictingProduct = normalizeOpenFoodFactsProduct({ status: 1, product: {
   serving_size: "1 scoop (30 ml)",
   product_quantity_unit: "g",
@@ -429,6 +432,87 @@ const conflictingProduct = normalizeOpenFoodFactsProduct({ status: 1, product: {
 } }, "0123456789012");
 assert.equal(conflictingProduct.servings[0].unit, "g");
 assert.equal(conflictingProduct.servings.length, 1); // No mass-to-volume inference.
+
+const per100Options = withServingUnits(product);
+assert.equal(per100Options.defaultServingId, "caps:unit:100g");
+assert.equal(per100Options.servings.find((serving) => serving.id === per100Options.defaultServingId).amount, 100);
+assert.equal(per100Options.servings.find((serving) => serving.id === per100Options.defaultServingId).nutrients.energyKcal, 200);
+assert.deepEqual(withServingUnits(per100Options), per100Options);
+// Old normalized snapshots used the generic gram default, not a provider preference.
+const oldGramDefault = withServingUnits({ ...measuredOptions, defaultServingId: "caps:unit:g" });
+assert.equal(oldGramDefault.defaultServingId, "120g-piece");
+assert.deepEqual(withServingUnits(oldGramDefault), oldGramDefault);
+const gramBasisOnly = withServingUnits({ ...measuredFood, defaultServingId: "grams", servings: [{ ...gram, id: "grams" }] });
+assert.equal(gramBasisOnly.defaultServingId, "caps:unit:100g");
+assert.equal(gramBasisOnly.servings.find((serving) => serving.id === gramBasisOnly.defaultServingId).nutrients.energyKcal, 200);
+const thirtyGramPortion = withServingUnits({ ...measuredFood, defaultServingId: "regular", servings: [{ ...measuredFood.servings[0], id: "regular", label: "30 g", amount: 30 }] });
+assert.equal(thirtyGramPortion.defaultServingId, "regular");
+const hundredGramReference = { ...product.servings[0], id: "per100", label: "100 g" };
+const measurementLabels = [
+  ["1 oz", 28.349523125],
+  ["1 lb", 453.59237],
+  ["1 kg", 1000],
+  ["30 g", 30],
+  ["1,5 kilograms", 1500],
+  ["\u00bd oz", 14.1747615625],
+  ["1 1/2 ounces", 42.5242846875],
+  ["1 oz (28.349523125 g)", 28.349523125],
+  ["grams", 1],
+  ["1 mg", 0.001],
+];
+for (const [label, amount] of measurementLabels) {
+  const referenceFood = {
+    ...measuredFood,
+    defaultServingId: "per100",
+    servings: [hundredGramReference, { ...hundredGramReference, id: "measurement", label, amount }],
+  };
+  const normalized = withServingUnits(referenceFood);
+  assert.equal(normalized.defaultServingId, "caps:unit:100g", `${label} is a conversion, not an alternate regular serving`);
+  assert.deepEqual(withServingUnits(normalized), normalized);
+  assert.equal(withServingUnits({ ...normalized, defaultServingId: "caps:unit:g" }).defaultServingId, "caps:unit:100g");
+}
+const householdPiece = { ...measuredFood.servings[0], id: "piece", label: "1 piece (120 g)" };
+const massWithHousehold = withServingUnits({
+  ...measuredFood,
+  defaultServingId: "per100",
+  servings: [hundredGramReference, { ...hundredGramReference, id: "oz", label: "1 oz", amount: 28.349523125 }, householdPiece],
+});
+assert.equal(massWithHousehold.defaultServingId, "piece");
+assert.deepEqual(withServingUnits(massWithHousehold), massWithHousehold);
+const hundredMillilitreReference = { ...hundredGramReference, unit: "ml", label: "100 mL" };
+for (const label of ["1 L", "1 litre", "1 liter", "10 cL", "1 US fl oz", "1 fluid ounce (29.5735295625 mL)"]) {
+  const volumeConversions = withServingUnits({
+    ...measuredFood,
+    defaultServingId: "per100",
+    servings: [hundredMillilitreReference, { ...hundredMillilitreReference, id: "volume-unit", label, amount: 1000 }],
+  });
+  assert.equal(volumeConversions.defaultServingId, "caps:unit:ml", `${label} is not a household portion`);
+  assert.equal(volumeConversions.servings.some((serving) => serving.unit === "g"), false);
+  assert.deepEqual(withServingUnits(volumeConversions), volumeConversions);
+}
+const householdCup = { ...hundredMillilitreReference, id: "cup-portion", label: "1 cup (240 mL)", amount: 240 };
+assert.equal(withServingUnits({ ...measuredFood, defaultServingId: "per100", servings: [hundredMillilitreReference, householdCup] }).defaultServingId, "cup-portion");
+const customBase = withServingUnits({ ...thirtyGramPortion, ref: { source: "custom", externalId: "manual" }, defaultServingId: "caps:unit:g" });
+assert.equal(customBase.defaultServingId, "regular");
+const oldDerivedOnly = withServingUnits({ ...measuredOptions, defaultServingId: gram.id, servings: [gram, milligram] });
+assert.equal(oldDerivedOnly.defaultServingId, "caps:unit:100g");
+assert.equal(servingUnitOptions(oldDerivedOnly).some((serving) => /\bmg\b/.test(serving.label)), false);
+assert.deepEqual(withServingUnits(oldDerivedOnly), oldDerivedOnly);
+for (const [maximum, width] of [[14, 46], [18, 58], [18, 68], [22, 96]]) {
+  for (const scale of [1, 2]) {
+    let previous = Infinity;
+    for (let digits = 1; digits <= 7; digits += 1) {
+      const text = "9".repeat(digits);
+      const size = calorieFontSize(text, maximum, width, scale);
+      assert.ok(size > 0 && size <= previous);
+      assert.ok(size * scale * digits * 0.7 <= width + 1e-9);
+      previous = size;
+    }
+    const grouped = "9,999,999+";
+    assert.ok(calorieFontSize(grouped, maximum, width, scale) * scale * (7 * 0.7 + 3 * 0.35) <= width + 1e-9);
+  }
+}
+assert.equal(calorieFontSize("", 14, 46), 14);
 
 const restored = restoreWorkspace(
   JSON.stringify({

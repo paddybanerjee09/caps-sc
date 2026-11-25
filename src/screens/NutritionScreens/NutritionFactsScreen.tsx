@@ -1,8 +1,9 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSQLiteContext } from "expo-sqlite";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,12 +33,12 @@ import {
   sumExtraTotals,
 } from "../../nutrition/calculations";
 import type { DraftMealItem } from "../../nutrition/drafts";
-import { convertServingQuantity, withServingUnits } from "../../nutrition/servings";
+import { convertServingQuantity, servingUnitOptions, withServingUnits } from "../../nutrition/servings";
 import { resolveCatalogFood } from "../../services/foodCatalog";
 import { providerErrorMessage } from "../../services/providerError";
 import { useNutritionWorkspace } from "../../state/NutritionWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
-import { readableTextColor, themes } from "../../theme/theme";
+import { themes } from "../../theme/theme";
 import { feedbackConfirm, feedbackStep, feedbackToggle } from "../../utils/feedback";
 import type { CatalogFood, CatalogServing } from "../../types/nutrition";
 
@@ -52,6 +53,7 @@ export function NutritionFactsScreen() {
     closeToRoot,
     completeCustomFood,
     facts,
+    registerBackHandler,
     returnToMealLog,
     setFacts,
     stack,
@@ -73,6 +75,21 @@ export function NutritionFactsScreen() {
   const [retry, setRetry] = useState(0);
   const [favourites, setFavourites] = useState<string[]>([]);
   const [favouritePending, setFavouritePending] = useState(false);
+  const pageRef = useRef<ComponentRef<typeof View>>(null);
+  const unitsRef = useRef<ComponentRef<typeof View>>(null);
+  const pageWidthRef = useRef<number | null>(null);
+  const [unitsMenu, setUnitsMenu] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    maxHeight: number;
+  } | null>(null);
+
+  useEffect(() => registerBackHandler(() => {
+    if (!unitsMenu) return false;
+    setUnitsMenu(null);
+    return true;
+  }), [registerBackHandler, unitsMenu]);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,7 +149,6 @@ export function NutritionFactsScreen() {
   }
 
   const session = facts;
-  const activeText = readableTextColor(theme.colors.tertiary);
 
   const serving =
     food?.servings.find((candidate) => candidate.id === facts.servingId) ??
@@ -195,6 +211,7 @@ export function NutritionFactsScreen() {
   }
 
   function selectServing(next: CatalogServing) {
+    setUnitsMenu(null);
     feedbackStep("up");
     setFacts({
       ...session,
@@ -203,6 +220,25 @@ export function NutritionFactsScreen() {
         : session.amountInput,
       inputMode: "amount",
       servingId: next.id,
+    });
+  }
+
+  function openUnits() {
+    Keyboard.dismiss();
+    pageRef.current?.measureInWindow((pageX, pageY, pageWidth, pageHeight) => {
+      unitsRef.current?.measureInWindow((x, y, buttonWidth, buttonHeight) => {
+        const width = Math.min(Math.max(buttonWidth, 200), pageWidth - 16);
+        const below = pageHeight - (y - pageY + buttonHeight) - 8;
+        const above = y - pageY - 8;
+        const opensBelow = below >= Math.min(240, above);
+        const maxHeight = Math.max(48, Math.min(288, opensBelow ? below : above));
+        setUnitsMenu({
+          left: Math.min(Math.max(8, x - pageX), pageWidth - width - 8),
+          top: opensBelow ? y - pageY + buttonHeight + 4 : Math.max(8, y - pageY - maxHeight - 4),
+          width,
+          maxHeight,
+        });
+      });
     });
   }
 
@@ -265,6 +301,16 @@ export function NutritionFactsScreen() {
   }
 
   return (
+    <View
+      ref={pageRef}
+      collapsable={false}
+      onLayout={(event) => {
+        const width = event.nativeEvent.layout.width;
+        if (pageWidthRef.current !== null && pageWidthRef.current !== width) setUnitsMenu(null);
+        pageWidthRef.current = width;
+      }}
+      style={styles.page}
+    >
     <NutritionPage
       footer={
         <NutritionActionBar
@@ -363,64 +409,31 @@ export function NutritionFactsScreen() {
           ) : null}
         </View>
 
-        <Text style={[styles.subLabel, { color: theme.colors.textMuted }]}>
-          SERVING SIZE (SWIPE)
-        </Text>
-        <ScrollView
-          contentContainerStyle={styles.presetStrip}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-        >
-          {(food?.servings ?? []).map((option) => {
-            const selected = option.id === serving?.id;
-            return (
-              <PressOpacity
-                accessibilityLabel={
-                  selected ? `${option.label}, selected` : option.label
-                }
-                accessibilityState={{ selected }}
-                key={option.id}
-                onPress={() => selectServing(option)}
-                silent
-                style={[
-                  styles.servingPill,
-                  {
-                    backgroundColor: selected
-                      ? theme.colors.tertiary
-                      : theme.colors.surfaceMuted,
-                    borderColor: selected
-                      ? theme.colors.tertiary
-                      : theme.colors.borderStrong,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.servingPillText,
-                    { color: selected ? activeText : theme.colors.text },
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </PressOpacity>
-            );
-          })}
-        </ScrollView>
-
-        <Text style={[styles.subLabel, { color: theme.colors.textMuted }]}>
-          QUANTITY
-        </Text>
         <View style={styles.inputRow}>
-
-          <NutritionTextInput
-            accessibilityLabel="Serving amount"
-            keyboardType="decimal-pad"
-            onChangeText={changeAmount}
-            placeholder="1"
-            style={styles.centerInput}
-            value={facts.amountInput}
-          />
-
+          <View style={styles.quantityField}>
+            <Text style={[styles.subLabel, { color: theme.colors.textMuted }]}>QUANTITY</Text>
+            <NutritionTextInput
+              accessibilityLabel="Serving quantity"
+              keyboardType="decimal-pad"
+              onChangeText={changeAmount}
+              placeholder="1"
+              style={styles.centerInput}
+              value={facts.amountInput}
+            />
+          </View>
+          <View ref={unitsRef} collapsable={false} style={styles.unitsField}>
+            <Text style={[styles.subLabel, { color: theme.colors.textMuted }]}>SERVING UNITS</Text>
+            <PressOpacity
+              accessibilityLabel={`Serving units, ${serving?.label ?? "Choose units"}`}
+              accessibilityState={{ expanded: unitsMenu != null, disabled: !food }}
+              disabled={!food}
+              onPress={openUnits}
+              style={[styles.unitsButton, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}
+            >
+              <Text style={[styles.unitsText, { color: theme.colors.text }]}>{serving?.label ?? "Choose units"}</Text>
+              <Ionicons color={theme.colors.textMuted} name="chevron-down" size={16} />
+            </PressOpacity>
+          </View>
         </View>
 
       </View>
@@ -454,10 +467,27 @@ export function NutritionFactsScreen() {
         }
       />
     </NutritionPage>
+    {unitsMenu && food ? (
+      <View accessibilityViewIsModal style={styles.unitsOverlay}>
+        <PressOpacity accessibilityLabel="Close serving units" onPress={() => setUnitsMenu(null)} style={StyleSheet.absoluteFill} silent />
+        <View style={[styles.unitsMenu, unitsMenu, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong }]}>
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {servingUnitOptions(food).map((option) => (
+              <PressOpacity accessibilityLabel={option.label} accessibilityState={{ selected: option.id === serving?.id }} key={option.id} onPress={() => selectServing(option)} style={[styles.unitChoice, { borderBottomColor: theme.colors.border }]}>
+                <Text style={[styles.unitsText, { color: theme.colors.text }]}>{option.label}</Text>
+                {option.id === serving?.id ? <Ionicons color={theme.colors.tertiary} name="checkmark" size={18} /> : null}
+              </PressOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  page: { flex: 1 },
   star: {
     alignItems: "center",
     borderRadius: tokens.radius.md,
@@ -488,31 +518,36 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
     marginTop: 2,
   },
-  servingPill: {
+  unitsButton: {
     alignItems: "center",
     borderRadius: tokens.radius.md,
     borderWidth: 1,
-    justifyContent: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.sm,
+    justifyContent: "space-between",
     minHeight: 48,
     paddingHorizontal: tokens.spacing.md,
   },
-  servingPillText: {
+  unitsText: {
+    flex: 1,
     fontSize: 13,
     fontWeight: "800",
   },
   inputRow: {
-    alignItems: "center",
+    alignItems: "flex-end",
     flexDirection: "row",
     gap: 6,
   },
+  quantityField: { flex: 1, gap: 6 },
+  unitsField: { flex: 2, gap: 6 },
+  unitsOverlay: { ...StyleSheet.absoluteFill, zIndex: 10 },
+  unitsMenu: { borderWidth: 1, borderRadius: tokens.radius.md, overflow: "hidden", position: "absolute", boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.24)" },
+  unitChoice: { alignItems: "center", flexDirection: "row", gap: 8, minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12 },
   centerInput: {
-    flex: 1,
+    width: "100%",
     fontVariant: ["tabular-nums"],
     minHeight: 48,
     textAlign: "center",
-  },
-  presetStrip: {
-    gap: 6,
   },
   body: {
     fontSize: tokens.typography.body.fontSize,

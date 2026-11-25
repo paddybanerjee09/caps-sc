@@ -4,11 +4,13 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
   type LayoutChangeEvent,
 } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import { MicronutrientDisclosure } from "./nutrition/ExtraNutrients";
+import { calorieFontSize } from "./nutrition/calorieText";
 import { NUTRITION_COLORS } from "../constants/nutrition";
 import type { ExtraTotal } from "../nutrition/calculations";
 import { useAppTheme } from "../theme/ThemeContext";
@@ -117,6 +119,7 @@ export function MacronutrientBreakdownCard({
   values,
 }: MacronutrientBreakdownCardProps) {
   const { theme } = useAppTheme();
+  const { fontScale } = useWindowDimensions();
   const [availableWidth, setAvailableWidth] = useState(0);
   const safeValues = normalizeNutrients(values);
   const resolvedIncomplete = resolveIncomplete(safeValues, incomplete);
@@ -196,8 +199,11 @@ export function MacronutrientBreakdownCard({
                 Calories
               </Text>
               <Text
+                adjustsFontSizeToFit
+                minimumFontScale={0.5}
+                numberOfLines={1}
                 selectable
-                style={[styles.compactTotalValue, { color: theme.colors.text }]}
+                style={[styles.compactTotalValue, { color: theme.colors.text, fontSize: calorieFontSize(`${formatNullableValue(safeValues.energyKcal, resolvedIncomplete.energyKcal, 0)} kcal`, tokens.typography.label.fontSize, Math.max(80, availableWidth - 80), fontScale) }]}
               >
                 {formatNullableValue(
                   safeValues.energyKcal,
@@ -363,9 +369,14 @@ function MacroRing({
   surfaceMuted: string;
 }) {
   const { theme } = useAppTheme();
+  const { fontScale } = useWindowDimensions();
   const ringCenter = ringSize / 2;
   const ringRadius = (ringSize - ringStroke) / 2;
   const ringCircumference = 2 * Math.PI * ringRadius;
+  const calorieText = energyInput?.value ?? formatNullableValue(safeValues.energyKcal, resolvedIncomplete.energyKcal, 0);
+  const textWidth = ringSize - 2 * ringStroke - 8;
+  const valueFontSize = calorieFontSize(calorieText, compact ? 18 : 22, textWidth, fontScale);
+  const inputFontSize = calorieFontSize(calorieText, compact ? 14 : 18, (compact ? 56 : 68) - 10, fontScale);
 
   return (
     <View
@@ -433,6 +444,7 @@ function MacroRing({
             selectionColor={theme.colors.tertiary}
             style={[
               compact ? styles.energyInputCompact : styles.energyInput,
+              { fontSize: inputFontSize },
               {
                 backgroundColor: theme.colors.surfaceMuted,
                 borderColor: energyInput.invalid
@@ -446,17 +458,16 @@ function MacroRing({
           />
         ) : (
           <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.5}
+            numberOfLines={1}
             selectable
             style={[
               compact ? styles.energyValueCompact : styles.energyValue,
-              { color: theme.colors.text },
+              { color: theme.colors.text, fontSize: valueFontSize, lineHeight: Math.ceil(valueFontSize * 1.25), width: textWidth, textAlign: "center" },
             ]}
           >
-            {formatNullableValue(
-              safeValues.energyKcal,
-              resolvedIncomplete.energyKcal,
-              0,
-            )}
+            {calorieText}
           </Text>
         )}
         <Text
@@ -531,6 +542,9 @@ function NutrientProgressRow({
         </Text>
         {showValue ? (
           <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.5}
+            numberOfLines={1}
             selectable
             style={[styles.progressValue, { color: theme.colors.textMuted }]}
           >
@@ -749,6 +763,7 @@ const styles = StyleSheet.create({
     lineHeight: 12,
   },
   compactTotalValue: {
+    flexShrink: 1,
     fontSize: tokens.typography.label.fontSize,
     fontVariant: ["tabular-nums"],
     fontWeight: tokens.typography.label.fontWeight,
@@ -907,6 +922,7 @@ const styles = StyleSheet.create({
     lineHeight: tokens.typography.label.lineHeight,
   },
   progressValue: {
+    flexShrink: 1,
     fontSize: tokens.typography.label.fontSize,
     fontVariant: ["tabular-nums"],
     lineHeight: tokens.typography.label.lineHeight,

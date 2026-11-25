@@ -5,11 +5,14 @@ const DERIVED_PREFIX = "caps:unit:";
 
 const MASS_OPTIONS = [
   { id: "g", label: "1 g", amount: 1 },
-  { id: "mg", label: "1 mg", amount: 0.001 },
+  { id: "100g", label: "100 g", amount: 100 },
   { id: "kg", label: "1 kg", amount: 1000 },
   { id: "oz", label: "1 oz", amount: 28.349523125 },
   { id: "lb", label: "1 lb", amount: 453.59237 },
 ] as const;
+
+// Resolve historical favourites/reference records, but do not offer this unit.
+const LEGACY_MILLIGRAM = { id: "mg", label: "1 mg", amount: 0.001 } as const;
 
 const VOLUME_OPTIONS = [
   { id: "ml", label: "1 mL", amount: 1 },
@@ -55,6 +58,32 @@ export function convertServingQuantity(
   return quantity * fromBasis.amount / toBasis.amount;
 }
 
+/** Choices for new input exclude the retired unit without losing historical IDs. */
+export function servingUnitOptions(food: CatalogFood) {
+  return food.servings.filter((serving) => !isRetiredUnit(serving));
+}
+
+function isRetiredUnit(serving: CatalogServing) {
+  return serving.id === `${DERIVED_PREFIX}mg` ||
+    /^\s*\d+(?:[.,]\d+)?\s*(?:mg|milligrams?)\s*$/i.test(serving.label);
+}
+
+function isReferenceBasis(serving: CatalogServing) {
+  return (serving.unit === "g" || serving.unit === "ml") &&
+    (serving.amount === 1 || serving.amount === 100) &&
+    /^\s*(?:1|100)\s*(?:g|grams?|ml|millilit(?:er|re)s?)\s*$/i.test(serving.label);
+}
+
+function isMeasurementPortion(serving: CatalogServing) {
+  // A plain conversion is not evidence of a regular household portion.
+  // Normalize common numeric typography without guessing translated food names.
+  const label = serving.label.normalize("NFKC").replace(/\u2044/g, "/").trim();
+  const quantity = "(?:\\d+\\s+\\d+\\s*/\\s*\\d+|\\d+(?:[.,]\\d+)?(?:\\s*/\\s*\\d+)?)";
+  const unit = "(?:mg|milligrams?|g|grams?|grammes?|kg|kilograms?|oz|ounces?|lb|lbs|pounds?|ml|millilit(?:er|re)s?|cl|centilit(?:er|re)s?|dl|decilit(?:er|re)s?|l|lit(?:er|re)s?|fl\\.?\\s*oz|fluid\\s+ounces?)\\.?";
+  const measure = `(?:${quantity}\\s*)?(?:US\\s+)?${unit}`;
+  return new RegExp(`^(?:per\\s+)?${measure}(?:\\s*\\(${measure}\\))?$`, "i").test(label);
+}
+
 /** Keep provider portions and add only conversions supported by a known dimension. */
 export function withServingUnits(food: CatalogFood): CatalogFood {
   const originals = food.servings.filter((serving) => !serving.id.startsWith(DERIVED_PREFIX));
@@ -75,7 +104,7 @@ export function withServingUnits(food: CatalogFood): CatalogFood {
       continue;
     }
 
-    for (const option of unit === "g" ? MASS_OPTIONS : VOLUME_OPTIONS) {
+    for (const option of unit === "g" ? [...MASS_OPTIONS, LEGACY_MILLIGRAM] : VOLUME_OPTIONS) {
       const existing = existingServings.get(`${DERIVED_PREFIX}${option.id}`);
       if (existing?.unit === unit && existing.amount === option.amount) {
         derived.push(existing);
@@ -93,10 +122,14 @@ export function withServingUnits(food: CatalogFood): CatalogFood {
     }
   }
 
-  const preferredUnit = preferred ? metricBasis(preferred)?.unit : null;
-  const defaultServingId = preferredUnit
-    ? `${DERIVED_PREFIX}${preferredUnit}`
-    : derived[0]?.id ?? food.defaultServingId;
+  const preferredOriginal = originals.find((serving) => serving.id === food.defaultServingId);
+  const regularServing = preferredOriginal && !isRetiredUnit(preferredOriginal) && (food.ref.source === "custom" || !isReferenceBasis(preferredOriginal))
+    ? preferredOriginal
+    : originals.find((serving) => !isRetiredUnit(serving) &&
+      (food.ref.source === "custom" || !isMeasurementPortion(serving)));
+  const massFallback = derived.find((serving) => serving.id === `${DERIVED_PREFIX}100g`);
+  const volumeFallback = derived.find((serving) => serving.id === `${DERIVED_PREFIX}ml`);
+  const defaultServingId = regularServing?.id ?? massFallback?.id ?? volumeFallback?.id ?? food.defaultServingId;
 
   return {
     ...food,
