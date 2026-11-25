@@ -8,7 +8,7 @@ import {
   emphasisCategories,
   emphasisColors,
   emphasisLabels,
-  estimateEmphasis,
+  estimateSnapshotEmphasis,
   type EmphasisCategory,
   type EmphasisResult,
 } from "../../conditioning/emphasis";
@@ -81,7 +81,7 @@ export function ConditioningAdaptationsScreen({
         }
         const stored = session.emphasisJson
           ? (JSON.parse(session.emphasisJson) as EmphasisResult)
-          : estimateFromSnapshot(
+          : estimateSnapshotEmphasis(
               session.snapshot,
               session.sessionRpe,
               "actual",
@@ -99,7 +99,7 @@ export function ConditioningAdaptationsScreen({
       try {
         const snapshot = buildWorkoutSnapshot(templateConfigFromDraft(draft));
         if (!cancelled) {
-          setResult(estimateFromSnapshot(snapshot, null, "target_preview"));
+          setResult(estimateSnapshotEmphasis(snapshot, null, "target_preview"));
         }
       } catch {
         if (!cancelled) {
@@ -266,32 +266,6 @@ export function ConditioningAdaptationsScreen({
       </Modal>
     </View>
   );
-}
-
-function estimateFromSnapshot(
-  snapshot: {
-    phases: {
-      durationSeconds: number;
-      target: { rpe: number | null } | null;
-      type: string;
-    }[];
-  },
-  sessionRpe: number | null,
-  source: "actual" | "target_preview",
-) {
-  const work = snapshot.phases.filter((phase) => phase.type === "work");
-  const recovery = snapshot.phases
-    .filter((phase) => phase.type !== "work" && phase.type !== "preparation")
-    .reduce((total, phase) => total + phase.durationSeconds, 0);
-  return estimateEmphasis({
-    bouts: work.map((phase) => ({
-      workRpe: phase.target?.rpe ?? null,
-      workSeconds: phase.durationSeconds > 0 ? phase.durationSeconds : null,
-    })),
-    recoverySeconds: recovery,
-    sessionRpe,
-    source,
-  });
 }
 
 const styles = StyleSheet.create({

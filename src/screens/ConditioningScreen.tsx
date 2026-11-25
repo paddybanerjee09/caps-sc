@@ -7,6 +7,7 @@ import { ScreenTitleCard } from "../components/ScreenTitleCard";
 import { MonthlyTimelineComponent } from "../components/MonthlyTimelineComponent";
 import { PressOpacity } from "../components/PressOpacity";
 import { SavedWorkouts } from "../components/training/SavedWorkouts";
+import { ConditioningSessionChooser } from "../components/conditioning/ConditioningSessionChooser";
 import { TrainingSessionActions } from "../components/training/TrainingSessionActions";
 import { ActionButton } from "../components/ActionButton";
 import {
@@ -14,7 +15,7 @@ import {
   formatLocalDate,
   markerForSessionStatus,
 } from "../conditioning/dates";
-import { draftFromTemplate } from "../conditioning/drafts";
+import { createWorkoutDraft, draftFromTemplate } from "../conditioning/drafts";
 import { formatName, formatTemplateSummary } from "../conditioning/summaries";
 import { buildMonthGrid } from "../components/monthGrid";
 import type { MonthEvent } from "../components/monthGrid";
@@ -50,6 +51,7 @@ export function ConditioningScreen() {
   const [templatesError, setTemplatesError] = useState<string | null>(null);
   const [fetchRetry, setFetchRetry] = useState(0);
   const [committedFetchKey, setCommittedFetchKey] = useState<string | null>(null);
+  const [chooserOpen, setChooserOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<ConditioningSessionRecord | null>(null);
 
   const fetchKey = `${workspace.revision}:${month.monthIndex}:${month.year}:${selectedDate}:${fetchRetry}`;
@@ -180,8 +182,7 @@ export function ConditioningScreen() {
         />
 
         <TrainingSessionActions
-          onFreeSession={() => workspace.push({ key: `free-${Date.now()}`, name: "free" })}
-          label="Free Session"
+          onFreeSession={() => setChooserOpen(true)}
         />
 
         <SavedWorkouts
@@ -200,6 +201,16 @@ export function ConditioningScreen() {
           onRetry={() => setFetchRetry((count) => count + 1)}
         />
       </ScrollView>
+      {chooserOpen ? <ConditioningSessionChooser onClose={() => setChooserOpen(false)} onSelect={(format) => {
+        setChooserOpen(false);
+        if (format === "free") {
+          workspace.push({ key: `free-${Date.now()}`, name: "free" });
+          return;
+        }
+        const draft = createWorkoutDraft(format, selectedDate);
+        if (format === "time_interval") draft.title = formatName(format);
+        workspace.openEditor({ draft, format, planSessionId: null, savedSnapshot: JSON.stringify(draft), templateId: null });
+      }} /> : null}
     </View>
   );
 }

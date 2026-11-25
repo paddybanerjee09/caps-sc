@@ -112,12 +112,12 @@ export function templateConfigFromDraft(draft: WorkoutDraft): TemplateConfig {
   const title = draft.title;
   if (draft.format === "time_interval") {
     const interval: IntervalConfig = {
-      betweenRoundRestSeconds: Number(draft.betweenRoundRestSeconds),
-      intervalsPerRound: Number(draft.intervalsPerRound),
-      restSeconds: Number(draft.restSeconds),
-      rounds: Number(draft.rounds),
-      targetWorkRpe: Number(draft.targetWorkRpe),
-      workSeconds: Number(draft.workSeconds),
+      betweenRoundRestSeconds: requiredDraftNumber(draft.betweenRoundRestSeconds),
+      intervalsPerRound: requiredDraftNumber(draft.intervalsPerRound),
+      restSeconds: requiredDraftNumber(draft.restSeconds),
+      rounds: requiredDraftNumber(draft.rounds),
+      targetWorkRpe: requiredDraftNumber(draft.targetWorkRpe),
+      workSeconds: requiredDraftNumber(draft.workSeconds),
     };
     return {
       circuit: null,
@@ -133,12 +133,12 @@ export function templateConfigFromDraft(draft: WorkoutDraft): TemplateConfig {
 
   if (draft.format === "sprint") {
     const sprint: SprintConfig = {
-      betweenSetRestSeconds: Number(draft.betweenSetRestSeconds),
+      betweenSetRestSeconds: requiredDraftNumber(draft.betweenSetRestSeconds),
       completionMode: draft.completionMode,
       distanceMeters: draft.distanceMeters ?? Number.NaN,
-      restSeconds: Number(draft.sprintRestSeconds),
-      sets: Number(draft.sets),
-      sprintsPerSet: Number(draft.sprintsPerSet),
+      restSeconds: requiredDraftNumber(draft.sprintRestSeconds),
+      sets: requiredDraftNumber(draft.sets),
+      sprintsPerSet: requiredDraftNumber(draft.sprintsPerSet),
       targetElevationGainMeters: draft.elevationMeters,
       targetWorkRpe: draft.sprintTargetRpe.trim()
         ? Number(draft.sprintTargetRpe)
@@ -157,8 +157,8 @@ export function templateConfigFromDraft(draft: WorkoutDraft): TemplateConfig {
   }
 
   const circuit: CircuitConfig = {
-    betweenRoundRestSeconds: Number(draft.betweenRoundRestSeconds),
-    rounds: Number(draft.circuitRounds),
+    betweenRoundRestSeconds: requiredDraftNumber(draft.betweenRoundRestSeconds),
+    rounds: requiredDraftNumber(draft.circuitRounds),
     stations: draft.stations.map((station, position) => ({ ...station, position })),
     targetRpe: draft.circuitTargetRpe.trim() ? Number(draft.circuitTargetRpe) : null,
   };
@@ -190,4 +190,8 @@ export function createStation(position: number): StationConfig {
     targetRpe: null,
     workSeconds: null,
   };
+}
+
+function requiredDraftNumber(value: string) {
+  return value.trim() ? Number(value) : Number.NaN;
 }

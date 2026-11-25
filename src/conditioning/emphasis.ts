@@ -1,3 +1,5 @@
+import type { WorkoutSnapshot } from "./types";
+
 export const EMPHASIS_VERSION = "heuristic-v0.1";
 
 export const emphasisCategories = [
@@ -155,3 +157,24 @@ export const emphasisColors: Record<EmphasisCategory, string> = {
   lactic_capacity: "#C2410C",
   lactic_power: "#B91C1C",
 };
+
+/** Shared preview/detail projection; target RPE is never stored as session RPE. */
+export function estimateSnapshotEmphasis(
+  snapshot: Pick<WorkoutSnapshot, "phases">,
+  sessionRpe: number | null,
+  source: EmphasisInput["source"],
+) {
+  const work = snapshot.phases.filter((phase) => phase.type === "work");
+  const recovery = snapshot.phases
+    .filter((phase) => phase.type !== "work" && phase.type !== "preparation")
+    .reduce((total, phase) => total + phase.durationSeconds, 0);
+  return estimateEmphasis({
+    bouts: work.map((phase) => ({
+      workRpe: phase.target?.rpe ?? null,
+      workSeconds: phase.durationSeconds > 0 ? phase.durationSeconds : null,
+    })),
+    recoverySeconds: recovery,
+    sessionRpe,
+    source,
+  });
+}

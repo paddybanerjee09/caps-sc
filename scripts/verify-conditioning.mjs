@@ -42,7 +42,8 @@ import {
   poundsToKilograms,
   yardsToMeters,
 } from "../src/conditioning/units.ts";
-import { estimateEmphasis } from "../src/conditioning/emphasis.ts";
+import { createWorkoutDraft, templateConfigFromDraft } from "../src/conditioning/drafts.ts";
+import { estimateEmphasis, estimateSnapshotEmphasis } from "../src/conditioning/emphasis.ts";
 import { estimateElevation } from "../src/conditioning/elevation.ts";
 import { syncConditioningBundle } from "../src/data/conditioningSync.ts";
 import {
@@ -137,6 +138,23 @@ function intervalTemplate(overrides = {}, configOverrides = {}) {
     ...overrides,
   };
 }
+
+// Direct text entry preserves empty drafts instead of silently storing omitted rest as zero.
+const enteredInterval = createWorkoutDraft("time_interval", "2026-11-24");
+enteredInterval.title = "Time Interval";
+enteredInterval.targetWorkRpe = "8";
+enteredInterval.restSeconds = "0";
+enteredInterval.betweenRoundRestSeconds = "0";
+const enteredSnapshot = buildWorkoutSnapshot(templateConfigFromDraft(enteredInterval));
+assert.equal(enteredSnapshot.interval.restSeconds, 0);
+assert.equal(enteredSnapshot.interval.betweenRoundRestSeconds, 0);
+assert.equal(estimateSnapshotEmphasis(enteredSnapshot, null, "target_preview").source, "target_preview");
+assert.notEqual(estimateSnapshotEmphasis(enteredSnapshot, null, "target_preview").labels.primary, null);
+for (const field of ["workSeconds", "restSeconds", "intervalsPerRound", "rounds", "betweenRoundRestSeconds", "targetWorkRpe"]) {
+  assert.throws(() => buildWorkoutSnapshot(templateConfigFromDraft({ ...enteredInterval, [field]: "" })));
+}
+assert.throws(() => buildWorkoutSnapshot(templateConfigFromDraft({ ...enteredInterval, rounds: "2001" })));
+assert.throws(() => buildWorkoutSnapshot(templateConfigFromDraft({ ...enteredInterval, targetWorkRpe: "11" })));
 
 const example = intervalDurations(intervalConfig());
 assert.equal(example.workSeconds, 360);
