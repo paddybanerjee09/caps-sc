@@ -1,6 +1,6 @@
 # Strength
 
-Logging is on the Strength tab. The `strength` route in `src/navigation/routes.ts` opens `StrengthTrainingScreen` via `src/screens/Screens.tsx`. Bottom tabs use `barbell-outline`. Since 24 November the hub shows MonthlyTimelineComponent, one shared Log Session action and the SavedWorkouts dropdown. Create Session is removed. Saved entries still open the log draft by their stored template ID. Strength tables arrived at schema version 8; current database version is 10 after Recovery. Home still paints strength rows with `timelineCategories.strength`.
+Logging is on the Strength tab. The `strength` route in `src/navigation/routes.ts` opens `StrengthTrainingScreen` via `src/screens/Screens.tsx`. Bottom tabs use `barbell-outline`. Since 24 November the hub shows MonthlyTimelineComponent, one shared Log Session action and the SavedWorkouts dropdown. Create Session is removed. Saved entries still open the log draft by their stored template ID. Strength tables arrived at schema version 8; current database version is 11 after the Skills reps migration. Home still paints strength rows with `timelineCategories.strength`.
 
 ## Product intent
 
@@ -36,13 +36,13 @@ All owned subscreens now use shared safe-area headers, branch-wide X, fixed dept
 
 ## Compact workout composition (24 November 2026)
 
-The builder keeps a search field that filters only exercises already in the workout, followed by the **Exercises** card and its **Add Exercises** button. No catalog exercises are inserted or shown in the workout by default. The separate `AddExercisesScreen.tsx` virtualizes catalog results, offers All/Favourites and a Back-only footer, and opens `ExerciseEditorScreen.tsx` to configure a selected exercise. Add Exercise returns directly to the workout. Editor Back removes a new selection or discards local edits through confirmation; picker Back preserves the parent draft/search; X exits the branch through draft guards. Raw exercise input strings live in StrengthWorkspaceContext so switching tabs preserves unfinished or invalid input. The shared AppNavigator owns keyboard avoidance; these screens do not add a second keyboard-padding layer.
+The builder shows the workout title and a compact estimated-duration subtitle, followed by the **Exercises** card and its **Add Exercises** button. The builder search bar has been removed; search belongs only to Add Exercises. No catalog exercises are inserted or shown in the workout by default. The separate `AddExercisesScreen.tsx` virtualizes catalog results, offers All/Favourites and a Back-only footer, and opens `ExerciseEditorScreen.tsx` to configure a selected exercise. Add Exercise returns directly to the workout. Editor Back removes a new selection or discards local edits through confirmation; picker Back preserves the parent draft/search; X exits the branch through draft guards. Raw exercise input strings live in StrengthWorkspaceContext so switching tabs preserves unfinished or invalid input. The shared AppNavigator owns keyboard avoidance; these screens do not add a second keyboard-padding layer.
 
 The editor has direct text boxes for Sets, Reps, optional RPE, optional rest seconds, and notes. `src/strength/exerciseForm.ts` preserves existing mixed set targets unless changed explicitly, plus existing loads and performed flags. Blank RPE/rest remain null; explicit zero rest stays zero. New external/assisted exercises may have unknown load. Explicit invalid numeric loads remain rejected; omitted load is never replaced with zero or a bodyweight choice and does not fabricate relative-load emphasis. Old steppers, per-set UI, load-mode controls, move buttons, From saved workout, Starts text and Save workout toggle are removed from this flow. Estimated duration and focus remain.
 
 ### Persistence contract
 
-No migration or new caps.db table is introduced; schema stays at v10.
+Strength introduces no table changes. Current caps.db is v11 for Skills reps; the Strength schema remains the v8 hierarchy. See [[Data and Persistence]].
 
 - `strength_exercises.id` identifies catalog entries. Template/session exercise snapshots retain that identifier in `exercise_id`, alongside their own copied name, equipment, load mode and muscle-group values. That catalog link is a logical reference rather than a foreign key.
 - `strength_templates.id` owns ordered `strength_template_exercises` rows via `template_id`; each exercise owns ordered `strength_template_sets` via `template_exercise_id`. Both parent-child foreign keys cascade on deletion. Save writes this hierarchy transactionally; updates retain the template header ID and replace its children.
@@ -53,3 +53,11 @@ No migration or new caps.db table is introduced; schema stays at v10.
 - Favourites are device-local catalog ID arrays in existing `expo-sqlite/kv-store`: database `ExpoSQLiteStorage`, table `storage(key TEXT PRIMARY KEY NOT NULL, value TEXT)`, key `caps.strength.exercise-favourites.v1`. `src/data/strengthExerciseFavourites.ts` serializes read-modify-write operations so rapid favourites on separate rows do not replace one another. This store is separate from relational workout/session snapshots.
 
 Verification: strength regression suite passed after the snapshot-key repair. Skill and Conditioning domain checks passed. Final integrated type/lint/tree results and device limits are recorded in [[2026-11-24 Training Session Workflow Handoff]].
+
+## Compact layout refinement (24 November 2026)
+
+The Log Session builder has no Search Exercises input or estimated-duration card. Duration is a small subtitle directly below the workout title. The shared WorkflowFooter equalActions mode gives Cancel, Save/Unsave and Log Session identical outer flex containers, equal widths and stretched heights. TrainingNumberField is extracted from the exercise editor and reused by Skills and Conditioning; EstimatedFocusButton is the canonical shared presentation for domain-owned Strength and Conditioning focus values. Direct text boxes retain raw drafts, optional/null validation and current touch targets; no numeric increment/decrement controls are introduced. Validation and native acceptance details are in [[2026-11-24 Compact Logging Refinement Handoff]].
+
+Native Android refinement: AppNavigator now owns height-based screen keyboard avoidance (6c6050d), with existing iOS padding unchanged. Isolated Android QA reproduced hidden workflow actions before the fix and verified focused Target RPE plus every action above the IME afterward. Native Modal forms retain their own separately verified padding; do not nest another avoidance layer in normal training screens. See [[2026-11-24 Compact Logging Refinement Handoff]].
+
+Android acceptance on 25 November verified the subtitle, absent builder search and equal footer geometry (217/216/217px wide, 91px high; one-pixel rounding). Shared Android keyboard avoidance keeps normal-screen fields/actions above IME. This does not establish native template/log persistence or iOS coverage; see [[2026-11-24 Compact Logging Android QA]].

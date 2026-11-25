@@ -24,11 +24,11 @@ All screens—including future implementations of unfinished screens (`src/scree
 
 ## 3. Simple Inputs & Large Touch Targets
 
-- **Minimum Touch Target**: Every interactive button, stepper, chip, or toggle must have at least `minHeight: 48` and `minWidth: 48` (`52px` height for primary user flow CTAs).
+- **Minimum Touch Target**: Every interactive button, chip, or toggle must have at least `minHeight: 48` and `minWidth: 48` (`52px` height for primary user flow CTAs).
 - **Weight and Load**: Use one labeled decimal text box with the current kg/lb unit for every bodyweight, load, resistance, assistance, or added-weight input. Never add fine/coarse increment buttons or weight preset strips. Preserve canonical kg conversion and existing validation; allow an empty draft while typing without saving invalid values.
-- **Choose the Simplest Control**: Do not require steppers or presets for numeric fields. Use direct input where it is clearer. Existing useful count, duration, and categorical controls may remain; do not apply the rejected weight/time increment design elsewhere.
+- **Numeric Inputs (24 November 2026 user correction)**: Use direct text boxes for numeric parameters. Do not introduce numeric increment/decrement buttons or numeric preset strips. This includes work/rest seconds, sets, reps, RPE, intervals and rounds. Date and timeframe chevrons remain navigation controls. Reuse TrainingNumberField for training numeric forms; preserve raw drafts and validate on the action.
 - **Dates and Personal Measurements**: Use scrollable date-of-birth and height pickers, direct weight input, and icon-only chevrons for previous/next day or month. Do not expose numeric step labels for these interactions.
-- **Keyboard Access**: Give every field an accessible label and suitable keyboard, preserve drafts on errors, and keep primary actions reachable above the keyboard. Use `keyboardShouldPersistTaps="handled"` on form scroll views.
+- **Keyboard Access**: Give every field an accessible label and suitable keyboard, preserve drafts on errors, and keep primary actions reachable above the keyboard. AppNavigator owns normal screen avoidance (iOS padding, Android height); do not add duplicate screen-level layers. Actual native modals retain their separately verified padding behavior. Use `keyboardShouldPersistTaps="handled"` on form scroll views.
 
 ## 4. User Flow Buttons
 
@@ -46,7 +46,7 @@ All screens—including future implementations of unfinished screens (`src/scree
 ## 6. Audio Cues & Haptic Feedback
 
 - Route user interactions through `src/utils/feedback.ts`:
-  - `feedbackSelection()` / `feedbackStep("up" | "down")`: Light haptic tick + subtle acoustic click on tab changes, chip selections, and `+`/`-` stepper increments.
+  - `feedbackSelection()` / `feedbackStep("up" | "down")`: Light haptic tick + subtle acoustic click on tab changes, chip selections, and date navigation.
   - `feedbackConfirm()`: Medium/Success haptic + confirmation chime when saving, logging, or completing a flow.
   - `feedbackPhaseCue()` / `feedbackCountdownTick()`: Strong haptic + high-visibility acoustic beep on workout runner countdowns (3-2-1) and work/recovery phase transitions.
   - `feedbackWarn()`: Warning/Error haptic + low tone on destructive confirmations or validation errors.

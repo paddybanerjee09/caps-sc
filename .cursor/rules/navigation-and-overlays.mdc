@@ -10,7 +10,7 @@ Open destinations as screens on the conditioning stack. Do not add another navig
 
 These are the only overlay exceptions:
 
-- Create Session chooser
+- Log Session chooser (Free Session, Time Interval timer, Sprints, Circuit; explicit user request, 24 November 2026)
 - One workout editor at a time
 - Training-emphasis explanation popover
 - Discard and end confirmations

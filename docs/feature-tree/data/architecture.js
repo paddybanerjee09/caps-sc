@@ -87,7 +87,7 @@ CAPS.trees.architecture = {
         tagline: "Header, screen, stacks, tabs, sidebar",
         files: ["src/navigation/AppNavigator.tsx"],
         summary:
-          "Owns active route, sidebar, the remembered main tab, and guarded settings navigation. Settings menu opens the existing drawer; its X exits the settings context to the remembered tab. Android Back closes transient UI, delegates existing draft/workspace guards, then exits as appropriate. No second navigator or duplicate stack is introduced.",
+          "Owns active route, sidebar, the remembered main tab, and guarded settings navigation. Settings menu opens the existing drawer; its X exits the settings context to the remembered tab. Android Back closes transient UI, delegates existing draft/workspace guards, then exits as appropriate. No second navigator or duplicate stack is introduced. The single screen-level KeyboardAvoidingView uses padding on iOS and height on Android so fixed workflow actions remain above the IME; native modal forms keep their separately verified avoidance.",
         versions: [
           {
             "n": 1,
@@ -158,6 +158,19 @@ CAPS.trees.architecture = {
             "changes": [
               "Add settings-specific menu/sidebar exit behavior while preserving the previous main tab and existing draft guards.",
               "Retain primary-screen navigation and hardware Back through the existing custom state navigator."
+            ]
+          },
+          {
+            "n": 7,
+            "name": "Android workflow keyboard access",
+            "date": "2026-11-24 23:43 -0500",
+            "commits": [
+              "6c6050d"
+            ],
+            "request": "Keep direct-input training forms usable while the numeric keyboard is open.",
+            "changes": [
+              "Use shared navigator height avoidance on Android, preserving focused fields and footer actions above IME.",
+              "Verify corrected Time Interval RPE flow on Android; keep one screen-level avoidance owner."
             ]
           }
         ],
@@ -620,34 +633,48 @@ CAPS.trees.architecture = {
               "files": [
                 "src/components/WorkflowChrome.tsx"
               ],
-              "summary": "Shared safe fixed header/footer. Ordinary subscreens retain centered title, branch-wide X and optional logging clock. Settings supply a menu action and no global clock; the sidebar X handles settings exit. Fixed Cancel/Back footers retain existing domain actions and guards.",
+              "summary": "Shared safe fixed header/footer. Ordinary subscreens retain centered title, branch-wide X and optional logging clock. Settings supply a menu action and no global clock; the sidebar X handles settings exit. Fixed Cancel/Back footers retain existing domain actions and guards. Opt-in equalActions lays out navigation and each domain action in identical flex containers for equal width/height on Strength.",
               "guardrails": [
                 "Apply top safe inset exactly once; Home overlays use their already-inset parent.",
                 "X exits the entire branch with existing guards; footer Back pops one level and preserves parent drafts."
               ],
               "versions": [
-                {
-                  "n": 1,
-                  "name": "Shared subscreen chrome",
-                  "date": "2026-11-20 17:41 -0500",
-                  "uncommitted": true,
-                  "changes": [
-                    "Standardized subscreen headers and footers across five tabs and sidebar branches."
-                  ]
-                },
-                {
-                  "n": 2,
-                  "name": "WorkflowHeader and WorkflowFooter",
-                  "date": "2026-11-23 12:47 -0500",
-                  "commits": [
-                    "8225102"
-                  ],
-                  "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
-                  "changes": [
-                    "Allow settings-only hamburger behavior while retaining normal branch X and footer navigation elsewhere."
-                  ]
-                }
-              ]
+          {
+            "n": 1,
+            "name": "Shared subscreen chrome",
+            "date": "2026-11-20 17:41 -0500",
+            "uncommitted": true,
+            "changes": [
+              "Standardized subscreen headers and footers across five tabs and sidebar branches."
+            ]
+          },
+          {
+            "n": 2,
+            "name": "WorkflowHeader and WorkflowFooter",
+            "date": "2026-11-23 12:47 -0500",
+            "commits": [
+              "8225102"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "Allow settings-only hamburger behavior while retaining normal branch X and footer navigation elsewhere."
+            ]
+          },
+          {
+            "n": 3,
+            "name": "Equal workflow footer actions",
+            "date": "2026-11-24 23:04 -0500",
+            "commits": [
+              "2c15613",
+              "6c23363"
+            ],
+            "request": "Compact logging inputs and layout; use direct parameters and separate selection screens.",
+            "changes": [
+              "Add opt-in equal-width/height footer actions.",
+              "Use identical outer containers so navigation padding cannot widen Cancel."
+            ]
+          }
+        ]
             }
           ,
 {
@@ -713,7 +740,7 @@ CAPS.trees.architecture = {
             "files": [
               "src/components/training/TrainingSessionActions.tsx"
             ],
-            "summary": "All three training hubs use one shared session launch action with a callback supplied by the owning discipline. Strength and Skill use the default Log Session label; Conditioning overrides it with Free Session. The separate Create Session action has been removed.",
+            "summary": "All three training hubs share one Log Session launch. Strength and Skills open their composers; Conditioning opens the explicitly requested native chooser for Free Session/run-bike and structured timer, sprint and circuit flows.",
             "links": [
               "architecture:action-button",
               "conditioning:conditioning-screen",
@@ -721,30 +748,44 @@ CAPS.trees.architecture = {
               "skill:skill-screen"
             ],
             "versions": [
-              {
-                "n": 1,
-                "name": "TrainingSessionActions",
-                "date": "2026-11-23 12:39 -0500",
-                "commits": [
-                  "a09ebfe"
-                ],
-                "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
-                "changes": [
-                  "Standardize button order, labels, spacing, sizing and feedback across the three training hubs."
-                ]
-              },
-              {
-                "n": 2,
-                "name": "TrainingSessionActions",
-                "date": "2026-11-24 18:20 -0500",
-                "commits": ["6dfbf84"],
-                "request": "Simplify the training launch flow and remove the separate Create Session action.",
-                "changes": [
-                  "Render one session launch action shared by all three training hubs.",
-                  "Default to Log Session for Strength and Skill, with Conditioning overriding the label to Free Session."
-                ]
-              }
+          {
+            "n": 1,
+            "name": "TrainingSessionActions",
+            "date": "2026-11-23 12:39 -0500",
+            "commits": [
+              "a09ebfe"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "Standardize button order, labels, spacing, sizing and feedback across the three training hubs."
             ]
+          },
+          {
+            "n": 2,
+            "name": "TrainingSessionActions",
+            "date": "2026-11-24 18:20 -0500",
+            "commits": [
+              "6dfbf84"
+            ],
+            "request": "Simplify the training launch flow and remove the separate Create Session action.",
+            "changes": [
+              "Render one session launch action shared by all three training hubs.",
+              "Default to Log Session for Strength and Skill, with Conditioning overriding the label to Free Session."
+            ]
+          },
+          {
+            "n": 3,
+            "name": "Log Session across training",
+            "date": "2026-11-24 23:05 -0500",
+            "commits": [
+              "051511d"
+            ],
+            "request": "Compact logging inputs and layout; use direct parameters and separate selection screens.",
+            "changes": [
+              "Conditioning now uses Log Session and opens its native session-format chooser."
+            ]
+          }
+        ]
           },
           {
             "id": "menu-button",
@@ -847,7 +888,71 @@ CAPS.trees.architecture = {
               }
             ]
           }
-],
+,
+{
+            "id": "training-number-field",
+            "title": "TrainingNumberField",
+            "kind": "component",
+            "status": "active",
+            "tagline": "Direct numeric input with raw drafts",
+            "files": [
+              "src/components/training/TrainingNumberField.tsx"
+            ],
+            "summary": "The Strength numeric field is shared with Conditioning and Skills. Labeled text boxes preserve raw strings and provide numeric keyboards, theme tokens and accessible touch targets; domain forms validate their own ranges on action.",
+            "guardrails": [
+              "Do not add numeric increment/decrement buttons or preset strips (user correction, 24 November 2026).",
+              "Do not silently clamp invalid or blank drafts while typing."
+            ],
+            "versions": [
+              {
+                "n": 1,
+                "name": "Shared direct training input",
+                "date": "2026-11-24 22:52 -0500",
+                "commits": [
+                  "2c15613"
+                ],
+                "changes": [
+                  "Extract Strength direct inputs for Conditioning and Skills reuse."
+                ]
+              }
+            ]
+          ,
+        links: [
+          "strength:strength-exercise-editor",
+          "conditioning:create-session",
+          "skill:skill-activity-editor"
+        ],
+      },
+{
+            "id": "estimated-focus-button",
+            "title": "EstimatedFocusButton",
+            "kind": "component",
+            "status": "active",
+            "tagline": "Shared focus presentation",
+            "files": [
+              "src/components/training/EstimatedFocusButton.tsx"
+            ],
+            "summary": "Strength and Conditioning pass their own focus headline, color and navigation callback into one shared secondary action. The component contains no estimator or domain data.",
+            "versions": [
+              {
+                "n": 1,
+                "name": "Shared Estimated Focus button",
+                "date": "2026-11-24 22:52 -0500",
+                "commits": [
+                  "2c15613"
+                ],
+                "changes": [
+                  "Extract the Strength focus action for real Conditioning reuse."
+                ]
+              }
+            ]
+          ,
+        links: [
+          "strength:strength-builder",
+          "conditioning:create-session"
+        ],
+      },
+        ],
       },
       {
         id: "app-state",

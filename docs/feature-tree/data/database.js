@@ -11,70 +11,82 @@ CAPS.trees.database = {
     tagline: "Expo SQLite, WAL, foreign keys on",
     files: ["src/data/database.ts"],
     summary:
-      "`migrateDatabase` enables WAL and foreign keys, then applies versioned DDL. A special case reapplies nutrition v5 if `nutrition_workspace` is missing even when `user_version` is already current.",
+      "`migrateDatabase` enables WAL and foreign keys, then applies versioned DDL. A special case reapplies nutrition v5 if `nutrition_workspace` is missing even when `user_version` is already current. Current version11 adds Skill reps by rebuilding only activity children; existing parent/session history and estimates are preserved.",
     guardrails: [
       "If a migration creates tables after setting `user_version`, a later launch will skip them. Guard with table/column existence checks (`ece0620`).",
     ],
     versions: [
-      {
-        "n": 1,
-        "name": "caps.db",
-        "date": "2026-07-22 16:49 -0400",
-        "commits": [
-          "59dd4e8",
-          "5d1ccde"
+          {
+            "n": 1,
+            "name": "caps.db",
+            "date": "2026-07-22 16:49 -0400",
+            "commits": [
+              "59dd4e8",
+              "5d1ccde"
+            ],
+            "changes": [
+              "`59dd4e8` added `src/data/database.ts`. `5d1ccde` actually wired `SQLiteProvider`."
+            ]
+          },
+          {
+            "n": 2,
+            "name": "caps.db",
+            "date": "2026-10-11 21:40 -0400",
+            "commits": [
+              "3f111e1"
+            ],
+            "changes": [
+              "DATABASE_VERSION 7: conditioning schema."
+            ]
+          },
+          {
+            "n": 3,
+            "name": "caps.db",
+            "date": "2026-11-15 15:38 -0500",
+            "commits": [
+              "e0f5bb4"
+            ],
+            "changes": [
+              "DATABASE_VERSION 8: strength catalog, templates, sessions, and set snapshots."
+            ]
+          },
+          {
+            "n": 4,
+            "name": "caps.db",
+            "date": "2026-11-16 11:01 -0500",
+            "commits": [
+              "80f1155"
+            ],
+            "changes": [
+              "DATABASE_VERSION 9: skill templates, sessions, and activity snapshots."
+            ]
+          },
+          {
+            "n": 5,
+            "name": "caps.db",
+            "date": "2026-11-21 21:31 -0500",
+            "commits": [
+              "ec03ac1"
+            ],
+            "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
+            "changes": [
+              "Add idempotent v10 Recovery storage without duplicating weight logs.",
+              "Preserve repair paths and add Recovery sentinel."
+            ]
+          },
+          {
+            "n": 6,
+            "name": "Skills reps schema v11",
+            "date": "2026-11-24 23:06 -0500",
+            "commits": [
+              "2ca4dbd"
+            ],
+            "request": "Compact logging inputs and layout; use direct parameters and separate selection screens.",
+            "changes": [
+              "Upgrade only Skill activity children and keep existing IDs/history."
+            ]
+          }
         ],
-        "changes": [
-          "`59dd4e8` added `src/data/database.ts`. `5d1ccde` actually wired `SQLiteProvider`."
-        ]
-      },
-      {
-        "n": 2,
-        "name": "caps.db",
-        "date": "2026-10-11 21:40 -0400",
-        "commits": [
-          "3f111e1"
-        ],
-        "changes": [
-          "DATABASE_VERSION 7: conditioning schema."
-        ]
-      },
-      {
-        "n": 3,
-        "name": "caps.db",
-        "date": "2026-11-15 15:38 -0500",
-        "commits": [
-          "e0f5bb4"
-        ],
-        "changes": [
-          "DATABASE_VERSION 8: strength catalog, templates, sessions, and set snapshots."
-        ]
-      },
-      {
-        "n": 4,
-        "name": "caps.db",
-        "date": "2026-11-16 11:01 -0500",
-        "commits": [
-          "80f1155"
-        ],
-        "changes": [
-          "DATABASE_VERSION 9: skill templates, sessions, and activity snapshots."
-        ]
-      },
-      {
-        "n": 5,
-        "name": "caps.db",
-        "date": "2026-11-21 21:31 -0500",
-        "commits": [
-          "ec03ac1"
-        ],
-        "request": "Execute the supplied CAPS Recovery and Progress implementation plan.",
-        "changes": [
-          "Add idempotent v10 Recovery storage without duplicating weight logs.",
-          "Preserve repair paths and add Recovery sentinel."
-        ]
-      }
-    ],
     children: [
       {
         id: "migrations",
@@ -87,10 +99,11 @@ CAPS.trees.database = {
           "src/data/conditioningMigration.ts",
           "src/data/strengthMigration.ts",
           "src/data/skillMigration.ts",
-          "src/data/recoveryMigration.ts"
+          "src/data/recoveryMigration.ts",
+          "src/data/skillRepsMigration.ts"
         ],
         summary:
-          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning, v8 strength, v9 skill. v10 adds Recovery local ownership, questionnaires/revisions, native samples/connections and derived caches.",
+          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning, v8 strength, v9 skill. v10 adds Recovery local ownership, questionnaires/revisions, native samples/connections and derived caches. v11 extends Skill activity snapshots with reps/sets/numeric RPE/rest and transactional compatibility repair.",
         versions: [
           {
             "n": 1,
@@ -175,6 +188,20 @@ CAPS.trees.database = {
             "changes": [
               "Migrate existing v9 without dropping weights or training history.",
               "Retain active-day uniqueness and revision audit history."
+            ]
+          },
+          {
+            "n": 8,
+            "name": "Skill reps v11 migration",
+            "date": "2026-11-24 23:06 -0500",
+            "commits": [
+              "2ca4dbd"
+            ],
+            "request": "Compact logging inputs and layout; use direct parameters and separate selection screens.",
+            "changes": [
+              "Rebuild both Skill activity child tables transactionally with active-mode constraints.",
+              "Copy legacy rows/IDs/stored estimates unchanged; preserve parent FKs and order.",
+              "Check both new-column sentinels and cover rollback/retry."
             ]
           }
         ],
@@ -644,12 +671,68 @@ CAPS.trees.database = {
           "Header plus ordered `skill_template_activities`. No date, weight, or calorie columns. Archiving hides a template from Saved Sessions. Logs do not cascade.",
         versions: [
           {
-            n: 1,
-            name: "skill_templates",
-            date: "2026-11-16 11:01 -0500",
-            commits: ["80f1155"],
-            changes: ["Added template headers and ordered activity settings."],
+            "n": 1,
+            "name": "skill_templates",
+            "date": "2026-11-16 11:01 -0500",
+            "commits": [
+              "80f1155"
+            ],
+            "changes": [
+              "Added template headers and ordered activity settings."
+            ]
           },
+          {
+            "n": 2,
+            "name": "Skill template reps parameters",
+            "date": "2026-11-24 23:06 -0500",
+            "commits": [
+              "2ca4dbd"
+            ],
+            "request": "Compact logging inputs and layout; use direct parameters and separate selection screens.",
+            "changes": [
+              "Template activity children now store real reps parameters while headers and archive behavior remain."
+            ]
+          }
+        ],
+
+        children: [
+          {
+            "id": "table-skill-template-activities",
+            "title": "skill_template_activities",
+            "kind": "table",
+            "status": "active",
+            "tagline": "Ordered template activity snapshots",
+            "files": [
+              "src/data/skillMigration.ts",
+              "src/data/skillRepsMigration.ts",
+              "src/data/skillRepository.ts"
+            ],
+            "summary": "Existing v9 child table rebuilt in v11. Non-null template_id references skill_templates with cascade deletion, and parent/position is unique. Active duration, rounds or reps parameters have explicit CHECK constraints. New nullable fields are sets, reps, numeric rpe and rest_between_sets_seconds. Template rows remain separate from logged snapshots.",
+            "versions": [
+              {
+                "n": 1,
+                "name": "Ordered Skill activity snapshots",
+                "date": "2026-11-16 11:01 -0500",
+                "commits": [
+                  "80f1155"
+                ],
+                "changes": [
+                  "Add existing duration/round activity snapshots under the Skill header."
+                ]
+              },
+              {
+                "n": 2,
+                "name": "Persisted reps parameters",
+                "date": "2026-11-24 23:06 -0500",
+                "commits": [
+                  "2ca4dbd"
+                ],
+                "changes": [
+                  "Admit reps mode with sets/reps/numeric RPE/rest while preserving v10 records and keys."
+                ]
+              }
+            ]
+          }
         ],
       },
       {
@@ -667,14 +750,69 @@ CAPS.trees.database = {
         links: ["database:table-timeline-entries", "database:table-weight-logs"],
         versions: [
           {
-            n: 1,
-            name: "skill_sessions",
-            date: "2026-11-16 11:01 -0500",
-            commits: ["80f1155"],
-            changes: [
-              "Added session headers and activity snapshots, including the MET and RPE multiplier used for each estimate.",
+            "n": 1,
+            "name": "skill_sessions",
+            "date": "2026-11-16 11:01 -0500",
+            "commits": [
+              "80f1155"
             ],
+            "changes": [
+              "Added session headers and activity snapshots, including the MET and RPE multiplier used for each estimate."
+            ]
           },
+          {
+            "n": 2,
+            "name": "Stored Skill reps snapshots",
+            "date": "2026-11-24 23:06 -0500",
+            "commits": [
+              "2ca4dbd"
+            ],
+            "request": "Compact logging inputs and layout; use direct parameters and separate selection screens.",
+            "changes": [
+              "Session activity children store sets/reps/numeric RPE/rest plus frozen estimate values.",
+              "Keep legacy stored estimates and idempotent logging."
+            ]
+          }
+        ],
+
+        children: [
+          {
+            "id": "table-skill-session-activities",
+            "title": "skill_session_activities",
+            "kind": "table",
+            "status": "active",
+            "tagline": "Ordered session activity snapshots",
+            "files": [
+              "src/data/skillMigration.ts",
+              "src/data/skillRepsMigration.ts",
+              "src/data/skillRepository.ts"
+            ],
+            "summary": "Existing v9 child table rebuilt in v11. Non-null session_id references skill_sessions with cascade deletion, and parent/position is unique. Active duration, rounds or reps parameters have explicit CHECK constraints. New nullable fields are sets, reps, numeric rpe and rest_between_sets_seconds. Stored work/rest/MET/multiplier/calorie estimates remain immutable.",
+            "versions": [
+              {
+                "n": 1,
+                "name": "Ordered Skill activity snapshots",
+                "date": "2026-11-16 11:01 -0500",
+                "commits": [
+                  "80f1155"
+                ],
+                "changes": [
+                  "Add existing duration/round activity snapshots under the Skill header."
+                ]
+              },
+              {
+                "n": 2,
+                "name": "Persisted reps parameters",
+                "date": "2026-11-24 23:06 -0500",
+                "commits": [
+                  "2ca4dbd"
+                ],
+                "changes": [
+                  "Admit reps mode with sets/reps/numeric RPE/rest while preserving v10 records and keys."
+                ]
+              }
+            ]
+          }
         ],
       },
 

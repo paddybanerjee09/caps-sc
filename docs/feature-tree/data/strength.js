@@ -182,13 +182,18 @@ CAPS.trees.strength = {
         tagline: "Exercises card and independent Save/Unsave",
         files: ["src/screens/strength/WorkoutBuilderScreen.tsx"],
         summary:
-          "Log Session has a workout title, estimated duration, search within the workout and an Exercises card with Add Exercises. Catalog selection is a separate screen. The fixed footer offers Cancel, Save/Unsave and Log Session; saved template state persists immediately, and edits update the same template. From Saved, Starts and the save toggle are removed.",
+          "Log Session shows the workout title with a compact estimated-duration subtitle and an Exercises card with Add Exercises. Search is only in the separate catalog picker. Cancel, Save/Unsave and Log Session have equal footer widths/heights. Immediate template persistence, logging independence and draft guards remain.",
         guardrails: [
           "Keep catalog results in the separate virtualized picker, never in the workout card.",
           "Omitted rest/load remain null; explicit zero rest stays zero. Do not fabricate a load or bodyweight choice (user compact-editor request, 24 Nov 2026).",
-          "Save/Unsave must persist independently of Log Session and preserve logged snapshots (user request, 24 Nov 2026)."
+          "Save/Unsave must persist independently of Log Session and preserve logged snapshots (user request, 24 Nov 2026).",
+          "Keep the builder free of exercise search and duration cards; place duration under the title and match footer action sizes (user correction, 24 November 2026)."
         ],
-        links: ["architecture:log-time-changer"],
+        links: [
+          "architecture:log-time-changer",
+          "architecture:estimated-focus-button",
+          "architecture:workflow-chrome"
+        ],
         versions: [
           {
             "n": 1,
@@ -254,12 +259,29 @@ CAPS.trees.strength = {
             "n": 6,
             "name": "Compact session composer",
             "date": "2026-11-24 18:20 -0500",
-            commits: ["6cb81e2"],
+            "commits": [
+              "6cb81e2"
+            ],
             "request": "Remove Create Session, use Log Session and Save/Unsave, and rebuild Strength exercise selection and editing.",
             "changes": [
               "Show only selected exercises in an Exercises card with Add Exercises.",
               "Move catalog search to its own All/Favourites picker.",
               "Use immediate Save/Unsave with mutation guards; remove From Saved, Starts and save toggle."
+            ]
+          },
+          {
+            "n": 7,
+            "name": "Compact Strength layout",
+            "date": "2026-11-24 23:04 -0500",
+            "commits": [
+              "2c15613",
+              "6c23363"
+            ],
+            "request": "Compact logging inputs and layout; use direct parameters and separate selection screens.",
+            "changes": [
+              "Remove builder Search Exercises and duration card; show a subtitle below the title.",
+              "Match all three footer action containers and sizes.",
+              "Reuse the shared EstimatedFocusButton."
             ]
           }
         ],
@@ -378,14 +400,32 @@ CAPS.trees.strength = {
             "n": 6,
             "name": "Compact exercise form",
             "date": "2026-11-24 18:20 -0500",
-            commits: ["6cb81e2"],
+            "commits": [
+              "6cb81e2"
+            ],
             "request": "Remove Create Session, use Log Session and Save/Unsave, and rebuild Strength exercise selection and editing.",
             "changes": [
               "Replace the previous editor with five direct text fields and compact layout.",
               "Preserve mixed saved targets and unknown loads without fabricated values.",
               "Guard invalid input, parent-draft navigation and missing/failed media."
             ]
+          },
+          {
+            "n": 7,
+            "name": "Shared direct training fields",
+            "date": "2026-11-24 22:52 -0500",
+            "commits": [
+              "2c15613"
+            ],
+            "request": "Compact logging inputs and layout; use direct parameters and separate selection screens.",
+            "changes": [
+              "Extract the existing direct numeric input for real reuse by Strength, Conditioning and Skills."
+            ]
           }
+        ],
+
+        links: [
+          "architecture:training-number-field"
         ],
       },
       {

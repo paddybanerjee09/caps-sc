@@ -507,101 +507,129 @@ CAPS.trees.nutrition = {
                     id: "nutrition-facts-screen",
                     title: "NutritionFactsScreen",
                     kind: "subscreen",
-                    tagline: "Serving, macros, favourite",
+                    tagline: "Quantity and overlay Serving units",
                     files: ["src/screens/NutritionScreens/NutritionFactsScreen.tsx"],
                     entry: "Selecting a food in MealItemScreen or an existing LoggedFoodComponent row in MealLogScreen.",
                     summary:
-                      "Direct decimal quantity with every supplied portion plus compatible derived units. Fresh metric foods default to 1 g or 1 mL; existing item/favourite serving choices reopen intact. The compact macro ring contains the calorie input; no duplicate calorie-driven card. Shared safe header and fixed Back/action footer.",
+                      "Direct quantity and an anchored Serving units overlay dropdown sit side by side. Regular provider portions are preferred; known-mass foods without one default to 100g. Milligrams are not offered for new selection; historical references remain resolvable. Compatible unit changes retain physical quantity. The ring calorie editor fits changing digit counts without changing values.",
                     guardrails: [
                       "Derive only units supported by known mass or volume; never assume a grams-to-millilitres density or fabricate a physical size for an unmeasured serving (24 November 2026 nutrition screen request).",
                       "Preserve stored item/favourite quantities and serving IDs when opening facts; selecting compatible units must retain the physical portion (24 November 2026 nutrition screen request).",
                     ],
                     links: ["nutrition:macro-card", "nutrition:serving-units"],
                     versions: [
-                      {
-                        "n": 1,
-                        "name": "FoodServingEditor",
-                        "date": "2026-07-30 13:39 -0400",
-                        "commits": [
-                          "298f627"
-                        ],
-                        "changes": [
-                          "Editable calorie counter inside the old meal modal."
-                        ]
-                      },
-                      {
-                        "n": 2,
-                        "name": "NutritionFactsScreen",
-                        "date": "2026-10-04 18:59 -0400",
-                        "commits": [
-                          "12171e9",
-                          "c4e6bcb",
-                          "02ea54a"
-                        ],
-                        "changes": [
-                          "Full-screen facts with exact-serving favourites, initial calories, floating serving dropdown."
-                        ]
-                      },
-                      {
-                        "n": 3,
-                        "name": "NutritionFactsScreen",
-                        "date": "2026-10-05 22:42 -0400",
-                        "commits": [
-                          "e5cf05f",
-                          "59c7ef6"
-                        ],
-                        "changes": [
-                          "Compact macro totals with clearer spacing, then inline P/C/F in the title."
-                        ]
-                      },
-                      {
-                        "n": 4,
-                        "name": "NutritionFactsScreen",
-                        "date": "2026-11-02 22:58 -0500",
-                        "commits": [
-                          "9917cee"
-                        ],
-                        "changes": [
-                          "Card/stepper renovation."
-                        ]
-                      },
-                      {
-                        "n": 5,
-                        "name": "Single FatSecret default lookup",
-                        "date": "2026-11-16 00:20 -0500",
-                        "commits": [
-                          "a556a7a"
-                        ],
-                        "changes": [
-                          "Find the preferred serving ID once, then match it against normalized servings."
-                        ]
-                      },
-                      {
-                        "n": 6,
-                        "name": "NutritionFactsScreen",
-                        "date": "2026-11-20 17:46 -0500",
-                        "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-                        "changes": [
-                          "Direct quantity and serving-mass fields retain serving calculations and selected unit.",
-                          "Shared header/footer preserve save, favourite and delete actions."
-                        ],
-                        "commits": [
-                          "20c8b60"
-                        ]
-                      },
-                      {
-                        n: 7,
-                        name: "Base-unit nutrition facts",
-                        date: "2026-11-24 18:06 -0500",
-                        commits: ["35ceb0d"],
-                        request: "Default metric foods to 1 g/1 mL, expose available serving units and use the compact centered calorie input instead of a duplicate portion card.",
-                        changes: [
-                          "Normalize available mass/volume portions through withServingUnits while retaining original serving IDs and provider portions.",
-                          "Keep known physical quantities consistent when changing compatible serving units; preserve existing logged/favourite configurations on entry.",
-                          "Remove Calorie-driven portion; use the smaller macro-ring calorie input with a smaller kcal label."
-                        ]
-                      }
-                    ],
+          {
+            "n": 1,
+            "name": "FoodServingEditor",
+            "date": "2026-07-30 13:39 -0400",
+            "commits": [
+              "298f627"
+            ],
+            "changes": [
+              "Editable calorie counter inside the old meal modal."
+            ]
+          },
+          {
+            "n": 2,
+            "name": "NutritionFactsScreen",
+            "date": "2026-10-04 18:59 -0400",
+            "commits": [
+              "12171e9",
+              "c4e6bcb",
+              "02ea54a"
+            ],
+            "changes": [
+              "Full-screen facts with exact-serving favourites, initial calories, floating serving dropdown."
+            ]
+          },
+          {
+            "n": 3,
+            "name": "NutritionFactsScreen",
+            "date": "2026-10-05 22:42 -0400",
+            "commits": [
+              "e5cf05f",
+              "59c7ef6"
+            ],
+            "changes": [
+              "Compact macro totals with clearer spacing, then inline P/C/F in the title."
+            ]
+          },
+          {
+            "n": 4,
+            "name": "NutritionFactsScreen",
+            "date": "2026-11-02 22:58 -0500",
+            "commits": [
+              "9917cee"
+            ],
+            "changes": [
+              "Card/stepper renovation."
+            ]
+          },
+          {
+            "n": 5,
+            "name": "Single FatSecret default lookup",
+            "date": "2026-11-16 00:20 -0500",
+            "commits": [
+              "a556a7a"
+            ],
+            "changes": [
+              "Find the preferred serving ID once, then match it against normalized servings."
+            ]
+          },
+          {
+            "n": 6,
+            "name": "NutritionFactsScreen",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Direct quantity and serving-mass fields retain serving calculations and selected unit.",
+              "Shared header/footer preserve save, favourite and delete actions."
+            ],
+            "commits": [
+              "20c8b60"
+            ]
+          },
+          {
+            "n": 7,
+            "name": "Base-unit nutrition facts",
+            "date": "2026-11-24 18:06 -0500",
+            "commits": [
+              "35ceb0d"
+            ],
+            "request": "Default metric foods to 1 g/1 mL, expose available serving units and use the compact centered calorie input instead of a duplicate portion card.",
+            "changes": [
+              "Normalize available mass/volume portions through withServingUnits while retaining original serving IDs and provider portions.",
+              "Keep known physical quantities consistent when changing compatible serving units; preserve existing logged/favourite configurations on entry.",
+              "Remove Calorie-driven portion; use the smaller macro-ring calorie input with a smaller kcal label."
+            ]
+          },
+          {
+            "n": 8,
+            "name": "Compact serving-unit dropdown",
+            "date": "2026-11-24 23:05 -0500",
+            "request": "Refine serving units and default portions, remove milligrams, and fit calorie values through seven digits.",
+            "changes": [
+              "Replace swipe pills with an anchored, scrollable Serving units overlay beside Quantity.",
+              "Prefer regular catalog portions and 100g known-mass fallback; exclude mg from new choices.",
+              "Preserve exact historical servings, compatible physical amounts, and Back/action navigation."
+            ],
+            "commits": [
+              "24084a6"
+            ]
+          },
+          {
+            "n": 9,
+            "name": "Unique serving-unit display choices",
+            "date": "2026-11-25 00:19 -0500",
+            "commits": [
+              "4c9b2fa"
+            ],
+            "changes": [
+              "Pass the selected serving ID to display dedup so an identical derived/provider portion appears once without switching the configured food.",
+              "Android verified one 100g choice while selected 1kg, quantity 1000 and 1,000,000 calories survived reload."
+            ]
+          }
+        ],
                   },
                 ],
               },
@@ -693,9 +721,12 @@ CAPS.trees.nutrition = {
         title: "MacronutrientBreakdownCard",
         kind: "card",
         tagline: "Day totals, expandable micros",
-        files: ["src/components/MacronutrientBreakdownCard.tsx"],
+        files: [
+          "src/components/MacronutrientBreakdownCard.tsx",
+          "src/components/nutrition/calorieText.ts"
+        ],
         summary:
-          "Protein / carb / fat vs daily targets, plus expandable micronutrients. Compact variant inlines P/C/F and uses a smaller ring for nested screens; optional embedded styling removes duplicate card framing in the meal title group. Optional calorie editing stays centered inside the ring with a smaller kcal label.",
+          "Full/compact/embedded macro totals retain their layouts. Calorie values and editable ring inputs fit their available width through seven digits using displayed character count and system font scale; numeric values are never shortened or changed. Expandable micronutrients and existing calorie-driven quantity calculation remain.",
         modes: [
           { name: "Full", detail: "Diary: rings/bars plus expandable micro list." },
           { name: "Compact", detail: "Nested screens; macros in the header (`13b3d68`, `59c7ef6`)." },
@@ -703,39 +734,71 @@ CAPS.trees.nutrition = {
         ],
         versions: [
           {
-            n: 1,
-            name: "MacronutrientBreakdownCard",
-            date: "2026-07-29 15:20 -0400",
-            commits: ["a269579", "bfdcb3a"],
-            changes: ["Added the card and extracted it as a reusable component."],
-          },
-          {
-            n: 2,
-            name: "MacronutrientBreakdownCard",
-            date: "2026-10-05 22:42 -0400",
-            commits: ["f20a3b3", "13b3d68", "59c7ef6"],
-            changes: [
-              "Micronutrients moved into the card (`f20a3b3`). Compact variant, then inline P/C/F in the title.",
+            "n": 1,
+            "name": "MacronutrientBreakdownCard",
+            "date": "2026-07-29 15:20 -0400",
+            "commits": [
+              "a269579",
+              "bfdcb3a"
             ],
+            "changes": [
+              "Added the card and extracted it as a reusable component."
+            ]
           },
           {
-            n: 3,
-            name: "MacronutrientBreakdownCard",
-            date: "2026-11-02 22:58 -0500",
-            commits: ["9917cee"],
-            changes: ["Card-by-card restyle."],
+            "n": 2,
+            "name": "MacronutrientBreakdownCard",
+            "date": "2026-10-05 22:42 -0400",
+            "commits": [
+              "f20a3b3",
+              "13b3d68",
+              "59c7ef6"
+            ],
+            "changes": [
+              "Micronutrients moved into the card (`f20a3b3`). Compact variant, then inline P/C/F in the title."
+            ]
           },
           {
-            n: 4,
-            name: "Compact embedded nutrition summary",
-            date: "2026-11-24 18:06 -0500",
-            commits: ["35ceb0d"],
-            request: "Keep composer nutrition compact beneath its title and shrink/center the facts calorie text box and kcal label.",
-            changes: [
+            "n": 3,
+            "name": "MacronutrientBreakdownCard",
+            "date": "2026-11-02 22:58 -0500",
+            "commits": [
+              "9917cee"
+            ],
+            "changes": [
+              "Card-by-card restyle."
+            ]
+          },
+          {
+            "n": 4,
+            "name": "Compact embedded nutrition summary",
+            "date": "2026-11-24 18:06 -0500",
+            "commits": [
+              "35ceb0d"
+            ],
+            "request": "Keep composer nutrition compact beneath its title and shrink/center the facts calorie text box and kcal label.",
+            "changes": [
               "Remove nested card borders/padding with optional embedded framing for the existing compact summary.",
               "Reduce and center the calorie input with a smaller kcal label, preserving the default full diary presentation."
             ]
           },
+          {
+            "n": 5,
+            "name": "Fitting calorie digits",
+            "date": "2026-11-24 23:05 -0500",
+            "request": "Refine serving units and default portions, remove milligrams, and fit calorie values through seven digits.",
+            "changes": [
+              "Fit input and display calorie text as digit count grows through seven digits.",
+              "Account for grouping, incomplete markers and font scale while preserving numeric values."
+            ],
+            "commits": [
+              "24084a6"
+            ]
+          }
+        ],
+
+        guardrails: [
+          "Fit calorie digits rather than abbreviating or changing the value to avoid overflow (user correction, 24 November 2026)."
         ],
       },
       {
@@ -900,23 +963,54 @@ CAPS.trees.nutrition = {
             kind: "logic",
             tagline: "Known mass/volume portions and compatible conversions",
             files: ["src/nutrition/servings.ts"],
-            summary: "withServingUnits retains original portions and derives g/mg/kg/oz/lb from a known mass, or mL/L/US tsp/tbsp/cup/fl oz from a known volume. Fresh defaults use 1 g or 1 mL. Stable caps:unit: IDs can resolve after catalog refresh. convertServingQuantity preserves a portion across compatible dimensions; macros and micronutrients scale together.",
+            summary: "withServingUnits retains original portions, derives compatible units from known mass/volume and prefers regular provider/custom portions. Known-mass foods without a real portion use deterministic 100g fallback; volume-only foods never gain grams. servingUnitOptions excludes mg and deduplicates identical display choices while preserving the selected/default ID; canonical servings and legacy IDs remain resolvable. Repeated old gram-default normalization remains stable.",
             guardrails: [
               "Never infer density between mass and volume or assign grams to an unmeasured piece/serving; preserve supplied portions when no physical basis exists (24 November 2026 nutrition screen request).",
               "Keep original serving IDs and avoid accumulating duplicate derived options when normalizing an already normalized catalog (24 November 2026 nutrition screen request).",
+              "Collapse only display-identical unit choices while retaining the selected/default ID and all canonical history IDs; preserve distinct labels or nutrient payloads (25 November 2026 Android duplicate-choice correction).",
             ],
             links: ["nutrition:nutrition-services", "nutrition:nutrition-facts-screen"],
-            versions: [{
-              n: 1,
-              name: "Serving-unit normalization",
-              date: "2026-11-24 18:06 -0500",
-              commits: ["35ceb0d"],
-              request: "Measure and log foods in base units and offer available compatible serving sizes.",
-              changes: [
-                "Derive nutrient-scaled mass and volume units from known portions, retain original servings, and use base metric defaults.",
-                "Convert existing quantities between compatible units without changing the configured physical amount."
-              ]
-            }],
+            versions: [
+          {
+            "n": 1,
+            "name": "Serving-unit normalization",
+            "date": "2026-11-24 18:06 -0500",
+            "commits": [
+              "35ceb0d"
+            ],
+            "request": "Measure and log foods in base units and offer available compatible serving sizes.",
+            "changes": [
+              "Derive nutrient-scaled mass and volume units from known portions, retain original servings, and use base metric defaults.",
+              "Convert existing quantities between compatible units without changing the configured physical amount."
+            ]
+          },
+          {
+            "n": 2,
+            "name": "Regular portions and 100g fallback",
+            "date": "2026-11-24 23:05 -0500",
+            "request": "Refine serving units and default portions, remove milligrams, and fit calorie values through seven digits.",
+            "changes": [
+              "Preserve regular catalog portions rather than replacing every default with 1g/1mL.",
+              "Add stable 100g mass fallback and hide milligrams from new unit choices.",
+              "Retain historical reference IDs, precise conversions and idempotent normalization."
+            ],
+            "commits": [
+              "24084a6"
+            ]
+          },
+          {
+            "n": 3,
+            "name": "Preserve IDs while deduplicating display choices",
+            "date": "2026-11-25 00:19 -0500",
+            "commits": [
+              "4c9b2fa"
+            ],
+            "changes": [
+              "Deduplicate only identical normalized labels, physical amount/unit, nutrients and extras; selected ID wins, otherwise default ID.",
+              "Keep canonical servings and historical IDs unchanged, and retain different household labels or nutrient payloads."
+            ]
+          }
+        ],
           },
         ],
         versions: [

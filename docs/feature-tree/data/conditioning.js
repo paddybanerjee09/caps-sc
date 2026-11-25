@@ -15,136 +15,151 @@ CAPS.trees.conditioning = {
     id: "conditioning-screen",
     title: "ConditioningScreen",
     kind: "screen",
-    tagline: "Calendar, day list, Free Session and saved workouts",
+    tagline: "Calendar, Log Session choices and saved workouts",
     files: ["src/screens/ConditioningScreen.tsx"],
     entry: "Bottom tab \"Conditioning\" (running-man icon), last tab.",
     summary:
-      "Hub uses the shared MonthlyTimelineComponent, a single Free Session launch and the canonical SavedWorkouts expander. Create Session and its format chooser are removed. Existing saved entries still open the structured editor with their original template ID/configuration and selected date. The active-session banner, fetch-key loading/retry and discipline-specific editor behavior are preserved.",
+      "Log Session opens an explicitly requested native modal with Free Session (run/bike), Time Interval (work/rest timer), Sprints and Circuit. Supported existing recording/editor/runner routes and saved template IDs remain. The active-session banner, fetch-key loading/retry and calendar are preserved.",
     guardrails: [
-      "Do not `setState` inside an effect to derive load state; key the fetch instead (fix 17e5a94; chat cd59c055).",
-      "Saved Workouts expander is the only control that may push content down (navigation-and-overlays.mdc).",
-      "`MonthlyTimelineComponent` must not query tables; the screen passes events (calendar-session-state.mdc).",
-      "Do not restore the v1 modal stack (reverted 2026-10-02; navigation-and-overlays.mdc).",
-          "Keep Conditioning’s Free Session name and recorder save behavior unchanged for this iteration; the Skill/Strength Save/Unsave change is exempt here (user clarification, 24 November 2026)."
-],
+          "Do not `setState` inside an effect to derive load state; key the fetch instead (fix 17e5a94; chat cd59c055).",
+          "Saved Workouts expander is the only control that may push content down (navigation-and-overlays.mdc).",
+          "`MonthlyTimelineComponent` must not query tables; the screen passes events (calendar-session-state.mdc).",
+          "Do not restore the v1 modal stack (reverted 2026-10-02; navigation-and-overlays.mdc).",
+          "Use the Log Session chooser modal for free/structured choices; keep the free recorder save behavior (user refinement, 24 November 2026)."
+        ],
     links: [
       "architecture:bottom-tabs",
       "database:table-conditioning-sessions",
       "architecture:training-session-actions"
     ],
     versions: [
-  {
-    "n": 1,
-    "name": "Progress",
-    "date": "2026-07-02 00:35 -0400",
-    "commits": [
-      "e9ddbfb",
-      "f0f5834"
-    ],
-    "changes": [
-      "Boilerplate Progress tab, then custom-nav placeholder."
-    ]
-  },
-  {
-    "n": 2,
-    "name": "ProgressScreen",
-    "date": "2026-07-18 13:55 -0400",
-    "commits": [
-      "edd48ce"
-    ],
-    "changes": [
-      "Own file `ProgressScreen.tsx`. Still a title placeholder."
-    ]
-  },
-  {
-    "n": 3,
-    "name": "ConditioningScreen",
-    "date": "2026-07-22 02:53 -0400",
-    "commits": [
-      "dd88e65",
-      "37c812d",
-      "ad01bfe"
-    ],
-    "request": "Change the Progress tab into Conditioning with a running-man icon.",
-    "changes": [
-      "Renamed the tab (`dd88e65`). Renamed the file `ProgressScreen.tsx` → `ConditioningScreen.tsx` (`37c812d`). Centered title (`ad01bfe`)."
-    ]
-  },
-  {
-    "n": 4,
-    "name": "ConditioningScreen",
-    "date": "2026-10-11 21:40 -0400",
-    "commits": [
-      "f2b5a37"
-    ],
-    "request": "Full-screen conditioning: calendar, saved workouts, session chooser (chat e7a72760).",
-    "changes": [
-      "Showed the calendar, saved workouts, and session chooser on the hub."
-    ]
-  },
-  {
-    "n": 5,
-    "name": "ConditioningScreen",
-    "date": "2026-11-02 22:39 -0500",
-    "commits": [
-      "17e5a94",
-      "e9d18be"
-    ],
-    "changes": [
-      "Derive load state from a fetch key (`17e5a94`). Card-by-card hub renovation (`e9d18be`)."
-    ]
-  },
-  {
-    "n": 6,
-    "name": "ConditioningScreen",
-    "date": "2026-11-22 00:29 -0500",
-    "commits": [
-      "40f02f4"
-    ],
-    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
-    "changes": [
-      "Remove generic subtitle and shorten workout choices; missing display uses --.",
-      "Presentation only; data, calculations and validation remain."
-    ]
-  },
-  {
-    "n": 7,
-    "name": "ConditioningScreen",
-    "date": "2026-11-22 11:32 -0500",
-    "commits": [
-      "75c7dd4"
-    ],
-    "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
-    "changes": [
-      "Use readable full day/timestamp presentation in selected-day, calendar accessibility, launch and detail views; storage unchanged."
-    ]
-  },
-      {
-        "n": 8,
-        "name": "ConditioningScreen",
-        "date": "2026-11-23 12:39 -0500",
-        "commits": [
-          "a09ebfe"
+          {
+            "n": 1,
+            "name": "Progress",
+            "date": "2026-07-02 00:35 -0400",
+            "commits": [
+              "e9ddbfb",
+              "f0f5834"
+            ],
+            "changes": [
+              "Boilerplate Progress tab, then custom-nav placeholder."
+            ]
+          },
+          {
+            "n": 2,
+            "name": "ProgressScreen",
+            "date": "2026-07-18 13:55 -0400",
+            "commits": [
+              "edd48ce"
+            ],
+            "changes": [
+              "Own file `ProgressScreen.tsx`. Still a title placeholder."
+            ]
+          },
+          {
+            "n": 3,
+            "name": "ConditioningScreen",
+            "date": "2026-07-22 02:53 -0400",
+            "commits": [
+              "dd88e65",
+              "37c812d",
+              "ad01bfe"
+            ],
+            "request": "Change the Progress tab into Conditioning with a running-man icon.",
+            "changes": [
+              "Renamed the tab (`dd88e65`). Renamed the file `ProgressScreen.tsx` → `ConditioningScreen.tsx` (`37c812d`). Centered title (`ad01bfe`)."
+            ]
+          },
+          {
+            "n": 4,
+            "name": "ConditioningScreen",
+            "date": "2026-10-11 21:40 -0400",
+            "commits": [
+              "f2b5a37"
+            ],
+            "request": "Full-screen conditioning: calendar, saved workouts, session chooser (chat e7a72760).",
+            "changes": [
+              "Showed the calendar, saved workouts, and session chooser on the hub."
+            ]
+          },
+          {
+            "n": 5,
+            "name": "ConditioningScreen",
+            "date": "2026-11-02 22:39 -0500",
+            "commits": [
+              "17e5a94",
+              "e9d18be"
+            ],
+            "changes": [
+              "Derive load state from a fetch key (`17e5a94`). Card-by-card hub renovation (`e9d18be`)."
+            ]
+          },
+          {
+            "n": 6,
+            "name": "ConditioningScreen",
+            "date": "2026-11-22 00:29 -0500",
+            "commits": [
+              "40f02f4"
+            ],
+            "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+            "changes": [
+              "Remove generic subtitle and shorten workout choices; missing display uses --.",
+              "Presentation only; data, calculations and validation remain."
+            ]
+          },
+          {
+            "n": 7,
+            "name": "ConditioningScreen",
+            "date": "2026-11-22 11:32 -0500",
+            "commits": [
+              "75c7dd4"
+            ],
+            "request": "Revise questionnaire controls/history/SRI, readable dates and Progress overlay/navigation/legend/axes.",
+            "changes": [
+              "Use readable full day/timestamp presentation in selected-day, calendar accessibility, launch and detail views; storage unchanged."
+            ]
+          },
+          {
+            "n": 8,
+            "name": "ConditioningScreen",
+            "date": "2026-11-23 12:39 -0500",
+            "commits": [
+              "a09ebfe"
+            ],
+            "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
+            "changes": [
+              "Remove the extra calendar wrapper to match Strength/Skills while retaining the already-shared calendar implementation.",
+              "Use shared session launch actions and SavedWorkouts; remove redundant Browse and unreachable library UI."
+            ]
+          },
+          {
+            "n": 9,
+            "name": "ConditioningScreen",
+            "date": "2026-11-24 18:20 -0500",
+            "commits": [
+              "6dfbf84"
+            ],
+            "request": "Remove Create Session from all three training hubs; leave Conditioning’s name and save behavior unchanged for now.",
+            "changes": [
+              "Remove Create Session and all chooser-only state, back handling, imports and styles.",
+              "Keep Free Session and its recorder save behavior unchanged per explicit user clarification.",
+              "Open existing saved workouts with the original template ID/configuration and selected date."
+            ]
+          },
+          {
+            "n": 10,
+            "name": "Conditioning session choices",
+            "date": "2026-11-24 23:05 -0500",
+            "request": "Use a Log Session modal and compact direct Conditioning parameters; remove increment controls, identity and phase preview.",
+            "changes": [
+              "Rename the hub launch to Log Session and open a real modal.",
+              "Restore supported Time Interval, Sprints and Circuit choices alongside Free Session."
+            ],
+            "commits": [
+              "051511d"
+            ]
+          }
         ],
-        "request": "Centralize biometric editing in modals, use intuitive date/settings navigation, and share training hub components.",
-        "changes": [
-          "Remove the extra calendar wrapper to match Strength/Skills while retaining the already-shared calendar implementation.",
-          "Use shared session launch actions and SavedWorkouts; remove redundant Browse and unreachable library UI."
-        ]
-      },
-      {
-        "n": 9,
-        "name": "ConditioningScreen",
-        "date": "2026-11-24 18:20 -0500",
-        commits: ["6dfbf84"],
-        "request": "Remove Create Session from all three training hubs; leave Conditioning’s name and save behavior unchanged for now.",
-        "changes": [
-          "Remove Create Session and all chooser-only state, back handling, imports and styles.",
-          "Keep Free Session and its recorder save behavior unchanged per explicit user clarification.",
-          "Open existing saved workouts with the original template ID/configuration and selected date."
-        ]
-      }
-],
     children: [
       {
         id: "monthly-calendar",
@@ -346,11 +361,11 @@ CAPS.trees.conditioning = {
         id: "create-session",
         title: "CreateConditioningSessionScreen",
         kind: "subscreen",
-        tagline: "Plan or save a structured workout",
+        tagline: "Compact parameters and shared Estimated Focus",
         files: ["src/screens/conditioning/CreateConditioningSessionScreen.tsx"],
-        entry: "Existing saved workout on the hub, or an existing planned session.",
+        entry: "Log Session modal structured choice, existing saved workout or planned session.",
         summary:
-          "One structured editor at a time (editor in the workspace). Existing saved workouts retain their ID/configuration and selected date. The hub no longer launches new structured workouts through a format chooser. Drafts survive station/emphasis visits, and the same unsaved-change guard handles Back, Cancel, X and system Back.",
+          "Time Interval shows one Parameters card with direct work/rest/interval/round/round-rest/target-RPE text boxes and the shared Estimated Focus button. Workout Identity, title presets, phase preview and increment controls are removed. New interval drafts get an implicit required format title; loaded titles remain. Other structured fields are direct inputs; existing save/plan/log/start and station routes remain.",
         modes: [
           { name: "Time Interval", detail: "Work/rest rounds, target RPE, preparation timer." },
           { name: "Sprints", detail: "Fixed-distance repeats, GPS or manual splits." },
@@ -360,6 +375,8 @@ CAPS.trees.conditioning = {
           "One editor at a time (navigation-and-overlays.mdc).",
           "Same unsaved-change guard for Back, Cancel, X, and hardware back (navigation-and-overlays.mdc).",
           "Drafts survive visiting station and emphasis screens (navigation-and-overlays.mdc).",
+          "Never add increment/decrement controls or preset strips to these numeric forms (explicit user correction, 24 November 2026).",
+          "Preserve empty numeric drafts until validation; omitted required rest is not explicit zero."
         ],
         versions: [
           {
@@ -399,18 +416,34 @@ CAPS.trees.conditioning = {
               "16a4d75"
             ]
           },
-      {
-        "n": 4,
-        "name": "CreateConditioningSessionScreen",
-        "date": "2026-11-24 18:20 -0500",
-        commits: ["6dfbf84"],
-        "request": "Remove the hub Create Session launcher while preserving existing saved workouts.",
-        "changes": [
-          "Replace the removed hub chooser entry documentation with existing saved/planned-session entries.",
-          "Preserve structured editor, station, save, plan, manual-log and start behavior; no replacement new-workout launcher is added."
-        ]
-      }
-],
+          {
+            "n": 4,
+            "name": "CreateConditioningSessionScreen",
+            "date": "2026-11-24 18:20 -0500",
+            "commits": [
+              "6dfbf84"
+            ],
+            "request": "Remove the hub Create Session launcher while preserving existing saved workouts.",
+            "changes": [
+              "Replace the removed hub chooser entry documentation with existing saved/planned-session entries.",
+              "Preserve structured editor, station, save, plan, manual-log and start behavior; no replacement new-workout launcher is added."
+            ]
+          },
+          {
+            "n": 5,
+            "name": "Compact Conditioning parameters",
+            "date": "2026-11-24 23:05 -0500",
+            "request": "Use a Log Session modal and compact direct Conditioning parameters; remove increment controls, identity and phase preview.",
+            "changes": [
+              "Replace identity/phase-preview/stepper cards with compact direct Parameters.",
+              "Use the shared Estimated Focus button with Conditioning-only information.",
+              "Preserve title provenance, zero-rest distinction, draft guards and real save/start/plan/log actions."
+            ],
+            "commits": [
+              "051511d"
+            ]
+          }
+        ],
         children: [
           {
             id: "station-editor",
@@ -600,55 +633,73 @@ CAPS.trees.conditioning = {
               "Emphasis is heuristic-v0.1, low confidence, and its colors must not leak into Home or other tabs (conditioning-emphasis.mdc).",
             ],
             versions: [
-  {
-    "n": 1,
-    "name": "Estimated Training Emphasis",
-    "date": "2026-10-11 21:44 -0400",
-    "commits": [
-      "3c97333"
-    ],
-    "changes": [
-      "Provisional training-emphasis estimates."
-    ]
-  },
-  {
-    "n": 2,
-    "name": "Estimated Training Emphasis",
-    "date": "2026-11-02 22:50 -0500",
-    "commits": [
-      "87e259b"
-    ],
-    "changes": [
-      "Card renovation."
-    ]
-  },
-  {
-    "n": 3,
-    "name": "ConditioningAdaptationsScreen",
-    "date": "2026-11-20 17:46 -0500",
-    "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
-    "changes": [
-      "Shared safe branch-close header and depth-aware bottom navigation."
-    ],
-    "commits": [
-      "16a4d75"
-    ]
-  },
-  {
-    "n": 4,
-    "name": "ConditioningAdaptationsScreen",
-    "date": "2026-11-22 00:29 -0500",
-    "commits": [
-      "40f02f4"
-    ],
-    "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
-    "changes": [
-      "Keep concise Estimated label, remove repeated paragraphs/developer metadata, use -- for missing scores.",
-      "Presentation only; data, calculations and validation remain."
-    ]
-  }
-],
+          {
+            "n": 1,
+            "name": "Estimated Training Emphasis",
+            "date": "2026-10-11 21:44 -0400",
+            "commits": [
+              "3c97333"
+            ],
+            "changes": [
+              "Provisional training-emphasis estimates."
+            ]
           },
+          {
+            "n": 2,
+            "name": "Estimated Training Emphasis",
+            "date": "2026-11-02 22:50 -0500",
+            "commits": [
+              "87e259b"
+            ],
+            "changes": [
+              "Card renovation."
+            ]
+          },
+          {
+            "n": 3,
+            "name": "ConditioningAdaptationsScreen",
+            "date": "2026-11-20 17:46 -0500",
+            "request": "Audit all five tabs: simple weight input, compact scrolling log-time modal, safe consistent subscreen bars and branch navigation.",
+            "changes": [
+              "Shared safe branch-close header and depth-aware bottom navigation."
+            ],
+            "commits": [
+              "16a4d75"
+            ]
+          },
+          {
+            "n": 4,
+            "name": "ConditioningAdaptationsScreen",
+            "date": "2026-11-22 00:29 -0500",
+            "commits": [
+              "40f02f4"
+            ],
+            "request": "Remove filler copy throughout CAPS and compact Recovery/questionnaire/Progress.",
+            "changes": [
+              "Keep concise Estimated label, remove repeated paragraphs/developer metadata, use -- for missing scores.",
+              "Presentation only; data, calculations and validation remain."
+            ]
+          },
+          {
+            "n": 5,
+            "name": "Shared Conditioning emphasis projection",
+            "date": "2026-11-24 23:05 -0500",
+            "request": "Use a Log Session modal and compact direct Conditioning parameters; remove increment controls, identity and phase preview.",
+            "changes": [
+              "Share snapshot-to-emphasis projection with the compact editor focus button.",
+              "Preserve existing model values and stored session estimates."
+            ],
+            "commits": [
+              "051511d"
+            ]
+          }
+        ],
+          },
+        ],
+
+        links: [
+          "architecture:training-number-field",
+          "architecture:estimated-focus-button"
         ],
       },
       {
@@ -1044,6 +1095,44 @@ CAPS.trees.conditioning = {
         "id": "conditioning-session-actions",
         "title": "TrainingSessionActions",
         "ref": "architecture:training-session-actions"
+      },
+      {
+        "id": "conditioning-session-chooser",
+        "title": "ConditioningSessionChooser",
+        "kind": "modal",
+        "status": "active",
+        "tagline": "Free Session, timer intervals, sprints and circuit",
+        "files": [
+          "src/components/conditioning/ConditioningSessionChooser.tsx"
+        ],
+        "summary": "Native modal opened by the single Log Session hub action. Free Session navigates to run/bike recording; structured choices open the matching existing editor. Cancel and hardware Back dismiss the chooser.",
+        "versions": [
+          {
+            "n": 1,
+            "name": "Conditioning session chooser",
+            "date": "2026-11-24 23:05 -0500",
+            "request": "Log Session should open a modal with Free Session and the removed interval/timer options.",
+            "changes": [
+              "Add a modal with all four supported Conditioning session choices.",
+              "Retain free/structured domain routes without another navigation library."
+            ],
+            "commits": [
+              "051511d"
+            ]
+          }
+        ],
+        "children": [
+          {
+            "id": "chooser-free-session",
+            "title": "Free Session",
+            "ref": "conditioning:free-session"
+          },
+          {
+            "id": "chooser-structured-session",
+            "title": "Structured editor",
+            "ref": "conditioning:create-session"
+          }
+        ]
       },
     ],
   },
