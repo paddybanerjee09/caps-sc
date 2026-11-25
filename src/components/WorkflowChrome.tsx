@@ -57,11 +57,12 @@ export function WorkflowFooter({
   equalActions?: boolean;
 }) {
   const { theme } = useAppTheme();
+  const navigationAction = (
+      <PressOpacity accessibilityLabel={backLabel} disabled={disabled} onPress={onBack} style={[styles.back, equalActions && styles.equalAction, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}><Text style={[styles.action, { color: theme.colors.text }]}>{backLabel}</Text></PressOpacity>
+  );
   return (
     <View style={[styles.footer, equalActions && styles.equalFooter, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderStrong }]}>
-      <PressOpacity accessibilityLabel={backLabel} disabled={disabled} onPress={onBack} style={[styles.back, equalActions && styles.equalAction, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}>
-        <Text style={[styles.action, { color: theme.colors.text }]}>{backLabel}</Text>
-      </PressOpacity>
+      {equalActions ? <View style={styles.equalAction}>{navigationAction}</View> : navigationAction}
       {equalActions ? Children.toArray(children).map((child, index) => <View key={index} style={styles.equalAction}>{child}</View>) : children ? <View style={styles.actions}>{children}</View> : null}
     </View>
   );
