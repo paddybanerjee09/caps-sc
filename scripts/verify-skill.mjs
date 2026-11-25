@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 
 import { formatLocalDate } from "../src/conditioning/dates.ts";
+import { skillMigrationSql } from "../src/data/skillMigration.ts";
+import { activityFormValues, activityFromForm } from "../src/skill/activityForm.ts";
+import { SKILL_ENERGY_VERSION } from "../src/skill/types.ts";
 import { migrateDatabase } from "../src/data/database.ts";
 import {
   archiveSkillTemplate,
@@ -250,7 +253,7 @@ function sessionDraft(endedAt, sessionId, activities) {
 const fresh = new DatabaseSync(":memory:");
 const db = adapterFor(fresh);
 await migrateDatabase(db);
-assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 10);
+assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 11);
 assert.ok(fresh.prepare("SELECT name FROM sqlite_master WHERE name = 'skill_sessions'").get());
 assert.ok(fresh.prepare("SELECT name FROM sqlite_master WHERE name = 'strength_sessions'").get());
 
@@ -274,7 +277,7 @@ upgradeDb.exec(`
 `);
 const upgrade = adapterFor(upgradeDb);
 await migrateDatabase(upgrade);
-assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 10);
+assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 11);
 assert.equal(upgradeDb.prepare("SELECT id FROM nutrition_workspace").get().id, "keep");
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'strength_sessions'").get());
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'skill_sessions'").get());
@@ -318,7 +321,7 @@ assert.ok(historical);
 assert.equal(historical.activities[1].name, "Pad Work (Boxing)");
 assert.equal(historical.activities[1].rpeBand, "hard");
 assert.equal(historical.focus, "boxing");
-assert.equal(historical.estimatorVersion, "skill-energy-v1");
+assert.equal(historical.estimatorVersion, SKILL_ENERGY_VERSION);
 assert.equal((await getSkillTemplate(db, templateId)).archivedAt, now + 20);
 
 const exampleDraft = (() => {
@@ -429,4 +432,99 @@ assert.equal(
   1,
 );
 
+// v10 child-table migration preserves legacy identities and stored estimates.
+const legacyDb = new DatabaseSync(":memory:");
+const legacyAdapter = adapterFor(legacyDb);
+await migrateDatabase(legacyAdapter);
+legacyDb.exec("DROP TABLE skill_template_activities; DROP TABLE skill_session_activities;" + skillMigrationSql + "PRAGMA user_version = 10;");
+legacyDb.exec(`
+INSERT INTO skill_templates (id,title,created_at,updated_at) VALUES ('legacy-template','Legacy',1,1);
+INSERT INTO skill_template_activities (id,template_id,position,activity_key,name,discipline,timing_mode,duration_seconds,rounds,seconds_per_round,rest_between_rounds_seconds,rpe_band,session_mode)
+VALUES ('legacy-template-activity','legacy-template',0,'shadowboxing','Shadowboxing','general','duration',90,NULL,NULL,NULL,'hard',NULL);
+INSERT INTO timeline_entries (id,kind,title,start_at,end_at,status,created_at,updated_at) VALUES (100,'skill','Legacy',1000,109000,'completed',1,1);
+INSERT INTO skill_sessions (id,title,started_at,ended_at,local_end_date,timezone,source_template_id,elapsed_seconds,focus,energy_kcal,weight_kg,weight_basis,estimator_version,timeline_entry_id,created_at)
+VALUES ('legacy-session','Legacy',1000,109000,'2026-11-24','UTC','legacy-template',108,'general',42.1234,75,'reference','skill-energy-v1',100,1);
+INSERT INTO skill_session_activities (id,session_id,position,activity_key,name,discipline,timing_mode,duration_seconds,rounds,seconds_per_round,rest_between_rounds_seconds,rpe_band,session_mode,work_seconds,rest_seconds,base_met,rpe_multiplier,energy_kcal)
+VALUES ('legacy-session-activity','legacy-session',0,'shadowboxing','Shadowboxing','general','rounds',NULL,2,45,18,'hard',NULL,90,18,5.3,1.1,42.1234);
+`);
+const legacyTemplateBefore = legacyDb.prepare("SELECT * FROM skill_template_activities").get();
+const legacyActivityBefore = legacyDb.prepare("SELECT * FROM skill_session_activities").get();
+const legacySessionBefore = legacyDb.prepare("SELECT * FROM skill_sessions").get();
+const failingMigration = {
+  ...legacyAdapter,
+  async execAsync(sql) {
+    legacyDb.exec(sql);
+    if (sql.includes("CREATE TABLE skill_template_activities_v11")) throw new Error("migration interrupted");
+  },
+};
+await assert.rejects(() => migrateDatabase(failingMigration), /migration interrupted/);
+assert.equal(legacyDb.prepare("PRAGMA user_version").get().user_version, 10);
+assert.ok(!legacyDb.prepare("PRAGMA table_info(skill_template_activities)").all().some((column) => column.name === "sets"));
+assert.deepEqual(legacyDb.prepare("SELECT * FROM skill_session_activities").get(), legacyActivityBefore);
+await migrateDatabase(legacyAdapter);
+assert.equal(legacyDb.prepare("PRAGMA user_version").get().user_version, 11);
+for (const [key,value] of Object.entries(legacyTemplateBefore)) assert.equal(legacyDb.prepare("SELECT * FROM skill_template_activities").get()[key], value);
+for (const [key,value] of Object.entries(legacyActivityBefore)) assert.equal(legacyDb.prepare("SELECT * FROM skill_session_activities").get()[key], value);
+assert.deepEqual(legacyDb.prepare("SELECT * FROM skill_sessions").get(), legacySessionBefore);
+assert.deepEqual(legacyDb.prepare("PRAGMA foreign_key_check").all(), []);
+const oldLog = await getSkillSession(legacyAdapter, "legacy-session");
+assert.equal(oldLog.estimatorVersion, "skill-energy-v1");
+assert.equal(oldLog.energyKcal, 42.1234);
+assert.equal(oldLog.activities[0].id, "legacy-session-activity");
+assert.equal((await getSkillTemplate(legacyAdapter, "legacy-template")).activities[0].timingMode, "duration");
+// A prematurely advanced version still repairs an old child table, without rewriting the valid sibling.
+legacyDb.exec("DELETE FROM skill_templates; DROP TABLE skill_template_activities;" + skillMigrationSql);
+await migrateDatabase(legacyAdapter);
+assert.ok(legacyDb.prepare("PRAGMA table_info(skill_template_activities)").all().some((column) => column.name === "sets"));
+assert.equal((await getSkillSession(legacyAdapter, "legacy-session")).energyKcal, 42.1234);
+
+const repsActivity = activity("drilling-boxing", { timingMode: "reps", sets: 3, reps: 10, rpe: 8, restBetweenSetsSeconds: null });
+assert.deepEqual(activityTiming(repsActivity), { workSeconds: 90, restSeconds: 180, elapsedSeconds: 270 });
+assert.equal(activityTiming({ ...repsActivity, restBetweenSetsSeconds: 0 }).elapsedSeconds, 90);
+assert.equal(estimateActivities([{ ...repsActivity, rpe: 9 }],75)[0].rpeMultiplier, 1.1);
+const repForm = { ...activityFormValues(repsActivity), sets: "4", reps: "12", rpe: "9", restBetweenSets: "0" };
+const repResult = activityFromForm(repsActivity, repForm).activity;
+assert.equal(repResult.sets,4);
+assert.equal(repResult.reps,12);
+assert.equal(repResult.rpe,9);
+assert.equal(repResult.restBetweenSetsSeconds,0);
+const roundsForm = { ...repForm, mode: "rounds", rounds:"5", work:"120", rest:"30" };
+assert.equal(activityFromForm(repsActivity, roundsForm).activity.secondsPerRound,120);
+const backToReps = activityFromForm(repsActivity,{ ...roundsForm, mode:"reps" }).activity;
+assert.equal(backToReps.reps,12);
+assert.equal(backToReps.sets,4);
+assert.match(activityFromForm(repsActivity,{ ...repForm, sets:"" }).error,/Sets/);
+assert.match(activityFromForm(repsActivity,{ ...repForm, reps:"101" }).error,/Reps/);
+assert.match(activityFromForm(repsActivity,{ ...repForm, rpe:"11" }).error,/RPE/);
+assert.equal(activityFromForm(repsActivity,{ ...repForm, rpe:"", restBetweenSets:"" }).activity.restBetweenSetsSeconds,null);
+const oldDurationForm = activityFormValues(durationOnly);
+assert.equal(oldDurationForm.mode,"rounds");
+assert.equal(oldDurationForm.rounds,"1");
+assert.equal(activityTiming(activityFromForm(durationOnly,oldDurationForm).activity).elapsedSeconds,90);
+
+const repsDraft = { ...createSkillDraft(now,"reps-log"), title:"Reps practice", activities:[repsActivity] };
+const repsTemplateId = await saveSkillTemplate(db,repsDraft,now);
+const savedReps = await getSkillTemplate(db,repsTemplateId);
+assert.equal(savedReps.activities[0].timingMode,"reps");
+assert.equal(savedReps.activities[0].sets,3);
+assert.equal(savedReps.activities[0].reps,10);
+assert.equal(savedReps.activities[0].rpe,8);
+assert.equal(savedReps.activities[0].restBetweenSetsSeconds,null);
+const repsReopened = draftFromTemplate(savedReps,now,"reps-reopened");
+assert.equal(templateFingerprint(repsReopened),templateFingerprint(repsDraft));
+await assert.rejects(() => logSkillSession(db,repsReopened,{now,timeZone:"UTC",beforeCommit(){throw new Error("reps disk full");}}),/reps disk full/);
+assert.equal(await getSkillSession(db,"reps-reopened"),null);
+const repsLogged = await logSkillSession(db,repsReopened,{now,timeZone:"UTC"});
+const repsLog = await getSkillSession(db,repsLogged.sessionId);
+assert.equal(repsLog.estimatorVersion,SKILL_ENERGY_VERSION);
+assert.equal(repsLog.elapsedSeconds,270);
+assert.equal(repsLog.activities[0].workSeconds,90);
+assert.equal(repsLog.activities[0].restSeconds,180);
+assert.equal(repsLog.activities[0].sets,3);
+assert.equal(repsLog.activities[0].rpe,8);
+assert.equal((await logSkillSession(db,repsReopened,{now,timeZone:"UTC"})).alreadySaved,true);
+await saveSkillTemplate(db,{...repsReopened,activities:[{...repsReopened.activities[0],reps:20}]},now);
+assert.equal((await getSkillSession(db,repsLogged.sessionId)).activities[0].reps,10);
+assert.equal((await getSkillTemplate(db,repsTemplateId)).activities[0].reps,20);
+assert.deepEqual(fresh.prepare("PRAGMA foreign_key_check").all(),[]);
 console.log("skill checks passed");

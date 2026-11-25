@@ -66,7 +66,8 @@ export function weightBasisText(basis: WeightBasis, kg: number) {
 }
 
 export function activitySettingsLine(activity: SkillActivityDraft) {
-  const effort = rpeLabel(activity.rpeBand);
+  const effort = activity.rpe == null ? rpeLabel(activity.rpeBand) : "RPE " + activity.rpe;
+  if (activity.timingMode === "reps") return [activity.sets + " sets × " + activity.reps + " reps", activity.rpe == null ? null : effort].filter(Boolean).join(" · ");
   const mode = activity.sessionMode ? modeLabel(activity.sessionMode) : null;
   if (activity.timingMode === "duration") {
     return [formatMmSs(activity.durationSeconds), mode, effort].filter(Boolean).join(" · ");

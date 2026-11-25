@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 
 import { deviceTimeZone, formatLocalDate, isIanaTimeZone } from "../conditioning/dates";
 import { createId } from "../conditioning/ids";
-import { estimateActivities, sumEnergyKcal, weightForEstimate } from "../skill/energy";
+import { estimateActivities, rpeBandFor, sumEnergyKcal, weightForEstimate } from "../skill/energy";
 import { focusFromDisciplines } from "../skill/focus";
 import { elapsedSeconds, sessionStartMs } from "../skill/timing";
 import { validateSkillDraft } from "../skill/validation";
@@ -47,6 +47,10 @@ type ActivityRow = {
   seconds_per_round: number | null;
   session_mode: SessionMode | null;
   timing_mode: TimingMode;
+  sets: number | null;
+  reps: number | null;
+  rpe: number | null;
+  rest_between_sets_seconds: number | null;
   work_seconds: number | null;
 };
 
@@ -315,7 +319,7 @@ async function loadActivities(
   const rows = await db.getAllAsync<ActivityRow>(
     `SELECT id, position, activity_key, name, discipline, timing_mode,
             duration_seconds, rounds, seconds_per_round, rest_between_rounds_seconds,
-            rpe_band, session_mode, NULL AS work_seconds, NULL AS rest_seconds,
+            rpe_band, session_mode, sets, reps, rpe, rest_between_sets_seconds, NULL AS work_seconds, NULL AS rest_seconds,
             NULL AS base_met, NULL AS rpe_multiplier, NULL AS energy_kcal
      FROM skill_${parent}_activities
      WHERE ${parent}_id = ?
@@ -329,7 +333,7 @@ async function loadSessionActivities(db: SQLiteDatabase, sessionId: string) {
   const rows = await db.getAllAsync<ActivityRow>(
     `SELECT id, position, activity_key, name, discipline, timing_mode,
             duration_seconds, rounds, seconds_per_round, rest_between_rounds_seconds,
-            rpe_band, session_mode, work_seconds, rest_seconds, base_met,
+            rpe_band, session_mode, sets, reps, rpe, rest_between_sets_seconds, work_seconds, rest_seconds, base_met,
             rpe_multiplier, energy_kcal
      FROM skill_session_activities
      WHERE session_id = ?
@@ -360,6 +364,10 @@ function toDraftActivity(row: ActivityRow): SkillActivityDraft {
     restBetweenRoundsSeconds: row.rest_between_rounds_seconds ?? 60,
     rounds: row.rounds ?? 3,
     rpeBand: row.rpe_band,
+    sets: row.sets ?? 1,
+    reps: row.reps ?? 5,
+    rpe: row.rpe,
+    restBetweenSetsSeconds: row.rest_between_sets_seconds,
     secondsPerRound: row.seconds_per_round ?? 180,
     sessionMode: row.session_mode,
     timingMode: row.timing_mode,
@@ -375,6 +383,8 @@ async function insertActivities(
 ) {
   for (const [index, activity] of activities.entries()) {
     const duration = activity.timingMode === "duration";
+    const rounds = activity.timingMode === "rounds";
+    const reps = activity.timingMode === "reps";
     const estimate = estimates?.get(activity.id);
     const performedColumns = estimates
       ? ", work_seconds, rest_seconds, base_met, rpe_multiplier, energy_kcal"
@@ -389,11 +399,15 @@ async function insertActivities(
       activity.discipline,
       activity.timingMode,
       duration ? activity.durationSeconds : null,
-      duration ? null : activity.rounds,
-      duration ? null : activity.secondsPerRound,
-      duration ? null : activity.restBetweenRoundsSeconds,
-      activity.rpeBand,
+      rounds ? activity.rounds : null,
+      rounds ? activity.secondsPerRound : null,
+      rounds ? activity.restBetweenRoundsSeconds : null,
+      rpeBandFor(activity.rpe, activity.rpeBand),
       activity.sessionMode,
+      reps ? activity.sets : null,
+      reps ? activity.reps : null,
+      activity.rpe,
+      reps ? activity.restBetweenSetsSeconds : null,
     ];
     if (estimate) {
       params.push(
@@ -408,8 +422,8 @@ async function insertActivities(
       `INSERT INTO skill_${parent}_activities (
         id, ${parent}_id, position, activity_key, name, discipline, timing_mode,
         duration_seconds, rounds, seconds_per_round, rest_between_rounds_seconds,
-        rpe_band, session_mode${performedColumns}
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?${performedValues})`,
+        rpe_band, session_mode, sets, reps, rpe, rest_between_sets_seconds${performedColumns}
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?${performedValues})`,
       params,
     );
   }

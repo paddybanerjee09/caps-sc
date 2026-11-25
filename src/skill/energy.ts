@@ -9,6 +9,10 @@ import {
   type WeightBasis,
 } from "./types";
 
+export function rpeBandFor(rpe: number | null, fallback: RpeBand): RpeBand {
+  return rpe == null ? fallback : rpe <= 6 ? "easy" : rpe <= 8 ? "moderate" : "hard";
+}
+
 export const RPE_MULTIPLIER: Record<RpeBand, number> = {
   easy: 0.8,
   moderate: 1,
@@ -55,12 +59,12 @@ export function estimateActivities(
     estimates.push({
       id: activity.id,
       baseMet,
-      rpeMultiplier: RPE_MULTIPLIER[activity.rpeBand],
+      rpeMultiplier: RPE_MULTIPLIER[rpeBandFor(activity.rpe, activity.rpeBand)],
       ...timing,
       energyKcal: activityEnergyKcal({
         baseMet,
         restSeconds: timing.restSeconds,
-        rpeBand: activity.rpeBand,
+        rpeBand: rpeBandFor(activity.rpe, activity.rpeBand),
         weightKg,
         workSeconds: timing.workSeconds,
       }),

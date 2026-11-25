@@ -5,6 +5,8 @@ import { useSkillWorkspace } from "../../state/SkillWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
 import { feedbackWarn } from "../../utils/feedback";
+import { AddSkillActivitiesScreen } from "./AddSkillActivitiesScreen";
+import { SkillActivityEditorScreen } from "./SkillActivityEditorScreen";
 import { SkillSessionBuilderScreen } from "./SkillSessionBuilderScreen";
 import { SkillSessionDetailScreen } from "./SkillSessionDetailScreen";
 
@@ -89,6 +91,8 @@ export function SkillStack() {
   return (
     <View style={StyleSheet.absoluteFill}>
       {top?.name === "builder" ? <SkillSessionBuilderScreen /> : null}
+      {top?.name === "picker" ? <AddSkillActivitiesScreen key={top.key} /> : null}
+      {top?.name === "editor" ? <SkillActivityEditorScreen key={top.key} activityId={top.activityId} baseline={top.baseline} fresh={top.fresh} /> : null}
       {top?.name === "detail" ? <SkillSessionDetailScreen sessionId={top.sessionId} /> : null}
       <SkillConfirm />
     </View>

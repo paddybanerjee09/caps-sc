@@ -1,3 +1,4 @@
+import { DURATION_ASSUMPTIONS, estimateDurationSeconds } from "../strength/duration";
 import type { SkillActivityDraft } from "./types";
 
 export type ActivityTiming = {
@@ -10,6 +11,15 @@ export function activityTiming(activity: SkillActivityDraft): ActivityTiming {
   if (activity.timingMode === "duration") {
     const workSeconds = Math.max(0, activity.durationSeconds);
     return { workSeconds, restSeconds: 0, elapsedSeconds: workSeconds };
+  }
+
+  if (activity.timingMode === "reps") {
+    const sets = Array.from({ length: activity.sets }, () => ({
+      reps: activity.reps, restSeconds: activity.restBetweenSetsSeconds, skipped: false, warmup: false,
+    }));
+    const elapsed = estimateDurationSeconds([{ sets }]) ?? 0;
+    const workSeconds = activity.sets * activity.reps * DURATION_ASSUMPTIONS.secondsPerRep;
+    return { workSeconds, restSeconds: elapsed - workSeconds, elapsedSeconds: elapsed };
   }
 
   const rounds = Math.max(0, activity.rounds);

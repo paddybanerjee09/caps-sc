@@ -7,7 +7,6 @@ import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome"
 import { getSkillSession } from "../../data/skillRepository";
 import { FOCUS_PRESENTATION } from "../../skill/focus";
 import {
-  activityElapsedLabel,
   activitySettingsLine,
   focusLabel,
   formatElapsed,
@@ -122,7 +121,7 @@ function ActivityCard({
       </Text>
       <Text style={[styles.body, { color: theme.colors.text }]}>{activity.name}</Text>
       <Text style={[styles.metric, { color: theme.colors.text }]}>
-        {activityElapsedLabel(activity)}
+        {formatElapsed(activity.workSeconds + activity.restSeconds)}
       </Text>
       <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
         {activitySettingsLine(activity)}

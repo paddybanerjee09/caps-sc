@@ -292,7 +292,7 @@ assert.equal(
 const fresh = new DatabaseSync(":memory:");
 const db = adapterFor(fresh);
 await migrateDatabase(db);
-assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 10);
+assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 11);
 assert.equal(
   fresh.prepare("SELECT COUNT(*) AS count FROM strength_exercises").get().count,
   CATALOG_SEED.length,
@@ -420,7 +420,7 @@ upgradeDb.exec(`
 `);
 const upgrade = adapterFor(upgradeDb);
 await migrateDatabase(upgrade);
-assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 10);
+assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 11);
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'strength_sessions'").get());
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'timeline_entries'").get());
 assert.equal(

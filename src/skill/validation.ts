@@ -36,7 +36,7 @@ export function validateSkillDraft(
   return null;
 }
 
-function validateActivity(activity: SkillActivityDraft) {
+export function validateActivity(activity: SkillActivityDraft) {
   const definition = getSkillActivity(activity.activityKey);
   if (!definition || definition.discipline !== activity.discipline) {
     return "Choose an activity.";
@@ -56,6 +56,15 @@ function validateActivity(activity: SkillActivityDraft) {
   } else if (activity.sessionMode != null) {
     return `Remove the mode from ${definition.name}.`;
   }
+  if (activity.rpe != null && (!Number.isInteger(activity.rpe) || activity.rpe < 1 || activity.rpe > 10)) {
+    return "RPE must be from 1 to 10.";
+  }
+  if (activity.timingMode === "reps") {
+    if (!isPositiveInt(activity.sets) || activity.sets > 20) return "Sets must be from 1 to 20.";
+    if (!isPositiveInt(activity.reps) || activity.reps > 100) return "Reps must be from 1 to 100.";
+    if (activity.restBetweenSetsSeconds != null && (!isNonnegativeInt(activity.restBetweenSetsSeconds) || activity.restBetweenSetsSeconds > 600)) return "Rest must be from 0 to 600 seconds.";
+    return null;
+  }
   if (activity.timingMode === "duration") {
     if (!isPositiveInt(activity.durationSeconds)) {
       return `Enter a duration for ${definition.name}.`;
@@ -74,7 +83,7 @@ function validateActivity(activity: SkillActivityDraft) {
     }
     return null;
   }
-  return "Choose duration or rounds.";
+  return "Choose reps or rounds.";
 }
 
 function isPositiveInt(value: number) {

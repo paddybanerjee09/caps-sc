@@ -9,11 +9,14 @@ import {
 } from "react";
 
 import { createId } from "../conditioning/ids";
+import { activityFormValues, type SkillActivityForm } from "../skill/activityForm";
 import { templateFingerprint } from "../skill/drafts";
 import type { SkillDraft } from "../skill/types";
 
 export type SkillStackEntry =
   | { key: string; name: "builder" }
+  | { key: string; name: "picker" }
+  | { key: string; name: "editor"; activityId: string; fresh: boolean; baseline: string }
   | { key: string; name: "detail"; sessionId: string };
 
 type ConfirmRequest = {
@@ -25,6 +28,14 @@ type ConfirmRequest = {
 
 type SkillWorkspaceValue = {
   bumpRevision: () => void;
+  closeBranch: () => void;
+  push: (entry: SkillStackEntry) => void;
+  saving: boolean;
+  setSaving: (saving: boolean) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  activityForm: { activityId: string; value: SkillActivityForm } | null;
+  setActivityForm: (form: { activityId: string; value: SkillActivityForm } | null) => void;
   calendarDate: string | null;
   calendarNonce: number;
   completeLog: (localDate: string) => void;
@@ -37,7 +48,7 @@ type SkillWorkspaceValue = {
   markTemplateUnsaved: (draft: SkillDraft) => void;
   openBuilder: (draft: SkillDraft) => void;
   openDetail: (sessionId: string) => void;
-  pop: () => void;
+  pop: (levels?: number) => void;
   registerBackHandler: (handler: (() => boolean) | null) => void;
   requestConfirm: (request: ConfirmRequest) => void;
   resetWorkspace: () => void;
@@ -58,9 +69,16 @@ export function SkillWorkspaceProvider({ children }: { children: ReactNode }) {
   const [revision, setRevision] = useState(0);
   const [calendarDate, setCalendarDate] = useState<string | null>(null);
   const [calendarNonce, setCalendarNonce] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activityForm, setActivityForm] = useState<{ activityId: string; value: SkillActivityForm } | null>(null);
   const backHandler = useRef<(() => boolean) | null>(null);
 
   const resetWorkspace = useCallback(() => {
+    if (savingRef.current) return;
+    setActivityForm(null);
+    setSearchQuery("");
     setStack([]);
     setDraft(null);
     setDiscardBaseline("");
@@ -69,6 +87,7 @@ export function SkillWorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleHardwareBack = useCallback(() => {
+    if (savingRef.current) return true;
     if (confirm) {
       setConfirm(null);
       return true;
@@ -88,7 +107,24 @@ export function SkillWorkspaceProvider({ children }: { children: ReactNode }) {
       bumpRevision: () => setRevision((current) => current + 1),
       calendarDate,
       calendarNonce,
+      activityForm,
+      setActivityForm,
+      searchQuery,
+      setSearchQuery,
+      saving,
+      setSaving: (next) => { savingRef.current = next; setSaving(next); },
+      push: (entry) => setStack((current) => [...current, entry]),
+      closeBranch: () => {
+        if (savingRef.current) return;
+        const editing = draft?.activities.find((activity) => activity.id === activityForm?.activityId);
+        const formChanged = editing && activityForm && JSON.stringify(activityForm.value) !== JSON.stringify(activityFormValues(editing));
+        if (draft && (JSON.stringify(draft) !== discardBaseline || formChanged)) {
+          setConfirm({ confirmLabel: "Discard", message: "Unlogged changes will be discarded. Saved sessions remain available.", onConfirm: resetWorkspace, title: "Leave session?" });
+        } else resetWorkspace();
+      },
       completeLog: (localDate) => {
+        setActivityForm(null);
+        setSearchQuery("");
         setCalendarDate(localDate);
         setCalendarNonce((current) => current + 1);
         setStack([]);
@@ -114,6 +150,8 @@ export function SkillWorkspaceProvider({ children }: { children: ReactNode }) {
       },
       openBuilder: (next) => {
         setDraft(next);
+        setActivityForm(null);
+        setSearchQuery("");
         setDiscardBaseline(JSON.stringify(next));
         setTemplateBaseline(next.templateLink === "linked" ? templateFingerprint(next) : null);
         setConfirm(null);
@@ -123,7 +161,7 @@ export function SkillWorkspaceProvider({ children }: { children: ReactNode }) {
         setConfirm(null);
         setStack([{ key: createId(), name: "detail", sessionId }]);
       },
-      pop: () => setStack((current) => current.slice(0, -1)),
+      pop: (count = 1) => setStack((current) => current.slice(0, -(typeof count === "number" ? count : 1))),
       registerBackHandler: (handler) => {
         backHandler.current = handler;
       },
@@ -137,6 +175,9 @@ export function SkillWorkspaceProvider({ children }: { children: ReactNode }) {
     [
       calendarDate,
       calendarNonce,
+      activityForm,
+      searchQuery,
+      saving,
       confirm,
       discardBaseline,
       draft,

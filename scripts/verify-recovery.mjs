@@ -83,12 +83,12 @@ assert.equal(personalBaseline(hrv, [measurement("2026-11-20", 40, { metric: "hrv
 const sqlite = new DatabaseSync(":memory:");
 const db = adapterFor(sqlite);
 await migrateDatabase(db);
-assert.equal(sqlite.prepare("PRAGMA user_version").get().user_version, 10);
+assert.equal(sqlite.prepare("PRAGMA user_version").get().user_version, 11);
 await migrateDatabase(db);
 await db.execAsync(recoveryMigrationSql);
 sqlite.exec("INSERT INTO timeline_entries(id,kind,title,start_at,status,created_at,updated_at) VALUES (1,'weight','Weight',1000,'completed',1000,1000); INSERT INTO weight_logs(timeline_entry_id,weight_kg) VALUES (1,72.5); PRAGMA user_version=9;");
 await migrateDatabase(db);
-assert.equal(sqlite.prepare("PRAGMA user_version").get().user_version, 10);
+assert.equal(sqlite.prepare("PRAGMA user_version").get().user_version, 11);
 assert.deepEqual(await listWeights(db), [{ measuredAt: 1000, kg: 72.5 }]);
 assert.equal(await getQuestionnaire(db, sample.localDate), null);
 const draft = await saveQuestionnaire(db, blank, false);

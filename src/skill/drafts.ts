@@ -1,3 +1,4 @@
+import { rpeBandFor } from "./energy";
 import { createId } from "../conditioning/ids";
 import { getSkillActivity } from "./catalog";
 import type {
@@ -26,6 +27,10 @@ export function createActivityDraft(activityKey: string, id = createId()) {
     restBetweenRoundsSeconds: DEFAULT_REST_SECONDS,
     rounds: DEFAULT_ROUNDS,
     rpeBand: "moderate",
+    rpe: null,
+    sets: 1,
+    reps: 5,
+    restBetweenSetsSeconds: null,
     secondsPerRound: DEFAULT_DURATION_SECONDS,
     sessionMode: definition.modes ? "medium" : null,
     timingMode: "duration",
@@ -121,7 +126,11 @@ export function templateContent(draft: SkillDraft) {
       restBetweenRoundsSeconds:
         activity.timingMode === "rounds" ? activity.restBetweenRoundsSeconds : null,
       rounds: activity.timingMode === "rounds" ? activity.rounds : null,
-      rpeBand: activity.rpeBand,
+      rpeBand: rpeBandFor(activity.rpe, activity.rpeBand),
+      rpe: activity.rpe,
+      sets: activity.timingMode === "reps" ? activity.sets : null,
+      reps: activity.timingMode === "reps" ? activity.reps : null,
+      restBetweenSetsSeconds: activity.timingMode === "reps" ? activity.restBetweenSetsSeconds : null,
       secondsPerRound: activity.timingMode === "rounds" ? activity.secondsPerRound : null,
       sessionMode: activity.sessionMode,
       timingMode: activity.timingMode,

@@ -9,10 +9,11 @@ import {
   nutritionV6FavouriteSnapshotSql,
 } from "./nutritionMigration";
 import { skillMigrationSql } from "./skillMigration";
+import { applySkillRepsMigration } from "./skillRepsMigration";
 import { strengthMigrationSql } from "./strengthMigration";
 import { ensureStrengthCatalog } from "./strengthRepository";
 
-const DATABASE_VERSION = 10;
+const DATABASE_VERSION = 11;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -29,13 +30,15 @@ export async function migrateDatabase(db: SQLiteDatabase) {
   const strengthReady = await tableExists(db, "strength_sessions");
   const skillReady = await tableExists(db, "skill_sessions");
   const recoveryReady = await tableExists(db, "daily_questionnaires");
+  const skillRepsReady = skillReady && await columnExists(db, "skill_template_activities", "sets") && await columnExists(db, "skill_session_activities", "sets");
 
   if (
     currentVersion >= DATABASE_VERSION &&
     workspaceReady &&
     strengthReady &&
     skillReady &&
-    recoveryReady
+    recoveryReady &&
+    skillRepsReady
   ) {
     await ensureStrengthCatalog(db);
     return;
@@ -177,6 +180,10 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     await db.execAsync(recoveryMigrationSql);
   }
 
+  if (currentVersion < 11 || !skillRepsReady) {
+    await applySkillRepsMigration(db);
+  }
+
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
 
@@ -215,7 +222,7 @@ async function tableExists(db: SQLiteDatabase, name: string) {
 
 async function columnExists(
   db: SQLiteDatabase,
-  table: "food_favourites" | "meal_items" | "meal_logs",
+  table: "food_favourites" | "meal_items" | "meal_logs" | "skill_template_activities" | "skill_session_activities",
   column: string,
 ) {
   const rows = await db.getAllAsync<{ name: string }>(

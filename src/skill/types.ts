@@ -1,4 +1,4 @@
-export const SKILL_ENERGY_VERSION = "skill-energy-v1";
+export const SKILL_ENERGY_VERSION = "skill-energy-v2-reps";
 export const REFERENCE_WEIGHT_KG = 75;
 export const MAX_SKILL_ACTIVITIES = 24;
 export const RECOVERY_MET = 1.5;
@@ -7,7 +7,7 @@ export type SkillDiscipline = "general" | "muay_thai" | "boxing" | "bjj";
 export type SkillFocus = SkillDiscipline | "mixed";
 export type RpeBand = "easy" | "moderate" | "hard";
 export type SessionMode = "technical" | "medium" | "hard" | "flow";
-export type TimingMode = "duration" | "rounds";
+export type TimingMode = "duration" | "rounds" | "reps";
 export type TemplateLink = "new" | "linked" | "detached";
 export type WeightBasis = "logged" | "reference";
 export type TemplateButtonLabel = "Save" | "Saved" | "Unsaved";
@@ -35,6 +35,10 @@ export type SkillActivityDraft = {
   restBetweenRoundsSeconds: number;
   rounds: number;
   rpeBand: RpeBand;
+  rpe: number | null;
+  sets: number;
+  reps: number;
+  restBetweenSetsSeconds: number | null;
   secondsPerRound: number;
   sessionMode: SessionMode | null;
   timingMode: TimingMode;
