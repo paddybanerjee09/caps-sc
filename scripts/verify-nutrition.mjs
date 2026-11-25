@@ -438,6 +438,16 @@ assert.equal(per100Options.defaultServingId, "caps:unit:100g");
 assert.equal(per100Options.servings.find((serving) => serving.id === per100Options.defaultServingId).amount, 100);
 assert.equal(per100Options.servings.find((serving) => serving.id === per100Options.defaultServingId).nutrients.energyKcal, 200);
 assert.deepEqual(withServingUnits(per100Options), per100Options);
+// Identical native/derived labels must not produce two indistinguishable menu rows.
+const standardHundred = per100Options.servings.find((serving) => serving.id === "caps:unit:100g");
+const nativeHundred = { ...standardHundred, id: "native-100", label: "100g", nutrients: Object.fromEntries(Object.entries(standardHundred.nutrients).reverse()) };
+const duplicateChoices = { ...per100Options, defaultServingId: nativeHundred.id, servings: [standardHundred, nativeHundred] };
+assert.deepEqual(servingUnitOptions(duplicateChoices).map((serving) => serving.id), [nativeHundred.id]);
+assert.deepEqual(servingUnitOptions(duplicateChoices, standardHundred.id).map((serving) => serving.id), [standardHundred.id]);
+assert.equal(duplicateChoices.servings.length, 2); // History/legacy resolvers retain both IDs.
+assert.equal(servingUnitOptions({ ...duplicateChoices, servings: [standardHundred, { ...nativeHundred, label: "1 portion" }] }).length, 2);
+assert.equal(servingUnitOptions({ ...duplicateChoices, servings: [standardHundred, { ...nativeHundred, nutrients: { ...nativeHundred.nutrients, energyKcal: 201 } }] }).length, 2);
+
 // Old normalized snapshots used the generic gram default, not a provider preference.
 const oldGramDefault = withServingUnits({ ...measuredOptions, defaultServingId: "caps:unit:g" });
 assert.equal(oldGramDefault.defaultServingId, "120g-piece");

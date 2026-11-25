@@ -58,9 +58,25 @@ export function convertServingQuantity(
   return quantity * fromBasis.amount / toBasis.amount;
 }
 
-/** Choices for new input exclude the retired unit without losing historical IDs. */
-export function servingUnitOptions(food: CatalogFood) {
-  return food.servings.filter((serving) => !isRetiredUnit(serving));
+/** Hide retired/identical display choices; retain every original serving for history. */
+export function servingUnitOptions(food: CatalogFood, preferredId = food.defaultServingId) {
+  const choices = new Map<string, CatalogServing>();
+  for (const serving of food.servings) {
+    if (isRetiredUnit(serving)) continue;
+    const key = JSON.stringify([
+      serving.label.normalize("NFKC").replace(/\s+/g, "").toLowerCase(),
+      serving.amount,
+      serving.unit,
+      Object.entries(serving.nutrients).sort(([left], [right]) => left.localeCompare(right)),
+      serving.extras,
+    ]);
+    const existing = choices.get(key);
+    if (!existing || serving.id === preferredId ||
+      (existing.id !== preferredId && serving.id === food.defaultServingId)) {
+      choices.set(key, serving);
+    }
+  }
+  return [...choices.values()];
 }
 
 function isRetiredUnit(serving: CatalogServing) {

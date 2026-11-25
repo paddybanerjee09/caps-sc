@@ -472,7 +472,7 @@ export function NutritionFactsScreen() {
         <PressOpacity accessibilityLabel="Close serving units" onPress={() => setUnitsMenu(null)} style={StyleSheet.absoluteFill} silent />
         <View style={[styles.unitsMenu, unitsMenu, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong }]}>
           <ScrollView keyboardShouldPersistTaps="handled">
-            {servingUnitOptions(food).map((option) => (
+            {servingUnitOptions(food, serving?.id).map((option) => (
               <PressOpacity accessibilityLabel={option.label} accessibilityState={{ selected: option.id === serving?.id }} key={option.id} onPress={() => selectServing(option)} style={[styles.unitChoice, { borderBottomColor: theme.colors.border }]}>
                 <Text style={[styles.unitsText, { color: theme.colors.text }]}>{option.label}</Text>
                 {option.id === serving?.id ? <Ionicons color={theme.colors.tertiary} name="checkmark" size={18} /> : null}
