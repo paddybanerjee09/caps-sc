@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
 import { ActionButton } from "../../components/ActionButton";
+import { EstimatedFocusButton } from "../../components/training/EstimatedFocusButton";
 import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
 import { LogTimeChanger } from "../../components/LogTimeChanger";
 import { createId } from "../../conditioning/ids";
@@ -31,7 +32,6 @@ export function WorkoutBuilderScreen() {
   const { bumpTimeline } = useAppState();
   const workspace = useStrengthWorkspace();
   const { draft, saving } = workspace;
-  const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<StrengthEmphasis | null>(null);
   const writing = useRef(false);
@@ -55,7 +55,7 @@ export function WorkoutBuilderScreen() {
 
   const savedDraft = workspace.savedSnapshot ? JSON.parse(workspace.savedSnapshot) as typeof draft : null;
   const isSaved = draft.sourceTemplateId != null && draft.saveAsTemplate && savedDraft != null && templateContent(draft) === templateContent(savedDraft);
-  const exercises = draft.exercises.filter((exercise) => `${exercise.name} ${exercise.equipment}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const exercises = draft.exercises;
   const focusColor = preview ? emphasisMarkerColor(preview) : theme.colors.textMuted;
   const inputStyle = [styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong, color: theme.colors.text }];
   const cardStyle = [styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }];
@@ -112,16 +112,14 @@ export function WorkoutBuilderScreen() {
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <WorkflowHeader title="Log Session" onClose={workspace.closeBranch} right={<LogTimeChanger maximumDate={new Date()} onChange={(date) => { if (!saving) workspace.updateDraft({ ...draft, endedAt: date.getTime() }); }} value={new Date(draft.endedAt)} />} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" style={styles.scroller}>
-        <TextInput accessibilityLabel="Workout title" editable={!saving} maxLength={80} onChangeText={(title) => { setError(null); workspace.updateDraft({ ...draft, title }); }} placeholder="Workout title" placeholderTextColor={theme.colors.textMuted} style={inputStyle} value={draft.title} />
-        <View style={cardStyle}>
-          <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>ESTIMATED DURATION</Text>
-          <Text style={[styles.duration, { color: theme.colors.text }]}>{formatDurationSeconds(estimateDraftDurationSeconds(draft.exercises))}</Text>
+        <View style={styles.titleBlock}>
+          <TextInput accessibilityLabel="Workout title" editable={!saving} maxLength={80} onChangeText={(title) => { setError(null); workspace.updateDraft({ ...draft, title }); }} placeholder="Workout title" placeholderTextColor={theme.colors.textMuted} style={inputStyle} value={draft.title} />
+          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>Estimated duration {formatDurationSeconds(estimateDraftDurationSeconds(draft.exercises))}</Text>
         </View>
-        <TextInput accessibilityLabel="Search exercises in this workout" editable={!saving} onChangeText={setQuery} placeholder="Search exercises" placeholderTextColor={theme.colors.textMuted} style={inputStyle} value={query} />
         <View style={cardStyle}>
           <Text accessibilityRole="header" style={[styles.kicker, { color: theme.colors.textMuted }]}>EXERCISES</Text>
           <ActionButton disabled={saving || draft.exercises.length >= MAX_EXERCISES} label="Add Exercises" onPress={() => { workspace.setSearchQuery(""); workspace.push({ key: createId(), name: "picker" }); }} tone="secondary" />
-          {exercises.length === 0 ? <Text style={[styles.hint, { color: theme.colors.textMuted }]}>{query.trim() ? "No matching exercises." : "No exercises."}</Text> : exercises.map((exercise) => (
+          {exercises.length === 0 ? <Text style={[styles.hint, { color: theme.colors.textMuted }]}>No exercises.</Text> : exercises.map((exercise) => (
             <View key={exercise.id} style={[styles.exercise, { borderColor: theme.colors.border }]}>
               <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{exercise.name}</Text>
               <Text style={[styles.metrics, { color: theme.colors.textMuted }]}>{exercise.sets.length} sets · {tableField(exercise.sets, (set) => String(set.reps))} reps · RPE {tableField(exercise.sets, (set) => formatRpe(set.rpe))} · {tableField(exercise.sets, (set) => formatRestSeconds(set.restSeconds))} rest</Text>
@@ -133,10 +131,10 @@ export function WorkoutBuilderScreen() {
             </View>
           ))}
         </View>
-        <ActionButton disabled={saving} label={`Estimated focus · ${preview ? emphasisHeadline(preview) : "Not enough evidence"}`} onPress={() => workspace.push({ key: createId(), name: "emphasis", sessionId: null })} style={{ borderColor: focusColor }} tone="secondary" />
+        <EstimatedFocusButton disabled={saving} value={preview ? emphasisHeadline(preview) : "Not enough evidence"} onPress={() => workspace.push({ key: createId(), name: "emphasis", sessionId: null })} color={focusColor} />
         {error ? <Text accessibilityRole="alert" selectable style={[styles.error, { color: theme.colors.tertiary }]}>{error}</Text> : null}
       </ScrollView>
-      <WorkflowFooter disabled={saving} onBack={workspace.closeBranch}>
+      <WorkflowFooter disabled={saving} equalActions onBack={workspace.closeBranch}>
         <ActionButton disabled={saving} label={isSaved ? "Unsave" : "Save"} onPress={() => { void toggleSaved(); }} tone="secondary" style={styles.flex} />
         <ActionButton disabled={saving} label="Log Session" onPress={() => { void log(); }} style={styles.flex} />
       </WorkflowFooter>
@@ -151,7 +149,8 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: tokens.radius.lg, padding: tokens.spacing.lg, gap: tokens.spacing.md },
   input: { borderWidth: 1, borderRadius: 12, minHeight: 52, paddingHorizontal: 12, fontSize: 16 },
   kicker: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
-  duration: { fontSize: 20, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  titleBlock: { gap: 6 },
+  subtitle: { paddingHorizontal: 4, fontSize: 12, fontVariant: ["tabular-nums"] },
   exercise: { borderTopWidth: 1, paddingTop: 12, gap: 8 },
   exerciseName: { fontSize: 16, fontWeight: "700" },
   metrics: { fontSize: 13, lineHeight: 19, fontVariant: ["tabular-nums"] },

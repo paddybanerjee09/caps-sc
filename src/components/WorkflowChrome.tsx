@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -48,19 +48,21 @@ export function WorkflowFooter({
   backLabel = "Cancel",
   children,
   disabled = false,
+  equalActions = false,
 }: {
   onBack: () => void;
   backLabel?: "Cancel" | "Back";
   children?: ReactNode;
   disabled?: boolean;
+  equalActions?: boolean;
 }) {
   const { theme } = useAppTheme();
   return (
-    <View style={[styles.footer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderStrong }]}>
-      <PressOpacity accessibilityLabel={backLabel} disabled={disabled} onPress={onBack} style={[styles.back, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}>
+    <View style={[styles.footer, equalActions && styles.equalFooter, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderStrong }]}>
+      <PressOpacity accessibilityLabel={backLabel} disabled={disabled} onPress={onBack} style={[styles.back, equalActions && styles.equalAction, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong }]}>
         <Text style={[styles.action, { color: theme.colors.text }]}>{backLabel}</Text>
       </PressOpacity>
-      {children ? <View style={styles.actions}>{children}</View> : null}
+      {equalActions ? Children.toArray(children).map((child, index) => <View key={index} style={styles.equalAction}>{child}</View>) : children ? <View style={styles.actions}>{children}</View> : null}
     </View>
   );
 }
@@ -75,5 +77,7 @@ const styles = StyleSheet.create({
   footer: { alignItems: "center", borderTopWidth: 1, flexDirection: "row", flexShrink: 0, gap: 8, padding: 12 },
   back: { alignItems: "center", borderRadius: 12, borderWidth: 1, justifyContent: "center", minHeight: 48, minWidth: 72, paddingHorizontal: 12 },
   actions: { alignItems: "stretch", flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 8, minWidth: 0 },
+  equalFooter: { alignItems: "stretch" },
+  equalAction: { flex: 1, minWidth: 0, minHeight: 52 },
   action: { fontSize: 14, fontWeight: "700" },
 });

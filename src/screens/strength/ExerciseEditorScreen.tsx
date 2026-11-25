@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
 import { ActionButton } from "../../components/ActionButton";
+import { TrainingNumberField } from "../../components/training/TrainingNumberField";
 import { ExerciseImage } from "../../components/strength/ExerciseImage";
 import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
 import { listStrengthExercises } from "../../data/strengthRepository";
@@ -92,20 +93,14 @@ export function ExerciseEditorScreen({ baseline, exerciseId, fresh }: {
           <Text accessibilityRole="header" style={[styles.name, { color: theme.colors.text }]}>{source.name}</Text>
           <View style={styles.grid}>
             {fields.map(([field, label]) => (
-              <View key={field} style={styles.field}>
-                <Text style={[styles.label, { color: theme.colors.textMuted }]}>{label.toUpperCase()}</Text>
-                <TextInput
-                  accessibilityLabel={label}
-                  keyboardType="number-pad"
-                  maxLength={field === "restSeconds" ? 5 : 3}
-                  onChangeText={(value) => { setError(null); setForm((current) => ({ ...current, [field]: value })); }}
-                  placeholder={field === "rpe" || field === "restSeconds" ? "Optional" : ""}
-                  placeholderTextColor={theme.colors.textMuted}
-                  selectTextOnFocus={form[field] === "Mixed"}
-                  style={[styles.input, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.borderStrong, color: theme.colors.text }]}
-                  value={form[field]}
-                />
-              </View>
+              <TrainingNumberField
+                key={field}
+                label={label}
+                maxLength={field === "restSeconds" ? 5 : 3}
+                onChangeText={(value) => { setError(null); setForm((current) => ({ ...current, [field]: value })); }}
+                placeholder={field === "rpe" || field === "restSeconds" ? "Optional" : ""}
+                value={form[field]}
+              />
             ))}
           </View>
           <Text style={[styles.label, { color: theme.colors.textMuted }]}>NOTES</Text>
@@ -127,7 +122,6 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: tokens.radius.lg, padding: tokens.spacing.lg, gap: tokens.spacing.md },
   name: { fontSize: 18, fontWeight: "700" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  field: { flexGrow: 1, flexBasis: "44%", gap: 6 },
   label: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
   input: { borderWidth: 1, borderRadius: 12, minHeight: 48, paddingHorizontal: 12, fontSize: 16, fontVariant: ["tabular-nums"] },
   notes: { minHeight: 80, paddingTop: 12, textAlignVertical: "top" },
