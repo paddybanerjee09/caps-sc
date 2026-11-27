@@ -26,7 +26,7 @@ Baseline `e492e06` on `main`. [[Git Commit Index]] enumerates 196 commits reacha
 
 - `3587129`, `cb31dff`, and `5c595dd` added a React Native patterns skill, a card-driven high-contrast style guide, and sensory feedback. `6b9fc9a` through `9917cee` carried the card and stepper treatment across account/athlete settings, Home, Conditioning, and Nutrition. `17e5a94` and `75dd681` record the Conditioning fetch-key approach, with `75dd681` preserving it after the screen renovation.
 - `75dd681` added the eight-tree HTML site, tree rules, and checker. The bundled commit data represents the pre-site snapshot of 190 commits. The four later main commits and two separate boilerplate commits are covered in [[Git Commit Index]]. The tree site's own architecture version still carries its original `uncommitted` flag.
-- `af9550c` introduced the rules/vault/Feature Tree workflow. `09346ce` changed the launcher asset, documented in [[2026-11-10 App Logo Handoff]]. `e492e06` specified nested note retrieval under root `caps-vault/` and reuse of context on follow-ups for the same task. The initial backfill starts at [[00-Index]].
+- `af9550c` introduced the rules/vault/Feature Tree workflow. `09346ce` changed the launcher asset, documented in [[2026-11-10 App Logo Handoff]]. `e492e06` specified nested note retrieval under root `caps-vault/` and reuse of context on follow-ups for the same task. The initial backfill starts at [[Index]].
 
 ## Interpreting historical claims
 
