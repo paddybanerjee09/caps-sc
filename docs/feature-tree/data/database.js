@@ -667,10 +667,11 @@ CAPS.trees.database = {
         tagline: "Planned and completed snapshots with canonical timeline status",
         files: ["src/data/strengthMigration.ts", "src/data/database.ts", "src/data/strengthRepository.ts"],
         summary:
-          "The session stores timestamps, local end date, timezone, optional template provenance, estimated duration and versioned focus. A planned session also stores its local start date and exercise targets. Completed sessions store ordered performed-set children with actual reps and optional RPE/RIR. The linked timeline row owns status. The same session ID makes a retry a no-op.",
+          "The session stores timestamps, local end date, timezone, optional template provenance, estimated duration and versioned focus. A planned session also stores its local start date and exercise targets. Completed sessions store ordered performed-set children with actual reps and optional RPE/RIR. The linked timeline row owns status. Completing a plan updates the existing session and timeline in one transaction. A retry reuses the saved completion.",
         guardrails: [
           "Do not drop a log when its template is archived or its catalog row is renamed.",
           "Write the session, exercise snapshots, focus estimate and timeline row in one transaction. Planned sessions have no performed-set children.",
+          "Complete a plan in place and preserve the exercise prescription snapshots. Place the completed entry on its end date.",
         ],
         links: ["database:table-timeline-entries"],
         versions: [
@@ -693,6 +694,17 @@ CAPS.trees.database = {
               "Add nullable RIR to recorded sets and keep targets on the exercise snapshot.",
               "Read the linked timeline status for calendar grouping and same-lift history.",
               "Verify planned snapshots exclude stale performed sets.",
+            ],
+          },
+          {
+            n: 3,
+            name: "Complete a Strength plan in place",
+            date: "2026-11-26 22:22 -0500",
+            commits: ["58240c8"],
+            changes: [
+              "Keep the existing Strength session ID, timeline row and exercise snapshots when recording a plan as completed.",
+              "Update the timeline status, completed timestamps, duration and focus, then insert actual set rows in the same transaction.",
+              "Use the selected end day for calendar placement and keep the v12 table layout.",
             ],
           },
         ],

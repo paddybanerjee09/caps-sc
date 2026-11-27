@@ -10,6 +10,12 @@ Tables keep the exercise name, Sets, Rep Ranges, Targeted RPE, Targeted RIR and 
 
 Save/Unsave acts on the reusable exercise targets independently from the session action. The session action retains source-template provenance and commits a snapshot without rewriting the template. Previous template snapshots remain readable. For a legacy template without explicit ranges, its first set supplies a supported rep range and the exercise-level target defaults. A legacy one-rep entry maps to 1–3 because it may have been submaximal. Confirmed saves use the new exercise-level target format.
 
+## Complete a calendar plan
+
+Open a planned entry in the Strength calendar and choose **Log as Completed**. The completion editor keeps the title, exercise order, set count, rep range, targeted RPE/RIR, rest and notes from the plan. Enter the end time and actual reps for every prescribed set, with optional actual RPE and RIR. Back preserves the original plan and asks before discarding edited actuals. A successful save returns to the refreshed detail for the same session.
+
+`completeStrengthSession` rereads the saved prescription and records actual sets in one transaction. It keeps the session, timeline and exercise IDs and recomputes duration and focus from the completed entry. The logged end date determines calendar placement, so a workout performed on a different day moves to that day. Plans can be completed early with a valid end time. The conversion also refreshes Home's timeline and leaves the linked reusable template independent. See [[2026-11-26 Strength Plan Completion Handoff]].
+
 ## Adaptations and future recovery
 
 `src/strength/emphasis.ts` writes `strength-emphasis-v2`. Plans expand the targeted set count in memory and estimate reps from the range midpoint, with 20+ estimated at 20. Completed estimates use the entered reps and recorded set effort. Targeted rest may inform elapsed-duration estimates and stays out of adaptation scoring for newly completed sets. Explicit RIR takes precedence over the coarse RPE fallback. A primary still requires at least 60 points and a 15-point lead. Previously saved v1 results are read as stored.

@@ -200,7 +200,7 @@ CAPS.trees.strength = {
         tagline: "Exercise Table and independent Save/Unsave",
         files: ["src/screens/strength/WorkoutBuilderScreen.tsx"],
         summary:
-          "Log Session composes the workout in one Exercise Table. The title subtitle distinguishes start/end time and gives estimated duration. The shared header clock enforces the chosen time boundary. Cancel, Save/Unsave and the session action share equal footer slots.",
+          "Log Session composes the workout in one Exercise Table. The title subtitle distinguishes start and end time and gives estimated duration. The shared header clock enforces the chosen time boundary. A calendar plan reuses this editor with its prescription locked and the actual sets and end time editable.",
         guardrails: [
           "Keep exercise search and configuration in the table. Catalog and rep-range choices use overlays. Completed set rows expand inline and move the rows below them (user request, 26 November 2026).",
           "Omitted rest/load remain null; explicit zero rest stays zero. Do not fabricate a load or bodyweight choice (user compact-editor request, 24 Nov 2026).",
@@ -313,6 +313,17 @@ CAPS.trees.strength = {
               "Scrollable row controls edit sets, rep ranges, target RPE and RIR. Rest sits below the effort controls.",
               "Completed sessions expand to editable set rows. Planned sessions store prescriptions.",
             ],
+          },
+          {
+            n: 9,
+            name: "Log a calendar plan",
+            date: "2026-11-26 22:25 -0500",
+            commits: ["c5bcd95"],
+            request: "Open a planned Strength calendar entry and log its actual sets and end time while preserving the prescription.",
+            changes: [
+              "Reuse the completed-session editor with editable actual sets and a bounded end time.",
+              "Keep the planned prescription visible and read-only while recording the completed workout.",
+            ],
           }
         ],
 
@@ -325,7 +336,7 @@ CAPS.trees.strength = {
             tagline: "Targets and inline performed sets",
             files: ["src/components/strength/ExerciseTable.tsx", "src/strength/drafts.ts"],
             summary:
-              "Rows show exercise, sets, rep range, targeted RPE, targeted RIR and notes. In-place scroll controls edit the targets and the rep-range field also opens a choice overlay. Completed set rows show set number and editable reps, RPE and RIR. Actual reps are required before logging.",
+              "Rows show exercise, sets, rep range, targeted RPE, targeted RIR and notes. In-place scroll controls edit targets when composing a workout, and the rep-range field also opens a choice overlay. Completed set rows show set number and editable reps, RPE and RIR. Actual reps are required before logging. Completing a calendar plan shows its stored prescription as read-only.",
             links: ["architecture:training-number-field", "strength:strength-adaptations"],
             versions: [{
               n: 1,
@@ -333,6 +344,15 @@ CAPS.trees.strength = {
               date: "2026-11-26 22:02 -0500",
               commits: ["e97c731", "c5a6c61"],
               changes: ["Compose prescribed exercises on the log screen and expand completed set rows beneath each exercise.", "Give the exercise name and effort headings room to wrap and show gold favourite stars."],
+            }, {
+              n: 2,
+              name: "Calendar plan prescription",
+              date: "2026-11-26 22:26 -0500",
+              commits: ["c5bcd95", "5f0461c"],
+              changes: [
+                "Retain the planned exercises, target settings and prescribed set count while allowing actual reps, RPE and RIR for each set.",
+                "Skip loading the exercise catalog when recording a calendar plan.",
+              ],
             }],
             children: [{
               id: "strength-inline-search",
@@ -589,10 +609,11 @@ CAPS.trees.strength = {
         title: "StrengthSessionDetailScreen",
         kind: "subscreen",
         status: "active",
-        tagline: "Read-only planned or completed workout",
+        tagline: "Review a workout and log a calendar plan",
         files: ["src/screens/strength/StrengthSessionDetailScreen.tsx"],
         summary:
-          "Opens from a month marker. Plans show the scheduled start and prescriptions. Completed workouts show the end time and performed sets. Both show estimated duration and stored focus.",
+          "Opens from a month marker. Plans show the scheduled start and prescriptions with a Log as Completed action. The completed detail shows the end, recorded sets, estimated duration and recalculated focus. A successful completion returns to the same detail.",
+        links: ["strength:strength-builder", "database:table-strength-sessions"],
         versions: [
   {
     "n": 1,
@@ -646,6 +667,16 @@ CAPS.trees.strength = {
     date: "2026-11-26 21:48 -0500",
     commits: ["e97c731"],
     changes: ["Distinguish planned start and prescription from completed end and recorded sets, including RIR."],
+  },
+  {
+    n: 6,
+    name: "Complete a planned Strength entry",
+    date: "2026-11-26 22:25 -0500",
+    commits: ["c5bcd95"],
+    changes: [
+      "Open the completed-session editor with Log as Completed from a planned calendar detail.",
+      "After saving, show the actual efforts and end time in the same detail. Back returns to the calendar.",
+    ],
   }
 ],
       },
