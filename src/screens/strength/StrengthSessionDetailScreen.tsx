@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
+import { ActionButton } from "../../components/ActionButton";
 import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
 import { PressOpacity } from "../../components/PressOpacity";
 import { createId } from "../../conditioning/ids";
@@ -15,7 +16,7 @@ import {
   emphasisHeadline,
   emphasisMarkerColor,
 } from "../../strength/emphasis";
-import { tableField } from "../../strength/drafts";
+import { draftToCompletePlan, tableField } from "../../strength/drafts";
 import type { StrengthExerciseRecord } from "../../strength/types";
 import { formatRestSeconds, formatRir, formatRpe, formatSetLoad } from "../../strength/units";
 import { useAppState } from "../../state/AppStateContext";
@@ -111,7 +112,15 @@ export function StrengthSessionDetailScreen({ sessionId }: { sessionId: string }
           <ExerciseCard exercise={item} unit={unitSettings.weight} />
         )}
       />
-      <WorkflowFooter onBack={workspace.pop} backLabel={workspace.stack.length > 1 ? "Back" : "Cancel"} />
+      <WorkflowFooter onBack={workspace.pop} backLabel={workspace.stack.length > 1 ? "Back" : "Cancel"}>
+        {session?.status === "planned" ? (
+          <ActionButton
+            label="Log as Completed"
+            onPress={() => workspace.openPlanCompletion(draftToCompletePlan(session, Date.now()))}
+            style={styles.flex}
+          />
+        ) : null}
+      </WorkflowFooter>
     </View>
   );
 }
@@ -182,6 +191,7 @@ function formatWhen(instant: number) {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
+  flex: { flex: 1 },
   content: { gap: tokens.spacing.md, padding: tokens.spacing.md },
   headerBlock: { gap: tokens.spacing.sm },
   headerHit: {

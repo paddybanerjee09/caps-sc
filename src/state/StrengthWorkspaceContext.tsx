@@ -12,7 +12,7 @@ import { createId } from "../conditioning/ids";
 import type { StrengthDraft } from "../strength/types";
 
 export type StrengthStackEntry =
-  | { key: string; name: "builder" }
+  | { key: string; name: "builder"; completingPlan?: boolean }
   | { key: string; name: "detail"; sessionId: string }
   | { key: string; name: "emphasis"; sessionId: string | null };
 
@@ -24,6 +24,7 @@ type ConfirmRequest = {
 };
 
 type StrengthWorkspaceValue = {
+  backFromBuilder: () => void;
   bumpRevision: () => void;
   closeBranch: () => void;
   confirm: ConfirmRequest | null;
@@ -32,6 +33,7 @@ type StrengthWorkspaceValue = {
   handleHardwareBack: () => boolean;
   openBuilder: (draft: StrengthDraft) => void;
   openDetail: (sessionId: string) => void;
+  openPlanCompletion: (draft: StrengthDraft) => void;
   pop: (count?: number) => void;
   push: (entry: StrengthStackEntry) => void;
   registerBackHandler: (handler: (() => boolean) | null) => void;
@@ -67,12 +69,16 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
     setStack((current) => [...current, entry]);
   }, []);
 
-  const resetWorkspace = useCallback(() => {
-    if (savingRef.current) return;
-    setStack([]);
+  const clearDraft = useCallback(() => {
     setDraft(null);
     setSavedSnapshot("");
   }, []);
+
+  const resetWorkspace = useCallback(() => {
+    if (savingRef.current) return;
+    setStack([]);
+    clearDraft();
+  }, [clearDraft]);
 
   const handleHardwareBack = useCallback(() => {
     if (savingRef.current) return true;
@@ -91,9 +97,8 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
   }, [confirm, stack.length]);
 
   const value = useMemo<StrengthWorkspaceValue>(
-    () => ({
-      bumpRevision: () => setRevision((current) => current + 1),
-      closeBranch: () => {
+    () => {
+      function confirmDiscard(action: () => void) {
         if (savingRef.current) return;
         const hasPerformedEntries = draft?.exercises.some((exercise) =>
           exercise.sets.some(({ actual }) => actual && Object.values(actual).some((value) => value.trim())),
@@ -102,41 +107,62 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
           setConfirm({
             confirmLabel: "Discard",
             message: "This workout has unsaved changes.",
-            onConfirm: resetWorkspace,
+            onConfirm: action,
             title: "Discard changes?",
           });
         } else {
-          resetWorkspace();
+          action();
         }
-      },
-      confirm,
-      dismissConfirm: () => setConfirm(null),
-      draft,
-      handleHardwareBack,
-      openBuilder: (next) => {
+      }
+
+      function startDraft(next: StrengthDraft) {
         setDraft(next);
         setSavedSnapshot(JSON.stringify(next));
-        setStack([{ key: createId(), name: "builder" }]);
-      },
-      openDetail: (sessionId) => {
-        setStack([{ key: createId(), name: "detail", sessionId }]);
-      },
-      pop,
-      push,
-      registerBackHandler: (handler) => {
-        backHandler.current = handler;
-      },
-      requestConfirm: setConfirm,
-      resetWorkspace,
-      revision,
-      savedSnapshot,
-      saving,
-      setSaving: (next) => { savingRef.current = next; setSaving(next); },
-      markSaved: (next) => { setDraft(next); setSavedSnapshot(JSON.stringify(next)); },
-      stack,
-      updateDraft: (update) => setDraft((current) => current ? update(current) : null),
-    }),
+      }
+
+      return {
+        backFromBuilder: () => confirmDiscard(stack.length > 1 ? () => {
+          pop();
+          clearDraft();
+        } : resetWorkspace),
+        bumpRevision: () => setRevision((current) => current + 1),
+        closeBranch: () => confirmDiscard(resetWorkspace),
+        confirm,
+        dismissConfirm: () => setConfirm(null),
+        draft,
+        handleHardwareBack,
+        openBuilder: (next) => {
+          startDraft(next);
+          setStack([{ key: createId(), name: "builder" }]);
+        },
+        openDetail: (sessionId) => {
+          clearDraft();
+          setStack([{ key: createId(), name: "detail", sessionId }]);
+        },
+        openPlanCompletion: (next) => {
+          const detail = stack.at(-1);
+          if (savingRef.current || detail?.name !== "detail" || detail.sessionId !== next.sessionId) return;
+          startDraft(next);
+          setStack([...stack, { key: createId(), name: "builder", completingPlan: true }]);
+        },
+        pop,
+        push,
+        registerBackHandler: (handler) => {
+          backHandler.current = handler;
+        },
+        requestConfirm: setConfirm,
+        resetWorkspace,
+        revision,
+        savedSnapshot,
+        saving,
+        setSaving: (next) => { savingRef.current = next; setSaving(next); },
+        markSaved: startDraft,
+        stack,
+        updateDraft: (update) => setDraft((current) => current ? update(current) : null),
+      };
+    },
     [
+      clearDraft,
       confirm,
       draft,
       handleHardwareBack,

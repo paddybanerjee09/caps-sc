@@ -5,6 +5,7 @@ import Animated, { Easing, LinearTransition, ReduceMotion } from "react-native-r
 
 import { getStrengthTarget, MAX_EXERCISES, MAX_NOTES, MAX_REST_SECONDS, MAX_SETS, setStrengthTarget, updateSet } from "../../strength/drafts";
 import { STRENGTH_REP_RANGES, type CatalogExercise, type ExerciseDraft, type SetDraft, type StrengthExerciseTarget, type StrengthRepRange, type StrengthSessionMode } from "../../strength/types";
+import { formatRestSeconds, formatRir, formatRpe } from "../../strength/units";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
 import { feedbackSelection } from "../../utils/feedback";
@@ -36,12 +37,14 @@ type PopoverFrame = {
 
 /** Page-level overlays avoid clipping inside either axis of the exercise table. */
 export function useExerciseTable({
-  pageRef, exercises, mode, disabled, onAddExercise, onChangeExercise, onRemoveExercise,
+  pageRef, exercises, mode, disabled, prescriptionReadOnly = false,
+  onAddExercise, onChangeExercise, onRemoveExercise,
 }: {
   pageRef: AnchorRef;
   exercises: readonly ExerciseDraft[];
   mode: StrengthSessionMode;
   disabled: boolean;
+  prescriptionReadOnly?: boolean;
   onAddExercise: (exercise: CatalogExercise) => void;
   onChangeExercise: ChangeExercise;
   onRemoveExercise: (id: string) => void;
@@ -131,39 +134,41 @@ export function useExerciseTable({
   const exerciseTable = (
     <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
       <Text accessibilityRole="header" style={[styles.kicker, { color: theme.colors.textMuted }]}>EXERCISE TABLE</Text>
-      <View ref={searchAnchor} collapsable={false} style={styles.search}>
-        <View style={styles.searchField}>
-          <View pointerEvents="none" style={[styles.searchWell, { borderColor: theme.colors.tertiary, backgroundColor: theme.colors.surfaceMuted, minHeight: Math.max(36, Math.ceil(21 * fontScale)) }]}>
-            <Ionicons color={theme.colors.tertiary} name="search" size={15} />
+      {!prescriptionReadOnly ? (
+        <View ref={searchAnchor} collapsable={false} style={styles.search}>
+          <View style={styles.searchField}>
+            <View pointerEvents="none" style={[styles.searchWell, { borderColor: theme.colors.tertiary, backgroundColor: theme.colors.surfaceMuted, minHeight: Math.max(36, Math.ceil(21 * fontScale)) }]}>
+              <Ionicons color={theme.colors.tertiary} name="search" size={15} />
+            </View>
+            <TextInput
+              accessibilityLabel="Search Exercises"
+              autoCorrect={false}
+              editable={!searchDisabled}
+              onBlur={() => setPopover((current) => current?.type === "search" ? null : current)}
+              onChangeText={(value) => { setQuery(value); openSearch(Boolean(value.trim()) || favouritesOnly); }}
+              onFocus={() => openSearch(Boolean(query.trim()) || favouritesOnly)}
+              placeholder="Search Exercises"
+              placeholderTextColor={theme.colors.textMuted}
+              ref={searchInput}
+              style={[styles.searchInput, { color: theme.colors.text }]}
+              value={query}
+            />
           </View>
-          <TextInput
-            accessibilityLabel="Search Exercises"
-            autoCorrect={false}
-            editable={!searchDisabled}
-            onBlur={() => setPopover((current) => current?.type === "search" ? null : current)}
-            onChangeText={(value) => { setQuery(value); openSearch(Boolean(value.trim()) || favouritesOnly); }}
-            onFocus={() => openSearch(Boolean(query.trim()) || favouritesOnly)}
-            placeholder="Search Exercises"
-            placeholderTextColor={theme.colors.textMuted}
-            ref={searchInput}
-            style={[styles.searchInput, { color: theme.colors.text }]}
-            value={query}
-          />
+          <PressOpacity
+            accessibilityLabel="Show favourite exercises"
+            accessibilityState={{ selected: favouritesOnly, disabled: searchDisabled }}
+            disabled={searchDisabled}
+            onPress={() => {
+              const next = !favouritesOnly;
+              setFavouritesOnly(next);
+              openSearch(next || Boolean(query.trim()));
+            }}
+            style={styles.favouritesFilter}
+          >
+            <Ionicons color={favouritesOnly ? favouriteColor : theme.colors.textMuted} name={favouritesOnly ? "star" : "star-outline"} size={21} />
+          </PressOpacity>
         </View>
-        <PressOpacity
-          accessibilityLabel="Show favourite exercises"
-          accessibilityState={{ selected: favouritesOnly, disabled: searchDisabled }}
-          disabled={searchDisabled}
-          onPress={() => {
-            const next = !favouritesOnly;
-            setFavouritesOnly(next);
-            openSearch(next || Boolean(query.trim()));
-          }}
-          style={styles.favouritesFilter}
-        >
-          <Ionicons color={favouritesOnly ? favouriteColor : theme.colors.textMuted} name={favouritesOnly ? "star" : "star-outline"} size={21} />
-        </PressOpacity>
-      </View>
+      ) : null}
       {exercises.length === 0 ? (
         <Text style={[styles.hint, { color: theme.colors.textMuted }]}>No exercises.</Text>
       ) : (
@@ -176,16 +181,18 @@ export function useExerciseTable({
         >
           <View style={{ width: Math.max(tableWidth, minWidth) }}>
             <TableHeadings columns={columns} labels={targetHeadings} />
-            {exercises.map((exercise) => (
+            {exercises.map((exercise, index) => (
               <ExerciseRow
                 columns={columns}
                 disabled={disabled}
                 exercise={exercise}
+                expandInitially={prescriptionReadOnly && index === 0}
                 key={exercise.id}
                 mode={mode}
                 onChange={(update) => onChangeExercise(exercise.id, update)}
                 onOpenRange={(anchor) => openRange(exercise.id, anchor)}
                 onRemove={() => onRemoveExercise(exercise.id)}
+                prescriptionReadOnly={prescriptionReadOnly}
                 rangeExpanded={popover?.type === "range" && popover.exerciseId === exercise.id}
               />
             ))}
@@ -265,19 +272,22 @@ function TableHeadings({ columns, labels }: { columns: number[]; labels: readonl
 }
 
 function ExerciseRow({
-  columns, disabled, exercise, mode, onChange, onOpenRange, onRemove, rangeExpanded,
+  columns, disabled, exercise, expandInitially, mode, onChange, onOpenRange, onRemove,
+  prescriptionReadOnly, rangeExpanded,
 }: {
   columns: number[];
   disabled: boolean;
   exercise: ExerciseDraft;
+  expandInitially: boolean;
   mode: StrengthSessionMode;
   onChange: (update: (exercise: ExerciseDraft) => ExerciseDraft) => void;
   onOpenRange: (anchor: AnchorRef) => void;
   onRemove: () => void;
+  prescriptionReadOnly: boolean;
   rangeExpanded: boolean;
 }) {
   const { theme } = useAppTheme();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(expandInitially);
   const rangeAnchor = useRef<ComponentRef<typeof View>>(null);
   const target = getStrengthTarget(exercise);
   const hasActualSets = mode === "completed";
@@ -319,47 +329,72 @@ function ExerciseRow({
         ) : (
           <View style={[styles.exerciseName, { width: columns[0] }]}><Text style={[styles.name, { color: theme.colors.text }]}>{exercise.name}</Text></View>
         )}
-        <View style={{ width: columns[1] }}>
-          <InlineScrollPicker disabled={disabled} label={`${exercise.name}, sets`} onChange={(sets) => changeTarget({ sets })} options={setOptions} value={target.sets} />
-        </View>
-        <View ref={rangeAnchor} collapsable={false} style={{ width: columns[2] }}>
-          <InlineScrollPicker
-            disabled={disabled}
-            expanded={rangeExpanded}
-            label={`${exercise.name}, rep range`}
-            onChange={(index) => changeTarget({ repRange: STRENGTH_REP_RANGES[index] })}
-            onOpen={() => onOpenRange(rangeAnchor)}
-            options={rangeOptions}
-            value={STRENGTH_REP_RANGES.indexOf(target.repRange)}
-          />
-        </View>
-        <View style={{ width: columns[3] }}>
-          <InlineScrollPicker disabled={disabled} label={`${exercise.name}, targeted RPE`} onChange={(rpe) => changeTarget({ rpe: rpe >= 0 ? rpe : null })} options={rpeOptions} value={target.rpe ?? -1} />
-        </View>
-        <View style={{ width: columns[4] }}>
-          <InlineScrollPicker disabled={disabled} label={`${exercise.name}, targeted RIR`} onChange={(rir) => changeTarget({ rir: rir >= 0 ? rir : null })} options={rirOptions} value={target.rir ?? -1} />
-        </View>
-        <TextInput
-          accessibilityLabel={`${exercise.name}, notes`}
-          editable={!disabled}
-          maxLength={MAX_NOTES}
-          multiline
-          onChangeText={(notes) => onChange((current) => ({ ...current, notes }))}
-          placeholder="Optional"
-          placeholderTextColor={theme.colors.textMuted}
-          style={[styles.input, fieldTheme, styles.notes, { width: columns[5] }]}
-          value={exercise.notes}
-        />
+        {prescriptionReadOnly ? ([
+          ["Sets", String(target.sets)],
+          ["Rep range", target.repRange],
+          ["Target RPE", formatRpe(target.rpe)],
+          ["Target RIR", formatRir(target.rir)],
+          ["Notes", exercise.notes || "—"],
+        ].map(([label, value], index) => (
+          <Text
+            accessibilityLabel={`${exercise.name}, ${label}: ${value}`}
+            key={label}
+            numberOfLines={index === 4 ? 4 : undefined}
+            style={[styles.prescriptionValue, index < 4 && styles.center, { width: columns[index + 1], color: theme.colors.text }]}
+          >
+            {value}
+          </Text>
+        ))) : (
+          <>
+            <View style={{ width: columns[1] }}>
+              <InlineScrollPicker disabled={disabled} label={`${exercise.name}, sets`} onChange={(sets) => changeTarget({ sets })} options={setOptions} value={target.sets} />
+            </View>
+            <View ref={rangeAnchor} collapsable={false} style={{ width: columns[2] }}>
+              <InlineScrollPicker
+                disabled={disabled}
+                expanded={rangeExpanded}
+                label={`${exercise.name}, rep range`}
+                onChange={(index) => changeTarget({ repRange: STRENGTH_REP_RANGES[index] })}
+                onOpen={() => onOpenRange(rangeAnchor)}
+                options={rangeOptions}
+                value={STRENGTH_REP_RANGES.indexOf(target.repRange)}
+              />
+            </View>
+            <View style={{ width: columns[3] }}>
+              <InlineScrollPicker disabled={disabled} label={`${exercise.name}, targeted RPE`} onChange={(rpe) => changeTarget({ rpe: rpe >= 0 ? rpe : null })} options={rpeOptions} value={target.rpe ?? -1} />
+            </View>
+            <View style={{ width: columns[4] }}>
+              <InlineScrollPicker disabled={disabled} label={`${exercise.name}, targeted RIR`} onChange={(rir) => changeTarget({ rir: rir >= 0 ? rir : null })} options={rirOptions} value={target.rir ?? -1} />
+            </View>
+            <TextInput
+              accessibilityLabel={`${exercise.name}, notes`}
+              editable={!disabled}
+              maxLength={MAX_NOTES}
+              multiline
+              onChangeText={(notes) => onChange((current) => ({ ...current, notes }))}
+              placeholder="Optional"
+              placeholderTextColor={theme.colors.textMuted}
+              style={[styles.input, fieldTheme, styles.notes, { width: columns[5] }]}
+              value={exercise.notes}
+            />
+          </>
+        )}
       </View>
       <View style={styles.row}>
         <View style={{ width: columns[0] + columns[1] + columns[2] + COLUMN_GAP * 2 }}>
-          <PressOpacity accessibilityLabel={`Remove ${exercise.name}`} disabled={disabled} onPress={onRemove} style={styles.remove}>
-            <Ionicons color={theme.colors.textMuted} name="trash-outline" size={16} />
-            <Text style={[styles.hint, { color: theme.colors.textMuted }]}>Remove</Text>
-          </PressOpacity>
+          {!prescriptionReadOnly ? (
+            <PressOpacity accessibilityLabel={`Remove ${exercise.name}`} disabled={disabled} onPress={onRemove} style={styles.remove}>
+              <Ionicons color={theme.colors.textMuted} name="trash-outline" size={16} />
+              <Text style={[styles.hint, { color: theme.colors.textMuted }]}>Remove</Text>
+            </PressOpacity>
+          ) : null}
         </View>
         <View style={{ width: columns[3] + columns[4] + COLUMN_GAP }}>
-          <TrainingNumberField editable={!disabled} label="Rest between sets (s)" maxLength={5} onChangeText={changeRest} placeholder="Optional" value={restInput} />
+          {prescriptionReadOnly ? (
+            <Text style={[styles.prescriptionValue, { color: theme.colors.textMuted }]}>Rest between sets · {formatRestSeconds(target.restSeconds)}</Text>
+          ) : (
+            <TrainingNumberField editable={!disabled} label="Rest between sets (s)" maxLength={5} onChangeText={changeRest} placeholder="Optional" value={restInput} />
+          )}
         </View>
       </View>
       {hasActualSets && expanded ? (
@@ -436,6 +471,7 @@ const styles = StyleSheet.create({
   exercise: { borderTopWidth: 1, gap: tokens.spacing.xs, paddingVertical: tokens.spacing.sm },
   exerciseName: { alignItems: "flex-start", justifyContent: "center", minHeight: 48, paddingRight: 2, gap: 3 },
   name: { fontSize: 13, fontWeight: "700" },
+  prescriptionValue: { fontSize: 13, fontVariant: ["tabular-nums"] },
   input: { minHeight: 48, borderWidth: 1, borderRadius: tokens.radius.sm, fontSize: 14 },
   notes: { fontSize: 13, maxHeight: 88, paddingHorizontal: 6, paddingVertical: 8 },
   remove: { flexDirection: "row", gap: tokens.spacing.xs, alignSelf: "flex-start", justifyContent: "center", alignItems: "center", minWidth: 48, minHeight: 48 },

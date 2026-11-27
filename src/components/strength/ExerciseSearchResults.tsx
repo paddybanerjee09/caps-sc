@@ -20,7 +20,7 @@ export function useExerciseFavouriteColor() {
   return colorScheme === "dark" ? "#FFC548" : "#946700";
 }
 
-export function useExerciseCatalog() {
+export function useExerciseCatalog(enabled = true) {
   const db = useSQLiteContext();
   const [catalog, setCatalog] = useState<CatalogExercise[]>([]);
   const [favourites, setFavourites] = useState<string[]>([]);
@@ -32,6 +32,7 @@ export function useExerciseCatalog() {
   const favouriteLocks = useRef(new Set<string>());
 
   useEffect(() => {
+    if (!enabled) return;
     let active = true;
     void Promise.all([listStrengthExercises(db), listStrengthExerciseFavouriteIds()])
       .then(([exercises, ids]) => {
@@ -47,7 +48,7 @@ export function useExerciseCatalog() {
         setLoading(false);
       });
     return () => { active = false; };
-  }, [db, retry]);
+  }, [db, enabled, retry]);
 
   async function toggleFavourite(id: string) {
     if (favouriteLocks.current.has(id)) return;

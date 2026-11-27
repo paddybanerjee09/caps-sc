@@ -114,7 +114,7 @@ export function StrengthStack() {
   }
   return (
     <View style={StyleSheet.absoluteFill}>
-      {builder ? <WorkoutBuilderScreen key={builder.key} /> : null}
+      {builder ? <WorkoutBuilderScreen key={builder.key} completingPlan={builder.completingPlan} /> : null}
       <Cover />
       <StrengthConfirm />
     </View>

@@ -8,7 +8,7 @@ import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome"
 import { useExerciseTable } from "../../components/strength/ExerciseTable";
 import { EstimatedFocusButton } from "../../components/training/EstimatedFocusButton";
 import { createId } from "../../conditioning/ids";
-import { archiveStrengthTemplate, saveStrengthTemplate, listSameLiftReferences, logStrengthSession } from "../../data/strengthRepository";
+import { archiveStrengthTemplate, completeStrengthSession, saveStrengthTemplate, listSameLiftReferences, logStrengthSession } from "../../data/strengthRepository";
 import { useAppState } from "../../state/AppStateContext";
 import { useStrengthWorkspace } from "../../state/StrengthWorkspaceContext";
 import { addCatalogExercise, MAX_EXERCISES, removeExercise, strengthSessionTime, TITLE_MAX, updateExercise, validateStrengthDraft } from "../../strength/drafts";
@@ -33,7 +33,7 @@ function templateContent(draft: StrengthDraft) {
   });
 }
 
-export function WorkoutBuilderScreen() {
+export function WorkoutBuilderScreen({ completingPlan = false }: { completingPlan?: boolean }) {
   const db = useSQLiteContext();
   const { theme } = useAppTheme();
   const { bumpTimeline } = useAppState();
@@ -57,6 +57,7 @@ export function WorkoutBuilderScreen() {
     exercises,
     mode,
     disabled: saving,
+    prescriptionReadOnly: completingPlan,
     onAddExercise: (exercise) => {
       if (exercises.length >= MAX_EXERCISES) {
         setError("A workout can contain up to 40 exercises.");
@@ -86,7 +87,7 @@ export function WorkoutBuilderScreen() {
   useEffect(() => {
     if (workspace.stack.at(-1)?.name !== "builder") return;
     workspace.registerBackHandler(() => {
-      if (!dismissExerciseOverlay()) workspace.closeBranch();
+      if (!dismissExerciseOverlay()) workspace.backFromBuilder();
       return true;
     });
     return () => workspace.registerBackHandler(null);
@@ -106,7 +107,7 @@ export function WorkoutBuilderScreen() {
 
   if (!draft) return null;
 
-  const savedDraft = workspace.savedSnapshot ? JSON.parse(workspace.savedSnapshot) as StrengthDraft : null;
+  const savedDraft = !completingPlan && workspace.savedSnapshot ? JSON.parse(workspace.savedSnapshot) as StrengthDraft : null;
   const invalidTargetInput = exercises.some(({ restSecondsInput, target }) =>
     restSecondsInput?.trim() && target?.restSeconds == null,
   );
@@ -154,12 +155,20 @@ export function WorkoutBuilderScreen() {
     workspace.setSaving(true);
     setError(null);
     try {
-      await logStrengthSession(db, draft, { now, persistTemplate: false });
+      if (completingPlan) {
+        await completeStrengthSession(db, draft, { now });
+      } else {
+        await logStrengthSession(db, draft, { now, persistTemplate: false });
+      }
       feedbackConfirm();
       bumpTimeline();
       workspace.bumpRevision();
       workspace.setSaving(false);
-      workspace.resetWorkspace();
+      if (completingPlan) {
+        workspace.openDetail(draft.sessionId);
+      } else {
+        workspace.resetWorkspace();
+      }
     } catch (cause) {
       feedbackWarn();
       setError(cause instanceof Error ? cause.message : "Couldn’t save session. Try again.");
@@ -197,19 +206,23 @@ export function WorkoutBuilderScreen() {
       />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" style={styles.page}>
         <View style={styles.titleBlock}>
-          <TextInput
-            accessibilityLabel="Workout title"
-            editable={!saving}
-            maxLength={TITLE_MAX}
-            onChangeText={(title) => {
-              setError(null);
-              updateDraft((current) => ({ ...current, title }));
-            }}
-            placeholder="Workout title"
-            placeholderTextColor={theme.colors.textMuted}
-            style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong, color: theme.colors.text }]}
-            value={draft.title}
-          />
+          {completingPlan ? (
+            <Text style={[styles.title, { color: theme.colors.text }]}>{draft.title}</Text>
+          ) : (
+            <TextInput
+              accessibilityLabel="Workout title"
+              editable={!saving}
+              maxLength={TITLE_MAX}
+              onChangeText={(title) => {
+                setError(null);
+                updateDraft((current) => ({ ...current, title }));
+              }}
+              placeholder="Workout title"
+              placeholderTextColor={theme.colors.textMuted}
+              style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong, color: theme.colors.text }]}
+              value={draft.title}
+            />
+          )}
           <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
             {planned ? "Start time" : "End time"} · Estimated duration {formatDurationSeconds(estimateDraftDurationSeconds(exercises, mode))}
           </Text>
@@ -223,8 +236,16 @@ export function WorkoutBuilderScreen() {
         />
       </ScrollView>
       {error ? <Text accessibilityRole="alert" selectable style={[styles.error, { color: theme.colors.text }]}>{error}</Text> : null}
-      <WorkflowFooter disabled={saving} equalActions onBack={close}>
-        <ActionButton disabled={saving} label={isSaved ? "Unsave" : "Save"} onPress={() => { void toggleSaved(); }} tone="secondary" style={styles.flex} />
+      <WorkflowFooter
+        backLabel={workspace.stack.length > 1 ? "Back" : "Cancel"}
+        disabled={saving}
+        equalActions
+        onBack={() => {
+          dismissExerciseOverlay();
+          workspace.backFromBuilder();
+        }}
+      >
+        {!completingPlan ? <ActionButton disabled={saving} label={isSaved ? "Unsave" : "Save"} onPress={() => { void toggleSaved(); }} tone="secondary" style={styles.flex} /> : null}
         <ActionButton disabled={saving} label={planned ? "Plan Session" : "Log Session"} onPress={() => { void log(); }} style={styles.flex} />
       </WorkflowFooter>
       {exerciseOverlay}
@@ -236,6 +257,7 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
   content: { padding: tokens.spacing.md, gap: tokens.spacing.md },
   input: { borderWidth: 1, borderRadius: 12, minHeight: 52, paddingHorizontal: 12, fontSize: 16 },
+  title: { paddingHorizontal: 4, fontSize: 20, fontWeight: "800" },
   titleBlock: { gap: 6 },
   subtitle: { paddingHorizontal: 4, fontSize: 12, fontVariant: ["tabular-nums"] },
   error: { fontSize: 14, paddingHorizontal: tokens.spacing.md, paddingBottom: tokens.spacing.xs },
