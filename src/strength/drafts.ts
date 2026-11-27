@@ -193,6 +193,10 @@ export function addCatalogExercise(
     return draft;
   }
   const repeat = emptyRepeat();
+  if (draft.sessionMode) {
+    repeat.rpe = 10;
+    repeat.rir = 0;
+  }
   const next: ExerciseDraft = {
     catalogExerciseId: exercise.id,
     equipment: exercise.equipment,

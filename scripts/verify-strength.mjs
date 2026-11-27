@@ -330,6 +330,9 @@ const logNow = endedAt;
 const fromSaved = draftFromTemplate(template, logNow);
 assert.equal(fromSaved.saveAsTemplate, true);
 assert.equal(fromSaved.sourceTemplateId, templateId);
+const legacyEffortTarget = getStrengthTarget(draftFromTemplate(template, logNow, undefined, "planned").exercises[0]);
+assert.equal(legacyEffortTarget.rpe, null);
+assert.equal(legacyEffortTarget.rir, null);
 const firstLog = await logStrengthSession(db, { ...fromSaved, saveAsTemplate: false }, { now: logNow + 1, timeZone: "UTC" });
 assert.equal(firstLog.alreadySaved, false);
 const session = await getStrengthSession(db, firstLog.sessionId);
@@ -592,6 +595,8 @@ const planned = addCatalogExercise(
   { ...createLogDraft(plannedStart, "future-strength", "planned"), title: "Overnight plan" },
   bench,
 );
+assert.equal(getStrengthTarget(planned.exercises[0]).rpe, 10);
+assert.equal(getStrengthTarget(planned.exercises[0]).rir, 0);
 const plan = updateExercise(planned, planned.exercises[0].id, (exercise) =>
   setStrengthTarget(exercise, { sets: 3, repRange: "20+", rpe: 9, rir: 2, restSeconds: 120 }, "planned"),
 );
@@ -640,6 +645,10 @@ assert.equal((await logStrengthSession(db, plan, { ...plannedOptions, now: plann
 const planTemplateId = await saveStrengthTemplate(db, plan);
 const planTemplate = await getStrengthTemplate(db, planTemplateId);
 const unfilled = draftFromTemplate(planTemplate, plannedStart, "completed-strength", "completed");
+const addedCompletedExercise = addCatalogExercise(unfilled, bench).exercises.at(-1);
+assert.equal(getStrengthTarget(addedCompletedExercise).rpe, 10);
+assert.equal(getStrengthTarget(addedCompletedExercise).rir, 0);
+assert.deepEqual(addedCompletedExercise.sets.map(({ actual }) => actual), [{ reps: "", rpe: "", rir: "" }]);
 const exerciseId = unfilled.exercises[0].id;
 assert.deepEqual(getStrengthTarget(unfilled.exercises[0]), plan.exercises[0].target);
 assert.equal(unfilled.exercises[0].sets.length, 3);
