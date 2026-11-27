@@ -18,6 +18,8 @@ export const exerciseTableColumnGap = 3;
 export const exerciseTableColumns = [66, 32, 40, 30, 30, 43, 53] as const;
 export const exerciseTableLabels = ["Exercise", "Sets", "Range", "RPE", "RIR", "Rest (s)", "Notes"] as const;
 const targetAccessibilityLabels = ["Exercise", "Sets", "Rep range", "Targeted RPE", "Targeted RIR", "Rest between sets in seconds", "Notes"];
+const editorColumnWidths = [200, 58, 96, 90, 90, 82, 180];
+const editorColumnGap = 8;
 const MENU_GAP = tokens.spacing.xs;
 const MENU_INSET = tokens.spacing.sm;
 const rowTransition = LinearTransition.duration(220).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.System);
@@ -131,9 +133,14 @@ export function useExerciseTable({
     onChangeExercise(exerciseId, (exercise) => setStrengthTarget(exercise, { repRange }, mode));
   }
 
-  const widths = prescriptionReadOnly ? exerciseTableColumns : [...exerciseTableColumns, 35];
+  const widths = [...editorColumnWidths];
+  for (const exercise of exercises) {
+    widths[0] = Math.max(widths[0], Array.from(exercise.name).length * 14 + 24);
+    widths[6] = Math.max(widths[6], Array.from(inlineNotes(exercise.notes)).length * 14 + 12);
+  }
+  if (!prescriptionReadOnly) widths.push(48);
   const columns = widths.map((width) => Math.ceil(width * Math.max(1, fontScale)));
-  const minWidth = columns.reduce((sum, width) => sum + width, 0) + exerciseTableColumnGap * (columns.length - 1);
+  const minWidth = columns.reduce((sum, width) => sum + width, 0) + editorColumnGap * (columns.length - 1);
   const extraWidth = Math.max(0, tableWidth - minWidth);
   columns[0] += Math.floor(extraWidth / 2);
   columns[6] += Math.ceil(extraWidth / 2);
@@ -195,7 +202,7 @@ export function useExerciseTable({
           persistentScrollbar
         >
           <View style={{ width: Math.max(tableWidth, minWidth) }}>
-            <TableHeadings columns={columns} labels={exerciseTableLabels} accessibilityLabels={targetAccessibilityLabels} />
+            <TableHeadings columns={columns} labels={["Exercise", "Sets", "Rep Range", "Target RPE", "Target RIR", "Rest (s)", "Notes"]} accessibilityLabels={targetAccessibilityLabels} />
             {exercises.map((exercise, index) => (
               <ExerciseRow
                 columns={columns}
@@ -293,6 +300,10 @@ function TableHeadings({ columns, labels, accessibilityLabels = labels }: {
   );
 }
 
+function inlineNotes(notes: string) {
+  return notes.replace(/\s*\r?\n\s*/g, " ");
+}
+
 function ExerciseRow({
   columns, disabled, exercise, expandInitially, mode, onChange, onOpenRange, onRemove,
   prescriptionReadOnly, rangeExpanded, onTextInputFocus, onTextInputBlur,
@@ -314,7 +325,7 @@ function ExerciseRow({
   const target = getStrengthTarget(exercise);
   const hasActualSets = mode === "completed";
   const restInput = exercise.restSecondsInput ?? (target.restSeconds == null ? "" : String(target.restSeconds));
-  const displayedNotes = exercise.notes.replace(/\s*\r?\n\s*/g, " ");
+  const displayedNotes = inlineNotes(exercise.notes);
   const focusCallbacks = { onBlur: onTextInputBlur, onFocus: onTextInputFocus };
 
   function changeTarget(patch: Partial<StrengthExerciseTarget>) {
@@ -512,7 +523,7 @@ const styles = StyleSheet.create({
   searchWell: { alignItems: "center", borderRadius: tokens.radius.sm, borderWidth: 1, flexDirection: "row", left: 0, paddingHorizontal: tokens.spacing.sm, position: "absolute", right: 0 },
   searchInput: { fontSize: 14, minHeight: 48, paddingLeft: 30, paddingRight: tokens.spacing.sm, paddingVertical: tokens.spacing.sm },
   favouritesFilter: { minWidth: 48, minHeight: 48, justifyContent: "center", alignItems: "center" },
-  row: { alignItems: "center", flexDirection: "row", gap: exerciseTableColumnGap },
+  row: { alignItems: "center", flexDirection: "row", gap: editorColumnGap },
   valueRow: { minHeight: 40 },
   heading: { fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
   center: { textAlign: "center" },
