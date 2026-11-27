@@ -378,7 +378,7 @@ CAPS.trees.strength = {
                 "Fit the fields on ordinary phone widths and support horizontal scrolling when needed.",
                 "Start new target rows at RPE 10 and RIR 0.",
               ],
-            }, { n: 4, name: "Wider single-line columns", date: "2026-11-26 23:46 -0500", commits: ["5e1839b"], changes: ["Widen the editor columns and allow horizontal scrolling to keep exercise names and headings readable."] }],
+            }, { n: 4, name: "Wider single-line columns", date: "2026-11-26 23:50 -0500", commits: ["5e1839b", "b27e0fa"], changes: ["Widen the editor columns and allow horizontal scrolling to keep exercise names and headings readable."] }],
             children: [{
               id: "strength-inline-search",
               title: "ExerciseSearchResults",
