@@ -5,7 +5,7 @@ import { ConditioningFooter, ErrorText, ScreenHeading } from "../../components/c
 import { TrainingMetricValue } from "../../components/training/TrainingMetricValue";
 import { conditioningStimulus } from "../../conditioning/stimulus";
 import { messageFromUnknown } from "../../conditioning/validation";
-import { getConditioningSession, listConditioningOccurrences, type ConditioningSessionRecord } from "../../data/conditioningRepository";
+import { getConditioningSession, getTrainingSessionLoadOverride, listConditioningOccurrences, type ConditioningSessionRecord } from "../../data/conditioningRepository";
 import type { MetricResult } from "../../domain/training/metric";
 import { useConditioningWorkspace } from "../../state/ConditioningWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
@@ -36,10 +36,14 @@ export function ConditioningAdaptationsScreen({ sessionId }: { sessionId: string
         if (!cancelled) setLoaded({ session, stimulus: null });
         return;
       }
-      const occurrences = await listConditioningOccurrences(db, ownerId, sessionId);
+      const [occurrences, override] = await Promise.all([
+        listConditioningOccurrences(db, ownerId, sessionId),
+        getTrainingSessionLoadOverride(db, session.timelineEntryId),
+      ]);
       const stimulus = conditioningStimulus({
         ...session,
-        sessionSeconds: session.activeSeconds ?? (session.source === "manual" ? session.elapsedSeconds : null),
+        sessionSeconds: override ? override.minutes * 60 : session.activeSeconds ?? (session.source === "manual" ? session.elapsedSeconds : null),
+        sessionRpe: override?.sessionRpe ?? session.sessionRpe,
         continuous: session.format === "free",
         expectedWorkBouts: session.snapshot.phases.filter(phase => phase.type === "work").length,
         sprintProtocol: session.format === "sprint",
@@ -78,7 +82,7 @@ export function ConditioningAdaptationsScreen({ sessionId }: { sessionId: string
                 <Metric label="Rest duration" metric={result.rest} explanation="Enter observed rest seconds between completed bouts, including zero for no rest." />
                 <Metric label="Work:rest ratio" metric={result.ratio} explanation="The ratio needs complete recorded work and rest, with a positive total rest duration." />
               </> : null}
-              <Metric label="General internal load" metric={result.sessionLoad} explanation="Enter completed session duration and session RPE in Log session, or add the load inputs from the Home timeline." />
+              <Metric label="General internal load" metric={result.sessionLoad} explanation="Enter elapsed minutes and session RPE for this workout in Home → Recovery → Training day log." />
             </StimulusCard>
             <StimulusCard label="Aerobic endurance">
               {result.continuous.value !== null ? <Metric label="Continuous work" metric={result.continuous} explanation="" /> : null}

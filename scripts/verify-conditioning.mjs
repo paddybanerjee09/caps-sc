@@ -67,6 +67,7 @@ import {
   getConditioningSession,
   getConditioningTemplate,
   getConditioningUploadJob,
+  getTrainingSessionLoadOverride,
   insertConditioningLocationPoints,
   listConditioningOccurrences,
   listConditioningTemplates,
@@ -802,6 +803,9 @@ assert.equal(reopenedObservation.elapsedSeconds, 330);
 assert.equal(reopenedObservation.sessionRpe, 8);
 assert.deepEqual((await listConditioningOccurrences(adapter, ownerId, observedLog.id))[0].actual, actualBikeBout.actual);
 assert.equal((await getConditioningSession(adapter, ownerId, logged.id)).snapshot.conditioningObservations, undefined);
+assert.equal(await getTrainingSessionLoadOverride(adapter, observedLog.timelineEntryId), null);
+await adapter.runAsync("INSERT INTO training_session_loads (timeline_entry_id,minutes,session_rpe) VALUES (?,?,?)", [observedLog.timelineEntryId, 18, 0]);
+assert.deepEqual(await getTrainingSessionLoadOverride(adapter, observedLog.timelineEntryId), { minutes: 18, sessionRpe: 0 });
 
 const point = {
   acceptance: "accepted",

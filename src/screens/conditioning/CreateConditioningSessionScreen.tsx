@@ -90,7 +90,6 @@ export function CreateConditioningSessionScreen() {
             {draft.format === "sprint" ? <SprintFields distanceSystem={unitSettings.distance} elevationSystem={unitSettings.height} draft={draft} update={update} /> : null}
             {draft.format === "circuit" ? <CircuitFields draft={draft} update={update} onEditStation={(stationId) => workspace.push({ key: `station-${stationId ?? "new"}-${Date.now()}`, name: "station", stationId })} /> : null}
           </View>
-          <ActionButton label="Estimated training stimulus" tone="secondary" disabled={saving} onPress={() => workspace.push({ key: `emphasis-draft-${Date.now()}`, name: "emphasis", sessionId: null })} />
           <ErrorText>{error}</ErrorText>
         </ScrollView>
         <ConditioningFooter disabled={saving} onBack={requestClose}>

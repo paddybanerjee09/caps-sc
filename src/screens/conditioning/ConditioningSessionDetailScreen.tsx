@@ -278,17 +278,6 @@ export function ConditioningSessionDetailScreen({
                     tone="secondary"
                   />
                   <ActionButton
-                    label="Estimated training stimulus"
-                    onPress={() =>
-                      workspace.push({
-                        key: `emphasis-${session.id}`,
-                        name: "emphasis",
-                        sessionId: session.id,
-                      })
-                    }
-                    tone="secondary"
-                  />
-                  <ActionButton
                     label="Log"
                     onPress={() => openLog(session, workspace)}
                     tone="secondary"

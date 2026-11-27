@@ -864,6 +864,15 @@ export async function getConditioningSession(
   return row ? mapSession(row) : null;
 }
 
+export async function getTrainingSessionLoadOverride(db: SQLiteDatabase, timelineEntryId: number | null) {
+  if (timelineEntryId === null) return null;
+  const row = await db.getFirstAsync<{ minutes: number; session_rpe: number }>(
+    "SELECT minutes,session_rpe FROM training_session_loads WHERE timeline_entry_id = ?",
+    [timelineEntryId],
+  );
+  return row ? { minutes: row.minutes, sessionRpe: row.session_rpe } : null;
+}
+
 export async function listConditioningSessionsForDates(
   db: SQLiteDatabase,
   ownerId: string,
