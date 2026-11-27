@@ -129,7 +129,7 @@ export function ExerciseSearchResults({
               onPress={() => { void toggleFavourite(item.id); }}
               style={styles.star}
             >
-              <Ionicons name={favourite ? "star" : "star-outline"} size={23} color={favourite ? favouriteColor : theme.colors.textMuted} />
+              <Ionicons name={favourite ? "star" : "star-outline"} size={23} color={favouriteColor} />
             </PressOpacity>
           </View>
         );

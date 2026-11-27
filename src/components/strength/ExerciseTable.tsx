@@ -17,7 +17,7 @@ const tokens = themes.dark;
 const COLUMN_GAP = tokens.spacing.xs;
 const MENU_GAP = tokens.spacing.xs;
 const MENU_INSET = tokens.spacing.sm;
-const targetHeadings = ["Exercise", "Sets", "Rep ranges", "Targeted RPE", "Targeted RIR", "Notes"];
+const targetHeadings = ["Exercise", "Sets", "Rep\nRanges", "Target\nRPE", "Target\nRIR", "Notes"];
 const rowTransition = LinearTransition.duration(220).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.System);
 const setOptions = Array.from({ length: MAX_SETS }, (_, index) => ({ value: index + 1, label: String(index + 1) }));
 const rangeOptions = STRENGTH_REP_RANGES.map((label, value) => ({ label, value }));
@@ -122,7 +122,7 @@ export function useExerciseTable({
     onChangeExercise(exerciseId, (exercise) => setStrengthTarget(exercise, { repRange }, mode));
   }
 
-  const columns = [76, 48, 58, 48, 48, 104].map((width) => Math.ceil(width * Math.max(1, fontScale)));
+  const columns = [90, 48, 58, 48, 48, 104].map((width) => Math.ceil(width * Math.max(1, fontScale)));
   const minWidth = columns.reduce((sum, width) => sum + width, 0) + COLUMN_GAP * (columns.length - 1);
   const extraWidth = Math.max(0, tableWidth - minWidth);
   columns[0] += Math.floor(extraWidth / 2);
@@ -252,7 +252,13 @@ function TableHeadings({ columns, labels }: { columns: number[]; labels: readonl
   return (
     <View style={styles.row}>
       {labels.map((label, index) => (
-        <Text key={index} style={[styles.heading, { color: theme.colors.textMuted, width: columns[index] }, index !== 0 && styles.center]}>{label}</Text>
+        <Text
+          key={index}
+          accessibilityLabel={label.replace("\n", " ")}
+          style={[styles.heading, { color: theme.colors.textMuted, width: columns[index] }, index > 0 && index < 5 && styles.center]}
+        >
+          {label}
+        </Text>
       ))}
     </View>
   );
