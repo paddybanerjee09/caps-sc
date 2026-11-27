@@ -1,31 +1,37 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useRef, useState, type ComponentRef, type RefObject } from "react";
-import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, type TextInputProps } from "react-native";
 import Animated, { Easing, LinearTransition, ReduceMotion } from "react-native-reanimated";
 
 import { getStrengthTarget, MAX_EXERCISES, MAX_NOTES, MAX_REST_SECONDS, MAX_SETS, setStrengthTarget, updateSet } from "../../strength/drafts";
 import { STRENGTH_REP_RANGES, type CatalogExercise, type ExerciseDraft, type SetDraft, type StrengthExerciseTarget, type StrengthRepRange, type StrengthSessionMode } from "../../strength/types";
-import { formatRestSeconds, formatRir, formatRpe } from "../../strength/units";
+import { formatRir, formatRpe } from "../../strength/units";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
 import { feedbackSelection } from "../../utils/feedback";
 import { PressOpacity } from "../PressOpacity";
 import { InlineScrollPicker } from "../ScrollPicker";
-import { TrainingNumberField } from "../training/TrainingNumberField";
 import { ExerciseSearchResults, useExerciseCatalog, useExerciseFavouriteColor } from "./ExerciseSearchResults";
 
 const tokens = themes.dark;
-const COLUMN_GAP = tokens.spacing.xs;
+export const exerciseTableColumnGap = 3;
+export const exerciseTableColumns = [66, 32, 40, 30, 30, 43, 53] as const;
+export const exerciseTableLabels = ["Exercise", "Sets", "Range", "RPE", "RIR", "Rest (s)", "Notes"] as const;
+const targetAccessibilityLabels = ["Exercise", "Sets", "Rep range", "Targeted RPE", "Targeted RIR", "Rest between sets in seconds", "Notes"];
 const MENU_GAP = tokens.spacing.xs;
 const MENU_INSET = tokens.spacing.sm;
-const targetHeadings = ["Exercise", "Sets", "Rep\nRanges", "Target\nRPE", "Target\nRIR", "Notes"];
 const rowTransition = LinearTransition.duration(220).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.System);
 const setOptions = Array.from({ length: MAX_SETS }, (_, index) => ({ value: index + 1, label: String(index + 1) }));
 const rangeOptions = STRENGTH_REP_RANGES.map((label, value) => ({ label, value }));
-const rpeOptions = [{ value: -1, label: "—" }, ...Array.from({ length: 10 }, (_, index) => ({ value: index + 1, label: String(index + 1) }))];
-const rirOptions = [{ value: -1, label: "—" }, ...Array.from({ length: 11 }, (_, value) => ({ value, label: value === 10 ? "10+" : String(value) }))];
+const unsetEffort = { value: -1, label: "—" };
+const rpeOptions = [...Array.from({ length: 10 }, (_, index) => ({ value: 10 - index, label: String(10 - index) })), unsetEffort];
+const rirOptions = [...Array.from({ length: 11 }, (_, value) => ({ value, label: value === 10 ? "10+" : String(value) })), unsetEffort];
 type ChangeExercise = (id: string, update: (exercise: ExerciseDraft) => ExerciseDraft) => void;
 type AnchorRef = RefObject<ComponentRef<typeof View> | null>;
+type TextInputFocusCallbacks = {
+  onTextInputFocus?: () => void;
+  onTextInputBlur?: () => void;
+};
 type OpenPopover =
   | { type: "search"; anchor: AnchorRef }
   | { type: "range"; anchor: AnchorRef; exerciseId: string };
@@ -38,8 +44,8 @@ type PopoverFrame = {
 /** Page-level overlays avoid clipping inside either axis of the exercise table. */
 export function useExerciseTable({
   pageRef, exercises, mode, disabled, prescriptionReadOnly = false,
-  onAddExercise, onChangeExercise, onRemoveExercise,
-}: {
+  onAddExercise, onChangeExercise, onRemoveExercise, onTextInputFocus, onTextInputBlur,
+}: TextInputFocusCallbacks & {
   pageRef: AnchorRef;
   exercises: readonly ExerciseDraft[];
   mode: StrengthSessionMode;
@@ -125,11 +131,12 @@ export function useExerciseTable({
     onChangeExercise(exerciseId, (exercise) => setStrengthTarget(exercise, { repRange }, mode));
   }
 
-  const columns = [90, 48, 58, 48, 48, 104].map((width) => Math.ceil(width * Math.max(1, fontScale)));
-  const minWidth = columns.reduce((sum, width) => sum + width, 0) + COLUMN_GAP * (columns.length - 1);
+  const widths = prescriptionReadOnly ? exerciseTableColumns : [...exerciseTableColumns, 35];
+  const columns = widths.map((width) => Math.ceil(width * Math.max(1, fontScale)));
+  const minWidth = columns.reduce((sum, width) => sum + width, 0) + exerciseTableColumnGap * (columns.length - 1);
   const extraWidth = Math.max(0, tableWidth - minWidth);
   columns[0] += Math.floor(extraWidth / 2);
-  columns[5] += Math.ceil(extraWidth / 2);
+  columns[6] += Math.ceil(extraWidth / 2);
 
   const exerciseTable = (
     <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
@@ -144,13 +151,21 @@ export function useExerciseTable({
               accessibilityLabel="Search Exercises"
               autoCorrect={false}
               editable={!searchDisabled}
-              onBlur={() => setPopover((current) => current?.type === "search" ? null : current)}
+              onBlur={() => {
+                onTextInputBlur?.();
+                setPopover((current) => current?.type === "search" ? null : current);
+              }}
               onChangeText={(value) => { setQuery(value); openSearch(Boolean(value.trim()) || favouritesOnly); }}
-              onFocus={() => openSearch(Boolean(query.trim()) || favouritesOnly)}
+              onFocus={() => {
+                onTextInputFocus?.();
+                openSearch(Boolean(query.trim()) || favouritesOnly);
+              }}
               placeholder="Search Exercises"
               placeholderTextColor={theme.colors.textMuted}
               ref={searchInput}
+              returnKeyType="done"
               style={[styles.searchInput, { color: theme.colors.text }]}
+              submitBehavior="blurAndSubmit"
               value={query}
             />
           </View>
@@ -180,7 +195,7 @@ export function useExerciseTable({
           persistentScrollbar
         >
           <View style={{ width: Math.max(tableWidth, minWidth) }}>
-            <TableHeadings columns={columns} labels={targetHeadings} />
+            <TableHeadings columns={columns} labels={exerciseTableLabels} accessibilityLabels={targetAccessibilityLabels} />
             {exercises.map((exercise, index) => (
               <ExerciseRow
                 columns={columns}
@@ -192,6 +207,8 @@ export function useExerciseTable({
                 onChange={(update) => onChangeExercise(exercise.id, update)}
                 onOpenRange={(anchor) => openRange(exercise.id, anchor)}
                 onRemove={() => onRemoveExercise(exercise.id)}
+                onTextInputBlur={onTextInputBlur}
+                onTextInputFocus={onTextInputFocus}
                 prescriptionReadOnly={prescriptionReadOnly}
                 rangeExpanded={popover?.type === "range" && popover.exerciseId === exercise.id}
               />
@@ -254,15 +271,20 @@ function PopoverBackdrop({ onDismiss, passThrough }: { onDismiss: () => void; pa
   );
 }
 
-function TableHeadings({ columns, labels }: { columns: number[]; labels: readonly string[] }) {
+function TableHeadings({ columns, labels, accessibilityLabels = labels }: {
+  columns: number[];
+  labels: readonly string[];
+  accessibilityLabels?: readonly string[];
+}) {
   const { theme } = useAppTheme();
   return (
     <View style={styles.row}>
       {labels.map((label, index) => (
         <Text
           key={index}
-          accessibilityLabel={label.replace("\n", " ")}
-          style={[styles.heading, { color: theme.colors.textMuted, width: columns[index] }, index > 0 && index < 5 && styles.center]}
+          accessibilityLabel={accessibilityLabels[index]}
+          numberOfLines={1}
+          style={[styles.heading, { color: theme.colors.textMuted, width: columns[index] }, index > 0 && index < 6 && styles.center]}
         >
           {label}
         </Text>
@@ -273,8 +295,8 @@ function TableHeadings({ columns, labels }: { columns: number[]; labels: readonl
 
 function ExerciseRow({
   columns, disabled, exercise, expandInitially, mode, onChange, onOpenRange, onRemove,
-  prescriptionReadOnly, rangeExpanded,
-}: {
+  prescriptionReadOnly, rangeExpanded, onTextInputFocus, onTextInputBlur,
+}: TextInputFocusCallbacks & {
   columns: number[];
   disabled: boolean;
   exercise: ExerciseDraft;
@@ -291,8 +313,9 @@ function ExerciseRow({
   const rangeAnchor = useRef<ComponentRef<typeof View>>(null);
   const target = getStrengthTarget(exercise);
   const hasActualSets = mode === "completed";
-  const fieldTheme = { backgroundColor: theme.colors.surfaceMuted, color: theme.colors.text, borderColor: theme.colors.borderStrong };
   const restInput = exercise.restSecondsInput ?? (target.restSeconds == null ? "" : String(target.restSeconds));
+  const displayedNotes = exercise.notes.replace(/\s*\r?\n\s*/g, " ");
+  const focusCallbacks = { onBlur: onTextInputBlur, onFocus: onTextInputFocus };
 
   function changeTarget(patch: Partial<StrengthExerciseTarget>) {
     onChange((current) => setStrengthTarget(current, patch, mode));
@@ -314,7 +337,7 @@ function ExerciseRow({
 
   return (
     <Animated.View layout={rowTransition} style={[styles.exercise, { borderColor: theme.colors.border }]}>
-      <View style={styles.row}>
+      <View style={[styles.row, styles.valueRow]}>
         {hasActualSets ? (
           <PressOpacity
             accessibilityLabel={`${exercise.name}, actual sets`}
@@ -323,24 +346,27 @@ function ExerciseRow({
             onPress={() => setExpanded((open) => !open)}
             style={[styles.exerciseName, { width: columns[0] }]}
           >
-            <Text style={[styles.name, { color: theme.colors.text }]}>{exercise.name}</Text>
-            <Ionicons color={theme.colors.tertiary} name={expanded ? "chevron-up" : "chevron-down"} size={13} />
+            <Text numberOfLines={1} style={[styles.name, { color: theme.colors.text }]}>{exercise.name}</Text>
+            <Ionicons color={theme.colors.tertiary} name={expanded ? "chevron-up" : "chevron-down"} size={9} />
           </PressOpacity>
         ) : (
-          <View style={[styles.exerciseName, { width: columns[0] }]}><Text style={[styles.name, { color: theme.colors.text }]}>{exercise.name}</Text></View>
+          <View style={[styles.exerciseName, { width: columns[0] }]}>
+            <Text accessibilityLabel={exercise.name} numberOfLines={1} style={[styles.name, { color: theme.colors.text }]}>{exercise.name}</Text>
+          </View>
         )}
         {prescriptionReadOnly ? ([
           ["Sets", String(target.sets)],
           ["Rep range", target.repRange],
           ["Target RPE", formatRpe(target.rpe)],
           ["Target RIR", formatRir(target.rir)],
-          ["Notes", exercise.notes || "—"],
+          ["Rest between sets in seconds", String(target.restSeconds ?? "—")],
+          ["Notes", displayedNotes || "—"],
         ].map(([label, value], index) => (
           <Text
             accessibilityLabel={`${exercise.name}, ${label}: ${value}`}
             key={label}
-            numberOfLines={index === 4 ? 4 : undefined}
-            style={[styles.prescriptionValue, index < 4 && styles.center, { width: columns[index + 1], color: theme.colors.text }]}
+            numberOfLines={1}
+            style={[styles.prescriptionValue, index < 5 && styles.center, { width: columns[index + 1], color: theme.colors.text }]}
           >
             {value}
           </Text>
@@ -366,40 +392,34 @@ function ExerciseRow({
             <View style={{ width: columns[4] }}>
               <InlineScrollPicker disabled={disabled} label={`${exercise.name}, targeted RIR`} onChange={(rir) => changeTarget({ rir: rir >= 0 ? rir : null })} options={rirOptions} value={target.rir ?? -1} />
             </View>
-            <TextInput
+            <CompactInput
+              {...focusCallbacks}
+              accessibilityLabel={`${exercise.name}, rest between sets in seconds`}
+              editable={!disabled}
+              maxLength={5}
+              numeric
+              onChangeText={changeRest}
+              value={restInput}
+              width={columns[5]}
+            />
+            <CompactInput
+              {...focusCallbacks}
               accessibilityLabel={`${exercise.name}, notes`}
               editable={!disabled}
               maxLength={MAX_NOTES}
-              multiline
               onChangeText={(notes) => onChange((current) => ({ ...current, notes }))}
-              placeholder="Optional"
-              placeholderTextColor={theme.colors.textMuted}
-              style={[styles.input, fieldTheme, styles.notes, { width: columns[5] }]}
-              value={exercise.notes}
+              value={displayedNotes}
+              width={columns[6]}
             />
+            <PressOpacity accessibilityLabel={`Remove ${exercise.name}`} disabled={disabled} onPress={onRemove} style={[styles.remove, { width: columns[7] }]}>
+              <Ionicons color={theme.colors.textMuted} name="trash-outline" size={15} />
+            </PressOpacity>
           </>
         )}
       </View>
-      <View style={styles.row}>
-        <View style={{ width: columns[0] + columns[1] + columns[2] + COLUMN_GAP * 2 }}>
-          {!prescriptionReadOnly ? (
-            <PressOpacity accessibilityLabel={`Remove ${exercise.name}`} disabled={disabled} onPress={onRemove} style={styles.remove}>
-              <Ionicons color={theme.colors.textMuted} name="trash-outline" size={16} />
-              <Text style={[styles.hint, { color: theme.colors.textMuted }]}>Remove</Text>
-            </PressOpacity>
-          ) : null}
-        </View>
-        <View style={{ width: columns[3] + columns[4] + COLUMN_GAP }}>
-          {prescriptionReadOnly ? (
-            <Text style={[styles.prescriptionValue, { color: theme.colors.textMuted }]}>Rest between sets · {formatRestSeconds(target.restSeconds)}</Text>
-          ) : (
-            <TrainingNumberField editable={!disabled} label="Rest between sets (s)" maxLength={5} onChangeText={changeRest} placeholder="Optional" value={restInput} />
-          )}
-        </View>
-      </View>
       {hasActualSets && expanded ? (
         <View style={[styles.actualSets, { borderColor: theme.colors.border }]}>
-          <TableHeadings columns={columns} labels={["Actual sets", "Set #", "Reps", "RPE", "RIR", ""]} />
+          <TableHeadings columns={columns} labels={["Actual sets", "Set #", "Reps", "RPE", "RIR"]} />
           {exercise.sets.map((set, index) => (
             <View key={set.id} style={styles.row}>
               <View style={{ width: columns[0] }} />
@@ -411,6 +431,8 @@ function ExerciseRow({
                   key={field}
                   label={`${exercise.name}, set ${index + 1}, ${field === "reps" ? "reps" : field.toUpperCase()}`}
                   onChange={(raw) => changeActual(set.id, field, raw)}
+                  onTextInputBlur={onTextInputBlur}
+                  onTextInputFocus={onTextInputFocus}
                   raw={set.actual?.[field] ?? ""}
                   width={columns[metricIndex + 2]}
                 />
@@ -424,8 +446,8 @@ function ExerciseRow({
 }
 
 function ActualSetInput({
-  disabled, field, label, onChange, raw, width,
-}: {
+  disabled, field, label, onChange, raw, width, onTextInputFocus, onTextInputBlur,
+}: TextInputFocusCallbacks & {
   disabled: boolean;
   field: keyof NonNullable<SetDraft["actual"]>;
   label: string;
@@ -433,31 +455,56 @@ function ActualSetInput({
   raw: string;
   width: number;
 }) {
-  const { theme } = useAppTheme();
   const [focused, setFocused] = useState(false);
   const value = field === "rir" && Number(raw.replace(/\+$/, "")) === 10
     ? focused ? raw.replace(/\+$/, "") : "10+"
     : raw;
 
   return (
-    <TextInput
+    <CompactInput
       accessibilityLabel={label}
       editable={!disabled}
-      keyboardType="number-pad"
       maxLength={field === "reps" ? 5 : 4}
-      onBlur={() => setFocused(false)}
+      numeric
+      onBlur={() => {
+        setFocused(false);
+        onTextInputBlur?.();
+      }}
       onChangeText={onChange}
-      onFocus={() => setFocused(true)}
+      onFocus={() => {
+        setFocused(true);
+        onTextInputFocus?.();
+      }}
+      value={value}
+      width={width}
+    />
+  );
+}
+
+function CompactInput({ numeric = false, width, ...props }: Pick<
+  TextInputProps,
+  "accessibilityLabel" | "editable" | "maxLength" | "onBlur" | "onChangeText" | "onFocus" | "value"
+> & { numeric?: boolean; width: number }) {
+  const { theme } = useAppTheme();
+  return (
+    <TextInput
+      {...props}
+      keyboardType={numeric ? "number-pad" : "default"}
       placeholder="—"
       placeholderTextColor={theme.colors.textMuted}
-      style={[styles.input, styles.actualInput, { width, backgroundColor: theme.colors.surfaceMuted, color: theme.colors.text, borderColor: theme.colors.borderStrong }]}
-      value={value}
+      returnKeyType="done"
+      style={[
+        styles.input,
+        numeric && styles.numericInput,
+        { width, backgroundColor: theme.colors.surfaceMuted, color: theme.colors.text, borderColor: theme.colors.borderStrong },
+      ]}
+      submitBehavior="blurAndSubmit"
     />
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: tokens.radius.lg, padding: tokens.spacing.lg, gap: tokens.spacing.sm },
+  card: { borderWidth: 1, borderRadius: tokens.radius.lg, paddingHorizontal: 6, paddingVertical: tokens.spacing.sm, gap: tokens.spacing.xs },
   kicker: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
   hint: { fontSize: 13 },
   search: { alignItems: "center", flexDirection: "row" },
@@ -465,19 +512,19 @@ const styles = StyleSheet.create({
   searchWell: { alignItems: "center", borderRadius: tokens.radius.sm, borderWidth: 1, flexDirection: "row", left: 0, paddingHorizontal: tokens.spacing.sm, position: "absolute", right: 0 },
   searchInput: { fontSize: 14, minHeight: 48, paddingLeft: 30, paddingRight: tokens.spacing.sm, paddingVertical: tokens.spacing.sm },
   favouritesFilter: { minWidth: 48, minHeight: 48, justifyContent: "center", alignItems: "center" },
-  row: { alignItems: "center", flexDirection: "row", gap: COLUMN_GAP },
-  heading: { fontSize: 10, letterSpacing: 0.25, fontWeight: "700", textTransform: "uppercase" },
+  row: { alignItems: "center", flexDirection: "row", gap: exerciseTableColumnGap },
+  valueRow: { minHeight: 40 },
+  heading: { fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
   center: { textAlign: "center" },
-  exercise: { borderTopWidth: 1, gap: tokens.spacing.xs, paddingVertical: tokens.spacing.sm },
-  exerciseName: { alignItems: "flex-start", justifyContent: "center", minHeight: 48, paddingRight: 2, gap: 3 },
-  name: { fontSize: 13, fontWeight: "700" },
-  prescriptionValue: { fontSize: 13, fontVariant: ["tabular-nums"] },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: tokens.radius.sm, fontSize: 14 },
-  notes: { fontSize: 13, maxHeight: 88, paddingHorizontal: 6, paddingVertical: 8 },
-  remove: { flexDirection: "row", gap: tokens.spacing.xs, alignSelf: "flex-start", justifyContent: "center", alignItems: "center", minWidth: 48, minHeight: 48 },
-  actualSets: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: tokens.spacing.sm, gap: tokens.spacing.xs },
-  actualInput: { fontVariant: ["tabular-nums"], paddingHorizontal: 2, textAlign: "center" },
-  setNumber: { fontVariant: ["tabular-nums"], fontSize: 13, fontWeight: "700", textAlign: "center" },
+  exercise: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 1 },
+  exerciseName: { flexDirection: "row", alignItems: "center", minHeight: 40, gap: 2 },
+  name: { flexShrink: 1, fontSize: 12, fontWeight: "700" },
+  prescriptionValue: { fontSize: 12, fontVariant: ["tabular-nums"] },
+  input: { minHeight: 34, borderWidth: 1, borderRadius: tokens.radius.sm, fontSize: 12, paddingHorizontal: 4, paddingVertical: 2 },
+  numericInput: { fontVariant: ["tabular-nums"], paddingHorizontal: 2, textAlign: "center" },
+  remove: { justifyContent: "center", alignItems: "center", minHeight: 40 },
+  actualSets: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 2, gap: 2 },
+  setNumber: { fontVariant: ["tabular-nums"], fontSize: 12, fontWeight: "700", textAlign: "center" },
   overlay: { ...StyleSheet.absoluteFill, zIndex: 10 },
   backdrop: { position: "absolute" },
   menu: { position: "absolute", borderRadius: tokens.radius.md, borderWidth: 1, overflow: "hidden", boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.24)" },

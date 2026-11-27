@@ -73,9 +73,10 @@ export function InlineScrollPicker({
 }: ScrollPickerProps & { disabled?: boolean; expanded?: boolean; onOpen?: () => void }) {
   const { theme } = useAppTheme();
   const { fontScale } = useWindowDimensions();
-  const rowHeight = Math.max(46, Math.ceil(24 * fontScale));
+  const rowHeight = Math.max(34, Math.ceil(24 * fontScale));
   const list = useRef<ComponentRef<typeof ScrollView>>(null);
   const index = Math.max(0, options.findIndex((option) => option.value === value));
+  const incrementDirection = options[0].value > (options[1]?.value ?? options[0].value) ? -1 : 1;
   const [initialOffset] = useState(() => ({ x: 0, y: index * rowHeight }));
   const offset = useRef(initialOffset.y);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,7 +130,7 @@ export function InlineScrollPicker({
           onOpen?.();
         } else if (action === "increment" || action === "decrement") {
           cancelSettle();
-          const next = index + (action === "increment" ? 1 : -1);
+          const next = index + (action === "increment" ? incrementDirection : -incrementDirection);
           choose(next);
           list.current?.scrollTo({ y: lastSelection.current, animated: false });
         }
@@ -172,12 +173,12 @@ export function InlineScrollPicker({
             onPress={onOpen}
             style={({ pressed }) => [styles.inlineRow, { height: rowHeight }, pressed && { opacity: themes.dark.opacity.pressed }]}
           >
-            <Text style={[styles.inlineValue, { color: theme.colors.text }]}>{item.label}</Text>
+            <Text adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1} style={[styles.inlineValue, { color: theme.colors.text }]}>{item.label}</Text>
           </Pressable>
         ))}
       </ScrollView>
       <View pointerEvents="none" style={styles.inlineIndicator}>
-        <Ionicons color={theme.colors.textMuted} name={onOpen ? "chevron-down" : "swap-vertical"} size={11} />
+        <Ionicons color={theme.colors.textMuted} name={onOpen ? "chevron-down" : "swap-vertical"} size={8} />
       </View>
     </View>
   );
@@ -188,8 +189,8 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, fontWeight: "700", textAlign: "center" },
   selection: { position: "absolute", left: 0, right: 0, borderRadius: themes.dark.radius.md, borderWidth: 1 },
   value: { fontSize: 19, fontVariant: ["tabular-nums"], fontWeight: "700" },
-  inlineWheel: { minWidth: 48, borderWidth: 1, borderRadius: themes.dark.radius.sm, overflow: "hidden" },
-  inlineRow: { alignItems: "center", justifyContent: "center", paddingRight: 10 },
-  inlineValue: { fontSize: 13, fontVariant: ["tabular-nums"], fontWeight: "700" },
-  inlineIndicator: { position: "absolute", right: 3, top: 0, bottom: 0, justifyContent: "center" },
+  inlineWheel: { borderWidth: 1, borderRadius: themes.dark.radius.sm, overflow: "hidden" },
+  inlineRow: { alignItems: "center", justifyContent: "center", paddingRight: 8 },
+  inlineValue: { fontSize: 11, fontVariant: ["tabular-nums"], fontWeight: "700", maxWidth: "100%" },
+  inlineIndicator: { position: "absolute", right: 1, top: 0, bottom: 0, justifyContent: "center" },
 });
