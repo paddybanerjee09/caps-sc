@@ -36,3 +36,5 @@ Child exercise snapshots retain their stable catalog reference and have nullable
 `npm run verify:strength` covers the v11 upgrade and rollback, v1 reads, overnight schedule, end/start validation, planned and completed snapshots, target-only template save, completed scoring independence and retry. See [[2026-11-26 Planned and Completed Strength Handoff]] for integrated and device verification.
 
 The remaining product scope around competition dates and periodization is recorded in [[Strength History]]. Current feature visualization is `docs/feature-tree/strength.html`, with source in `docs/feature-tree/data/strength.js`.
+
+The Log Session editor keeps compact row heights and uses wider, horizontally scrollable columns. Exercise names and notes grow their columns with the content. Full target headings stay on one line. Source: 5e1839b.
