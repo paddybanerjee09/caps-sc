@@ -22,7 +22,7 @@ const adapter = {
   },
 };
 await migrateDatabase(adapter);
-assert.equal(db.prepare("PRAGMA user_version").get().user_version, 12);
+assert.equal(db.prepare("PRAGMA user_version").get().user_version, 13);
 assert.equal(await getLatestWeightKg(adapter), null);
 
 const olderAt = new Date(2026, 9, 10, 8, 14).getTime();

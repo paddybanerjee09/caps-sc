@@ -254,7 +254,7 @@ function sessionDraft(endedAt, sessionId, activities) {
 const fresh = new DatabaseSync(":memory:");
 const db = adapterFor(fresh);
 await migrateDatabase(db);
-assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 12);
+assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 13);
 assert.ok(fresh.prepare("SELECT name FROM sqlite_master WHERE name = 'skill_sessions'").get());
 assert.ok(fresh.prepare("SELECT name FROM sqlite_master WHERE name = 'strength_sessions'").get());
 
@@ -278,7 +278,7 @@ upgradeDb.exec(`
 upgradeDb.exec(strengthMigrationSql);
 const upgrade = adapterFor(upgradeDb);
 await migrateDatabase(upgrade);
-assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 12);
+assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 13);
 assert.equal(upgradeDb.prepare("SELECT id FROM nutrition_workspace").get().id, "keep");
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'strength_sessions'").get());
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'skill_sessions'").get());
@@ -463,7 +463,7 @@ assert.equal(legacyDb.prepare("PRAGMA user_version").get().user_version, 10);
 assert.ok(!legacyDb.prepare("PRAGMA table_info(skill_template_activities)").all().some((column) => column.name === "sets"));
 assert.deepEqual(legacyDb.prepare("SELECT * FROM skill_session_activities").get(), legacyActivityBefore);
 await migrateDatabase(legacyAdapter);
-assert.equal(legacyDb.prepare("PRAGMA user_version").get().user_version, 12);
+assert.equal(legacyDb.prepare("PRAGMA user_version").get().user_version, 13);
 for (const [key,value] of Object.entries(legacyTemplateBefore)) assert.equal(legacyDb.prepare("SELECT * FROM skill_template_activities").get()[key], value);
 for (const [key,value] of Object.entries(legacyActivityBefore)) assert.equal(legacyDb.prepare("SELECT * FROM skill_session_activities").get()[key], value);
 assert.deepEqual(legacyDb.prepare("SELECT * FROM skill_sessions").get(), legacySessionBefore);
