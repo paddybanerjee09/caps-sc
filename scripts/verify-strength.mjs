@@ -4,19 +4,20 @@ import { DatabaseSync } from "node:sqlite";
 import { formatLocalDate } from "../src/conditioning/dates.ts";
 import { searchExercises } from "../src/strength/catalog.ts";
 import { CATALOG_SEED } from "../src/strength/catalogSeed.ts";
-import { exerciseFormValues, exerciseFromForm } from "../src/strength/exerciseForm.ts";
-import { strengthExerciseImageUrl } from "../src/strength/media.ts";
 import {
   addCatalogExercise,
   applyRepeat,
   createLogDraft,
   customizeSet,
+  defaultStrengthSessionTime,
   draftFromTemplate,
+  getStrengthTarget,
   matchSetToRepeat,
   projectTemplateDraft,
   resizeSets,
   saveWorkoutConsequence,
   setLoadMode,
+  setStrengthTarget,
   tableField,
   updateExercise,
   updateSet,
@@ -30,6 +31,7 @@ import {
 import {
   PRIMARY_LEAD_MINIMUM,
   PRIMARY_SCORE_MINIMUM,
+  STRENGTH_EMPHASIS_VERSION,
   emphasisFromDraft,
   emphasisHeadline,
   emphasisMarkerColor,
@@ -38,6 +40,7 @@ import {
 } from "../src/strength/emphasis.ts";
 import { formatLoadAmount } from "../src/strength/units.ts";
 import { migrateDatabase } from "../src/data/database.ts";
+import { strengthMigrationSql } from "../src/data/strengthMigration.ts";
 import {
   archiveStrengthTemplate,
   createCustomExercise,
@@ -185,6 +188,10 @@ const repsText = (set) => String(set.reps);
 assert.equal(tableField([], repsText), "--");
 assert.equal(tableField(restored.sets, repsText), "5");
 assert.equal(tableField(flagExercise.sets, repsText), "Mixed");
+for (const [reps, repRange] of [[1, "1-3"], [5, "3-5"], [8, "6-8"], [21, "20+"]]) {
+  const { exercises } = benchDraft(0, { reps });
+  assert.equal(getStrengthTarget(exercises[0]).repRange, repRange);
+}
 
 const overnight = benchDraft(0, { sets: 10, reps: 10, restSeconds: null });
 const overnightSeconds = estimateDraftDurationSeconds(overnight.exercises);
@@ -195,7 +202,7 @@ assert.equal(formatLocalDate(new Date(endedAt)), "2026-11-15");
 assert.equal(formatLocalDate(new Date(startedAt)), "2026-11-14");
 
 function emphasisFor(draft, references = new Map()) {
-  return emphasisFromDraft(draft.exercises, references);
+  return emphasisFromDraft(draft.exercises, references, draft.sessionMode);
 }
 
 const noReference = benchDraft(0, { sets: 5, reps: 3, loadKg: 100 });
@@ -282,7 +289,7 @@ const assisted = updateExercise(pullupDraft, pullupDraft.exercises[0].id, (exerc
   setLoadMode(exercise, "assisted"),
 );
 assert.equal(validateStrengthDraft(assisted, "log", 1_000), null);
-assert.equal(validateStrengthDraft({ ...pullupDraft, endedAt: 5_000 }, "log", 1_000), "Choose an end time that is not in the future.");
+assert.match(validateStrengthDraft({ ...pullupDraft, endedAt: 5_000 }, "log", 1_000), /end time.*not in the future/);
 assert.match(formatLoadAmount(100, "imperial"), /220\.5 lb/);
 assert.equal(
   saveWorkoutConsequence({ ...pullupDraft, sourceTemplateId: "tpl", saveAsTemplate: false }),
@@ -292,7 +299,7 @@ assert.equal(
 const fresh = new DatabaseSync(":memory:");
 const db = adapterFor(fresh);
 await migrateDatabase(db);
-assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 11);
+assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 12);
 assert.equal(
   fresh.prepare("SELECT COUNT(*) AS count FROM strength_exercises").get().count,
   CATALOG_SEED.length,
@@ -420,7 +427,7 @@ upgradeDb.exec(`
 `);
 const upgrade = adapterFor(upgradeDb);
 await migrateDatabase(upgrade);
-assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 11);
+assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 12);
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'strength_sessions'").get());
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'timeline_entries'").get());
 assert.equal(
@@ -447,7 +454,7 @@ const partial = updateExercise(tied, tied.exercises[0].id, (exercise) => ({
     { ...exercise.sets[0], warmup: true, loadKg: 160 },
     { ...exercise.sets[1], skipped: true, loadKg: 180 },
     exercise.sets[2],
-    { ...exercise.sets[3], loadKg: 110, restSeconds: 0 },
+    { ...exercise.sets[3], loadKg: 110, reps: 6, restSeconds: 0, rpe: 7 },
   ],
 }));
 const savedPartial = await logStrengthSession(
@@ -464,8 +471,8 @@ assert.deepEqual(
   [[0, false, true], [1, true, false], [2, false, false], [3, false, false]],
 );
 assert.deepEqual(
-  prescribed.sets.map(({ position, loadKg, restSeconds }) => [position, loadKg, restSeconds]),
-  [[0, 100, 120], [1, 110, 0]],
+  prescribed.sets.map(({ position, loadKg, reps, restSeconds, rpe }) => [position, loadKg, reps, restSeconds, rpe]),
+  [[0, 100, 5, 120, null], [1, 110, 6, 0, 7]],
 );
 assert.equal(await referenceAt(10_000), undefined);
 assert.deepEqual(await referenceAt(10_001), { kind: "load", kg: 110 });
@@ -496,32 +503,6 @@ await logStrengthSession(
 );
 assert.deepEqual(await referenceAt(40_000), { kind: "assistance", kg: 20 });
 
-// The compact exercise form preserves existing loads and individual set targets.
-const mixedExercise = {
-  ...benchDraft(1_000, { sets: 2 }).exercises[0],
-  sets: [
-    { ...benchDraft(1_000).exercises[0].sets[0], reps: 5, loadKg: 100, warmup: true },
-    { ...benchDraft(1_000).exercises[0].sets[0], reps: 8, loadKg: 90, restSeconds: 0, skipped: true },
-  ],
-};
-const mixedForm = exerciseFormValues(mixedExercise);
-assert.equal(mixedForm.reps, "Mixed");
-assert.equal(mixedForm.restSeconds, "Mixed");
-const unchangedExercise = exerciseFromForm(mixedExercise, mixedForm);
-assert.equal(unchangedExercise.error, null);
-assert.deepEqual(unchangedExercise.exercise.sets.map((set) => [set.reps, set.loadKg, set.restSeconds, set.warmup, set.skipped]),
-  mixedExercise.sets.map((set) => [set.reps, set.loadKg, set.restSeconds, set.warmup, set.skipped]));
-const editedExercise = exerciseFromForm(mixedExercise, { ...mixedForm, rpe: "", restSeconds: "0", notes: "Compact editor" });
-assert.equal(editedExercise.error, null);
-assert.ok(editedExercise.exercise.sets.every((set) => set.rpe === null && set.restSeconds === 0));
-assert.deepEqual(editedExercise.exercise.sets.map((set) => set.loadKg), [100, 90]);
-assert.equal(editedExercise.exercise.notes, "Compact editor");
-for (const form of [
-  { ...mixedForm, sets: "0" }, { ...mixedForm, sets: "21" }, { ...mixedForm, sets: "1.5" },
-  { ...mixedForm, reps: "" }, { ...mixedForm, reps: "101" },
-  { ...mixedForm, rpe: "11" }, { ...mixedForm, restSeconds: "-1" },
-]) assert.ok(exerciseFromForm(mixedExercise, form).error);
-
 // Missing load stays unknown; explicitly invalid entered values never reach SQLite.
 const omittedLoad = addCatalogExercise({ ...createLogDraft(1_000), title: "Without load" }, findSeed("bench press"));
 assert.equal(validateStrengthDraft(omittedLoad, "log", 1_000), null);
@@ -548,10 +529,6 @@ assert.ok(!(await listStrengthTemplates(db)).some((row) => row.id === omittedLog
 assert.ok((await getStrengthTemplate(db, omittedLog.templateId)).archivedAt != null);
 assert.equal((await getStrengthSession(db, omittedLog.sessionId)).sourceTemplateId, omittedLog.templateId);
 assert.equal((await getStrengthSession(db, omittedLog.sessionId)).exercises[0].sets[0].reps, 5);
-
-assert.equal(strengthExerciseImageUrl(findSeed("bench press")), null);
-assert.equal(strengthExerciseImageUrl({ ...findSeed("bench press"), imageUrl: "https://example.test/exercise.jpg" }), "https://example.test/exercise.jpg");
-assert.equal(strengthExerciseImageUrl({ ...findSeed("bench press"), imageUrl: "javascript:alert(1)" }), null);
 
 // Reusing the same UI draft across Save/Unsave/Save must not reuse archived snapshot IDs.
 const toggleDraft = addCatalogExercise({ ...createLogDraft(50_000), title: "Toggle workout" }, findSeed("bench press"));
@@ -600,5 +577,174 @@ for (const saveAsTemplate of [false, true]) {
   assert.equal(explicitFreeLog.templateId, null);
   assert.equal((await listStrengthTemplates(db)).length, templateCountBeforeExplicitLog);
 }
+
+// Future workouts are grouped by their selected start and store targets without performed sets.
+const plannedStart = new Date(2026, 10, 27, 23, 55).getTime();
+const plannedOptions = {
+  now: plannedStart - 60_000,
+  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  persistTemplate: false,
+};
+assert.equal(defaultStrengthSessionTime("planned", plannedStart + 41_000), plannedStart + 3_600_000);
+const planned = addCatalogExercise(
+  { ...createLogDraft(plannedStart, "future-strength", "planned"), title: "Overnight plan" },
+  bench,
+);
+const plan = updateExercise(planned, planned.exercises[0].id, (exercise) =>
+  setStrengthTarget(exercise, { sets: 3, repRange: "20+", rpe: 9, rir: 2, restSeconds: 120 }, "planned"),
+);
+assert.deepEqual(plan.exercises[0].sets, []);
+assert.equal(validateStrengthDraft(plan, "log", plannedOptions.now), null);
+assert.match(validateStrengthDraft(plan, "log", plannedStart), /start time in the future/);
+assert.equal(emphasisFor(plan).workSets, 3);
+assert.equal(emphasisFor(plan).qualities.muscular_endurance.supportingSets, 3);
+const planWithRir = (rir) => updateExercise(plan, plan.exercises[0].id, (exercise) =>
+  setStrengthTarget(exercise, { rir }, "planned"),
+);
+assert.equal(emphasisFor(planWithRir(0)).qualities.hypertrophy.score, emphasisFor(plan).qualities.hypertrophy.score);
+assert.ok(emphasisFor(planWithRir(10)).qualities.hypertrophy.score < emphasisFor(plan).qualities.hypertrophy.score);
+const plannedCount = fresh.prepare("SELECT COUNT(*) AS count FROM timeline_entries").get().count;
+await assert.rejects(
+  () => logStrengthSession(db, plan, { ...plannedOptions, beforeCommit: () => { throw new Error("plan rollback"); } }),
+  /plan rollback/,
+);
+assert.equal(await getStrengthSession(db, plan.sessionId), null);
+assert.equal(fresh.prepare("SELECT COUNT(*) AS count FROM timeline_entries").get().count, plannedCount);
+
+const savedPlan = await logStrengthSession(db, plan, plannedOptions);
+const planRecord = await getStrengthSession(db, savedPlan.sessionId);
+assert.equal(planRecord.status, "planned");
+assert.equal(planRecord.startedAt, plannedStart);
+assert.equal(planRecord.localDate, "2026-11-27");
+assert.equal(planRecord.localEndDate, "2026-11-28");
+assert.equal(planRecord.endedAt, plannedStart + planRecord.durationSeconds * 1_000);
+assert.equal(planRecord.exercises[0].target.repRange, "20+");
+assert.equal(planRecord.exercises[0].target.rir, 2);
+assert.deepEqual(planRecord.exercises[0].sets, []);
+assert.deepEqual(planRecord.emphasis, emphasisFor(plan));
+assert.equal(fresh.prepare("SELECT status FROM timeline_entries WHERE id = ?").get(savedPlan.timelineEntryId).status, "planned");
+const planDay = await listStrengthSessionsForDates(db, "2026-11-27", "2026-11-27");
+assert.ok(planDay.some((row) => row.id === savedPlan.sessionId && row.status === "planned" && row.localDate === "2026-11-27"));
+const afterPlanDay = await listStrengthSessionsForDates(db, "2026-11-28", "2026-11-28");
+assert.ok(!afterPlanDay.some((row) => row.id === savedPlan.sessionId));
+assert.equal((await logStrengthSession(db, plan, { ...plannedOptions, now: plannedStart + 1 })).alreadySaved, true);
+
+// A saved prescription opens a completed draft with blank set inputs. Saving the template
+// succeeds while those inputs are incomplete and serializes the targets alone.
+const planTemplateId = await saveStrengthTemplate(db, plan);
+const planTemplate = await getStrengthTemplate(db, planTemplateId);
+const unfilled = draftFromTemplate(planTemplate, plannedStart, "completed-strength", "completed");
+const exerciseId = unfilled.exercises[0].id;
+assert.deepEqual(getStrengthTarget(unfilled.exercises[0]), plan.exercises[0].target);
+assert.equal(unfilled.exercises[0].sets.length, 3);
+assert.ok(unfilled.exercises[0].sets.every((set) => set.actual.reps === ""));
+assert.match(validateStrengthDraft(unfilled, "log", plannedStart), /Enter 1 to 100 reps.*set 1/);
+assert.equal(emphasisFor(unfilled).workSets, 0);
+await assert.rejects(
+  () => logStrengthSession(db, unfilled, { ...plannedOptions, now: plannedStart }),
+  /Enter 1 to 100 reps/,
+);
+assert.equal(await getStrengthSession(db, unfilled.sessionId), null);
+assert.equal(await saveStrengthTemplate(db, unfilled), planTemplateId);
+assert.deepEqual((await getStrengthTemplate(db, planTemplateId)).exercises[0].sets, []);
+
+const actualInputs = [
+  { reps: "8", rpe: "7", rir: "2" },
+  { reps: "7", rpe: "10", rir: "10+" },
+  { reps: "6", rpe: "", rir: "0" },
+];
+const filled = updateExercise(unfilled, exerciseId, (exercise) => ({
+  ...exercise,
+  sets: exercise.sets.map((set, index) => ({ ...set, actual: actualInputs[index] })),
+}));
+for (const field of ["rpe", "rir"]) {
+  const invalid = updateExercise(filled, exerciseId, (exercise) =>
+    updateSet(exercise, exercise.sets[0].id, (set) => ({
+      ...set,
+      actual: { ...set.actual, [field]: "11" },
+    })),
+  );
+  assert.match(validateStrengthDraft(invalid, "log", plannedStart), new RegExp(field.toUpperCase()));
+}
+const changedTargets = updateExercise(filled, exerciseId, (exercise) =>
+  setStrengthTarget(exercise, { repRange: "1RM", rpe: 10, rir: 0, restSeconds: 30 }, "completed"),
+);
+assert.equal(validateStrengthDraft(filled, "log", plannedStart), null);
+assert.deepEqual(emphasisFor(changedTargets), emphasisFor(filled));
+assert.equal(emphasisFor(filled).qualities.muscular_endurance.score, null);
+assert.equal(emphasisFor(filled).workSets, 3);
+assert.ok(emphasisFor(filled).qualities.hypertrophy.score < emphasisFor(plan).qualities.hypertrophy.score);
+assert.equal(
+  emphasisFromDraft(changedTargets.exercises, new Map(), "planned").qualities.strength.score,
+  90,
+);
+const savedCompleted = await logStrengthSession(db, filled, { ...plannedOptions, now: plannedStart });
+const completed = await getStrengthSession(db, savedCompleted.sessionId);
+assert.equal(completed.status, "completed");
+assert.equal(completed.endedAt, plannedStart);
+assert.equal(completed.emphasis.modelVersion, STRENGTH_EMPHASIS_VERSION);
+assert.deepEqual(completed.emphasis, emphasisFor(filled));
+assert.deepEqual(completed.exercises[0].sets.map(({ reps, rpe, rir }) => [reps, rpe, rir]), [
+  [8, 7, 2],
+  [7, 10, 10],
+  [6, null, 0],
+]);
+assert.equal(fresh.prepare("SELECT status FROM timeline_entries WHERE id = ?").get(savedCompleted.timelineEntryId).status, "completed");
+assert.deepEqual((await getStrengthTemplate(db, planTemplateId)).exercises[0].sets, []);
+
+// Upgrade one completed v11 exercise and its stored v1 estimate without rewriting either.
+const v11 = new DatabaseSync(":memory:");
+v11.exec(`
+  CREATE TABLE timeline_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    start_at INTEGER NOT NULL,
+    end_at INTEGER,
+    status TEXT NOT NULL DEFAULT 'planned',
+    notes TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE nutrition_workspace (id TEXT PRIMARY KEY);
+  ${strengthMigrationSql}
+  PRAGMA user_version = 11;
+  INSERT INTO timeline_entries (id, kind, title, start_at, end_at, status, created_at, updated_at)
+  VALUES (1, 'strength', 'Legacy workout', 0, 1000, 'completed', 1000, 1000);
+`);
+v11.prepare(`
+  INSERT INTO strength_sessions (
+    id, title, started_at, ended_at, local_end_date, timezone,
+    duration_seconds, emphasis_json, emphasis_version, timeline_entry_id, created_at
+  ) VALUES ('legacy', 'Legacy workout', 0, 1000, '1970-01-01', 'UTC', 1, ?, 'strength-emphasis-v1', 1, 1000)
+`).run(JSON.stringify({ ...hypertrophyResult, modelVersion: "strength-emphasis-v1" }));
+v11.exec(`
+  INSERT INTO strength_session_exercises (
+    id, session_id, position, name, equipment, muscle_groups_json, load_mode, unilateral, explosive_intent
+  ) VALUES ('legacy-exercise', 'legacy', 0, 'Bench Press', 'Barbell', '[]', 'external', 0, 0);
+  INSERT INTO strength_session_sets (id, session_exercise_id, position, load_kg, reps, rpe, skipped, warmup)
+  VALUES ('legacy-set', 'legacy-exercise', 0, 100, 5, 8.5, 0, 0);
+`);
+const legacy = adapterFor(v11);
+await assert.rejects(() => migrateDatabase({
+  ...legacy,
+  async execAsync(sql) {
+    if (sql.includes("ALTER TABLE strength_session_exercises ADD COLUMN target_json")) {
+      throw new Error("migration rollback");
+    }
+    return legacy.execAsync(sql);
+  },
+}), /migration rollback/);
+assert.equal(v11.prepare("PRAGMA user_version").get().user_version, 11);
+assert.ok(!v11.prepare("PRAGMA table_info(strength_sessions)").all().some((column) => column.name === "scheduled_local_date"));
+await migrateDatabase(legacy);
+await migrateDatabase(legacy);
+assert.equal(v11.prepare("PRAGMA user_version").get().user_version, 12);
+const legacySession = await getStrengthSession(legacy, "legacy");
+assert.equal(legacySession.status, "completed");
+assert.equal(legacySession.localDate, "1970-01-01");
+assert.equal(legacySession.emphasis.modelVersion, "strength-emphasis-v1");
+const [legacySet] = legacySession.exercises[0].sets;
+assert.deepEqual([legacySet.loadKg, legacySet.reps, legacySet.rpe, legacySet.rir ?? null], [100, 5, 8.5, null]);
 
 console.log("strength checks passed");

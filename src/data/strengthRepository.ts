@@ -4,7 +4,11 @@ import { deviceTimeZone, formatLocalDate, isIanaTimeZone } from "../conditioning
 import { createId } from "../conditioning/ids";
 import { CATALOG_SEED } from "../strength/catalogSeed";
 import {
+  performedSets,
+  plannedSetTarget,
   projectTemplateDraft,
+  setStrengthTarget,
+  strengthSessionTime,
   validateStrengthDraft,
 } from "../strength/drafts";
 import {
@@ -24,6 +28,7 @@ import type {
   LoadMode,
   StrengthDraft,
   StrengthExerciseRecord,
+  StrengthSessionMode,
   StrengthSetRecord,
   StrengthTemplateRecord,
 } from "../strength/types";
@@ -33,7 +38,10 @@ export type StrengthSessionSummary = {
   emphasis: StrengthEmphasis;
   endedAt: number;
   id: string;
+  localDate: string;
   localEndDate: string;
+  startedAt: number;
+  status: StrengthSessionMode;
   title: string;
 };
 
@@ -41,7 +49,6 @@ export type StrengthSessionRecord = StrengthSessionSummary & {
   durationSeconds: number;
   exercises: StrengthExerciseRecord[];
   sourceTemplateId: string | null;
-  startedAt: number;
   timeZone: string;
   timelineEntryId: number;
 };
@@ -68,6 +75,7 @@ type ExerciseRow = {
   name: string;
   notes: string | null;
   position: number;
+  target_json: string | null;
   unilateral: number;
 };
 
@@ -79,12 +87,37 @@ type SetRow = {
   position: number;
   reps: number;
   rest_seconds: number | null;
+  rir: number | null;
   rpe: number | null;
   skipped?: number;
   warmup?: number;
 };
 
 type StrengthSnapshot = "template" | "session";
+
+type SessionRow = {
+  emphasis_json: string;
+  ended_at: number;
+  id: string;
+  local_end_date: string;
+  scheduled_local_date: string | null;
+  started_at: number;
+  status: StrengthSessionMode;
+  title: string;
+};
+
+function mapSession(row: SessionRow): StrengthSessionSummary {
+  return {
+    emphasis: parseEmphasis(row.emphasis_json),
+    endedAt: row.ended_at,
+    id: row.id,
+    localDate: row.scheduled_local_date ?? row.local_end_date,
+    localEndDate: row.local_end_date,
+    startedAt: row.started_at,
+    status: row.status,
+    title: row.title,
+  };
+}
 
 type CatalogRow = {
   aliases_json: string;
@@ -253,45 +286,31 @@ export async function listStrengthSessionsForDates(
   startDate: string,
   endDate: string,
 ) {
-  const rows = await db.getAllAsync<{
-    emphasis_json: string;
-    ended_at: number;
-    id: string;
-    local_end_date: string;
-    title: string;
-  }>(
-    `SELECT id, title, ended_at, local_end_date, emphasis_json
-     FROM strength_sessions
-     WHERE local_end_date >= ? AND local_end_date <= ?
-     ORDER BY ended_at, id`,
+  const rows = await db.getAllAsync<SessionRow>(
+    `SELECT s.id, s.title, s.started_at, s.ended_at, s.local_end_date,
+            s.scheduled_local_date, s.emphasis_json, t.status
+     FROM strength_sessions s
+     JOIN timeline_entries t ON t.id = s.timeline_entry_id
+     WHERE COALESCE(s.scheduled_local_date, s.local_end_date) BETWEEN ? AND ?
+     ORDER BY CASE WHEN t.status = 'planned' THEN s.started_at ELSE s.ended_at END, s.id`,
     [startDate, endDate],
   );
-  return rows.map((row) => ({
-    emphasis: parseEmphasis(row.emphasis_json),
-    endedAt: row.ended_at,
-    id: row.id,
-    localEndDate: row.local_end_date,
-    title: row.title,
-  }));
+  return rows.map(mapSession);
 }
 
 export async function getStrengthSession(db: SQLiteDatabase, sessionId: string) {
-  const header = await db.getFirstAsync<{
+  const header = await db.getFirstAsync<SessionRow & {
     duration_seconds: number;
-    emphasis_json: string;
-    ended_at: number;
-    id: string;
-    local_end_date: string;
     source_template_id: string | null;
-    started_at: number;
     timezone: string;
     timeline_entry_id: number;
-    title: string;
   }>(
-    `SELECT id, title, started_at, ended_at, local_end_date, timezone,
-            source_template_id, duration_seconds, emphasis_json, timeline_entry_id
-     FROM strength_sessions
-     WHERE id = ?`,
+    `SELECT s.id, s.title, s.started_at, s.ended_at, s.local_end_date,
+            s.scheduled_local_date, s.timezone, s.source_template_id,
+            s.duration_seconds, s.emphasis_json, s.timeline_entry_id, t.status
+     FROM strength_sessions s
+     JOIN timeline_entries t ON t.id = s.timeline_entry_id
+     WHERE s.id = ?`,
     [sessionId],
   );
   if (!header) {
@@ -299,17 +318,12 @@ export async function getStrengthSession(db: SQLiteDatabase, sessionId: string) 
   }
   const exercises = await loadExercises(db, "session", sessionId);
   const record: StrengthSessionRecord = {
+    ...mapSession(header),
     durationSeconds: header.duration_seconds,
-    emphasis: parseEmphasis(header.emphasis_json),
-    endedAt: header.ended_at,
     exercises,
-    id: header.id,
-    localEndDate: header.local_end_date,
     sourceTemplateId: header.source_template_id,
-    startedAt: header.started_at,
     timeZone: header.timezone,
     timelineEntryId: header.timeline_entry_id,
-    title: header.title,
   };
   return record;
 }
@@ -344,9 +358,11 @@ export async function listSameLiftReferences(
          ON se.id = ss.session_exercise_id
        INNER JOIN strength_sessions s
          ON s.id = se.session_id
+       INNER JOIN timeline_entries t ON t.id = s.timeline_entry_id
        WHERE se.exercise_id IN (${placeholders})
          AND ss.skipped = 0
          AND ss.warmup = 0
+         AND t.status = 'completed'
          AND s.ended_at < ?
      ), session_references AS (
        SELECT exercise_id, session_id, ended_at,
@@ -400,13 +416,15 @@ export async function logStrengthSession(
   const now = options?.now ?? Date.now();
   const timeZone = options?.timeZone ?? deviceTimeZone();
   if (!isIanaTimeZone(timeZone)) {
-    throw new Error("Choose an end time that is not in the future.");
+    throw new Error("Choose a valid workout time zone.");
   }
   const error = validateStrengthDraft(draft, "log", now);
   if (error) {
     throw new Error(error);
   }
-  const durationSeconds = estimateDraftDurationSeconds(draft.exercises);
+  const mode = draft.sessionMode ?? "completed";
+  const timestamp = strengthSessionTime(draft);
+  const durationSeconds = estimateDraftDurationSeconds(draft.exercises, mode);
   if (durationSeconds == null) {
     throw new Error("Add at least one work set.");
   }
@@ -424,21 +442,23 @@ export async function logStrengthSession(
     draft.exercises
       .map((exercise) => exercise.catalogExerciseId)
       .filter((id): id is string => id != null),
-    draft.endedAt,
+    timestamp,
   );
-  const emphasis = emphasisFromDraft(draft.exercises, references);
-  const startedAt = sessionStartMs(draft.endedAt, durationSeconds);
-  const localEndDate = formatLocalDate(new Date(draft.endedAt));
+  const emphasis = emphasisFromDraft(draft.exercises, references, mode);
+  const startedAt = mode === "planned" ? timestamp : sessionStartMs(timestamp, durationSeconds);
+  const endedAt = mode === "planned" ? timestamp + durationSeconds * 1000 : timestamp;
+  const localEndDate = formatLocalDate(new Date(endedAt));
+  const scheduledLocalDate = mode === "planned" ? formatLocalDate(new Date(startedAt)) : null;
   const title = draft.title.trim();
   let templateId = draft.sourceTemplateId;
 
   await db.withTransactionAsync(async () => {
     const timelineEntryId = Number(
       await addTimelineEntry(db, {
-        endAt: draft.endedAt,
+        endAt: endedAt,
         kind: "strength",
         startAt: startedAt,
-        status: "completed",
+        status: mode,
         title,
       }),
     );
@@ -455,16 +475,17 @@ export async function logStrengthSession(
 
     await db.runAsync(
       `INSERT INTO strength_sessions (
-        id, title, started_at, ended_at, local_end_date, timezone,
+        id, title, started_at, ended_at, local_end_date, scheduled_local_date, timezone,
         source_template_id, duration_seconds, emphasis_json, emphasis_version,
         timeline_entry_id, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         draft.sessionId,
         title,
         startedAt,
-        draft.endedAt,
+        endedAt,
         localEndDate,
+        scheduledLocalDate,
         timeZone,
         templateId,
         durationSeconds,
@@ -474,7 +495,10 @@ export async function logStrengthSession(
         now,
       ],
     );
-    await insertExercises(db, "session", draft.sessionId, draft.exercises);
+    const snapshots = mode === "planned"
+      ? draft.exercises.map((exercise) => setStrengthTarget(exercise, {}, "planned"))
+      : draft.exercises;
+    await insertExercises(db, "session", draft.sessionId, snapshots);
     options?.beforeCommit?.();
   });
 
@@ -552,8 +576,8 @@ async function insertExercises(
     await db.runAsync(
       `INSERT INTO strength_${snapshot}_exercises (
         id, ${snapshot}_id, position, exercise_id, name, equipment,
-        muscle_groups_json, load_mode, unilateral, explosive_intent, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        muscle_groups_json, load_mode, unilateral, explosive_intent, notes, target_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         snapshotExerciseId,
         parentId,
@@ -566,14 +590,16 @@ async function insertExercises(
         exercise.unilateral ? 1 : 0,
         exercise.explosiveIntent ? 1 : 0,
         noteOrNull(exercise.notes),
+        serializeTarget(exercise),
       ],
     );
-    for (const [setIndex, set] of exercise.sets.entries()) {
+    const sets = includePerformed ? performedSets(exercise) : exercise.sets;
+    for (const [setIndex, set] of sets.entries()) {
       await db.runAsync(
         `INSERT INTO strength_${snapshot}_sets (
           id, ${snapshot}_exercise_id, position, load_kg, assistance_kg,
-          reps, rpe, rest_seconds${performedColumns}
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?${performedValues})`,
+          reps, rpe, rir, rest_seconds${performedColumns}
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?${performedValues})`,
         [
           includePerformed ? set.id : createId(),
           snapshotExerciseId,
@@ -582,12 +608,24 @@ async function insertExercises(
           exercise.loadMode === "assisted" ? set.assistanceKg : null,
           set.reps,
           set.rpe,
+          set.rir ?? null,
           set.restSeconds,
           ...(includePerformed ? [set.skipped ? 1 : 0, set.warmup ? 1 : 0] : []),
         ],
       );
     }
   }
+}
+
+function serializeTarget(exercise: ExerciseDraft) {
+  if (!exercise.target) return null;
+  const { assistanceKg, loadKg } = plannedSetTarget(exercise);
+  const target: StrengthExerciseRecord["target"] = {
+    ...exercise.target,
+    loadKg: storedLoad(exercise.loadMode, loadKg),
+    assistanceKg: exercise.loadMode === "assisted" ? assistanceKg : null,
+  };
+  return JSON.stringify(target);
 }
 
 function storedLoad(mode: LoadMode, loadKg: number | null) {
@@ -640,7 +678,7 @@ async function loadExercises(
 ) {
   const exercises = await db.getAllAsync<ExerciseRow>(
     `SELECT id, position, exercise_id, name, equipment, muscle_groups_json,
-            load_mode, unilateral, explosive_intent, notes
+            load_mode, unilateral, explosive_intent, notes, target_json
      FROM strength_${snapshot}_exercises
      WHERE ${snapshot}_id = ?
      ORDER BY position`,
@@ -654,7 +692,7 @@ async function loadExercises(
   const performedColumns = snapshot === "session" ? ", skipped, warmup" : "";
   const sets = await db.getAllAsync<SetRow>(
     `SELECT id, ${snapshot}_exercise_id AS parent_id, position, load_kg, assistance_kg,
-            reps, rpe, rest_seconds${performedColumns}
+            reps, rpe, rir, rest_seconds${performedColumns}
      FROM strength_${snapshot}_sets
      WHERE ${snapshot}_exercise_id IN (${placeholders})
      ORDER BY position`,
@@ -671,6 +709,7 @@ async function loadExercises(
       reps: set.reps,
       restSeconds: set.rest_seconds,
       rpe: set.rpe,
+      ...(set.rir != null ? { rir: set.rir } : {}),
       skipped: set.skipped === 1,
       warmup: set.warmup === 1,
     });
@@ -687,6 +726,7 @@ async function loadExercises(
     notes: exercise.notes ?? "",
     position: exercise.position,
     sets: byExercise.get(exercise.id) ?? [],
+    ...(exercise.target_json ? { target: JSON.parse(exercise.target_json) as StrengthExerciseRecord["target"] } : {}),
     unilateral: exercise.unilateral === 1,
   }));
 }

@@ -1,4 +1,5 @@
-import type { ExerciseDraft, SetDraft } from "./types";
+import { getStrengthTarget, performedSets, plannedSetTarget } from "./drafts";
+import type { ExerciseDraft, SetDraft, StrengthSessionMode } from "./types";
 
 /**
  * First-pass duration. These are product assumptions, not measurements.
@@ -52,8 +53,27 @@ export function estimateDurationSeconds(
   return seconds;
 }
 
-export function estimateDraftDurationSeconds(exercises: readonly ExerciseDraft[]) {
-  return estimateDurationSeconds(exercises);
+export function estimateDraftDurationSeconds(
+  exercises: readonly ExerciseDraft[],
+  mode: StrengthSessionMode = "completed",
+) {
+  return estimateDurationSeconds(exercises.map((exercise) => {
+    if (mode === "planned") {
+      const target = plannedSetTarget(exercise);
+      return {
+        sets: Array.from({ length: getStrengthTarget(exercise).sets }, () => ({
+          ...target, skipped: false, warmup: false,
+        })),
+      };
+    }
+    return {
+      sets: performedSets(exercise).map((set) => ({
+        ...set,
+        // Targeted rest is an assumption for elapsed time, not a performed metric.
+        restSeconds: set.actual ? getStrengthTarget(exercise).restSeconds : set.restSeconds,
+      })),
+    };
+  }));
 }
 
 export function sessionStartMs(endedAt: number, durationSeconds: number) {

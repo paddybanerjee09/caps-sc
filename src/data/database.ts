@@ -13,7 +13,15 @@ import { applySkillRepsMigration } from "./skillRepsMigration";
 import { strengthMigrationSql } from "./strengthMigration";
 import { ensureStrengthCatalog } from "./strengthRepository";
 
-const DATABASE_VERSION = 11;
+const DATABASE_VERSION = 12;
+
+const strengthSessionColumns = [
+  ["strength_sessions", "scheduled_local_date", "TEXT"],
+  ["strength_template_exercises", "target_json", "TEXT"],
+  ["strength_session_exercises", "target_json", "TEXT"],
+  ["strength_template_sets", "rir", "INTEGER CHECK (rir BETWEEN 0 AND 10)"],
+  ["strength_session_sets", "rir", "INTEGER CHECK (rir BETWEEN 0 AND 10)"],
+] as const;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync(`
@@ -31,6 +39,9 @@ export async function migrateDatabase(db: SQLiteDatabase) {
   const skillReady = await tableExists(db, "skill_sessions");
   const recoveryReady = await tableExists(db, "daily_questionnaires");
   const skillRepsReady = skillReady && await columnExists(db, "skill_template_activities", "sets") && await columnExists(db, "skill_session_activities", "sets");
+  const strengthModesReady = strengthReady && (await Promise.all(
+    strengthSessionColumns.map(([table, column]) => columnExists(db, table, column)),
+  )).every(Boolean);
 
   if (
     currentVersion >= DATABASE_VERSION &&
@@ -38,6 +49,7 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     strengthReady &&
     skillReady &&
     recoveryReady &&
+    strengthModesReady &&
     skillRepsReady
   ) {
     await ensureStrengthCatalog(db);
@@ -184,7 +196,23 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     await applySkillRepsMigration(db);
   }
 
-  await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
+  if (currentVersion < 12 || !strengthModesReady) {
+    await db.withTransactionAsync(async () => {
+      for (const [table, column, definition] of strengthSessionColumns) {
+        if (!(await columnExists(db, table, column))) {
+          await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+        }
+      }
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS strength_sessions_calendar_date
+          ON strength_sessions (COALESCE(scheduled_local_date, local_end_date));
+      `);
+    });
+  }
+
+  if (currentVersion < DATABASE_VERSION) {
+    await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
+  }
 }
 
 async function applyNutritionV5(db: SQLiteDatabase) {
@@ -222,7 +250,7 @@ async function tableExists(db: SQLiteDatabase, name: string) {
 
 async function columnExists(
   db: SQLiteDatabase,
-  table: "food_favourites" | "meal_items" | "meal_logs" | "skill_template_activities" | "skill_session_activities",
+  table: "food_favourites" | "meal_items" | "meal_logs" | "skill_template_activities" | "skill_session_activities" | (typeof strengthSessionColumns)[number][0],
   column: string,
 ) {
   const rows = await db.getAllAsync<{ name: string }>(

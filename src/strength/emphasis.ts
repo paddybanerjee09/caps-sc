@@ -1,8 +1,9 @@
 import { appColorPalette } from "../theme/theme";
-import type { ExerciseDraft, LoadMode } from "./types";
+import { getStrengthTarget, performedSets, plannedSetTarget } from "./drafts";
+import type { ExerciseDraft, LoadMode, StrengthSessionMode } from "./types";
 
 /** Heuristic emphasis indexes. They may overlap and are not measured adaptation. */
-export const STRENGTH_EMPHASIS_VERSION = "strength-emphasis-v1";
+export const STRENGTH_EMPHASIS_VERSION = "strength-emphasis-v2";
 
 export const PRIMARY_SCORE_MINIMUM = 60;
 export const PRIMARY_LEAD_MINIMUM = 15;
@@ -28,7 +29,7 @@ export type QualityEstimate = {
 
 export type StrengthEmphasis = {
   coverage: number;
-  modelVersion: typeof STRENGTH_EMPHASIS_VERSION;
+  modelVersion: "strength-emphasis-v1" | typeof STRENGTH_EMPHASIS_VERSION;
   primary: StrengthQuality | null;
   qualities: Record<StrengthQuality, QualityEstimate>;
   tie: boolean;
@@ -66,8 +67,10 @@ export type EmphasisReference = {
 export type EmphasisSetInput = {
   assistanceKg: number | null;
   loadKg: number | null;
+  maximalSingle?: boolean;
   reps: number;
   restSeconds: number | null;
+  rir?: number | null;
   rpe: number | null;
   skipped: boolean;
   warmup: boolean;
@@ -149,6 +152,24 @@ function strengthSetScore(relative: number) {
     return 50;
   }
   return 25;
+}
+
+function strengthFromRepMaximum(set: EmphasisSetInput) {
+  if (set.maximalSingle || (set.reps === 1 && set.rir === 0)) {
+    return 90;
+  }
+  if (set.rir == null) {
+    return null;
+  }
+  // Reps plus RIR estimate this set's rep maximum without inferring a weight.
+  const estimatedRepMaximum = set.reps + set.rir;
+  if (estimatedRepMaximum <= 3) {
+    return 75;
+  }
+  if (estimatedRepMaximum <= 5) {
+    return 65;
+  }
+  return null;
 }
 
 function powerSetScore(reps: number) {
@@ -233,6 +254,7 @@ export function estimateStrengthEmphasis(
   const workSets = grouped.reduce((sum, group) => sum + group.sets.length, 0);
 
   const strengthScores: number[] = [];
+  let loadComparisons = 0;
   const powerScores: number[] = [];
   const hypertrophySets: WorkSet[] = [];
   const enduranceSets: WorkSet[] = [];
@@ -243,7 +265,14 @@ export function estimateStrengthEmphasis(
       const relative = relativeLoad(group.exercise, set);
       if (relative != null) {
         strengthScores.push(strengthSetScore(relative));
+        loadComparisons += 1;
         contributed.add(set);
+      } else {
+        const repMaximumScore = strengthFromRepMaximum(set);
+        if (repMaximumScore != null) {
+          strengthScores.push(repMaximumScore);
+          contributed.add(set);
+        }
       }
       if (group.exercise.explosiveIntent) {
         powerScores.push(powerSetScore(set.reps));
@@ -255,7 +284,7 @@ export function estimateStrengthEmphasis(
       }
       const observedRest =
         set.restSeconds != null || set.previousRestSeconds != null;
-      if (set.reps >= 15 && (observedRest || set.rpe != null)) {
+      if (set.reps >= 15 && (observedRest || set.rpe != null || set.rir != null)) {
         enduranceSets.push(set);
         contributed.add(set);
       }
@@ -266,7 +295,7 @@ export function estimateStrengthEmphasis(
     hypertrophy: scoreHypertrophy(hypertrophySets, workSets),
     muscular_endurance: scoreEndurance(enduranceSets, workSets),
     power: scorePower(powerScores, workSets),
-    strength: scoreStrength(strengthScores, workSets),
+    strength: scoreStrength(strengthScores, workSets, loadComparisons),
   };
 
   const ranked = strengthQualities
@@ -301,15 +330,24 @@ export function estimateStrengthEmphasis(
   };
 }
 
-function scoreStrength(scores: number[], workSets: number): QualityEstimate {
+function scoreStrength(
+  scores: number[],
+  workSets: number,
+  loadComparisons: number,
+): QualityEstimate {
   if (scores.length === 0) {
-    return unknownQuality("No same-lift reference, so strength is unknown.");
+    return unknownQuality("No same-lift load comparison or low-rep maximum estimate.");
   }
+  const repMaximums = scores.length - loadComparisons;
+  const rationale = [
+    loadComparisons > 0 && `${loadComparisons} from same-lift loads`,
+    repMaximums > 0 && `${repMaximums} from low-rep maximum estimates`,
+  ].filter(Boolean).join(", ");
   return scoredQuality(
     roundScore(mean(scores)),
     scores.length,
     workSets,
-    `${scores.length} work sets compared with the latest same-lift load.`,
+    `Work sets supporting strength include ${rationale}.`,
   );
 }
 
@@ -330,22 +368,44 @@ function scoreHypertrophy(sets: WorkSet[], workSets: number): QualityEstimate {
   if (base == null) {
     return unknownQuality("No work sets in the 5–30 rep range.");
   }
-  const rated = sets.filter((set) => set.rpe != null);
-  let score = base;
-  if (rated.length * 2 >= sets.length) {
-    const effort = mean(rated.map((set) => set.rpe ?? 0));
-    if (effort >= 8) {
-      score += 8;
-    } else if (effort <= 5) {
-      score -= 12;
-    }
-  }
+  const noRir = sets.filter((set) => set.rir == null);
+  const fallback = hypertrophyWithRpe(base, noRir);
+  const score = mean(
+    sets.map((set) => set.rir == null ? fallback : hypertrophyWithRir(base, set.rir)),
+  );
+  const rirSets = sets.length - noRir.length;
   return scoredQuality(
     clampScore(score),
     sets.length,
     workSets,
-    `${sets.length} work sets in the 5–30 rep range.`,
+    rirSets > 0
+      ? `${sets.length} work sets in the 5–30 rep range, ${rirSets} with RIR.`
+      : `${sets.length} work sets in the 5–30 rep range.`,
   );
+}
+
+function hypertrophyWithRpe(base: number, sets: readonly WorkSet[]) {
+  const ratings = sets.flatMap((set) => set.rpe == null ? [] : [set.rpe]);
+  if (ratings.length === 0 || ratings.length * 2 < sets.length) {
+    return base;
+  }
+  const effort = mean(ratings);
+  if (effort >= 8) {
+    return base + 8;
+  }
+  if (effort <= 5) {
+    return base - 12;
+  }
+  return base;
+}
+
+function hypertrophyWithRir(base: number, rir: number) {
+  // Refalo et al. (2024, PMID 38393985) found similar growth at 0 and 1–2 RIR.
+  // These weights are activity-index heuristics. The 10+ bin uses its lower bound.
+  if (rir <= 2) {
+    return base + 8;
+  }
+  return base * (1 - 0.125 * Math.max(0, Math.min(rir, 10) - 4));
 }
 
 function scoreEndurance(sets: WorkSet[], workSets: number): QualityEstimate {
@@ -374,6 +434,7 @@ function scoreEndurance(sets: WorkSet[], workSets: number): QualityEstimate {
 export function emphasisFromDraft(
   exercises: readonly ExerciseDraft[],
   references: ReadonlyMap<string, EmphasisReference>,
+  mode: StrengthSessionMode = "completed",
 ) {
   return estimateStrengthEmphasis(
     exercises.map((exercise) => ({
@@ -382,9 +443,23 @@ export function emphasisFromDraft(
       reference: exercise.catalogExerciseId
         ? (references.get(exercise.catalogExerciseId) ?? null)
         : null,
-      sets: exercise.sets,
+      sets: mode === "planned" ? plannedEmphasisSets(exercise) : performedSets(exercise),
     })),
   );
+}
+
+function plannedEmphasisSets(exercise: ExerciseDraft): EmphasisSetInput[] {
+  const target = getStrengthTarget(exercise);
+  const prescription = plannedSetTarget(exercise);
+  const maximalSingle =
+    target.repRange === "1RM" && (target.rir == null || target.rir === 0);
+  // Repeated prescriptions weight the estimate by volume without creating draft sets.
+  return Array.from({ length: target.sets }, () => ({
+    ...prescription,
+    maximalSingle,
+    skipped: false,
+    warmup: false,
+  }));
 }
 
 export function emphasisMarkerColor(emphasis: StrengthEmphasis) {

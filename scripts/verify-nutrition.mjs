@@ -170,7 +170,7 @@ const adapter = {
 };
 
 await migrateDatabase(adapter);
-assert.equal(db.prepare("PRAGMA user_version").get().user_version, 11);
+assert.equal(db.prepare("PRAGMA user_version").get().user_version, 12);
 assert.ok(
   db
     .prepare("PRAGMA table_info(food_favourites)")
