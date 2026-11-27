@@ -12,7 +12,7 @@ These are the only overlay exceptions:
 
 - Log Session chooser (Free Session, Time Interval timer, Sprints, Circuit; explicit user request, 24 November 2026)
 - One workout editor at a time
-- Training-emphasis explanation popover
+- Training-stimulus missing-value explanation
 - Discard and end confirmations
 - Shared Log Time scroll-wheel modal (explicit user request, 20 November 2026)
 

@@ -21,7 +21,7 @@ CAPS.trees.home = {
       },
       {
         "name": "Recovery",
-        "detail": "Daily biometric values/missing states, morning questionnaire and separate history, versioned SRI and read-only native health connection. CAPS ORI computes when eligible biometric history is present."
+        "detail": "Fatigue Index, Recovery Index, independent context and optional manual inputs with existing read-only health connection."
       },
       {
         "name": "Progress",
@@ -648,13 +648,13 @@ CAPS.trees.home = {
             title: "Recovery",
             kind: "group",
             status: "active",
-            tagline: "Daily questionnaire, provenance and experimental index boundaries",
+            tagline: "Daily training burden and modeled recovery deficits",
             files: [
               "src/recovery/components/RecoveryPanel.tsx",
               "src/recovery/useRecoveryData.ts",
               "src/recovery/useRecoveryDay.ts"
             ],
-            summary: "Concise metric grid with -- missing values. Questionnaire history opens a separate screen. Weighted SRI identifies the saved model; experimental ORI remains CAPS-owned and independently versioned.",
+            summary: "Shows Fatigue Index and Recovery Index, independent observed context and accessible missing-value explanations. Supports optional manual questionnaire, training log, sleep target and output tests.",
             guardrails: [
               "Do not modify this panel until it is explicitly requested (ui-style-guide.mdc, section 7).",
             ],
@@ -721,10 +721,67 @@ CAPS.trees.home = {
     "changes": [
       "Replace inline history rows with dedicated history screen entry."
     ]
-  }
+  },
+            {"n":6,"name":"Training and Recovery indices","date":"2026-11-27 17:47 -0500","commits":["2b6f405"],"request":"Implement workout stimulus, Fatigue Index and Recovery Index.","changes":["Add optional manual workout/day confirmation, sleep target and explicit readiness.","Keep observed wellness, output loss and available sleep separate from the two indices."]}
 ],
 
 children: [
+{
+  "id": "fatigue-index",
+  "title": "Fatigue Index",
+  "kind": "logic",
+  "status": "active",
+  "tagline": "Prior-only personal training-burden percentile",
+  "summary": "Ranks a covered prior 14-day training-load window against at most 60 earlier snapshots. Unknown days stay unranked.",
+  "files": [
+    "src/domain/training/fatigue.ts",
+    "src/recovery/components/IndexInputs.tsx"
+  ],
+  "links": [
+    "database:training-index-inputs"
+  ],
+  "versions": [
+    {
+      "n": 1,
+      "name": "Fatigue Index",
+      "date": "2026-11-27 17:47 -0500",
+      "commits": ["2b6f405"],
+      "request": "Implement workout stimulus, Fatigue Index and Recovery Index.",
+      "changes": [
+        "Ranks a covered prior 14-day training-load window against at most 60 earlier snapshots. Unknown days stay unranked."
+      ]
+    }
+  ]
+},
+{
+  "id": "recovery-index",
+  "title": "Recovery Index",
+  "kind": "logic",
+  "status": "active",
+  "tagline": "Equal-domain modeled deficit snapshot",
+  "summary": "Requires explicit readiness and another valid domain. Supports manual sleep plus a personal target and optional comparable autonomic inputs.",
+  "files": [
+    "src/recovery/recoveryIndex.ts",
+    "src/recovery/indexData.ts"
+  ],
+  "links": [
+    "database:training-index-inputs",
+    "home:morning-questionnaire"
+  ],
+  "versions": [
+    {
+      "n": 1,
+      "name": "Recovery Index",
+      "date": "2026-11-27 17:47 -0500",
+      "commits": ["2b6f405"],
+      "request": "Implement workout stimulus, Fatigue Index and Recovery Index.",
+      "changes": [
+        "Requires explicit readiness and another valid domain. Supports manual sleep plus a personal target and optional comparable autonomic inputs."
+      ]
+    }
+  ]
+},
+
   {
     "id": "morning-questionnaire",
     "title": "Morning questionnaire",
@@ -736,7 +793,7 @@ children: [
       "src/recovery/components/RatingSlider.tsx",
       "src/recovery/components/SleepTimeRangeSlider.tsx"
     ],
-    "summary": "Two minute-resolution sleep clocks, calculated interval/estimated total, numbered full-width sliders (ratings 5, awakenings 0–10+ starting 0), no timeline or visible +/- controls. Versioned weighted SRI, required mood, existing answers and draft guards retained. Native usability QA pending.",
+    "summary": "Optional explicit readiness and reported hours asleep, alongside independent wellness and sleep-clock inputs. Preserves editable history and draft guards.",
     "versions": [
   {
     "n": 1,
@@ -775,7 +832,8 @@ children: [
       "Default six ratings to 5 and awakenings to 0; mark 10+ as a lower bound and preserve exact historical counts.",
       "History editor Back/save returns to history; X exits branch with guards."
     ]
-  }
+  },
+            {"n":4,"name":"Optional manual recovery inputs","date":"2026-11-27 17:47 -0500","commits":["2b6f405"],"request":"Implement workout stimulus, Fatigue Index and Recovery Index.","changes":["Add explicit readiness and hours asleep. Keep optional older questionnaire fields and stored revisions."]}
 ],
     "links": [
       "database:table-daily-questionnaires",
@@ -787,7 +845,7 @@ children: [
     "id": "subjective-recovery",
     "title": "Weighted SRI",
     "kind": "logic",
-    "status": "active",
+    "status": "removed",
     "tagline": "Versioned subjective recovery composite",
     "summary": "sri_v2 weights sleep quality 30%, fatigue 25%, soreness 20%, stress 10%, motivation 5%, mood 5%, awakenings 5% (cap 10). New/edited saves use v2; original responses retain v1 until saved. Experimental app weights, not clinically calibrated.",
     "files": [
@@ -825,7 +883,7 @@ guardrails: [
     "id": "objective-recovery",
     "title": "CAPS Objective Recovery Index",
     "kind": "logic",
-    "status": "active",
+    "status": "removed",
     "tagline": "caps_ori_v1 · HRV40/RHR30/sleep30",
     "summary": "Pure CAPS biometric model: prior28/min14 source/subtype-specific baselines, explicit noise-floor transforms, all-input eligibility, source/model provenance and experimental label. No vendor scores or questionnaire inputs. See docs/caps-ori-v1.md.",
     "files": [
@@ -898,7 +956,7 @@ links: [
               "src/progress/progressSeries.ts",
               "src/progress/chartAggregation.ts"
             ],
-            summary: "Five categories in an anchored overlay menu. Current-period timeframe selection, only period arrows, synchronized chart inspection and below-plot value toggles. Higher-is-better wellness, detailed zero-based axes and responsive X labels; source/model gaps preserved.",
+            summary: "Five chart categories with accessible day inspection. The index series derive from eligible raw records and split Recovery results by method, coverage and source.",
             guardrails: [
   "Do not modify this panel until it is explicitly requested (ui-style-guide.mdc, section 7).",
   "Keep hidden series values tappable, raw wellness inputs unchanged and actual values above 16h visible; no datapoint arrow row (user correction, 22 November 2026)."
@@ -982,7 +1040,8 @@ links: [
     "changes": [
       "Use a shared maximum Y-label inset across related plots so synchronized date cursors align at large font scales."
     ]
-  }
+  },
+            {"n":7,"name":"Fatigue Index and Recovery Index charts","date":"2026-11-27 17:47 -0500","commits":["2b6f405"],"request":"Implement workout stimulus, Fatigue Index and Recovery Index.","changes":["Plot the two rederived indices separately. Keep gaps and partition Recovery results by method, source and component coverage.","Legacy numerical scores are excluded from the new series."]}
 ],
 
 links: [

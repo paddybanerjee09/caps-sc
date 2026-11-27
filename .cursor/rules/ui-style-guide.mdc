@@ -75,7 +75,7 @@ All screens—including future implementations of unfinished screens (`src/scree
 ## 9. Minimal copy (22 November 2026)
 
 - Keep the default UI to titles, values, units, labels, controls and short actionable errors. Remove generic screen subtitles, navigation instructions, repeated definitions and supporting paragraphs.
-- Under each Recovery metric, show only one short definition or the concise requirement to obtain it. Use `--` for missing values; do not repeat an unavailable status label. Keep the experimental designation in the ORI title.
+- Under each Recovery metric, show one short definition or the information needed to obtain it. Missing metrics use a `--` button with an accessible explanation. Use Fatigue Index and Recovery Index in live cards and charts, with method and coverage visible where the interpretation changes.
 - Keep formulas, model versions, coverage diagnostics, source IDs and sync internals in code/documentation and stored provenance, not as default card or tooltip paragraphs. Source choices remain accessible under health management. Never change calculations or fabricate readings to simplify display.
 - Progress graph categories use the Choose graph overlay dropdown. Preserve the existing timeframe selector, accessible 48px controls, legend toggles, source-separated series and synchronized date cursor. Tooltips show date, metric values and units; aggregates need only a short Mean label.
 - Tighten redundant card gaps, stacked status rows and empty charts while keeping readable text, safe areas and touch targets. Preserve field anchors, dates/timezones needed to interpret answers, actual error/retry actions and discard/delete confirmations.
@@ -84,7 +84,7 @@ All screens—including future implementations of unfinished screens (`src/scree
 
 - Questionnaire sleep uses two regular minute-resolution LogTimeChanger controls, calculated total interval/estimated sleep and no sleep timeline. Keep actual dates/timezones, validation and DST disambiguation.
 - Rating controls are full-width numbered/notched lines without visible +/- buttons. New rating defaults are 5; awakenings defaults 0 with a 10+ endpoint. Preserve the 10+ lower-bound marker and legacy exact counts.
-- Questionnaire history opens a dedicated screen. Editor Back/save returns to history, X exits the branch, and dirty/save guards still apply. Model inputs/weights are versioned; see docs/questionnaire-sri-v2.md.
+- Questionnaire history opens a dedicated screen. Editor Back/save returns to history, X exits the branch, and dirty/save guards still apply. Model inputs are versioned. See docs/training-stimulus-and-indices-v1.md for the current indices.
 - Render full dates as 22 Nov, 2026 using the shared display formatter. Preserve ISO storage/query keys.
 - Choose graph overlays the screen. Timeframe selection resets to the current period. Remove data-point arrow navigation; graphs/accessibility actions select dates.
 - Below-chart values are the toggle legend and remain available when a series is hidden. Wellness plots show higher-is-better directions without modifying raw stored answers.

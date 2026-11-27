@@ -1,5 +1,7 @@
 # Handoffs
 
+- [[2026-11-27 Stimulus and Indices Handoff]] · raw workout stimulus, manual-capable Fatigue and Recovery indices, and SQLite v13
+
 - [[2026-11-26 Compact Strength Table Handoff]] · single-line exercise and set rows, inline rest, effort defaults and input focus
 
 - [[2026-11-26 Strength Plan Completion Handoff]] · complete a calendar plan in place and record actual sets

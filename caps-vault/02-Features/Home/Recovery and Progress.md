@@ -1,5 +1,11 @@
 # Recovery and Progress
 
+## Current training and recovery indices (27 November 2026)
+
+Home → Recovery displays personal prior-day training burden as **Fatigue Index** and a current modeled-deficit snapshot as **Recovery Index**. The training day log confirms rest or complete workout coverage and accepts observed session minutes and RPE. A manual readiness check-in, reported hours asleep and a personal sleep target can produce Recovery Index before connecting health. `src/domain/training/fatigue.ts` and `src/recovery/recoveryIndex.ts` own pure calculations. `src/data/trainingIndexRepository.ts` joins observed and manual inputs. `src/progress/progressSeries.ts` computes graphs from eligible records and separates scores by source, method and coverage. Former numerical scores remain a compatibility contract. See [[2026-11-27 Stimulus and Indices Handoff]] and `docs/training-stimulus-and-indices-v1.md`.
+
+## Earlier implementations
+
 Recovery and Progress are implemented under the existing [[Home]] segmented navigation, with code-level verification and native acceptance still open. Implementation/report: `docs/recovery-progress.md`; original specification: `docs/recovery-progress-spec.md`; native setup: `docs/recovery-native-setup.md`.
 
 - `src/recovery/` contains the current-day lifecycle, questionnaire form, accessible controlled ratings, dual clock/date controls, SRI v1, objective calculations and daily biometric cards. No measured physiological value is invented; missing values render -- and ORI retains its experimental title.

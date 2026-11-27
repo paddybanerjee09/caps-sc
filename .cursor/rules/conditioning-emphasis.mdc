@@ -1,15 +1,15 @@
 ---
-description: Provisional conditioning emphasis stays inside conditioning views.
-globs: src/conditioning/emphasis.ts,src/screens/conditioning/ConditioningAdaptationsScreen.tsx
+description: Conditioning stimulus uses actual completed workout evidence and comparable references.
+globs: src/conditioning/stimulus.ts,src/conditioning/emphasis.ts,src/screens/conditioning/ConditioningAdaptationsScreen.tsx
 alwaysApply: false
 ---
 
-# Training emphasis
+# Training stimulus
 
-The screen title is Estimated Training Emphasis. The file remains `ConditioningAdaptationsScreen.tsx`.
+The screen title is Estimated training stimulus. The file remains `ConditioningAdaptationsScreen.tsx`.
 
-`heuristic-v0.1` returns six independent 0–100 indexes. They are not energy percentages, fitness, or measured adaptation. All v0.1 results are low confidence. Do not rewrite saved estimates when the algorithm changes.
+The current v1 model reports four overlapping axes in raw units. Calibrated comparisons need a compatible prior test and modality. Assault Bike comparisons also need the same machine and technique. Legacy `heuristic-v0.1` snapshot fields remain readable as historical data.
 
-Missing work duration or RPE yields null scores and `insufficient_data`. Do not invent durations for distance, reps, or calories.
+Use measured or explicitly reported actual durations. Expose observed details independently, and label missing-data fallbacks, known subtotals and coverage. Avoid deriving output or duration from targets.
 
-Use the emphasis colors only inside conditioning views. The home timeline keeps `timelineCategories.conditioning.color`.
+The Home timeline keeps `timelineCategories.conditioning.color`. See `docs/training-stimulus-and-indices-v1.md` for the model and thresholds.

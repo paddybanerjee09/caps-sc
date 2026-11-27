@@ -18,7 +18,11 @@ Open a planned entry in the Strength calendar and choose **Log as Completed**. T
 
 `completeStrengthSession` rereads the saved prescription and records actual sets in one transaction. It keeps the session, timeline and exercise IDs and recomputes duration and focus from the completed entry. The logged end date determines calendar placement, so a workout performed on a different day moves to that day. Plans can be completed early with a valid end time. The conversion also refreshes Home's timeline and leaves the linked reusable template independent. See [[2026-11-26 Strength Plan Completion Handoff]].
 
-## Adaptations and future recovery
+## Estimated training stimulus (27 November 2026)
+
+The completed builder and session detail show raw estimates from `src/strength/stimulus.ts` using observed working sets, supported muscle tags and earlier lift-specific tests. Missing RIR leaves logged set exposure visible. Missing references leave lift practice visible. Holds, explosive-intent reps, measured velocity and rep power have separate meanings. SQLite v13 adds optional set observations and retains old snapshots. See [[Data and Persistence]], [[2026-11-27 Stimulus and Indices Handoff]], and `docs/training-stimulus-and-indices-v1.md`.
+
+## Historical Strength emphasis
 
 `src/strength/emphasis.ts` writes `strength-emphasis-v2`. Plans expand the targeted set count in memory and estimate reps from the range midpoint, with 20+ estimated at 20. Completed estimates use the entered reps and recorded set effort. Targeted rest may inform elapsed-duration estimates and stays out of adaptation scoring for newly completed sets. Explicit RIR takes precedence over the coarse RPE fallback. A primary still requires at least 60 points and a 15-point lead. Previously saved v1 results are read as stored.
 

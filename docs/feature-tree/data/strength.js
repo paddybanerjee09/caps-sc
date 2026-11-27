@@ -541,16 +541,16 @@ CAPS.trees.strength = {
       },
       {
         id: "strength-adaptations",
-        title: "StrengthAdaptationsScreen",
+        title: "Estimated training stimulus",
         kind: "subscreen",
         status: "active",
-        tagline: "Four focus bars and their evidence",
+        tagline: "Per-muscle, lift, task and movement exposure",
         files: [
           "src/screens/strength/StrengthAdaptationsScreen.tsx",
-          "src/strength/emphasis.ts",
+          "src/strength/stimulus.ts",
         ],
         summary:
-          "Strength emphasis v2 estimates hypertrophy, power, strength and muscular endurance. Planned sessions use the prescription and completed sessions use performed sets. Saved sessions show their stored estimate and the builder previews the active draft.",
+          "Completed sets feed distinct raw hypertrophy, maximal-strength, endurance and power measures. The completed editor can preview exposure and older snapshots keep their historical meaning.",
         guardrails: [
           "Do not recompute a stored estimate when the heuristic changes.",
           "Do not use these colors on the Home timeline.",
@@ -626,7 +626,8 @@ CAPS.trees.strength = {
       "Prioritize RIR over RPE for hypertrophy and recognize low-rep maximum estimates as strength evidence.",
       "Keep historical v1 scores and exclude plans from performed same-lift references.",
     ],
-  }
+  },
+            {"n":7,"name":"Strength stimulus v1","date":"2026-11-27 17:46 -0500","commits":["c588903"],"request":"Implement workout stimulus, Fatigue Index and Recovery Index.","changes":["Use observed sets, explicit RIR and intent, and compatible earlier tested references.","Display repeated-effort exposure and lift practice separately when scoring inputs are missing."]}
 ],
       },
       {

@@ -2,7 +2,7 @@ CAPS.trees.database = {
   id: "database",
   title: "Database",
   summary:
-    "Local Expo SQLite caps.db schema v12 stores training, nutrition, timeline, weight and Recovery data. Non-weight athlete profile settings use expo-sqlite/kv-store’s separate ExpoSQLiteStorage database.",
+    "Local Expo SQLite caps.db schema v13 stores training, nutrition, timeline, weight and Recovery data. Non-weight athlete profile settings use expo-sqlite/kv-store’s separate ExpoSQLiteStorage database.",
   rules: ["conditioning-data-and-units.mdc"],
   root: {
     id: "caps-db",
@@ -11,7 +11,7 @@ CAPS.trees.database = {
     tagline: "Expo SQLite, WAL, foreign keys on",
     files: ["src/data/database.ts"],
     summary:
-      "`migrateDatabase` enables WAL and foreign keys, then applies versioned DDL. Repair checks detect missing tables or columns. Version 12 adds strength prescriptions, RIR and a planned-session calendar date while preserving existing history and stored estimates.",
+      "`migrateDatabase` enables WAL and foreign keys, then applies versioned DDL. Repair checks detect missing tables or columns. Version 13 adds optional Strength set observations and separate local inputs for the training and recovery indices.",
     guardrails: [
       "If a migration creates tables after setting `user_version`, a later launch will skip them. Guard with table/column existence checks (`ece0620`).",
     ],
@@ -92,14 +92,44 @@ CAPS.trees.database = {
             date: "2026-11-26 21:45 -0500",
             commits: ["0fc99cb"],
             changes: ["Add planned calendar dates, exercise prescriptions, and nullable set RIR."],
-          }
+          },
+            {"n":8,"name":"Training model schema v13","date":"2026-11-27 17:50 -0500","commits":["bfa459c","2b6f405","5d9c768"],"request":"Implement workout stimulus, Fatigue Index and Recovery Index.","changes":["Add training day confirmations, session load overrides, effective-dated sleep targets and comparable output observations.","Record optional actual Strength set detail. Existing source records and cache contracts remain readable."]}
         ],
     children: [
+{
+  "id": "training-index-inputs",
+  "title": "Training and recovery inputs",
+  "kind": "data",
+  "status": "active",
+  "tagline": "Completed session overrides, day confirmations, targets and output tests",
+  "summary": "A completed timeline entry owns its optional load override. Separate local date keys own day coverage and sleep-target changes. Output tests retain time, protocol and direction.",
+  "files": [
+    "src/data/trainingIndexMigration.ts",
+    "src/data/trainingIndexRepository.ts"
+  ],
+  "links": [
+    "home:fatigue-index",
+    "home:recovery-index"
+  ],
+  "versions": [
+    {
+      "n": 1,
+      "name": "Training and recovery inputs",
+      "date": "2026-11-27 17:50 -0500",
+      "commits": ["bfa459c","2b6f405","5d9c768"],
+      "request": "Implement workout stimulus, Fatigue Index and Recovery Index.",
+      "changes": [
+        "A completed timeline entry owns its optional load override. Separate local date keys own day coverage and sleep-target changes. Output tests retain time, protocol and direction."
+      ]
+    }
+  ]
+},
+
       {
         id: "migrations",
         title: "migrateDatabase",
         kind: "logic",
-        tagline: "PRAGMA user_version 1..12",
+        tagline: "PRAGMA user_version 1..13",
         files: [
           "src/data/database.ts",
           "src/data/nutritionMigration.ts",
@@ -110,7 +140,7 @@ CAPS.trees.database = {
           "src/data/skillRepsMigration.ts"
         ],
         summary:
-          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning, v8 strength, v9 skill. v10 adds Recovery storage. v11 extends Skill activity snapshots. v12 adds Strength target JSON, scheduled calendar date and RIR columns through transactional, existence-checked DDL.",
+          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning, v8 strength, v9 skill. v10 adds Recovery storage. v11 extends Skill activity snapshots. v12 adds Strength prescriptions, calendar date and RIR. v13 adds optional actual set details and input tables through transactional, existence-checked DDL.",
         versions: [
           {
             "n": 1,
@@ -220,7 +250,8 @@ CAPS.trees.database = {
               "Add missing Strength date, target and RIR columns in one transaction.",
               "Index the scheduled start date or completed end date used by the Strength calendar.",
             ],
-          }
+          },
+            {"n":10,"name":"Additive training inputs","date":"2026-11-27 17:50 -0500","commits":["bfa459c","2b6f405","5d9c768"],"request":"Implement workout stimulus, Fatigue Index and Recovery Index.","changes":["Apply and repair v13 transactionally while keeping prior rows and reference keys."]}
         ],
       },
       {

@@ -1,5 +1,7 @@
 # Data and Persistence
 
+SQLite v13 adds optional Strength set details and index inputs. `training_session_loads` is an optional one-to-one child of `timeline_entries` with a cascading foreign key and checks for positive minutes and RPE 0–10. Only canonical completed sessions join to this table. `training_day_confirmations` stores one rest or complete assertion per local date. `recovery_sleep_targets` stores an effective date with positive hours or a cleared value. `training_output_tests` keys measurements by timestamp, protocol and direction. Questionnaire response and revision JSON can hold optional readiness and actual sleep hours. Initial setup checks v13 tables and Strength columns before skipping migration. See [[2026-11-27 Stimulus and Indices Handoff]].
+
 CAPS uses a local Expo SQLite database named `caps.db`. `src/App.tsx` mounts `SQLiteProvider` with `onInit={migrateDatabase}`. `src/data/database.ts` enables WAL and foreign keys before reading `PRAGMA user_version`. Current schema version is **12** for Strength session modes and RIR.
 
 Read [[Timeline and Nutrition Tables]] for the shared timeline, weight, sleep, diary, and food catalog. Read [[Conditioning Tables]] for workouts, recordings, tracks, runner state, and upload checkpoints. [[Settings]] describes app-level values held in React state. [[Strength]] describes planned and performed snapshots. [[Skills Training]] logs through `skill_templates`, `skill_template_activities`, `skill_sessions`, and `skill_session_activities`.

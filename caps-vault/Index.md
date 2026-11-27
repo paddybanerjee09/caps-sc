@@ -16,9 +16,9 @@ CAPS S&C is the Combat Athlete Performance System. This vault uses the source at
 
 ## Features
 
-- [[Home]] · Today, timeline, weight and sleep, Recovery and Progress placeholders
+- [[Home]] · Today, timeline, weight and sleep, Fatigue Index, Recovery Index and Progress
 - [[Nutrition]] · diary, meal drafts, saved meals, food search and barcode, custom foods, favourites
-- [[Conditioning]] · calendar, planning and logging, templates, execution, routes, and estimated emphasis
-- [[Strength]] · current placeholder and archived workout, exercise search, scoring, and logging implementation
+- [[Conditioning]] · calendar, planning and logging, templates, execution, routes and estimated training stimulus
+- [[Strength]] · planning, completed sets, history, exercise search and estimated training stimulus
 - [[Skills Training]] · current placeholder and roadmap recorded in the Feature Tree
 - [[Settings]] · units, theme, feedback, Account Information, and Athlete Information

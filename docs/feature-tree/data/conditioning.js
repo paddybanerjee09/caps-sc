@@ -619,18 +619,18 @@ CAPS.trees.conditioning = {
           },
           {
             id: "emphasis-screen",
-            title: "ConditioningAdaptationsScreen",
+            title: "Estimated training stimulus",
             kind: "subscreen",
-            tagline: "Estimated Training Emphasis, heuristic v0.1",
+            tagline: "Overlapping raw exposure measures",
             files: [
               "src/screens/conditioning/ConditioningAdaptationsScreen.tsx",
-              "src/conditioning/emphasis.ts",
+              "src/conditioning/stimulus.ts",
             ],
-            entry: "Emphasis from the editor or session detail.",
+            entry: "Training stimulus from a completed session detail.",
             summary:
-              "Provisional heuristic-v0.1 emphasis. Low confidence. Colors stay inside conditioning views.",
+              "Four overlapping axes from actual work, matched output, manual effort and supported calibration. Displays independently available raw values, named protocol exposure or actionable missing results.",
             guardrails: [
-              "Emphasis is heuristic-v0.1, low confidence, and its colors must not leak into Home or other tabs (conditioning-emphasis.mdc).",
+              "Use compatible mode/machine/test and observed completed work. Historical heuristic snapshots remain stored.",
             ],
             versions: [
           {
@@ -692,7 +692,8 @@ CAPS.trees.conditioning = {
             "commits": [
               "051511d"
             ]
-          }
+          },
+            {"n":6,"name":"Conditioning stimulus v1","date":"2026-11-27 17:46 -0500","commits":["bfa459c","c1053e0"],"request":"Implement workout stimulus, Fatigue Index and Recovery Index.","changes":["Replace legacy estimates with four independently reported axes and actual coverage.","Store optional actual work/rest, effort, output and test references."]}
         ],
           },
         ],

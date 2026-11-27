@@ -2,6 +2,10 @@
 
 Implemented, with free-session GPS device verification outstanding. See [[Conditioning Execution]], [[Conditioning Records]], and [[Project History]].
 
+## Estimated training stimulus (27 November 2026)
+
+Open **Training stimulus** on a completed session detail to see the four overlapping axes in raw units. `src/conditioning/stimulus.ts` reads completed occurrences, observed duration, effort, output and optional compatible calibration. Unknown coverage yields a clearly labeled subtotal or an actionable missing value. Manual structured logs can supply actual work/rest and output without a device. Older estimate JSON stays readable for compatibility and is absent from the new view. The model, defaults and evidence are in `docs/training-stimulus-and-indices-v1.md`. See [[2026-11-27 Stimulus and Indices Handoff]].
+
 ## Start with the flow you are changing
 
 | Area | Entry and behavior | Source |
