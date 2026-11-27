@@ -7,7 +7,6 @@ import { WorkflowFooter, WorkflowHeader } from "../../components/WorkflowChrome"
 import { listQuestionnaires } from "../../data/recoveryRepository";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { formatDisplayDate } from "../../utils/displayDate";
-import { calculateSRI } from "../calculations";
 import type { Questionnaire } from "../types";
 
 export function QuestionnaireHistoryScreen({ active, revision, onClose, onEdit }: { active: boolean; revision: number; onClose: () => void; onEdit: (entry: Questionnaire) => void }) {
@@ -42,10 +41,10 @@ export function QuestionnaireHistoryScreen({ active, revision, onClose, onEdit }
       data={entries} keyExtractor={entry => entry.localDate} contentContainerStyle={styles.list}
       ListEmptyComponent={<Text style={{ color: theme.colors.textMuted }}>No questionnaires yet.</Text>}
       renderItem={({ item }) => {
-        const score = item.status === "completed" ? calculateSRI(item) : null;
+        const readiness = item.status === "completed" ? item.readiness : null;
         return <PressOpacity accessibilityLabel={`Edit questionnaire, ${formatDisplayDate(item.localDate)}`} onPress={() => onEdit(item)} style={[styles.entry, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <View style={styles.copy}><Text style={[styles.date, { color: theme.colors.text }]}>{formatDisplayDate(item.localDate)}</Text><Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>{item.status === "completed" ? "Completed" : "Draft"}</Text></View>
-          <Text style={[styles.score, { color: theme.colors.text }]}>{score === null ? "--" : `${score}/100`}</Text><Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+          {readiness != null ? <Text style={[styles.score, { color: theme.colors.text }]}>Readiness {readiness}/10</Text> : null}<Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
         </PressOpacity>;
       }} />}
     <WorkflowFooter onBack={onClose} />

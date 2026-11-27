@@ -1,16 +1,19 @@
 import { convertKilogramsToWeight } from "../utils/weight";
 import { appColorPalette } from "../theme/theme";
 import { BASELINE_DAYS, BASELINE_MINIMUM, manualSleep } from "../recovery/calculations";
-import type { HealthMeasurement, Questionnaire, RecoverySnapshot } from "../recovery/types";
+import type { HealthMeasurement, HealthState, PreferredSources, Questionnaire } from "../recovery/types";
+import { fatigueHistory, type CompletedTraining, type TrainingDayConfirmation } from "../domain/training/fatigue";
+import { recoveryInputs } from "../recovery/indexData";
+import type { SleepTarget } from "../data/trainingIndexRepository";
 import { aggregateSeries, dateKey, latestDaily, rollingWeightAverage, shiftDay, type ChartPeriod, type Observation } from "./chartAggregation";
 import type { PlotSeries, Subgraph } from "./ProgressCharts";
 
 export type ProgressGroup = "weight" | "recovery" | "cardiac" | "sleep" | "fatigue";
-export type ProgressRecords = { questionnaires: Questionnaire[]; measurements: HealthMeasurement[]; snapshots: RecoverySnapshot[]; weights: { measuredAt: number; kg: number }[] };
-export type RawSeries = { id: string; label: string; unit: string; observations: Observation[]; subtype?: string };
+export type ProgressRecords = { questionnaires: Questionnaire[]; measurements: HealthMeasurement[]; sessions?: CompletedTraining[]; confirmations?: TrainingDayConfirmation[]; sleepTargets?: SleepTarget[]; health?: HealthState | null; preferred?: PreferredSources; asOf?: number; weights: { measuredAt: number; kg: number }[] };
+export type RawSeries = { id: string; label: string; unit: string; observations: Observation[]; subtype?: string; unavailableHelp?: string };
 export type RawSubgraph = Omit<Subgraph, "series"> & { series: RawSeries[] };
 const COLORS = [appColorPalette.turquoise, appColorPalette.orange, appColorPalette.purple, appColorPalette.blue, appColorPalette.pink, appColorPalette.yellow, appColorPalette.green];
-export const emptyProgressRecords: ProgressRecords = { questionnaires: [], measurements: [], snapshots: [], weights: [] };
+export const emptyProgressRecords: ProgressRecords = { questionnaires: [], measurements: [], weights: [] };
 
 /** Individual source/type/protocol/model identities are retained as separate series. */
 export function measurementIdentity(m: HealthMeasurement): string {
@@ -49,23 +52,48 @@ function baselineSeries(series: RawSeries): RawSeries {
   }
   return { ...series, id: `${series.id}:baseline`, label: `${series.label} · ${BASELINE_DAYS}d baseline`, observations };
 }
-function indexSeries(snapshots: RecoverySnapshot[]): RawSeries[] {
-  const versions = [...new Set(snapshots.map((s) => s.sriVersion))];
-  const result = versions.map((version) => ({ id: `sri:${version}`, label: version === "sri_v2" ? "SRI (weighted)" : "SRI (original)", unit: "/100", observations: snapshots.flatMap((s) => s.sriVersion !== version || s.sri === null ? [] : [{ date: s.localDate, value: s.sri, source: "Morning questionnaire", measuredAt: s.computedAt, version: s.sriVersion, detail: `${s.sriVersion === "sri_v2" ? 7 : 6}/${s.sriVersion === "sri_v2" ? 7 : 6} required subjective inputs; computed ${new Date(s.computedAt).toLocaleString()}` }]) }));
-  if (!result.length) result.push({ id: "sri:sri_v2", label: "SRI (weighted)", unit: "/100", observations: [] });
-  const sets = [...new Set(snapshots.filter(s => s.ori !== null && s.oriDetails).map(s => JSON.stringify([s.oriVersion,s.oriDetails!.inputSet])))];
-  const objective = sets.map(key => ({id: 'ori:'+key,label:'Experimental ORI · '+JSON.parse(key)[0]+' · '+[...new Set(snapshots.find(s=>s.oriDetails && JSON.stringify([s.oriVersion,s.oriDetails.inputSet])===key)!.oriDetails!.contributors.map(c=>c.source))].join(', '),unit:'/100',observations:snapshots.flatMap(s => s.ori === null || !s.oriDetails || JSON.stringify([s.oriVersion,s.oriDetails.inputSet]) !== key ? [] : [{date:s.localDate,value:s.ori,source:'CAPS biometrics · '+s.oriDetails.contributors.map(c=>c.metric+': '+c.source).join('; '),measuredAt:s.computedAt,version:s.oriVersion ?? undefined,detail:s.oriDetails.coverage+'% input coverage · '+s.oriDetails.contributors.map(c=>c.metric+': '+c.score+' ('+c.source+')').join('; ')}])}));
-  return [...result, ...objective.length ? objective : [{id:'ori:waiting',label:'Experimental ORI · building baseline',unit:'/100',observations:[]}]];
+const recoveryHelp = "A daily score needs a readiness check-in and either sleep with a personal target or a comparable autonomic reading. Open Home → Recovery to add inputs.";
+const fatigueHelp = "The index needs 14 complete prior days and 14 earlier valid snapshots. Confirm workouts and rest days in Home → Recovery.";
+
+function recoverySeries(records: ProgressRecords, today: string): RawSeries[] {
+  const source = recoveryInputs({ ...records, sleepTargets: records.sleepTargets ?? [], health: records.health ?? null, preferred: records.preferred ?? {} });
+  const groups = new Map<string, RawSeries>();
+  for (const q of records.questionnaires) {
+    if (q.localDate > today || q.status !== "completed" || q.readiness == null) continue;
+    const result = source.calculate(q.localDate, records.asOf ?? Date.now());
+    if (result.index.value === null || result.comparisonKey === null) continue;
+    const id = "recovery-index:" + result.comparisonKey;
+    const context = [
+      result.sleep.severity.value === null ? null : result.sleep.nights.length + " sleep " + (result.sleep.nights.length === 1 ? "night" : "nights") + " / " + result.sleep.targetHours + " h target",
+      result.autonomic.rhr.severity.value === null ? null : "RHR",
+      result.autonomic.hrv.severity.value === null ? null : "RMSSD",
+    ].filter(Boolean).join(", ");
+    const deviceSources = [...new Set([
+      ...result.sleep.nights.filter(night => night.wearable && result.sleep.severity.value !== null).map(night => night.source),
+      ...[result.autonomic.rhr, result.autonomic.hrv].filter(reading => reading.severity.value !== null && reading.measurement).map(reading => [reading.measurement!.source, reading.measurement!.sourceDevice, reading.measurement!.protocol].filter(Boolean).join(" / ")),
+    ])].join(", ");
+    const label = ["Recovery Index", result.method, result.index.coverage.valid + "/" + result.index.coverage.total + " domains", context, deviceSources].filter(Boolean).join(" · ");
+    const series = groups.get(id) ?? { id, label, unit: "/100", observations: [], unavailableHelp: recoveryHelp };
+    series.observations.push({ date: q.localDate, value: result.index.value, source: result.index.method, measuredAt: q.completedAt ?? undefined, version: result.index.modelVersion, detail: label });
+    groups.set(id, series);
+  }
+  return groups.size ? [...groups.values()] : [{ id: "recovery-index", label: "Recovery Index", unit: "/100", observations: [], unavailableHelp: recoveryHelp }];
 }
+
+function fatigueSeries(records: ProgressRecords, today: string): RawSeries[] {
+  const days = fatigueHistory(today, records.asOf ?? Date.now(), records.sessions ?? [], records.confirmations ?? []);
+  return [{ id: "fatigue-index", label: "Fatigue Index · personal percentile", unit: "/100", unavailableHelp: fatigueHelp,
+    observations: days.flatMap(day => day.index.value === null ? [] : [{ date: day.date, value: day.index.value, source: "Recent training burden", version: day.index.modelVersion, detail: day.referenceCount + " earlier comparable days" }]) }];
+}
+
 export function buildRawGraphs(records: ProgressRecords, group: ProgressGroup, imperial: boolean, today: string): RawSubgraph[] {
   const q = records.questionnaires;
-  const indices = indexSeries(records.snapshots);
   if (group === "weight") {
     const weights: Observation[] = records.weights.filter((w) => Number.isFinite(w.kg) && w.kg > 0 && dateKey(new Date(w.measuredAt)) <= today).map((w) => ({ date: dateKey(new Date(w.measuredAt)), value: convertKilogramsToWeight(w.kg, imperial ? "imperial" : "metric"), source: "CAPS weigh-ins", measuredAt: new Date(w.measuredAt).toISOString() }));
     const unit = imperial ? "lb" : "kg";
     return [{ id: "weight", title: "Body weight", unit, series: [{ id: "weight:daily", label: "Daily weight", unit, observations: latestDaily(weights) }, { id: "weight:7d", label: "7-day average · min 4 days", unit, observations: rollingWeightAverage(weights, today) }] }];
   }
-  if (group === "recovery") return [{ id: "recovery", title: "Recovery indices", unit: "0–100", range: [0, 100], series: indices }];
+  if (group === "recovery") return [{ id: "recovery", title: "Recovery Index", unit: "0–100", range: [0, 100], series: recoverySeries(records, today) }];
   if (group === "cardiac") {
     const hrv = healthSeries(records.measurements, "hrv");
     const rhr = healthSeries(records.measurements, "rhr");
@@ -82,20 +110,20 @@ export function buildRawGraphs(records: ProgressRecords, group: ProgressGroup, i
   if (group === "sleep") {
     const duration = healthSeries(records.measurements, "sleep_duration");
     const manual: RawSeries = { id: "sleep:manual", label: "Estimated asleep · manual", unit: "h", observations: q.flatMap((entry) => {
-      if (entry.status !== "completed" || !entry.sleepOnset || !entry.wakeTime || entry.minutesAwake === null) return [];
-      const asleep = manualSleep(entry).asleepMinutes;
-      return asleep === null || !Number.isFinite(asleep) || asleep < 0 ? [] : [{ date: entry.localDate, value: asleep / 60, source: "Manual questionnaire", measuredAt: entry.completedAt ?? undefined, version: "manual_asleep_v1", detail: "Sleep interval minus explicitly reported minutes awake; estimate" }];
+      if (entry.status !== "completed") return [];
+      const asleep = entry.sleepHours != null ? 60 * entry.sleepHours : manualSleep(entry).asleepMinutes;
+      return asleep === null || !Number.isFinite(asleep) || asleep < 0 ? [] : [{ date: entry.localDate, value: asleep / 60, source: "Manual questionnaire", measuredAt: entry.completedAt ?? undefined, version: "manual_asleep_v1", detail: entry.sleepHours != null ? "Explicit hours reported" : "Sleep interval minus explicitly reported minutes awake" }];
     }) };
     const efficiency = healthSeries(records.measurements, "sleep_efficiency");
     return [{ id: "sleep:duration", title: "Sleep duration", unit: "h", zeroBased: true, minimumMax: 16, series: [...duration, manual] }, { id: "sleep:quality", title: "Sleep quality", unit: "0–10", range: [0, 10], series: [questionnaireSeries(q, "sleepQuality", "Sleep quality · manual")] }, { id: "sleep:efficiency", title: "Sleep efficiency", unit: "%", range: [0, 100], series: efficiency.length ? efficiency : [{ id: "sleep:efficiency:empty", label: "Efficiency · unavailable", unit: "%", observations: [] }] }, { id: "sleep:awakenings", title: "Awakenings per recorded night", unit: "count", zeroBased: true, minimumMax: 2, series: [questionnaireSeries(q, "awakenings", "Awakenings · manual")] }];
   }
-  return [{ id: "fatigue:questionnaire", title: "Subjective wellness", unit: "0–10", range: [0, 10], series: [questionnaireSeries(q, "fatigue", "Fatigue recovery (higher is better)"), questionnaireSeries(q, "mood", "Mood (higher is better)"), questionnaireSeries(q, "soreness", "Soreness recovery (higher is better)"), questionnaireSeries(q, "stress", "Stress recovery (higher is better)"), questionnaireSeries(q, "motivation", "Motivation (higher is better)")] }, { id: "fatigue:indices", title: "Recovery indices", unit: "0–100", range: [0, 100], series: indices }];
+  return [{ id: "fatigue:questionnaire", title: "Subjective wellness", unit: "0–10", range: [0, 10], series: [questionnaireSeries(q, "fatigue", "Fatigue recovery (higher is better)"), questionnaireSeries(q, "mood", "Mood (higher is better)"), questionnaireSeries(q, "soreness", "Soreness recovery (higher is better)"), questionnaireSeries(q, "stress", "Stress recovery (higher is better)"), questionnaireSeries(q, "motivation", "Motivation (higher is better)")] }, { id: "fatigue:indices", title: "Fatigue Index", unit: "0–100", range: [0, 100], series: fatigueSeries(records, today) }];
 }
 export function aggregateGraphs(graphs: RawSubgraph[], period: ChartPeriod): Subgraph[] {
-  return graphs.map((graph) => ({ ...graph, series: graph.series.map((series, index): PlotSeries => ({ id: series.id, label: series.label, unit: series.unit, color: COLORS[index % COLORS.length], points: aggregateSeries(series.observations, period) })) }));
+  return graphs.map((graph) => ({ ...graph, series: graph.series.map((series, index): PlotSeries => ({ id: series.id, label: series.label, unit: series.unit, unavailableHelp: series.unavailableHelp, color: COLORS[index % COLORS.length], points: aggregateSeries(series.observations, period) })) }));
 }
 export function firstProgressDate(records: ProgressRecords): string | null {
-  const dates = [...records.questionnaires.map((q) => q.localDate), ...records.snapshots.map((s) => s.localDate), ...records.measurements.map((m) => m.localDate), ...records.weights.map((w) => dateKey(new Date(w.measuredAt)))].sort();
+  const dates = [...records.questionnaires.map((q) => q.localDate), ...(records.confirmations ?? []).map((s) => s.localDate), ...(records.sessions ?? []).map((s) => s.localDate), ...records.measurements.map((m) => m.localDate), ...records.weights.map((w) => dateKey(new Date(w.measuredAt)))].sort();
   return dates[0] ?? null;
 }
 

@@ -14,21 +14,24 @@ function ratingValid(value: number | null) { return value !== null && Number.isI
 
 export function validateQuestionnaire(q: Questionnaire, complete: boolean) {
   const errors: string[] = [];
+  const legacyComplete = complete && q.trainingCheckInVersion !== 1;
   if (!isLocalDate(q.localDate)) errors.push("Recovery date is invalid.");
   if (!isValidTimezone(q.timezone)) errors.push("Timezone is invalid.");
   if (!Number.isInteger(q.revision) || q.revision < 0) errors.push("Questionnaire revision is invalid.");
   for (const field of requiredRatings) {
-    if (q[field] === null && !complete) continue;
+    if (q[field] === null && !legacyComplete) continue;
     if (!ratingValid(q[field])) errors.push(`${field} must be an integer from 0 to 10.`);
   }
-  if (q.sriVersion !== undefined && !["sri_v1", "sri_v2"].includes(q.sriVersion)) errors.push("Unknown SRI version.");
-  if (complete && q.sriVersion === "sri_v2" && q.mood === null) errors.push("Mood is required.");
+  if (q.sriVersion !== undefined && !["sri_v1", "sri_v2"].includes(q.sriVersion)) errors.push("Unknown saved questionnaire version.");
+  if (legacyComplete && q.sriVersion === "sri_v2" && q.mood === null) errors.push("Mood is required.");
+  if (q.readiness != null && (!Number.isFinite(q.readiness) || q.readiness < 0 || q.readiness > 10)) errors.push("Readiness must be from 0 to 10.");
+  if (q.sleepHours != null && (!Number.isFinite(q.sleepHours) || q.sleepHours < 0 || q.sleepHours > 24)) errors.push("Hours asleep must be from 0 to 24.");
   if (q.awakeningsAtLeast && (q.awakenings === null || q.awakenings < 10)) errors.push("10+ awakenings must have a lower bound of at least 10.");
   if (q.mood !== null && !ratingValid(q.mood)) errors.push("Mood must be an integer from 0 to 10.");
-  if ((complete && q.awakenings === null) || (q.awakenings !== null && (!Number.isSafeInteger(q.awakenings) || q.awakenings < 0))) errors.push("Awakenings must be a nonnegative integer.");
+  if ((legacyComplete && q.awakenings === null) || (q.awakenings !== null && (!Number.isSafeInteger(q.awakenings) || q.awakenings < 0))) errors.push("Awakenings must be a nonnegative integer.");
   if (q.minutesAwake !== null && (!Number.isSafeInteger(q.minutesAwake) || q.minutesAwake < 0)) errors.push("Minutes awake must be a nonnegative integer.");
   if ([q.sleepOnset, q.wakeTime].some((value) => value !== null && Date.parse(value) > Date.now())) errors.push("Reported sleep times cannot be in the future.");
-  errors.push(...validateSleepTimes(q, complete));
+  errors.push(...validateSleepTimes(q, legacyComplete || complete && (q.sleepOnset !== null || q.wakeTime !== null)));
   return errors;
 }
 

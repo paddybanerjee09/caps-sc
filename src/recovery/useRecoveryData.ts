@@ -1,11 +1,15 @@
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { getPreferredSources, getQuestionnaire, listMeasurements } from "../data/recoveryRepository";
+import { getPreferredSources, listMeasurements, listQuestionnaires } from "../data/recoveryRepository";
+import { listCompletedTraining, listSleepTargets, listTrainingDayConfirmations, listTrainingOutputTests, recentFoodLogCount, type SleepTarget } from "../data/trainingIndexRepository";
+import type { ComparableOutput, CompletedTraining, TrainingDayConfirmation } from "../domain/training/fatigue";
 import { getCurrentHealthState, subscribeHealthUpdates, syncHealth } from "../health/healthService";
 import type { HealthMeasurement, HealthState, PreferredSources, Questionnaire } from "./types";
 
-type Data = { localDate: string; timezone: string; questionnaire: Questionnaire | null; measurements: HealthMeasurement[]; preferred: PreferredSources; health: HealthState | null };
+type Data = { localDate: string; timezone: string; questionnaire: Questionnaire | null; questionnaires: Questionnaire[]; measurements: HealthMeasurement[];
+  preferred: PreferredSources; health: HealthState | null; asOf: number; sessions: CompletedTraining[]; confirmations: TrainingDayConfirmation[];
+  sleepTargets: SleepTarget[]; outputs: ComparableOutput[]; foodLogCount: number };
 export function useRecoveryData(localDate: string, timezone: string, revision: number) {
   const db = useSQLiteContext();
   const [data, setData] = useState<Data | null>(null);
@@ -16,8 +20,13 @@ export function useRecoveryData(localDate: string, timezone: string, revision: n
     const id = ++request.current;
     setLoading(true); setError(null);
     try {
-      const [questionnaire, measurements, preferred, health] = await Promise.all([getQuestionnaire(db, localDate), listMeasurements(db), getPreferredSources(db), getCurrentHealthState(db)]);
-      if (id === request.current) setData({ localDate, timezone, questionnaire, measurements, preferred, health });
+      const asOf = Date.now();
+      const [questionnaires, measurements, preferred, health, sessions, confirmations, sleepTargets, outputs, foodLogCount] = await Promise.all([
+        listQuestionnaires(db), listMeasurements(db), getPreferredSources(db), getCurrentHealthState(db), listCompletedTraining(db, asOf),
+        listTrainingDayConfirmations(db), listSleepTargets(db), listTrainingOutputTests(db, asOf), recentFoodLogCount(db, localDate, timezone, asOf),
+      ]);
+      const questionnaire = questionnaires.find(q => q.localDate === localDate) ?? null;
+      if (id === request.current) setData({ localDate, timezone, questionnaire, questionnaires, measurements, preferred, health, asOf, sessions, confirmations, sleepTargets, outputs, foodLogCount });
     } catch { if (id === request.current) setError("Couldn’t load recovery. Retry to see today’s readings and questionnaire."); }
     finally { if (id === request.current) setLoading(false); }
   }, [db, localDate, timezone]);

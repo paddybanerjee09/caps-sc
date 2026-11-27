@@ -8,8 +8,7 @@ import { useAppTheme } from "../../theme/ThemeContext";
 import { readableTextColor } from "../../theme/theme";
 import { feedbackConfirm, feedbackWarn } from "../../utils/feedback";
 import { formatDisplayDate } from "../../utils/displayDate";
-import { calculateSRI, createEmptyQuestionnaire, manualSleep } from "../calculations";
-import { validateSleepTimes } from "../dates";
+import { createEmptyQuestionnaire, manualSleep, validateQuestionnaire } from "../calculations";
 import type { Questionnaire } from "../types";
 import { RatingSlider } from "./RatingSlider";
 import { SleepTimeRangeSlider } from "./SleepTimeRangeSlider";
@@ -27,11 +26,11 @@ export function MorningQuestionnaire({ initial, localDate, timezone, onClose, on
   const { theme } = useAppTheme();
   const [draft, setDraft] = useState<Questionnaire>(() => {
     const base = initial ? { ...initial } : createEmptyQuestionnaire(localDate, timezone);
-    return { ...base, sriVersion: "sri_v2", awakenings: base.awakenings ?? 0, awakeningsAtLeast: base.awakeningsAtLeast ?? false,
-      sleepQuality: base.sleepQuality ?? 5, fatigue: base.fatigue ?? 5, soreness: base.soreness ?? 5,
-      stress: base.stress ?? 5, motivation: base.motivation ?? 5, mood: base.mood ?? 5 };
+    return { ...base, trainingCheckInVersion: 1, ...(!initial ? { awakenings: null, sleepQuality: null, fatigue: null, soreness: null, stress: null, motivation: null, mood: null } : {}) };
   });
   const [awakeMinutes, setAwakeMinutes] = useState(initial?.minutesAwake?.toString() ?? "");
+  const [readiness, setReadiness] = useState(initial?.readiness?.toString() ?? "");
+  const [sleepHours, setSleepHours] = useState(initial?.sleepHours?.toString() ?? "");
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,10 +67,9 @@ export function MorningQuestionnaire({ initial, localDate, timezone, onClose, on
     if (pending.current) return;
     const validInteger = (text: string) => text === "" || /^\d+$/.test(text) && Number.isSafeInteger(Number(text));
     if (!validInteger(awakeMinutes)) { setError("Minutes awake must be a whole, nonnegative number."); feedbackWarn(); return; }
-    const candidate = { ...draft, minutesAwake: awakeMinutes === "" ? null : Number(awakeMinutes) };
-    const errors = validateSleepTimes(candidate, complete);
-    if ([candidate.sleepOnset, candidate.wakeTime].some((value) => value && Date.parse(value) > Date.now())) errors.push("Reported sleep times cannot be in the future.");
-    if (complete && calculateSRI(candidate) === null) errors.push("Complete all ratings to calculate SRI.");
+    const optionalNumber = (value: string) => value.trim() === "" ? null : /^\d+(?:[.,]\d+)?$/.test(value.trim()) ? Number(value.trim().replace(",", ".")) : Number.NaN;
+    const candidate = { ...draft, readiness: optionalNumber(readiness), sleepHours: optionalNumber(sleepHours), minutesAwake: awakeMinutes === "" ? null : Number(awakeMinutes) };
+    const errors = validateQuestionnaire(candidate, complete);
     if (errors.length) { setError(errors.join("\n")); feedbackWarn(); return; }
     pending.current = true; setSaving(true); setError(null);
     try {
@@ -88,8 +86,14 @@ export function MorningQuestionnaire({ initial, localDate, timezone, onClose, on
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
       <Text selectable style={{ color: theme.colors.text, fontWeight: "700" }}>{formatDisplayDate(localDate)} · {deviceTimezone}{draft.timezone !== deviceTimezone ? ` · Day: ${draft.timezone}` : ""}</Text>
       <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <Text style={[styles.label, { color: theme.colors.text }]}>Readiness (0–10, optional)</Text>
+        <TextInput accessibilityLabel="Readiness from 0 to 10" keyboardType="decimal-pad" editable={!saving} value={readiness} onChangeText={value => { setReadiness(value); setDirty(true); setError(null); }} placeholder="0–10" placeholderTextColor={theme.colors.textMuted} style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.borderStrong }]} />
+        <Text style={[styles.label, { color: theme.colors.text }]}>Hours asleep (optional)</Text>
+        <TextInput accessibilityLabel="Hours asleep" keyboardType="decimal-pad" editable={!saving} value={sleepHours} onChangeText={value => { setSleepHours(value); setDirty(true); setError(null); }} placeholder="Hours" placeholderTextColor={theme.colors.textMuted} style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.borderStrong }]} />
+      </View>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
         <SleepTimeRangeSlider localDate={localDate} onset={draft.sleepOnset} wake={draft.wakeTime} disabled={saving} onChange={update} />
-        <View style={styles.durationRow}><Text style={[styles.label, { color: theme.colors.textMuted }]}>{sleep.asleepMinutes === null ? "Total sleep (interval)" : "Total sleep (estimated)"}</Text><Text selectable style={[styles.duration, { color: theme.colors.text }]}>{durationText}</Text></View>
+        {duration !== null ? <View style={styles.durationRow}><Text style={[styles.label, { color: theme.colors.textMuted }]}>{sleep.asleepMinutes === null ? "Sleep interval" : "Estimated time asleep"}</Text><Text selectable style={[styles.duration, { color: theme.colors.text }]}>{durationText}</Text></View> : null}
         <RatingSlider label="Awakenings" value={draft.awakenings} onChange={value => { setDirty(true); setDraft(old => ({ ...old, awakenings: value, awakeningsAtLeast: value === 10 })); setError(null); }} minLabel="none" maxLabel="10 or more" maxValueLabel="10+" disabled={saving} />
         <Text style={[styles.label, { color: theme.colors.text }]}>Minutes awake (optional)</Text>
         <TextInput accessibilityLabel="Approximate minutes awake during sleep interval" keyboardType="number-pad" editable={!saving} value={awakeMinutes} onChangeText={(text) => { setAwakeMinutes(text); setDirty(true); }} placeholder="--" placeholderTextColor={theme.colors.textMuted} style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.borderStrong }]} />

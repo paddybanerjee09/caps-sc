@@ -5,17 +5,19 @@ import { useSQLiteContext } from "expo-sqlite";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SegmentedSelector } from "../components/nutrition/SegmentedSelector";
 import { PressOpacity } from "../components/PressOpacity";
-import { listMeasurements, listQuestionnaires, listSnapshots, listWeights } from "../data/recoveryRepository";
+import { getPreferredSources, listMeasurements, listQuestionnaires, listWeights } from "../data/recoveryRepository";
+import { listCompletedTraining, listSleepTargets, listTrainingDayConfirmations } from "../data/trainingIndexRepository";
+import { getCurrentHealthState } from "../health/healthService";
 import { useAppState } from "../state/AppStateContext";
 import { useAppTheme } from "../theme/ThemeContext";
 import { buildPeriod, dateKey, shiftPeriod, type Timeframe } from "./chartAggregation";
 import { SynchronizedSubgraphGroup } from "./ProgressCharts";
 import { aggregateGraphs, buildRawGraphs, emptyProgressRecords, firstProgressDate, type ProgressGroup, type ProgressRecords } from "./progressSeries";
 
-const GROUPS: { value: ProgressGroup; label: string }[] = [{ value: "weight", label: "Body Weight" }, { value: "recovery", label: "Recovery Indices" }, { value: "cardiac", label: "Cardiac Indices" }, { value: "sleep", label: "Sleep Indices" }, { value: "fatigue", label: "Fatigue Indices" }];
+const GROUPS: { value: ProgressGroup; label: string }[] = [{ value: "weight", label: "Body Weight" }, { value: "recovery", label: "Recovery Index" }, { value: "cardiac", label: "Cardiac Indices" }, { value: "sleep", label: "Sleep Indices" }, { value: "fatigue", label: "Fatigue Index" }];
 const TIMEFRAMES: { value: Timeframe; label: string }[] = [{ value: "week", label: "Week" }, { value: "month", label: "Month" }, { value: "year", label: "Year" }, { value: "lifetime", label: "Lifetime" }];
 
-export function ProgressPanel({ revision, active = true }: { revision: number; active?: boolean }) {
+export function ProgressPanel({ revision, active = true, onManageIndices }: { revision: number; active?: boolean; onManageIndices?: () => void }) {
   const db = useSQLiteContext();
   const window = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -47,8 +49,11 @@ export function ProgressPanel({ revision, active = true }: { revision: number; a
     setLoading(true);
     setError(null);
     try {
-      const [questionnaires, measurements, snapshots, weights] = await Promise.all([listQuestionnaires(db), listMeasurements(db), listSnapshots(db), listWeights(db)]);
-      if (request.current === id) setRecords({ questionnaires, measurements, snapshots, weights });
+      const asOf = Date.now();
+      const [questionnaires, measurements, weights, sessions, confirmations, sleepTargets, health, preferred] = await Promise.all([
+        listQuestionnaires(db), listMeasurements(db), listWeights(db), listCompletedTraining(db, asOf), listTrainingDayConfirmations(db), listSleepTargets(db), getCurrentHealthState(db), getPreferredSources(db),
+      ]);
+      if (request.current === id) setRecords({ questionnaires, measurements, weights, sessions, confirmations, sleepTargets, health, preferred, asOf });
     } catch {
       if (request.current === id) setError("Couldn’t load progress.");
     } finally { if (request.current === id) setLoading(false); }
@@ -107,7 +112,7 @@ export function ProgressPanel({ revision, active = true }: { revision: number; a
       {timeframe !== "lifetime" ? <PressOpacity accessibilityLabel="Next progress period" disabled={nextPeriod.start > today} onPress={() => setAnchor(nextAnchor)} style={styles.iconButton}><Ionicons name="chevron-forward" size={20} color={theme.colors.text} /></PressOpacity> : null}
       <PressOpacity accessibilityLabel="Refresh progress" disabled={loading} onPress={() => void load()} style={styles.iconButton}><Ionicons name="refresh" size={19} color={theme.colors.text} /></PressOpacity>
     </View>
-    {loading ? <View style={styles.loading}><ActivityIndicator accessibilityLabel="Loading progress" color={theme.colors.tertiary} /></View> : error ? <Text accessibilityRole="alert" style={{ color: theme.colors.text }}>{error} Tap refresh to retry.</Text> : <SynchronizedSubgraphGroup graphs={graphs} period={period} hidden={hidden} onToggle={(id) => setHidden((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} cursor={cursor} onSelect={select} />}
+    {loading ? <View style={styles.loading}><ActivityIndicator accessibilityLabel="Loading progress" color={theme.colors.tertiary} /></View> : error ? <Text accessibilityRole="alert" style={{ color: theme.colors.text }}>{error} Tap refresh to retry.</Text> : <SynchronizedSubgraphGroup graphs={graphs} period={period} hidden={hidden} onToggle={(id) => setHidden((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} cursor={cursor} onSelect={select} onManageIndices={onManageIndices} />}
   </View>;
 }
 const styles = StyleSheet.create({

@@ -75,7 +75,7 @@ export function HomeScreen({ registerExitGuard }: { registerExitGuard?: (guard: 
   const selectedDate = homeDate;
   const recoveryDay = useRecoveryDay();
   const [recoveryRevision, setRecoveryRevision] = useState(0);
-  const recovery = useRecoveryData(recoveryDay.localDate, recoveryDay.timezone, recoveryRevision);
+  const recovery = useRecoveryData(recoveryDay.localDate, recoveryDay.timezone, recoveryRevision + timelineRevision);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [questionnaireForm, setQuestionnaireForm] = useState<{ localDate: string; timezone: string; initial: Questionnaire | null } | null>(null);
   function openQuestionnaire(historical?: Questionnaire) {
@@ -495,7 +495,7 @@ export function HomeScreen({ registerExitGuard }: { registerExitGuard?: (guard: 
             />
           </View> : null}
           {selectedHomeSection === "recovery" ? <RecoveryPanel recovery={recovery} onHistory={() => setHistoryOpen(true)} onQuestionnaire={openQuestionnaire} onChanged={() => setRecoveryRevision((value) => value + 1)} /> : null}
-          <ProgressPanel active={selectedHomeSection === "progress"} revision={recoveryRevision} />
+          <ProgressPanel active={selectedHomeSection === "progress"} revision={recoveryRevision} onManageIndices={() => setSelectedHomeSection("recovery")} />
         </SlidingPanels>
       </View>
     </Screen>

@@ -42,7 +42,7 @@ export async function saveQuestionnaire(db: SQLiteDatabase, questionnaire: Quest
     await db.runAsync(`INSERT INTO daily_questionnaires(owner_id,local_date,timezone,status,revision,completed_at,response_json,updated_at)
       VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(owner_id,local_date) DO UPDATE SET timezone=excluded.timezone,status=excluded.status,revision=excluded.revision,completed_at=excluded.completed_at,response_json=excluded.response_json,updated_at=excluded.updated_at`, [LOCAL_OWNER, saved.localDate, saved.timezone, saved.status, saved.revision, saved.completedAt, JSON.stringify(saved), now]);
     await db.runAsync("INSERT INTO questionnaire_revisions(owner_id,local_date,revision,response_json,recorded_at) VALUES (?,?,?,?,?)", [LOCAL_OWNER, saved.localDate, saved.revision, JSON.stringify(saved), now]);
-    await recomputeDerived(db, saved.localDate);
+    if (saved.trainingCheckInVersion !== 1) await recomputeDerived(db, saved.localDate);
     return saved;
   });
 }
@@ -59,11 +59,8 @@ export async function listMeasurements(db: SQLiteDatabase): Promise<HealthMeasur
 }
 
 export async function listSnapshots(db: SQLiteDatabase): Promise<RecoverySnapshot[]> {
-  let rows = await db.getAllAsync<{ snapshot_json: string }>("SELECT snapshot_json FROM recovery_snapshots WHERE owner_id = ? ORDER BY local_date", [LOCAL_OWNER]);
-  if (rows.some(row => (JSON.parse(row.snapshot_json) as RecoverySnapshot).oriVersion !== 'caps_ori_v1')) {
-    await write(db, () => recomputeDerived(db));
-    rows = await db.getAllAsync<{ snapshot_json: string }>("SELECT snapshot_json FROM recovery_snapshots WHERE owner_id = ? ORDER BY local_date", [LOCAL_OWNER]);
-  }
+  // A legacy cache can be the only record for a day. Reading it must not rebuild it.
+  const rows = await db.getAllAsync<{ snapshot_json: string }>("SELECT snapshot_json FROM recovery_snapshots WHERE owner_id = ? ORDER BY local_date", [LOCAL_OWNER]);
   return rows.map((row) => JSON.parse(row.snapshot_json) as RecoverySnapshot);
 }
 
@@ -92,9 +89,9 @@ export async function upsertHealthBatch(db: SQLiteDatabase, batch: HealthBatch) 
   batch.measurements.forEach((item) => { validateHealthMeasurement(item); if (item.platform !== batch.platform) throw new Error("Mismatched measurement platform"); });
   if (batch.replaceWindow && (!isInstant(batch.replaceWindow.from) || !isInstant(batch.replaceWindow.to) || Date.parse(batch.replaceWindow.from) >= Date.parse(batch.replaceWindow.to))) throw new Error("Invalid reconciliation window");
   return write(db, async () => {
+    const existing = await listMeasurements(db);
     // A replaceWindow is only supplied after a complete successful bounded read.
     if (batch.replaceWindow) {
-      const existing = await listMeasurements(db);
       const { from, to, metrics } = batch.replaceWindow;
       const incoming = new Set(batch.measurements.map((item) => `${item.externalId}\u0000${item.metric}`));
       for (const item of existing) {
@@ -107,7 +104,7 @@ export async function upsertHealthBatch(db: SQLiteDatabase, batch: HealthBatch) 
       await db.runAsync(`INSERT INTO health_measurements(owner_id,platform,external_id,metric,local_date,measured_at,measurement_json) VALUES (?,?,?,?,?,?,?) ON CONFLICT(owner_id,platform,external_id,metric) DO UPDATE SET local_date=excluded.local_date,measured_at=excluded.measured_at,measurement_json=excluded.measurement_json`, [LOCAL_OWNER, item.platform, item.externalId, item.metric, item.localDate, normalized.measuredAt, JSON.stringify(normalized)]);
     }
     await saveHealthState(db, batch.state);
-    await recomputeDerived(db);
+    await recomputeDerived(db, undefined, existing.filter(item => item.platform === batch.platform).map(item => item.localDate));
   });
 }
 
@@ -122,6 +119,7 @@ export async function setHealthState(db: SQLiteDatabase, state: HealthState) { r
 
 export async function deleteImportedHealth(db: SQLiteDatabase, platform?: HealthPlatform) {
   return write(db, async () => {
+    const previousDays = (await listMeasurements(db)).filter(item => !platform || item.platform === platform).map(item => item.localDate);
     if (platform) await db.runAsync("DELETE FROM health_measurements WHERE owner_id=? AND platform=?", [LOCAL_OWNER, platform]);
     else await db.runAsync("DELETE FROM health_measurements WHERE owner_id=?", [LOCAL_OWNER]);
     // Clear import cursors so a later intentional reconnect can backfill again.
@@ -130,7 +128,7 @@ export async function deleteImportedHealth(db: SQLiteDatabase, platform?: Health
       const state = await getHealthState(db, selected);
       if (state) await saveHealthState(db, { ...state, cursor: null, lastSuccessfulSync: null, status: "not_connected", error: null });
     }
-    await recomputeDerived(db);
+    await recomputeDerived(db, undefined, previousDays);
   });
 }
 
@@ -146,14 +144,21 @@ export async function setPreferredSources(db: SQLiteDatabase, sources: Preferred
   });
 }
 
-async function recomputeDerived(db: SQLiteDatabase, questionnaireDay?: string) {
+async function recomputeDerived(db: SQLiteDatabase, questionnaireDay?: string, previousHealthDays: string[] = []) {
   const questionnaires = await listQuestionnaires(db);
   const measurements = await listMeasurements(db);
   const preferred = await getPreferredSources(db);
+  const snapshotsByDay = new Map((await listSnapshots(db)).map(snapshot => [snapshot.localDate, snapshot]));
+  const [apple, android] = await Promise.all([getHealthState(db, "healthkit"), getHealthState(db, "health_connect")]);
+  const eligibleMeasurements = measurements.filter(item => {
+    const state = item.platform === "healthkit" ? apple : android;
+    return !state || (state.status === "ready" || state.status === "sync_error" && state.capabilities.authorization_requested === "true") &&
+      !/not granted/i.test(state.capabilities[item.metric] ?? "");
+  });
   const questionnaireByDay = new Map(questionnaires.map((q) => [q.localDate, q]));
   const measurementsByDay = new Map<string, HealthMeasurement[]>();
   const comparableDays = new Map<string, Map<string, HealthMeasurement>>();
-  for (const measurement of measurements) {
+  for (const measurement of eligibleMeasurements) {
     if (measurement.quality !== "valid" || (preferred[measurement.metric] && preferred[measurement.metric] !== measurement.source)) continue;
     const daily = measurementsByDay.get(measurement.localDate) ?? [];
     daily.push(measurement);
@@ -164,19 +169,25 @@ async function recomputeDerived(db: SQLiteDatabase, questionnaireDay?: string) {
     if (!previous || Date.parse(previous.measuredAt) < Date.parse(measurement.measuredAt)) comparable.set(measurement.localDate, measurement);
     comparableDays.set(key, comparable);
   }
-  const days = questionnaireDay ? new Set([questionnaireDay]) : new Set([...questionnaires.map((q) => q.localDate), ...measurements.map((m) => m.localDate)]);
+  const biometricDays = new Set([...measurements.map(item => item.localDate), ...previousHealthDays]);
+  const days = questionnaireDay ? new Set([questionnaireDay]) : new Set([...questionnaires.filter(q => q.trainingCheckInVersion !== 1).map(q => q.localDate), ...biometricDays]);
   const now = new Date().toISOString();
-  if (questionnaireDay) await db.runAsync("DELETE FROM recovery_snapshots WHERE owner_id=? AND local_date=?", [LOCAL_OWNER, questionnaireDay]);
-  else {
-    await db.runAsync("DELETE FROM recovery_snapshots WHERE owner_id=?", [LOCAL_OWNER]);
+  if (!questionnaireDay) {
     await db.runAsync("DELETE FROM metric_baselines WHERE owner_id=?", [LOCAL_OWNER]);
   }
   for (const localDate of days) {
     const questionnaire = questionnaireByDay.get(localDate);
+    const previous = snapshotsByDay.get(localDate);
     const inputs = measurementsByDay.get(localDate) ?? [];
-    const ori = calculateORI(localDate, measurements, preferred);
-    const snapshot: RecoverySnapshot = { localDate, sri: questionnaire?.status === "completed" ? calculateSRI(questionnaire) : null, ori: ori.score, oriDetails: ori, sriVersion: questionnaire?.sriVersion ?? "sri_v1", oriVersion: ori.version, inputCount: new Set(inputs.map((item) => item.metric)).size, computedAt: now };
-    await db.runAsync("INSERT INTO recovery_snapshots(owner_id,local_date,snapshot_json) VALUES (?,?,?)", [LOCAL_OWNER, localDate, JSON.stringify(snapshot)]);
+    const preserveOri = Boolean(questionnaireDay) || !biometricDays.has(localDate);
+    const ori = preserveOri ? previous?.oriDetails : calculateORI(localDate, eligibleMeasurements, preferred);
+    const legacyQuestionnaire = questionnaire && questionnaire.trainingCheckInVersion !== 1 ? questionnaire : null;
+    const sri = legacyQuestionnaire ? (legacyQuestionnaire.status === "completed" ? calculateSRI(legacyQuestionnaire) : null) : previous?.sri ?? null;
+    const snapshot: RecoverySnapshot = { localDate, sri, ori: preserveOri ? previous?.ori ?? null : ori?.score ?? null, oriDetails: ori,
+      sriVersion: legacyQuestionnaire?.sriVersion ?? previous?.sriVersion ?? "sri_v1", oriVersion: ori?.version ?? previous?.oriVersion ?? null,
+      inputCount: new Set(inputs.map((item) => item.metric)).size, computedAt: now };
+    await db.runAsync(`INSERT INTO recovery_snapshots(owner_id,local_date,snapshot_json) VALUES (?,?,?)
+      ON CONFLICT(owner_id,local_date) DO UPDATE SET snapshot_json=excluded.snapshot_json`, [LOCAL_OWNER, localDate, JSON.stringify(snapshot)]);
     if (questionnaireDay) continue;
     const latest = new Map<string, HealthMeasurement>();
     for (const item of inputs) {

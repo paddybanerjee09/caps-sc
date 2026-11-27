@@ -22,5 +22,6 @@ console.log('CAPS ORI v1 eligibility, transforms, source/subtype isolation and c
 
 const details=calculateORI(day,[...history,...today]);
 const graphs=buildRawGraphs({...emptyProgressRecords,snapshots:[{localDate:day,sri:null,ori:details.score,sriVersion:'sri_v1',oriVersion:details.version,oriDetails:details,inputCount:3,computedAt:'2026-10-30T12:00:00Z'}]},'recovery',false,day);
-assert.equal(graphs[0].series.find(s=>s.id.startsWith('ori:')).observations[0].value,100);
-console.log('Persisted CAPS ORI renders in Progress series');
+assert.equal(graphs[0].series[0].observations.length,0);
+assert.equal(graphs[0].title,'Recovery Index');
+console.log('Persisted legacy CAPS ORI does not populate the Recovery Index');

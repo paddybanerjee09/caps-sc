@@ -8,6 +8,9 @@ export type Questionnaire = {
   awakenings: number | null;
   awakeningsAtLeast?: boolean;
   sriVersion?: SriVersion;
+  trainingCheckInVersion?: 1;
+  readiness?: number | null;
+  sleepHours?: number | null;
   sleepQuality: number | null;
   fatigue: number | null;
   soreness: number | null;

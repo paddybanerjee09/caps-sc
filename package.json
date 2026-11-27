@@ -14,6 +14,8 @@
     "verify:skill": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-skill.mjs",
     "feature-tree": "node scripts/feature-tree.mjs",
     "verify:recovery": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-recovery.mjs",
+    "verify:recovery-index": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-recovery-index.mjs",
+    "verify:fatigue-index": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-fatigue-index.mjs",
     "verify:recovery-input": "node --experimental-strip-types scripts/verify-recovery-input.mjs",
     "verify:health": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-health.mjs",
     "verify:progress": "node --experimental-strip-types --experimental-transform-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/verify-progress.mjs",
