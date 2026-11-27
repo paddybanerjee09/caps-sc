@@ -2,7 +2,7 @@ CAPS.trees.database = {
   id: "database",
   title: "Database",
   summary:
-    "Local Expo SQLite caps.db schema v10 stores training, nutrition, timeline, weight and Recovery data. Non-weight athlete profile settings additionally use expo-sqlite/kv-store’s separate ExpoSQLiteStorage database; no caps.db schema migration or weight-history duplication accompanies biometric editing.",
+    "Local Expo SQLite caps.db schema v12 stores training, nutrition, timeline, weight and Recovery data. Non-weight athlete profile settings use expo-sqlite/kv-store’s separate ExpoSQLiteStorage database.",
   rules: ["conditioning-data-and-units.mdc"],
   root: {
     id: "caps-db",
@@ -11,7 +11,7 @@ CAPS.trees.database = {
     tagline: "Expo SQLite, WAL, foreign keys on",
     files: ["src/data/database.ts"],
     summary:
-      "`migrateDatabase` enables WAL and foreign keys, then applies versioned DDL. A special case reapplies nutrition v5 if `nutrition_workspace` is missing even when `user_version` is already current. Current version11 adds Skill reps by rebuilding only activity children; existing parent/session history and estimates are preserved.",
+      "`migrateDatabase` enables WAL and foreign keys, then applies versioned DDL. Repair checks detect missing tables or columns. Version 12 adds strength prescriptions, RIR and a planned-session calendar date while preserving existing history and stored estimates.",
     guardrails: [
       "If a migration creates tables after setting `user_version`, a later launch will skip them. Guard with table/column existence checks (`ece0620`).",
     ],
@@ -85,6 +85,13 @@ CAPS.trees.database = {
             "changes": [
               "Upgrade only Skill activity children and keep existing IDs/history."
             ]
+          },
+          {
+            n: 7,
+            name: "Strength session schema v12",
+            date: "2026-11-26 21:45 -0500",
+            commits: ["0fc99cb"],
+            changes: ["Add planned calendar dates, exercise prescriptions, and nullable set RIR."],
           }
         ],
     children: [
@@ -92,7 +99,7 @@ CAPS.trees.database = {
         id: "migrations",
         title: "migrateDatabase",
         kind: "logic",
-        tagline: "PRAGMA user_version 1..10",
+        tagline: "PRAGMA user_version 1..12",
         files: [
           "src/data/database.ts",
           "src/data/nutritionMigration.ts",
@@ -103,7 +110,7 @@ CAPS.trees.database = {
           "src/data/skillRepsMigration.ts"
         ],
         summary:
-          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning, v8 strength, v9 skill. v10 adds Recovery local ownership, questionnaires/revisions, native samples/connections and derived caches. v11 extends Skill activity snapshots with reps/sets/numeric RPE/rest and transactional compatibility repair.",
+          "v1 `timeline_entries`, v2 `weight_logs`, v3 `sleep_schedules`, v4 `meal_logs`/`meal_items`, v5 nutrition rebuild + catalog tables, v6 favourite `snapshot_json`, v7 conditioning, v8 strength, v9 skill. v10 adds Recovery storage. v11 extends Skill activity snapshots. v12 adds Strength target JSON, scheduled calendar date and RIR columns through transactional, existence-checked DDL.",
         versions: [
           {
             "n": 1,
@@ -203,6 +210,16 @@ CAPS.trees.database = {
               "Copy legacy rows/IDs/stored estimates unchanged; preserve parent FKs and order.",
               "Check both new-column sentinels and cover rollback/retry."
             ]
+          },
+          {
+            n: 9,
+            name: "Strength session migration v12",
+            date: "2026-11-26 21:45 -0500",
+            commits: ["0fc99cb"],
+            changes: [
+              "Add missing Strength date, target and RIR columns in one transaction.",
+              "Index the scheduled start date or completed end date used by the Strength calendar.",
+            ],
           }
         ],
       },
@@ -212,7 +229,7 @@ CAPS.trees.database = {
         kind: "table",
         tagline: "kind, title, start_at, status",
         files: ["src/data/database.ts", "src/data/timelineRepository.ts"],
-        summary: "Hub row for home timeline items. Category tables FK here.",
+        summary: "Hub row for home timeline items. Category tables use this row as their foreign key target. Strength reads planned or completed status from its linked row.",
         versions: [
           {
             n: 1,
@@ -623,9 +640,9 @@ CAPS.trees.database = {
         title: "strength_templates",
         kind: "table",
         tagline: "Reusable workouts, archive instead of delete",
-        files: ["src/data/strengthMigration.ts", "src/data/strengthRepository.ts"],
+        files: ["src/data/strengthMigration.ts", "src/data/database.ts", "src/data/strengthRepository.ts"],
         summary:
-          "Header plus `strength_template_exercises` and `strength_template_sets`. Archiving hides a template from Saved Workouts. Logs do not cascade.",
+          "The template owns ordered `strength_template_exercises`. New exercise snapshots store sets, rep range, target RPE, RIR and rest in `target_json`. Older templates may use `strength_template_sets`. Archiving hides a template from Saved Workouts and preserves linked session history.",
         versions: [
           {
             n: 1,
@@ -634,19 +651,26 @@ CAPS.trees.database = {
             commits: ["e0f5bb4"],
             changes: ["Added template headers, ordered exercises, and target sets."],
           },
+          {
+            n: 2,
+            name: "Strength template prescriptions",
+            date: "2026-11-26 21:45 -0500",
+            commits: ["0fc99cb"],
+            changes: ["Save exercise targets without copying performed set inputs."],
+          },
         ],
       },
       {
         id: "table-strength-sessions",
         title: "strength_sessions",
         kind: "table",
-        tagline: "Logged title, times, focus, timeline row",
-        files: ["src/data/strengthMigration.ts", "src/data/strengthRepository.ts"],
+        tagline: "Planned and completed snapshots with canonical timeline status",
+        files: ["src/data/strengthMigration.ts", "src/data/database.ts", "src/data/strengthRepository.ts"],
         summary:
-          "One row per committed log. Stores start and end timestamps, the local end date, timezone, optional source template id, unrounded duration, and the versioned focus JSON. Child snapshots are `strength_session_exercises` and `strength_session_sets`. Load is kilograms. Null rest is omitted; zero rest is explicit. The same session id makes a retry a no-op.",
+          "The session stores timestamps, local end date, timezone, optional template provenance, estimated duration and versioned focus. A planned session also stores its local start date and exercise targets. Completed sessions store ordered performed-set children with actual reps and optional RPE/RIR. The linked timeline row owns status. The same session ID makes a retry a no-op.",
         guardrails: [
           "Do not drop a log when its template is archived or its catalog row is renamed.",
-          "Write the session, sets, focus estimate, timeline row, and template create/update/archive in one transaction.",
+          "Write the session, exercise snapshots, focus estimate and timeline row in one transaction. Planned sessions have no performed-set children.",
         ],
         links: ["database:table-timeline-entries"],
         versions: [
@@ -657,6 +681,18 @@ CAPS.trees.database = {
             commits: ["e0f5bb4"],
             changes: [
               "Added session headers, exercise snapshots, and performed sets, including skipped sets.",
+            ],
+          },
+          {
+            n: 2,
+            name: "Strength plan and performed-set snapshots",
+            date: "2026-11-26 21:52 -0500",
+            commits: ["0fc99cb", "68a3ca4"],
+            changes: [
+              "Persist planned start day and mode-specific timestamps from the shared time control.",
+              "Add nullable RIR to recorded sets and keep targets on the exercise snapshot.",
+              "Read the linked timeline status for calendar grouping and same-lift history.",
+              "Verify planned snapshots exclude stale performed sets.",
             ],
           },
         ],

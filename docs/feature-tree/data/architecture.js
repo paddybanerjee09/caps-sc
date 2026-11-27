@@ -515,7 +515,7 @@ CAPS.trees.architecture = {
             tagline: "Compact header clock and scroll-wheel modal",
             files: ["src/components/LogTimeChanger.tsx"],
             summary:
-              "Shared compact clock/time trigger. Log Time shows readable full day, day arrows, independent hour/minute wheels and Cancel/Done. Questionnaire sleep now uses regular minute resolution; caller bounds and calculations remain owned by each flow.",
+              "Shared compact clock/time trigger with day arrows, independent hour/minute wheels and Cancel/Done. Callers own bounds and timestamp semantics. Strength labels the workout start or end and applies the corresponding future or past boundary.",
             modes: [
               {
                 "name": "Header button",
@@ -620,6 +620,13 @@ CAPS.trees.architecture = {
       "Carry pending wheel values into day changes and reanchor same-value bounds clamps using the draft Date identity.",
       "Android runtime checks confirmed future selection clamping and past-day swipe/Done agreement."
     ]
+  },
+  {
+    n: 8,
+    name: "Workout start and end bounds",
+    date: "2026-11-26 21:48 -0500",
+    commits: ["e97c731"],
+    changes: ["Allow Strength to label and bound the shared picker as a future start or a current/past end."],
   }
 ],
           },
@@ -918,7 +925,7 @@ CAPS.trees.architecture = {
             ]
           ,
         links: [
-          "strength:strength-exercise-editor",
+          "strength:strength-exercise-table",
           "conditioning:create-session",
           "skill:skill-activity-editor"
         ],

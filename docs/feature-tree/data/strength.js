@@ -2,7 +2,7 @@ CAPS.trees.strength = {
   id: "strength",
   title: "Strength",
   summary:
-    "The Strength tab for logging lifting sessions, saved workouts, and a heuristic focus estimate. Periodization around competition dates is still unbuilt. A modal-based Strength v1 existed on the reverted Aug–Sep 2026 lineage and was removed from main on 2026-10-02.",
+    "The Strength tab schedules and logs lifting sessions, manages reusable workouts, and estimates training focus. Periodization around competition dates is still unbuilt. A modal-based Strength v1 existed on the reverted Aug–Sep 2026 lineage and was removed from main on 2026-10-02.",
   rules: ["ui-style-guide.mdc"],
   root: {
     id: "strength-screen",
@@ -13,7 +13,7 @@ CAPS.trees.strength = {
     files: ["src/screens/StrengthTrainingScreen.tsx", "src/state/StrengthWorkspaceContext.tsx"],
     entry: "Bottom tab \"Strength\" (barbell-outline icon), second from the right.",
     summary:
-      "The Strength month calendar, one Log Session launch and the SavedWorkouts expander. Create Session is removed; saved templates still open the draft by ID. Only Strength month markers use focus colors; Home retains its category color.",
+      "The Strength month calendar, one Log Session launch and the SavedWorkouts expander. Both session entry points ask for a session type. The month uses outlined planned markers and filled completed markers with focus colors.",
     guardrails: [
       "Use shared subscreen bars, decimal weight/load inputs and the shared Log Time modal; preserve domain validation (user correction, 20 November 2026).",
       "Do not restore the reverted v1 modal stack (reverted 2026-10-02).",
@@ -170,6 +170,24 @@ CAPS.trees.strength = {
         ],
     children: [
       {
+        id: "strength-session-type",
+        title: "Strength session type",
+        kind: "modal",
+        status: "active",
+        tagline: "Planned or current/completed",
+        files: ["src/screens/StrengthTrainingScreen.tsx"],
+        summary:
+          "Log Session and saved workout selection both open the chooser before the workout builder. Planned sessions select a future start. Current/completed sessions select an end at or before now. The month calendar groups plans by start day and completed sessions by end day.",
+        links: ["strength:strength-builder", "database:table-strength-sessions"],
+        versions: [{
+          n: 1,
+          name: "Choose strength session type",
+          date: "2026-11-26 21:48 -0500",
+          commits: ["e97c731"],
+          changes: ["Both entry points choose the status before opening the builder."],
+        }],
+      },
+      {
         id: "strength-month",
         title: "MonthlyTimelineComponent",
         ref: "conditioning:monthly-calendar",
@@ -179,15 +197,15 @@ CAPS.trees.strength = {
         title: "WorkoutBuilderScreen",
         kind: "subscreen",
         status: "active",
-        tagline: "Exercises card and independent Save/Unsave",
+        tagline: "Exercise Table and independent Save/Unsave",
         files: ["src/screens/strength/WorkoutBuilderScreen.tsx"],
         summary:
-          "Log Session shows the workout title with a compact estimated-duration subtitle and an Exercises card with Add Exercises. Search is only in the separate catalog picker. Cancel, Save/Unsave and Log Session have equal footer widths/heights. Immediate template persistence, logging independence and draft guards remain.",
+          "Log Session composes the workout in one Exercise Table. The title subtitle distinguishes start/end time and gives estimated duration. The shared header clock enforces the chosen time boundary. Cancel, Save/Unsave and the session action share equal footer slots.",
         guardrails: [
-          "Keep catalog results in the separate virtualized picker, never in the workout card.",
+          "Keep exercise search and configuration in the table. Catalog and rep-range choices use overlays. Completed set rows expand inline and move the rows below them (user request, 26 November 2026).",
           "Omitted rest/load remain null; explicit zero rest stays zero. Do not fabricate a load or bodyweight choice (user compact-editor request, 24 Nov 2026).",
           "Save/Unsave must persist independently of Log Session and preserve logged snapshots (user request, 24 Nov 2026).",
-          "Keep the builder free of exercise search and duration cards; place duration under the title and match footer action sizes (user correction, 24 November 2026)."
+          "Keep estimated duration under the title and match footer action sizes (user correction, 24 November 2026)."
         ],
         links: [
           "architecture:log-time-changer",
@@ -283,15 +301,62 @@ CAPS.trees.strength = {
               "Match all three footer action containers and sizes.",
               "Reuse the shared EstimatedFocusButton."
             ]
+          },
+          {
+            n: 8,
+            name: "Planned and completed session composition",
+            date: "2026-11-26 21:48 -0500",
+            commits: ["e97c731"],
+            request: "Distinguish planned starts from completed ends, bring exercise search and editing into the log, and add RIR and actual set inputs.",
+            changes: [
+              "Search and add exercises inside the Exercise Table.",
+              "Scrollable row controls edit sets, rep ranges, target RPE and RIR. Rest sits below the effort controls.",
+              "Completed sessions expand to editable set rows. Planned sessions store prescriptions.",
+            ],
           }
         ],
 
         children: [
           {
+            id: "strength-exercise-table",
+            title: "ExerciseTable",
+            kind: "component",
+            status: "active",
+            tagline: "Targets and inline performed sets",
+            files: ["src/components/strength/ExerciseTable.tsx", "src/strength/drafts.ts"],
+            summary:
+              "Rows show exercise, sets, rep range, targeted RPE, targeted RIR and notes. In-place scroll controls edit the targets and the rep-range field also opens a choice overlay. Completed set rows show set number and editable reps, RPE and RIR. Actual reps are required before logging.",
+            links: ["architecture:training-number-field", "strength:strength-adaptations"],
+            versions: [{
+              n: 1,
+              name: "Inline strength exercise table",
+              date: "2026-11-26 22:02 -0500",
+              commits: ["e97c731", "c5a6c61"],
+              changes: ["Compose prescribed exercises on the log screen and expand completed set rows beneath each exercise.", "Give the exercise name and effort headings room to wrap and show gold favourite stars."],
+            }],
+            children: [{
+              id: "strength-inline-search",
+              title: "ExerciseSearchResults",
+              kind: "component",
+              status: "active",
+              tagline: "Tertiary search with gold favourites",
+              files: ["src/components/strength/ExerciseSearchResults.tsx", "src/data/strengthExerciseFavourites.ts"],
+              summary:
+                "The Search Exercises bar anchors an overlay of catalog matches. Results show exercise name, up to two muscles, equipment and a persistent gold favourite control.",
+              versions: [{
+                n: 1,
+                name: "Inline exercise search overlay",
+                date: "2026-11-26 21:48 -0500",
+                commits: ["e97c731"],
+                changes: ["Search the catalog inside the builder and toggle favourites from the matching rows."],
+              }],
+            }],
+          },
+          {
             "id": "strength-add-exercises",
             "title": "AddExercisesScreen",
             "kind": "subscreen",
-            "status": "active",
+            "status": "removed",
             "tagline": "All and Favourites exercise picker",
             "files": [
               "src/screens/strength/AddExercisesScreen.tsx",
@@ -299,7 +364,7 @@ CAPS.trees.strength = {
               "src/data/strengthExerciseFavourites.ts",
               "src/strength/media.ts"
             ],
-            "summary": "Search the existing SQLite exercise catalog in a FlatList. All/Favourites tabs and persistent star controls have no Custom creation action. Selecting an exercise opens the compact editor; the only bottom action is Back. Optional image metadata has a neutral missing/failed-image fallback; current seeds contain no licensed photo URLs.",
+            "summary": "The separate catalog screen and image fallback were replaced by catalog search in the Exercise Table.",
             "guardrails": [
               "Do not invent image URLs from upstream IDs with unresolved image provenance.",
               "Back preserves the parent workout and X follows branch-wide discard guards."
@@ -317,6 +382,7 @@ CAPS.trees.strength = {
                 ]
               }
             ],
+            links: ["strength:strength-inline-search"],
             "children": [
               {
                 "id": "strength-picker-editor",
@@ -331,11 +397,11 @@ CAPS.trees.strength = {
         id: "strength-exercise-editor",
         title: "ExerciseEditorScreen",
         kind: "subscreen",
-        status: "active",
+        status: "removed",
         tagline: "Sets, reps, RPE, rest seconds and notes",
         files: ["src/screens/strength/ExerciseEditorScreen.tsx"],
         summary:
-          "Compact text inputs configure one selected exercise. Existing mixed targets, loads and performed flags survive unless changed explicitly. Optional photo metadata is supported. Add Exercise returns to the workout; Back/X preserve draft guards. Old load selectors, steppers, per-set and movement UI are removed.",
+          "Exercise targets and completed set inputs moved to the Exercise Table.",
         versions: [
           {
             "n": 1,
@@ -425,7 +491,7 @@ CAPS.trees.strength = {
         ],
 
         links: [
-          "architecture:training-number-field"
+          "strength:strength-exercise-table"
         ],
       },
       {
@@ -439,7 +505,7 @@ CAPS.trees.strength = {
           "src/strength/emphasis.ts",
         ],
         summary:
-          "Hypertrophy is purple, power is red, strength is blue, and muscular endurance is green. Text labels sit with the colors. A logged session shows the stored estimate. The builder previews the current draft.",
+          "Strength emphasis v2 estimates hypertrophy, power, strength and muscular endurance. Planned sessions use the prescription and completed sessions use performed sets. Saved sessions show their stored estimate and the builder previews the active draft.",
         guardrails: [
           "Do not recompute a stored estimate when the heuristic changes.",
           "Do not use these colors on the Home timeline.",
@@ -504,6 +570,17 @@ CAPS.trees.strength = {
       "Keep Estimated label and on-demand definitions; remove developer metadata and repeated rationales.",
       "Presentation only; data, calculations and validation remain."
     ]
+  },
+  {
+    n: 6,
+    name: "RIR-aware strength emphasis",
+    date: "2026-11-26 21:45 -0500",
+    commits: ["0fc99cb"],
+    changes: [
+      "Use target RIR in planned estimates and recorded RIR in completed estimates.",
+      "Prioritize RIR over RPE for hypertrophy and recognize low-rep maximum estimates as strength evidence.",
+      "Keep historical v1 scores and exclude plans from performed same-lift references.",
+    ],
   }
 ],
       },
@@ -512,10 +589,10 @@ CAPS.trees.strength = {
         title: "StrengthSessionDetailScreen",
         kind: "subscreen",
         status: "active",
-        tagline: "Read-only logged workout",
+        tagline: "Read-only planned or completed workout",
         files: ["src/screens/strength/StrengthSessionDetailScreen.tsx"],
         summary:
-          "Opens from a month marker. Shows the saved title, end time, estimated duration, exercise snapshots, and the stored focus.",
+          "Opens from a month marker. Plans show the scheduled start and prescriptions. Completed workouts show the end time and performed sets. Both show estimated duration and stored focus.",
         versions: [
   {
     "n": 1,
@@ -562,18 +639,25 @@ CAPS.trees.strength = {
     "changes": [
       "Format saved session timestamp with shared readable date helper."
     ]
+  },
+  {
+    n: 5,
+    name: "Planned and completed workout details",
+    date: "2026-11-26 21:48 -0500",
+    commits: ["e97c731"],
+    changes: ["Distinguish planned start and prescription from completed end and recorded sets, including RIR."],
   }
 ],
       },
       {
         id: "strength-planned",
-        title: "Planned strength work",
+        title: "Competition periodization",
         kind: "group",
         status: "planned",
-        tagline: "README scope, not built",
+        tagline: "Roadmap for competition preparation",
         files: ["README.md"],
         summary:
-          "Periodization around goals and competition dates is still unbuilt. Exercise, set, load, rest, and RPE logging now lives on the workout builder.",
+          "Future periodization organizes strength work around goals and competition dates. The workout builder already supports individual planned and completed sessions.",
         parts: [
           {
             name: "Periodization",

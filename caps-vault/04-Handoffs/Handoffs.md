@@ -1,5 +1,7 @@
 # Handoffs
 
+- [[2026-11-26 Planned and Completed Strength Handoff]] · session chooser, inline exercise table, RIR scoring and SQLite v12
+
 - [[2026-11-24 Compact Logging Refinement Handoff]] · serving units/calorie fit, compact Strength/Conditioning, activity picker/Reps-Rounds and SQLite v11
 
 - [[2026-11-24 Nutrition Screen Handoff]] · compact composer, logged-food rows, saved-state toggle, flat picker and base-unit portions

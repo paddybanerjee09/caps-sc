@@ -1,8 +1,8 @@
 # Data and Persistence
 
-CAPS uses a local Expo SQLite database named `caps.db`. `src/App.tsx` mounts `SQLiteProvider` with `onInit={migrateDatabase}`. `src/data/database.ts` enables WAL and foreign keys before reading `PRAGMA user_version`. Current schema version in this checkout is **11** (Skills reps refinement).
+CAPS uses a local Expo SQLite database named `caps.db`. `src/App.tsx` mounts `SQLiteProvider` with `onInit={migrateDatabase}`. `src/data/database.ts` enables WAL and foreign keys before reading `PRAGMA user_version`. Current schema version is **12** for Strength session modes and RIR.
 
-Read [[Timeline and Nutrition Tables]] for the shared timeline, weight, sleep, diary, and food catalog. Read [[Conditioning Tables]] for workouts, recordings, tracks, runner state, and upload checkpoints. [[Settings]] describes app-level values held in React state. [[Strength]] has archived schemas. [[Skills Training]] logs through `skill_templates`, `skill_template_activities`, `skill_sessions`, and `skill_session_activities`.
+Read [[Timeline and Nutrition Tables]] for the shared timeline, weight, sleep, diary, and food catalog. Read [[Conditioning Tables]] for workouts, recordings, tracks, runner state, and upload checkpoints. [[Settings]] describes app-level values held in React state. [[Strength]] describes planned and performed snapshots. [[Skills Training]] logs through `skill_templates`, `skill_template_activities`, `skill_sessions`, and `skill_session_activities`.
 
 ## Migration sequence on main
 
@@ -19,6 +19,7 @@ Read [[Timeline and Nutrition Tables]] for the shared timeline, weight, sleep, d
 | 9 | Skill templates, sessions, and ordered activity snapshots | `80f1155` |
 | 10 | Device-local Recovery owner, questionnaires/revisions, health observations/connections, snapshots, baselines and source preferences | `ec03ac1` |
 | 11 | Rebuild Skill template/session activity children to support reps, sets, numeric RPE and rest-between-sets, preserving legacy records | Compact logging refinement; see below |
+| 12 | Add Strength scheduling dates, exercise targets, and set RIR | `0fc99cb` |
 
 ### Repair path
 
@@ -75,3 +76,9 @@ Verification: `verify:skill` passed fresh v11, v10 legacy record/ID/header estim
 ## Android Expo Go QA database isolation (25 November 2026)
 
 In this SDK58/Expo Go58.0.6 environment, a unique manifest slug did not isolate the default SQLite file: a prior Nutrition workspace appeared in the read-only QA emulator despite the new experience scope. The original AVD was protected by read-only/no-snapshot-save mode. Before synthetic Nutrition writes, the isolated temp project changed only its SQLiteProvider databaseName to caps-compact-qa-20261124.db and reloaded; the new workspace was empty/current. Root production databaseName remains caps.db. Use an explicit QA database namespace plus read-only AVD isolation, and avoid shared ExpoSQLiteStorage profile/favourite writes unless separately namespaced. This is an observed QA-environment constraint, not a production schema change. See [[2026-11-24 Compact Logging Refinement Handoff]] for evidence and cleanup.
+
+## Strength session modes (v12)
+
+Strength uses the existing one-to-one link from `strength_sessions.timeline_entry_id` to `timeline_entries.id`. The timeline owns status. Plans add `strength_sessions.scheduled_local_date` and use their selected start timestamp. Completed rows retain end-date placement. A date crossing or passing midnight does not change status. The expression index on the scheduled date with local end date fallback supports the month range query.
+
+Both Strength exercise snapshot tables gain nullable `target_json`. A new target-based template or planned session stores the exercise prescription there without set child rows. Completed sessions attach performed set snapshots under each exercise. Both old set tables gain nullable `rir` constrained to 0–10, with 10 representing 10+. Existing parent IDs, cascade relationships, persisted estimates and snapshot values are preserved. Version 12 advances after the transactional schema update. Startup checks required columns and can repair a missing column without rewriting rows. See [[Strength]].
