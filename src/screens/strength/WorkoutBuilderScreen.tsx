@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentRef } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from "react";
 import { Keyboard, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
@@ -38,11 +38,12 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
   const { theme } = useAppTheme();
   const { bumpTimeline } = useAppState();
   const workspace = useStrengthWorkspace();
-  const { draft, saving, updateDraft } = workspace;
+  const { draft, saving, setTextInputFocused, textInputFocused, updateDraft } = workspace;
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<{ key: string; references: Map<string, EmphasisReference> } | null>(null);
   const writing = useRef(false);
   const pageRef = useRef<ComponentRef<typeof View>>(null);
+  const blurFrame = useRef<number | null>(null);
   const mode = draft?.sessionMode ?? "completed";
   const planned = mode === "planned";
   const exercises = draft?.exercises ?? [];
@@ -52,12 +53,31 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
   ));
   const historyKey = JSON.stringify([exerciseIds, timestamp]);
 
+  const dismissTextInput = useCallback(() => {
+    Keyboard.dismiss();
+    setTextInputFocused(false);
+  }, [setTextInputFocused]);
+
+  function focusTextInput() {
+    setTextInputFocused(true);
+  }
+
+  function blurTextInput() {
+    if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current);
+    blurFrame.current = requestAnimationFrame(() => {
+      blurFrame.current = null;
+      setTextInputFocused(TextInput.State.currentlyFocusedInput() != null);
+    });
+  }
+
   const { exerciseTable, exerciseOverlay, dismissExerciseOverlay, onExerciseOverlayLayout } = useExerciseTable({
     pageRef,
     exercises,
     mode,
     disabled: saving,
     prescriptionReadOnly: completingPlan,
+    onTextInputFocus: focusTextInput,
+    onTextInputBlur: blurTextInput,
     onAddExercise: (exercise) => {
       if (exercises.length >= MAX_EXERCISES) {
         setError("A workout can contain up to 40 exercises.");
@@ -72,6 +92,7 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
       updateDraft((current) => updateExercise(current, id, update));
     },
     onRemoveExercise: (id) => {
+      dismissTextInput();
       workspace.requestConfirm({
         confirmLabel: "Remove",
         message: `${exercises.find((exercise) => exercise.id === id)?.name ?? "This exercise"} will leave this workout.`,
@@ -87,11 +108,25 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
   useEffect(() => {
     if (workspace.stack.at(-1)?.name !== "builder") return;
     workspace.registerBackHandler(() => {
-      if (!dismissExerciseOverlay()) workspace.backFromBuilder();
+      if (dismissExerciseOverlay()) return true;
+      if (textInputFocused) dismissTextInput();
+      else workspace.backFromBuilder();
       return true;
     });
     return () => workspace.registerBackHandler(null);
-  }, [dismissExerciseOverlay, workspace]);
+  }, [dismissExerciseOverlay, dismissTextInput, textInputFocused, workspace]);
+
+  useEffect(() => {
+    if (!textInputFocused) return;
+    // Android Back can hide the IME while leaving the native input focused.
+    const subscription = Keyboard.addListener("keyboardDidHide", dismissTextInput);
+    return () => subscription.remove();
+  }, [dismissTextInput, textInputFocused]);
+
+  useEffect(() => () => {
+    if (blurFrame.current != null) cancelAnimationFrame(blurFrame.current);
+    setTextInputFocused(false);
+  }, [setTextInputFocused]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,7 +178,7 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
   async function log() {
     if (!draft || writing.current) return;
     dismissExerciseOverlay();
-    Keyboard.dismiss();
+    dismissTextInput();
     const now = Date.now();
     const validation = validateStrengthDraft(draft, "log", now);
     if (validation) {
@@ -180,6 +215,7 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
 
   function close() {
     dismissExerciseOverlay();
+    dismissTextInput();
     workspace.closeBranch();
   }
 
@@ -188,7 +224,9 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
       <WorkflowHeader
         title={planned ? "Plan Session" : "Log Session"}
         onClose={close}
-        right={
+        right={textInputFocused ? (
+          <ActionButton label="Done" onPress={dismissTextInput} tone="secondary" />
+        ) : (
           <View pointerEvents={saving ? "none" : "auto"}>
             <LogTimeChanger
               label={planned ? "Workout start time" : "Workout end time"}
@@ -202,9 +240,9 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
               value={new Date(timestamp)}
             />
           </View>
-        }
+        )}
       />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" style={styles.page}>
+      <ScrollView contentContainerStyle={styles.content} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" style={styles.page}>
         <View style={styles.titleBlock}>
           {completingPlan ? (
             <Text style={[styles.title, { color: theme.colors.text }]}>{draft.title}</Text>
@@ -213,12 +251,15 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
               accessibilityLabel="Workout title"
               editable={!saving}
               maxLength={TITLE_MAX}
+              onBlur={blurTextInput}
               onChangeText={(title) => {
                 setError(null);
                 updateDraft((current) => ({ ...current, title }));
               }}
+              onFocus={focusTextInput}
               placeholder="Workout title"
               placeholderTextColor={theme.colors.textMuted}
+              returnKeyType="done"
               style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong, color: theme.colors.text }]}
               value={draft.title}
             />
@@ -231,23 +272,28 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
         <EstimatedFocusButton
           disabled={saving}
           value={emphasisHeadline(preview)}
-          onPress={() => workspace.push({ key: createId(), name: "emphasis", sessionId: null })}
+          onPress={() => {
+            dismissTextInput();
+            workspace.push({ key: createId(), name: "emphasis", sessionId: null });
+          }}
           color={preview.workSets ? emphasisMarkerColor(preview) : theme.colors.textMuted}
         />
       </ScrollView>
       {error ? <Text accessibilityRole="alert" selectable style={[styles.error, { color: theme.colors.text }]}>{error}</Text> : null}
-      <WorkflowFooter
-        backLabel={workspace.stack.length > 1 ? "Back" : "Cancel"}
-        disabled={saving}
-        equalActions
-        onBack={() => {
-          dismissExerciseOverlay();
-          workspace.backFromBuilder();
-        }}
-      >
-        {!completingPlan ? <ActionButton disabled={saving} label={isSaved ? "Unsave" : "Save"} onPress={() => { void toggleSaved(); }} tone="secondary" style={styles.flex} /> : null}
-        <ActionButton disabled={saving} label={planned ? "Plan Session" : "Log Session"} onPress={() => { void log(); }} style={styles.flex} />
-      </WorkflowFooter>
+      {!textInputFocused ? (
+        <WorkflowFooter
+          backLabel={workspace.stack.length > 1 ? "Back" : "Cancel"}
+          disabled={saving}
+          equalActions
+          onBack={() => {
+            dismissExerciseOverlay();
+            workspace.backFromBuilder();
+          }}
+        >
+          {!completingPlan ? <ActionButton disabled={saving} label={isSaved ? "Unsave" : "Save"} onPress={() => { void toggleSaved(); }} tone="secondary" style={styles.flex} /> : null}
+          <ActionButton disabled={saving} label={planned ? "Plan Session" : "Log Session"} onPress={() => { void log(); }} style={styles.flex} />
+        </WorkflowFooter>
+      ) : null}
       {exerciseOverlay}
     </View>
   );

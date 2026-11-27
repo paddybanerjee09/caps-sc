@@ -43,8 +43,10 @@ type StrengthWorkspaceValue = {
   savedSnapshot: string;
   saving: boolean;
   setSaving: (saving: boolean) => void;
+  setTextInputFocused: (focused: boolean) => void;
   markSaved: (draft: StrengthDraft) => void;
   stack: StrengthStackEntry[];
+  textInputFocused: boolean;
   updateDraft: (update: (draft: StrengthDraft) => StrengthDraft) => void;
 };
 
@@ -57,6 +59,7 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [revision, setRevision] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [textInputFocused, setTextInputFocused] = useState(false);
   const savingRef = useRef(false);
   const backHandler = useRef<(() => boolean) | null>(null);
 
@@ -72,6 +75,7 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
   const clearDraft = useCallback(() => {
     setDraft(null);
     setSavedSnapshot("");
+    setTextInputFocused(false);
   }, []);
 
   const resetWorkspace = useCallback(() => {
@@ -156,8 +160,10 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
         savedSnapshot,
         saving,
         setSaving: (next) => { savingRef.current = next; setSaving(next); },
+        setTextInputFocused,
         markSaved: startDraft,
         stack,
+        textInputFocused,
         updateDraft: (update) => setDraft((current) => current ? update(current) : null),
       };
     },
@@ -173,6 +179,7 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
       savedSnapshot,
       saving,
       stack,
+      textInputFocused,
     ],
   );
 

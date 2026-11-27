@@ -40,6 +40,7 @@ export function AppNavigator() {
   const mainRoute = useRef<TabRoute>(initialRoute);
   const sidebarCloseHandler = useRef<(() => void) | null>(null);
   const sidebarActive = sidebarItems.some((item) => item.key === activeRoute);
+  const hideStrengthTabs = activeRoute === "strength" && strength.textInputFocused;
 
   const routeExitGuard = useRef<((proceed: () => void) => void) | null>(null);
   const registerRouteExitGuard = useCallback((guard: ((proceed: () => void) => void) | null) => { routeExitGuard.current = guard; }, []);
@@ -144,11 +145,15 @@ export function AppNavigator() {
         {activeRoute === "strength" ? <StrengthStack /> : null}
         {activeRoute === "skill" ? <SkillStack /> : null}
       </View>
-      <BottomTabs
-        activeRoute={activeRoute}
-        bottomInset={keyboardVisible ? 0 : insets.bottom}
-        onSelect={selectRoute}
-      />
+      {hideStrengthTabs ? (
+        <View style={{ height: keyboardVisible ? 0 : insets.bottom }} />
+      ) : (
+        <BottomTabs
+          activeRoute={activeRoute}
+          bottomInset={keyboardVisible ? 0 : insets.bottom}
+          onSelect={selectRoute}
+        />
+      )}
       <Sidebar
         activeRoute={activeRoute}
         bottomInset={keyboardVisible ? 0 : insets.bottom}
