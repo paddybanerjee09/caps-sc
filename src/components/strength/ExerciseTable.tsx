@@ -18,8 +18,8 @@ export const exerciseTableColumnGap = 3;
 export const exerciseTableColumns = [66, 32, 40, 30, 30, 43, 53] as const;
 export const exerciseTableLabels = ["Exercise", "Sets", "Range", "RPE", "RIR", "Rest (s)", "Notes"] as const;
 const targetAccessibilityLabels = ["Exercise", "Sets", "Rep range", "Targeted RPE", "Targeted RIR", "Rest between sets in seconds", "Notes"];
-const editorColumnWidths = [200, 58, 96, 90, 90, 82, 180];
-const editorColumnGap = 8;
+const editorColumnWidths = [260, 68, 108, 104, 104, 94, 220];
+const editorColumnGap = 12;
 const MENU_GAP = tokens.spacing.xs;
 const MENU_INSET = tokens.spacing.sm;
 const rowTransition = LinearTransition.duration(220).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.System);
@@ -201,7 +201,7 @@ export function useExerciseTable({
           onLayout={(event) => setTableWidth(event.nativeEvent.layout.width)}
           persistentScrollbar
         >
-          <View style={{ width: Math.max(tableWidth, minWidth) }}>
+          <View style={[styles.tableContent, { width: Math.max(tableWidth, minWidth) }]}>
             <TableHeadings columns={columns} labels={["Exercise", "Sets", "Rep Range", "Target RPE", "Target RIR", "Rest (s)", "Notes"]} accessibilityLabels={targetAccessibilityLabels} />
             {exercises.map((exercise, index) => (
               <ExerciseRow
@@ -523,13 +523,14 @@ const styles = StyleSheet.create({
   searchWell: { alignItems: "center", borderRadius: tokens.radius.sm, borderWidth: 1, flexDirection: "row", left: 0, paddingHorizontal: tokens.spacing.sm, position: "absolute", right: 0 },
   searchInput: { fontSize: 14, minHeight: 48, paddingLeft: 30, paddingRight: tokens.spacing.sm, paddingVertical: tokens.spacing.sm },
   favouritesFilter: { minWidth: 48, minHeight: 48, justifyContent: "center", alignItems: "center" },
-  row: { alignItems: "center", flexDirection: "row", gap: editorColumnGap },
+  tableContent: { flexShrink: 0 },
+  row: { alignItems: "center", flexDirection: "row", flexWrap: "nowrap", gap: editorColumnGap },
   valueRow: { minHeight: 40 },
   heading: { fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
   center: { textAlign: "center" },
   exercise: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 1 },
-  exerciseName: { flexDirection: "row", alignItems: "center", minHeight: 40, gap: 2 },
-  name: { flexShrink: 1, fontSize: 12, fontWeight: "700" },
+  exerciseName: { flexDirection: "row", flexShrink: 0, alignItems: "center", minHeight: 40, gap: 6 },
+  name: { flexShrink: 0, fontSize: 12, fontWeight: "700" },
   prescriptionValue: { fontSize: 12, fontVariant: ["tabular-nums"] },
   input: { minHeight: 34, borderWidth: 1, borderRadius: tokens.radius.sm, fontSize: 12, paddingHorizontal: 4, paddingVertical: 2 },
   numericInput: { fontVariant: ["tabular-nums"], paddingHorizontal: 2, textAlign: "center" },
