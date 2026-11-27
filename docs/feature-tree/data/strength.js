@@ -200,7 +200,7 @@ CAPS.trees.strength = {
         tagline: "Exercise Table and independent Save/Unsave",
         files: ["src/screens/strength/WorkoutBuilderScreen.tsx"],
         summary:
-          "Log Session composes the workout in one Exercise Table. The title subtitle distinguishes start and end time and gives estimated duration. The shared header clock enforces the chosen time boundary. A calendar plan reuses this editor with its prescription locked and the actual sets and end time editable.",
+          "Log Session composes the workout in a compact Exercise Table. The title subtitle distinguishes start and end time and gives estimated duration. The shared header clock enforces the chosen time boundary. A calendar plan reuses this editor with its prescription locked and the actual sets and end time editable. The action bar and app tabs hide during text entry and return when editing ends.",
         guardrails: [
           "Keep exercise search and configuration in the table. Catalog and rep-range choices use overlays. Completed set rows expand inline and move the rows below them (user request, 26 November 2026).",
           "Omitted rest/load remain null; explicit zero rest stays zero. Do not fabricate a load or bodyweight choice (user compact-editor request, 24 Nov 2026).",
@@ -324,6 +324,17 @@ CAPS.trees.strength = {
               "Reuse the completed-session editor with editable actual sets and a bounded end time.",
               "Keep the planned prescription visible and read-only while recording the completed workout.",
             ],
+          },
+          {
+            n: 10,
+            name: "Single-line Strength editor",
+            date: "2026-11-26 23:09 -0500",
+            commits: ["d623f0d", "6da0ee2"],
+            request: "Compact each exercise onto one row and hide the bottom bar during text entry.",
+            changes: [
+              "Reuse the compact layout for planned, completed, saved-workout and calendar-plan completion forms.",
+              "Hide the Strength action footer and app tabs while editing a text field, then restore both when editing ends.",
+            ],
           }
         ],
 
@@ -333,11 +344,14 @@ CAPS.trees.strength = {
             title: "ExerciseTable",
             kind: "component",
             status: "active",
-            tagline: "Targets and inline performed sets",
+            tagline: "Single-line targets and performed sets",
             files: ["src/components/strength/ExerciseTable.tsx", "src/strength/drafts.ts"],
             summary:
-              "Rows show exercise, sets, rep range, targeted RPE, targeted RIR and notes. In-place scroll controls edit targets when composing a workout, and the rep-range field also opens a choice overlay. Completed set rows show set number and editable reps, RPE and RIR. Actual reps are required before logging. Completing a calendar plan shows its stored prescription as read-only.",
-            links: ["architecture:training-number-field", "strength:strength-adaptations"],
+              "Compact rows keep exercise, sets, rep range, target RPE, target RIR, rest in seconds and notes on one line. In-place scrolling edits targets and the range field also opens a choice overlay. New targets start at RPE 10 and RIR 0. Expand completed exercises for individual reps, RPE and RIR. Actual reps are required before logging. Completing a calendar plan keeps its stored prescription read-only.",
+            guardrails: [
+              "Keep rest in the same non-wrapping row as the other exercise fields. Allow horizontal scrolling at narrow widths and larger font sizes (user correction, 26 November 2026).",
+            ],
+            links: ["strength:strength-adaptations"],
             versions: [{
               n: 1,
               name: "Inline strength exercise table",
@@ -352,6 +366,17 @@ CAPS.trees.strength = {
               changes: [
                 "Retain the planned exercises, target settings and prescribed set count while allowing actual reps, RPE and RIR for each set.",
                 "Skip loading the exercise catalog when recording a calendar plan.",
+              ],
+            }, {
+              n: 3,
+              name: "Compact in-row exercise fields",
+              date: "2026-11-26 23:09 -0500",
+              commits: ["d623f0d", "7f7e3ea"],
+              request: "Keep every exercise field on one horizontal row and start RPE at 10 and RIR at 0.",
+              changes: [
+                "Use single-line metrics and move rest into the same row as the other exercise fields.",
+                "Fit the fields on ordinary phone widths and support horizontal scrolling when needed.",
+                "Start new target rows at RPE 10 and RIR 0.",
               ],
             }],
             children: [{
@@ -609,10 +634,10 @@ CAPS.trees.strength = {
         title: "StrengthSessionDetailScreen",
         kind: "subscreen",
         status: "active",
-        tagline: "Review a workout and log a calendar plan",
+        tagline: "Compact workout review and plan completion",
         files: ["src/screens/strength/StrengthSessionDetailScreen.tsx"],
         summary:
-          "Opens from a month marker. Plans show the scheduled start and prescriptions with a Log as Completed action. The completed detail shows the end, recorded sets, estimated duration and recalculated focus. A successful completion returns to the same detail.",
+          "Opens from a month marker. Plans show the scheduled start and compact prescriptions with a Log as Completed action. The completed detail shows the end, estimated duration and recalculated focus. A single-line exercise table keeps rest with the other fields and expands recorded sets on demand. A successful completion returns to the same detail.",
         links: ["strength:strength-builder", "database:table-strength-sessions"],
         versions: [
   {
@@ -676,6 +701,18 @@ CAPS.trees.strength = {
     changes: [
       "Open the completed-session editor with Log as Completed from a planned calendar detail.",
       "After saving, show the actual efforts and end time in the same detail. Back returns to the calendar.",
+    ],
+  },
+  {
+    n: 7,
+    name: "Compact workout detail rows",
+    date: "2026-11-26 23:09 -0500",
+    commits: ["d623f0d"],
+    request: "Use compact one-line exercise rows throughout the Strength flow.",
+    changes: [
+      "Use the shared compact exercise columns for planned and completed calendar details.",
+      "Keep the legacy load and set summaries accessible in the same horizontal table.",
+      "Expand completed sets on demand and keep each recorded set on one line.",
     ],
   }
 ],
