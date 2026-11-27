@@ -10,10 +10,11 @@ import {
 } from "./nutritionMigration";
 import { skillMigrationSql } from "./skillMigration";
 import { applySkillRepsMigration } from "./skillRepsMigration";
-import { strengthMigrationSql } from "./strengthMigration";
+import { strengthMigrationSql, strengthStimulusColumns } from "./strengthMigration";
 import { ensureStrengthCatalog } from "./strengthRepository";
+import { trainingIndexMigrationSql } from "./trainingIndexMigration";
 
-const DATABASE_VERSION = 12;
+const DATABASE_VERSION = 13;
 
 const strengthSessionColumns = [
   ["strength_sessions", "scheduled_local_date", "TEXT"],
@@ -42,6 +43,10 @@ export async function migrateDatabase(db: SQLiteDatabase) {
   const strengthModesReady = strengthReady && (await Promise.all(
     strengthSessionColumns.map(([table, column]) => columnExists(db, table, column)),
   )).every(Boolean);
+  const trainingIndicesReady = strengthReady && (await Promise.all([
+    ...strengthStimulusColumns.map(([table, column]) => columnExists(db, table, column)),
+    ...["training_day_confirmations", "training_session_loads", "recovery_sleep_targets", "training_output_tests"].map(table => tableExists(db, table)),
+  ])).every(Boolean);
 
   if (
     currentVersion >= DATABASE_VERSION &&
@@ -50,7 +55,8 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     skillReady &&
     recoveryReady &&
     strengthModesReady &&
-    skillRepsReady
+    skillRepsReady &&
+    trainingIndicesReady
   ) {
     await ensureStrengthCatalog(db);
     return;
@@ -210,6 +216,17 @@ export async function migrateDatabase(db: SQLiteDatabase) {
     });
   }
 
+  if (currentVersion < 13 || !trainingIndicesReady) {
+    await db.withTransactionAsync(async () => {
+      for (const [table, column, definition] of strengthStimulusColumns) {
+        if (!(await columnExists(db, table, column))) {
+          await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+        }
+      }
+      await db.execAsync(trainingIndexMigrationSql);
+    });
+  }
+
   if (currentVersion < DATABASE_VERSION) {
     await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
   }
@@ -250,7 +267,7 @@ async function tableExists(db: SQLiteDatabase, name: string) {
 
 async function columnExists(
   db: SQLiteDatabase,
-  table: "food_favourites" | "meal_items" | "meal_logs" | "skill_template_activities" | "skill_session_activities" | (typeof strengthSessionColumns)[number][0],
+  table: "food_favourites" | "meal_items" | "meal_logs" | "skill_template_activities" | "skill_session_activities" | (typeof strengthSessionColumns)[number][0] | (typeof strengthStimulusColumns)[number][0],
   column: string,
 ) {
   const rows = await db.getAllAsync<{ name: string }>(

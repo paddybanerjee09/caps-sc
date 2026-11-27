@@ -114,3 +114,12 @@ CREATE TABLE IF NOT EXISTS strength_session_sets (
     REFERENCES strength_session_exercises (id) ON DELETE CASCADE
 );
 `;
+
+export const strengthStimulusColumns = [
+  ["strength_session_sets", "work_seconds", "INTEGER CHECK (work_seconds BETWEEN 1 AND 3600)"],
+  ["strength_session_sets", "preceding_rest_seconds", "INTEGER CHECK (preceding_rest_seconds BETWEEN 0 AND 3600)"],
+  ["strength_session_sets", "rom", "TEXT CHECK (length(trim(rom)) BETWEEN 1 AND 60)"],
+  ["strength_session_sets", "intent", "TEXT CHECK (intent IN ('explosive', 'controlled'))"],
+  ["strength_session_sets", "isometric", "INTEGER NOT NULL DEFAULT 0 CHECK (isometric IN (0, 1))"],
+  ["strength_session_sets", "tested_max", "INTEGER NOT NULL DEFAULT 0 CHECK (tested_max IN (0, 1))"],
+] as const;

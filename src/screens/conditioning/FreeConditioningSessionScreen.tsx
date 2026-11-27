@@ -8,7 +8,8 @@ import {
   ScreenHeading,
   ConditioningFooter,
 } from "../../components/conditioning/ConditioningFields";
-import { deviceTimeZone } from "../../conditioning/dates";
+import { ObservedNumberField, optionalObservedNumber } from "../../components/conditioning/ConditioningObservationFields";
+import { deviceTimeZone, formatLocalDate } from "../../conditioning/dates";
 import { buildFreeSnapshot } from "../../conditioning/phases";
 import { formatClock } from "../../conditioning/summaries";
 import { messageFromUnknown } from "../../conditioning/validation";
@@ -58,6 +59,7 @@ export function FreeConditioningSessionScreen() {
     "checking" | "gps" | "foreground" | "timer"
   >("checking");
   const [distanceMeters, setDistanceMeters] = useState<number | null>(null);
+  const [sessionRpe, setSessionRpe] = useState("");
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -300,11 +302,19 @@ export function FreeConditioningSessionScreen() {
           </View>
         </View>
 
+        {timer?.status === "finished" ? <ObservedNumberField label="Session RPE (1–10)" value={sessionRpe} onChangeText={setSessionRpe} /> : null}
         <ErrorText>{error}</ErrorText>
       </ScrollView>
       <ConditioningFooter onBack={() => requestLeave(workspace.pop)}>
           {!timer ? (
-            <ActionButton label="Start" onPress={() => void start()} />
+            <>
+              <ActionButton label="Start" onPress={() => void start()} />
+              <ActionButton label="Manual log" tone="secondary" onPress={() => {
+                const time = new Date();
+                workspace.setLogRequest({ date: formatLocalDate(time), time, snapshot: buildFreeSnapshot(activity), planSessionId: null, templateId: null });
+                workspace.push({ key: `free-log-${time.getTime()}`, name: "log", planSessionId: null });
+              }} />
+            </>
           ) : null}
           {timer?.status === "running" ? (
             <ActionButton
@@ -382,14 +392,14 @@ export function FreeConditioningSessionScreen() {
                     }
                     await saveConditioningSession(db, ownerId, timer.sessionId, {
                       notes: null,
-                      sessionRpe: null,
+                      sessionRpe: optionalObservedNumber(sessionRpe, "Session RPE") ?? null,
                       status: "completed",
                     });
                     feedbackConfirm();
                     workspace.bumpRevision();
                     bumpTimeline();
                     workspace.pop();
-                  })()
+                  })().catch(caught => setError(messageFromUnknown(caught)))
                 }
               />
               <ActionButton

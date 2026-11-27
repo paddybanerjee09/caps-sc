@@ -31,6 +31,7 @@ import {
   throwIfInvalid,
   validateActual,
   validateOptionalRpe,
+  validateOptionalRecordedSeconds,
   validateSnapshot,
   validateTemplateConfig,
 } from "../conditioning/validation";
@@ -636,6 +637,8 @@ export function logConditioningSession(
       const snapshot = checkedSnapshot(input.snapshot);
       const sessionRpe = input.sessionRpe ?? null;
       throwIfInvalid(validateOptionalRpe(sessionRpe, "sessionRpe"));
+      throwIfInvalid(validateOptionalRecordedSeconds(input.metrics?.elapsedSeconds, "Completed session duration"));
+      throwIfInvalid(validateOptionalRecordedSeconds(input.metrics?.activeSeconds, "Completed active duration"));
       const status = input.status ?? "completed";
       const now = Date.now();
       const notes = input.notes === undefined ? snapshot.notes : normalizeNotes(input.notes);
@@ -1369,6 +1372,12 @@ async function replaceOccurrences(
   );
   for (const occurrence of occurrences) {
     throwIfInvalid(validateActual(occurrence.actual));
+    throwIfInvalid(validateOptionalRecordedSeconds(occurrence.workSeconds, "Actual work duration"));
+    const spans = occurrence.actual?.oxygenUptake;
+    if (spans?.length && (occurrence.workSeconds === null ||
+      spans.reduce((sum, span) => sum + span.seconds, 0) > occurrence.workSeconds)) {
+      throw new Error("Measured oxygen uptake spans must fit in the recorded work duration");
+    }
     await db.runAsync(
       `INSERT INTO conditioning_occurrences (
         id, session_id, position, station_id, round_index, set_index, phase_type,

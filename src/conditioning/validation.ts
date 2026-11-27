@@ -2,7 +2,11 @@ import {
   MAX_NOTES_LENGTH,
   MAX_TITLE_LENGTH,
   MAX_WORK_OCCURRENCES,
+  conditioningActivityModes,
+  conditioningEfforts,
   type CircuitConfig,
+  type ConditioningObservations,
+  type ConditioningProtocol,
   type IntervalConfig,
   type OccurrenceActual,
   type SprintConfig,
@@ -11,6 +15,7 @@ import {
   type TemplateConfig,
   type WorkoutSnapshot,
 } from "./types";
+import { isLocalDateString } from "./dates";
 
 export type FieldError = {
   field: string;
@@ -263,6 +268,7 @@ export function validateSnapshot(snapshot: WorkoutSnapshot) {
     ...validateTitle(snapshot.title),
     ...validateNotes(snapshot.notes),
     ...validateOptionalRpe(snapshot.targetRpe, "targetRpe"),
+    ...validateConditioningObservations(snapshot.conditioningObservations),
   ];
 
   if (snapshot.version !== 1 || snapshot.plannerVersion !== "phases-v1") {
@@ -325,6 +331,34 @@ export function validateSnapshot(snapshot: WorkoutSnapshot) {
   return errors;
 }
 
+function validateConditioningObservations(observations: ConditioningObservations | undefined): FieldError[] {
+  if (!observations) return [];
+  function validProtocol(protocol: ConditioningProtocol | undefined) {
+    return protocol && conditioningActivityModes.includes(protocol.mode) &&
+      [protocol.test, protocol.source, protocol.machine, protocol.technique].every(text =>
+        text === undefined || typeof text === "string" && text.trim().length > 0 && text.length <= MAX_TITLE_LENGTH) &&
+      (protocol.distanceMeters === undefined || Number.isFinite(protocol.distanceMeters) && protocol.distanceMeters > 0);
+  }
+  const positive = (value: number) => Number.isFinite(value) && value > 0;
+  const errors: FieldError[] = [];
+  if (!validProtocol(observations.protocol)) errors.push({ field: "protocol", message: "Complete the activity and measurement setup" });
+  const { protocol: _protocol, ...references } = observations;
+  for (const [name, reference] of Object.entries(references)) {
+    if (!reference) continue;
+    if (!validProtocol(reference.protocol) || !isLocalDateString(reference.testDate))
+      errors.push({ field: name, message: "Reference tests need compatible setup details and a valid test date" });
+  }
+  const { criticalPower, criticalSpeed, vo2max, sprintBest, intensityBounds } = observations;
+  if ([criticalPower, criticalSpeed, vo2max, sprintBest].some(reference => reference && !positive(reference.value)))
+    errors.push({ field: "reference", message: "Reference values must be positive" });
+  if (sprintBest && !["W", "m/s", "s"].includes(sprintBest.unit))
+    errors.push({ field: "sprintBest", message: "Enter sprint output in Watts, m/s, or seconds" });
+  if (intensityBounds && (!["W", "m/s"].includes(intensityBounds.unit) ||
+    !positive(intensityBounds.moderate) || !positive(intensityBounds.hard) || intensityBounds.hard <= intensityBounds.moderate))
+    errors.push({ field: "intensityBounds", message: "The hard threshold must exceed the positive moderate threshold" });
+  return errors;
+}
+
 export function validateActual(actual: OccurrenceActual | null) {
   if (actual === null) {
     return [];
@@ -356,7 +390,28 @@ export function validateActual(actual: OccurrenceActual | null) {
     );
   }
 
+  if (actual.effort !== undefined && !conditioningEfforts.includes(actual.effort)) {
+    errors.push({ field: "effort", message: "Choose a supported observed effort label" });
+  }
+  if (actual.restSeconds !== undefined) errors.push(...requireNonnegativeFinite(actual.restSeconds, "restSeconds", "Actual rest"));
+  if (actual.restRpe !== undefined && (!Number.isFinite(actual.restRpe) || actual.restRpe < 0 || actual.restRpe > 10)) {
+    errors.push({ field: "restRpe", message: "Rest effort must be from 0 to 10" });
+  }
+  if (actual.restType !== undefined && actual.restType !== "active" && actual.restType !== "passive") {
+    errors.push({ field: "restType", message: "Choose active or passive rest" });
+  }
+  if (actual.watts !== undefined) errors.push(...requireNonnegativeFinite(actual.watts, "watts", "Measured power"));
+  if (actual.oxygenUptake !== undefined && (!Array.isArray(actual.oxygenUptake) ||
+    actual.oxygenUptake.some(span => !Number.isFinite(span.seconds) || span.seconds <= 0 ||
+      !Number.isFinite(span.mlKgMin) || span.mlKgMin <= 0))) {
+    errors.push({ field: "oxygenUptake", message: "Measured oxygen uptake needs positive values and observed durations" });
+  }
+
   return errors;
+}
+
+export function validateOptionalRecordedSeconds(value: number | null | undefined, label: string) {
+  return value == null ? [] : requireNonnegativeFinite(value, label, label);
 }
 
 export function incompatibleStationFields(

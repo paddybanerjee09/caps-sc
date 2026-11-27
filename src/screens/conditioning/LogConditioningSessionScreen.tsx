@@ -1,38 +1,70 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { LogTimeChanger } from "../../components/LogTimeChanger";
-import { PressOpacity } from "../../components/PressOpacity";
 import {
-  ActionButton,
-  ConditioningFooter,
-  WeightInput,
-  ErrorText,
-  FieldLabel,
-  FormInput,
-  ScreenHeading,
+  ActionButton, ConditioningFooter, WeightInput, ErrorText, FieldLabel, FormInput, ScreenHeading,
 } from "../../components/conditioning/ConditioningFields";
 import {
-  combineLocalDateAndTime,
-  deviceTimeZone,
-  formatLocalDate,
-  isLocalDateString,
-} from "../../conditioning/dates";
+  ConditioningObservationFields, ObservationChoices, ObservedNumberField,
+  conditioningEffortOptions, conditioningObservationsFromDraft, optionalObservedNumber, type ProtocolDraft,
+} from "../../components/conditioning/ConditioningObservationFields";
+import { combineLocalDateAndTime, deviceTimeZone, formatLocalDate, isLocalDateString } from "../../conditioning/dates";
+import { createId } from "../../conditioning/ids";
+import type { ConditioningEffort, OccurrenceInput, PhaseDefinition } from "../../conditioning/types";
 import { messageFromUnknown } from "../../conditioning/validation";
 import { logConditioningSession } from "../../data/conditioningRepository";
 import { useAppState } from "../../state/AppStateContext";
 import { useConditioningWorkspace } from "../../state/ConditioningWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
-import { readableTextColor, themes } from "../../theme/theme";
-import { feedbackConfirm, feedbackStep } from "../../utils/feedback";
-import type {
-  OccurrenceActual,
-  PhaseDefinition,
-} from "../../conditioning/types";
+import { themes } from "../../theme/theme";
+import { feedbackConfirm } from "../../utils/feedback";
 import { useConditioningOwner } from "./useConditioningOwner";
 
 const tokens = themes.dark;
-const RPE_SCALE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+const restOptions = [{ label: "Active", value: "active" }, { label: "Passive", value: "passive" }] as const;
+type BoutDraft = {
+  distance?: string; reps?: string; calories?: string; load?: number | null;
+  work?: string; rest?: string; watts?: string; oxygen?: string; oxygenSeconds?: string; restRpe?: string;
+  effort?: ConditioningEffort; restType?: "active" | "passive"; skipped?: boolean;
+};
+
+function occurrenceFromDraft(phase: PhaseDefinition | null, draft: BoutDraft, index: number, performedAt: number): OccurrenceInput {
+  const read = optionalObservedNumber;
+  const workSeconds = read(draft.work, "Actual work duration") ?? null;
+  const oxygen = read(draft.oxygen, "Measured oxygen uptake");
+  const oxygenSeconds = read(draft.oxygenSeconds, "Oxygen measurement duration");
+  if ((oxygen === undefined) !== (oxygenSeconds === undefined)) {
+    throw new Error("Enter measured oxygen uptake and its matching duration together");
+  }
+  return {
+    actual: {
+      distanceMeters: read(draft.distance, "Actual distance") ?? null,
+      loadKg: draft.load ?? null,
+      machineCalories: read(draft.calories, "Actual machine calories") ?? null,
+      reps: read(draft.reps, "Actual repetitions") ?? null,
+      effort: draft.effort,
+      restSeconds: read(draft.rest, "Rest after bout"),
+      restType: draft.restType,
+      restRpe: read(draft.restRpe, "Rest effort"),
+      watts: read(draft.watts, "Measured power"),
+      oxygenUptake: oxygen !== undefined && oxygenSeconds !== undefined
+        ? [{ seconds: oxygenSeconds, mlKgMin: oxygen }] : undefined,
+    },
+    completionMethod: "manual",
+    completionStatus: "completed",
+    endedAt: performedAt,
+    id: phase?.occurrenceId ?? phase?.id ?? createId(),
+    phaseType: "work",
+    position: index,
+    roundIndex: phase?.roundIndex ?? null,
+    setIndex: phase?.setIndex ?? null,
+    startedAt: performedAt,
+    stationId: phase?.stationId ?? null,
+    target: phase?.target ?? null,
+    workSeconds,
+  };
+}
 
 export function LogConditioningSessionScreen() {
   const { theme } = useAppTheme();
@@ -44,19 +76,24 @@ export function LogConditioningSessionScreen() {
   const [time, setTime] = useState(request?.time ?? new Date());
   const [notes, setNotes] = useState(request?.snapshot.notes ?? "");
   const [sessionRpe, setSessionRpe] = useState("");
-  const [actuals, setActuals] = useState<Record<string, OccurrenceActual>>({});
+  const [elapsed, setElapsed] = useState("");
+  const [actuals, setActuals] = useState<Record<string, BoutDraft>>({});
+  const [protocol, setProtocol] = useState<ProtocolDraft>(() => ({
+    mode: request?.snapshot.activityType === "run" ? "run" : request?.snapshot.activityType === "bike" ? "cycling" : undefined,
+  }));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const pending = useRef(false);
 
   function requestNavigation(destination: () => void) {
-    if (saving) return;
-    const changed = request && (notes !== request.snapshot.notes || sessionRpe !== "" || Object.keys(actuals).length > 0 || date !== request.date || time.getTime() !== request.time.getTime());
+    if (pending.current) return;
+    const changed = request && (notes !== (request.snapshot.notes ?? "") || sessionRpe !== "" || elapsed !== "" ||
+      Object.values(protocol).some(Boolean) && request.snapshot.format !== "free" ||
+      Object.keys(actuals).length > 0 || date !== request.date || time.getTime() !== request.time.getTime());
     if (!changed) { destination(); return; }
     workspace.requestConfirm({
-      confirmLabel: "Discard",
-      message: "This session has unsaved log changes.",
-      onConfirm: destination,
-      title: "Discard log changes?",
+      confirmLabel: "Discard", message: "This session has unsaved log changes.",
+      onConfirm: destination, title: "Discard log changes?",
     });
   }
 
@@ -65,59 +102,47 @@ export function LogConditioningSessionScreen() {
     return () => workspace.registerBackHandler(null);
   });
 
-  if (!request) {
-    return (
-      <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
-        <ScreenHeading title="Log session" />
-        <ConditioningFooter />
-      </View>
-    );
-  }
+  if (!request) return null;
 
-  const workPhases = request.snapshot.phases.filter(
-    (phase) => phase.type === "work",
-  );
-  const activeText = readableTextColor(theme.colors.tertiary);
+  const free = request.snapshot.format === "free";
+  const workPhases = request.snapshot.phases.filter(phase => phase.type === "work");
+  const fields = free ? [null] : workPhases;
 
   async function save(now: number) {
-    if (!request || !ownerId || saving) {
-      return;
-    }
-    if (!isLocalDateString(date)) {
-      setError("Choose a valid performed date.");
-      return;
-    }
+    if (!request || !ownerId || pending.current) return;
+    if (!isLocalDateString(date)) { setError("Choose a valid performed date."); return; }
     const performedAt = combineLocalDateAndTime(date, time);
-    if (performedAt === null || performedAt > now) {
-      setError("Performed time cannot be in the future");
-      return;
-    }
-
+    if (performedAt === null || performedAt > now) { setError("Performed time cannot be in the future"); return; }
+    pending.current = true;
     setSaving(true);
     setError(null);
     try {
+      const occurrences = fields.flatMap((phase, index) => {
+        const draft = actuals[phase?.id ?? "free"];
+        if (draft?.skipped || phase === null && !draft) return [];
+        return [occurrenceFromDraft(phase, draft ?? {}, index, performedAt)];
+      });
+      if (!free && workPhases.length && !occurrences.length) throw new Error("Log at least one completed work bout");
+      const elapsedSeconds = optionalObservedNumber(elapsed, "Completed session duration");
+      const knownDuration = occurrences.length && occurrences.every((bout, index) => bout.workSeconds !== null &&
+        (index === occurrences.length - 1 || bout.actual?.restSeconds !== undefined))
+        ? occurrences.reduce((sum, bout, index) =>
+          sum + bout.workSeconds! + (index === occurrences.length - 1 ? 0 : bout.actual!.restSeconds!), 0)
+        : null;
+      if (elapsedSeconds !== undefined && knownDuration !== null && elapsedSeconds < knownDuration) {
+        throw new Error("Completed session duration must cover the logged work and rest");
+      }
+      const observations = conditioningObservationsFromDraft(protocol, date);
       await logConditioningSession(db, ownerId, {
         finishedAt: performedAt,
         notes,
-        occurrences: workPhases.map((phase, index) => ({
-          actual: actuals[phase.id] ?? emptyActual(),
-          completionMethod: "manual",
-          completionStatus: "completed" as const,
-          endedAt: performedAt,
-          id: phase.occurrenceId ?? phase.id,
-          phaseType: "work" as const,
-          position: index,
-          roundIndex: phase.roundIndex,
-          setIndex: phase.setIndex,
-          startedAt: performedAt,
-          stationId: phase.stationId,
-          target: phase.target,
-          workSeconds: null,
-        })),
+        occurrences,
+        metrics: { elapsedSeconds: elapsedSeconds ?? knownDuration, distanceMeters: free ? occurrences[0]?.actual?.distanceMeters ?? null : null },
         performedAt,
         planSessionId: request.planSessionId,
-        sessionRpe: sessionRpe.trim() ? Number(sessionRpe) : null,
-        snapshot: request.snapshot,
+        sessionRpe: optionalObservedNumber(sessionRpe, "Session RPE") ?? null,
+        snapshot: { ...request.snapshot, conditioningObservations: observations },
+        status: !free && occurrences.length < workPhases.length ? "ended_early" : "completed",
         templateId: request.templateId,
         timezone: deviceTimeZone(),
       });
@@ -130,282 +155,81 @@ export function LogConditioningSessionScreen() {
     } catch (caught) {
       setError(messageFromUnknown(caught));
     } finally {
+      pending.current = false;
       setSaving(false);
     }
   }
 
+  const card = [styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong }];
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
-      <ScreenHeading
-        onClose={() => requestNavigation(workspace.closeBranch)}
-        title="Log session"
-        right={<LogTimeChanger maximumDate={new Date()} value={performedDateTime(date, time)} onChange={(selected) => { setDate(formatLocalDate(selected)); setTime(selected); }} />}
-      />
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Card 1: Performed Timestamp & Session RPE */}
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <View style={styles.cardHeader}>
-            <FieldLabel>Session RPE (optional)</FieldLabel>
-            {sessionRpe.trim() ? (
-              <PressOpacity
-                accessibilityLabel="Omit session RPE"
-                onPress={() => {
-                  feedbackStep("down");
-                  setSessionRpe("");
-                }}
-                silent
-                style={[
-                  styles.clearPill,
-                  {
-                    backgroundColor: theme.colors.surfaceMuted,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.clearPillText, { color: theme.colors.textMuted }]}>
-                  OMIT
-                </Text>
-              </PressOpacity>
-            ) : null}
-          </View>
-
-          <ScrollView
-            contentContainerStyle={styles.presetStrip}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          >
-            {RPE_SCALE.map((rpe) => {
-              const selected = Number(sessionRpe) === rpe && sessionRpe.trim().length > 0;
-              return (
-                <PressOpacity
-                  accessibilityLabel={`Set session RPE ${rpe}`}
-                  key={rpe}
-                  onPress={() => {
-                    feedbackStep("up");
-                    setSessionRpe(String(rpe));
-                  }}
-                  silent
-                  style={[
-                    styles.presetChip,
-                    {
-                      backgroundColor: selected
-                        ? theme.colors.tertiary
-                        : theme.colors.surfaceMuted,
-                      borderColor: selected
-                        ? theme.colors.tertiary
-                        : theme.colors.border,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.presetChipText,
-                      { color: selected ? activeText : theme.colors.text },
-                    ]}
-                  >
-                    RPE {rpe}
-                  </Text>
-                </PressOpacity>
-              );
-            })}
-          </ScrollView>
-
-          <FormInput
-            accessibilityLabel="Session RPE"
-            keyboardType="number-pad"
-            onChangeText={setSessionRpe}
-            placeholder="Omitted (null)"
-            value={sessionRpe}
-          />
-
+      <ScreenHeading onClose={() => requestNavigation(workspace.closeBranch)} title="Log session"
+        right={<LogTimeChanger maximumDate={new Date()} value={performedDateTime(date, time)}
+          onChange={selected => { setDate(formatLocalDate(selected)); setTime(selected); }} />} />
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={card}>
+          <ObservedNumberField label="Completed session duration (s)" value={elapsed} onChangeText={setElapsed} />
+          <ObservedNumberField label="Session RPE (1–10)" value={sessionRpe} onChangeText={setSessionRpe} />
           <FieldLabel>Notes</FieldLabel>
-          <FormInput
-            accessibilityLabel="Session notes"
-            multiline
-            onChangeText={setNotes}
-            value={notes}
-          />
+          <FormInput accessibilityLabel="Session notes" multiline onChangeText={setNotes} value={notes} />
         </View>
-
-        {/* Card-by-Card Work Occurrences */}
-        {workPhases.map((phase) => (
-          <WorkResult
-            key={phase.id}
-            onChange={(actual) =>
-              setActuals((current) => ({ ...current, [phase.id]: actual }))
-            }
-            phase={phase}
-            value={actuals[phase.id] ?? emptyActual()}
-          />
-        ))}
+        <View style={card}>
+          <ConditioningObservationFields value={protocol} onChange={setProtocol} />
+        </View>
+        {fields.map((phase, index) => {
+          const key = phase?.id ?? "free";
+          return <View key={key} style={card}>
+            <WorkResult phase={phase} last={index === fields.length - 1} protocol={protocol} value={actuals[key] ?? {}}
+              onChange={next => setActuals(current => ({ ...current, [key]: next }))} />
+          </View>;
+        })}
         <ErrorText>{error}</ErrorText>
       </ScrollView>
       <ConditioningFooter disabled={saving} onBack={() => requestNavigation(workspace.pop)}>
-        <ActionButton
-          disabled={saving}
-          label="Save session"
-          onPress={() => void save(Date.now())}
-        />
+        <ActionButton disabled={saving} label="Save session" onPress={() => void save(Date.now())} />
       </ConditioningFooter>
     </View>
   );
 }
 
-function WorkResult({
-  onChange,
-  phase,
-  value,
-}: {
-  onChange: (actual: OccurrenceActual) => void;
-  phase: PhaseDefinition;
-  value: OccurrenceActual;
+function WorkResult({ onChange, phase, value, protocol, last }: {
+  onChange: (value: BoutDraft) => void;
+  phase: PhaseDefinition | null;
+  value: BoutDraft;
+  protocol: ProtocolDraft;
+  last: boolean;
 }) {
   const { theme } = useAppTheme();
-  const kind = phase.target?.completionType;
-  return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.borderStrong,
-        },
-      ]}
-    >
-      <Text style={[styles.phase, { color: theme.colors.text }]}>
-        {phase.label}
-      </Text>
-      {kind === "repetitions" ? (
-        <OptionalNumber
-          label="Actual reps"
-          onChange={(reps) => onChange({ ...value, reps })}
-          step={1}
-          value={value.reps}
-        />
-      ) : null}
-      {kind === "repetitions" || kind === "distance" ? (
-        <OptionalNumber
-          label="Actual load kg"
-          onChange={(loadKg) => onChange({ ...value, loadKg })}
-          step={2}
-          value={value.loadKg}
-        />
-      ) : null}
-      {kind === "distance" || kind === "sprint" ? (
-        <OptionalNumber
-          label="Actual distance m"
-          onChange={(distanceMeters) => onChange({ ...value, distanceMeters })}
-          step={10}
-          value={value.distanceMeters}
-        />
-      ) : null}
-      {kind === "machine_calories" ? (
-        <OptionalNumber
-          label="Actual machine calories"
-          onChange={(machineCalories) =>
-            onChange({ ...value, machineCalories })
-          }
-          step={2}
-          value={value.machineCalories}
-        />
-      ) : null}
-    </View>
-  );
-}
-
-function OptionalNumber({
-  label,
-  onChange,
-  step = 1,
-  value,
-}: {
-  label: string;
-  onChange: (value: number | null) => void;
-  step?: number;
-  value: number | null;
-}) {
-  const { theme } = useAppTheme();
-  if (label.toLowerCase().includes("load")) {
-    return <WeightInput label={label} value={value} onChange={onChange} />;
+  const kind = phase?.target?.completionType;
+  function field(key: "work" | "rest" | "distance" | "reps" | "calories" | "watts" | "oxygen" | "oxygenSeconds" | "restRpe", label: string) {
+    return <ObservedNumberField label={label} value={value[key]} onChangeText={next => onChange({ ...value, [key]: next })} />;
   }
-  function adjust(delta: number) {
-    feedbackStep(delta > 0 ? "up" : "down");
-    const base = value ?? 0;
-    const next = Math.max(0, Math.round((base + delta) * 10) / 10);
-    onChange(next === 0 ? null : next);
-  }
-
-  return (
-    <View style={styles.optionalBlock}>
-      <FieldLabel>{label}</FieldLabel>
-      <View style={styles.dateRow}>
-        <PressOpacity
-          accessibilityLabel={`Decrease ${label}`}
-          onPress={() => adjust(-step)}
-          silent
-          style={[
-            styles.stepBtn,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-            -{step}
-          </Text>
-        </PressOpacity>
-        <FormInput
-          accessibilityLabel={label}
-          keyboardType="decimal-pad"
-          onChangeText={(text) => {
-            const trimmed = text.trim();
-            onChange(trimmed ? Number(trimmed) : null);
-          }}
-          placeholder="--"
-          style={styles.centerInput}
-          value={value === null ? "" : String(value)}
-        />
-        <PressOpacity
-          accessibilityLabel={`Increase ${label}`}
-          onPress={() => adjust(step)}
-          silent
-          style={[
-            styles.stepBtn,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.borderStrong,
-            },
-          ]}
-        >
-          <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>
-            +{step}
-          </Text>
-        </PressOpacity>
-      </View>
-    </View>
-  );
-}
-
-function emptyActual(): OccurrenceActual {
-  return {
-    distanceMeters: null,
-    loadKg: null,
-    machineCalories: null,
-    reps: null,
-  };
+  return <>
+    <Text accessibilityRole="header" style={[styles.phase, { color: theme.colors.text }]}>
+      {phase?.label ?? "Recorded work"}
+    </Text>
+    {phase ? <ObservationChoices label="Bout status" options={[{ label: "Skipped", value: "skipped" }]}
+      value={value.skipped ? "skipped" : undefined} onChange={next => onChange({ ...value, skipped: !!next })} /> : null}
+    {!value.skipped ? <>
+      {field("work", "Actual work (s)")}
+      {kind === "repetitions" ? field("reps", "Actual reps") : null}
+      {kind === "repetitions" || kind === "distance" ? <WeightInput label="Actual load" value={value.load ?? null} onChange={load => onChange({ ...value, load })} /> : null}
+      {kind === "distance" || kind === "sprint" || !phase || protocol.mode === "run" ? field("distance", "Actual distance (m)") : null}
+      {kind === "machine_calories" ? field("calories", "Actual machine calories") : null}
+      {protocol.mode === "cycling" || protocol.mode === "assault_bike" ? field("watts", "Measured work power (W)") : null}
+      {protocol.vo2max ? <>
+        {field("oxygen", "Measured oxygen uptake (mL/kg/min)")}
+        {field("oxygenSeconds", "Duration at this measured uptake (s)")}
+      </> : null}
+      <FieldLabel>Observed effort (optional)</FieldLabel>
+      <ObservationChoices label="Observed effort" options={conditioningEffortOptions} value={value.effort} onChange={effort => onChange({ ...value, effort })} />
+      {!last ? <>
+        {field("rest", "Actual rest after bout (s)")}
+        <ObservationChoices label="Rest type" options={[...restOptions]} value={value.restType} onChange={restType => onChange({ ...value, restType })} />
+        {field("restRpe", "Observed rest effort (0–10)")}
+      </> : null}
+    </> : null}
+  </>;
 }
 
 function performedDateTime(date: string, time: Date) {
@@ -417,88 +241,7 @@ function performedDateTime(date: string, time: Date) {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: {
-    gap: tokens.spacing.md,
-    padding: tokens.spacing.md,
-    paddingBottom: tokens.spacing.xxl,
-  },
-  card: {
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    gap: tokens.spacing.sm,
-    padding: tokens.spacing.lg,
-  },
-  cardHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  cardHeaderLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-  },
-  cardBadge: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  dateRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 6,
-  },
-  stepBtn: {
-    alignItems: "center",
-    borderRadius: tokens.radius.md,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    minWidth: 52,
-    paddingHorizontal: 8,
-  },
-  stepBtnText: {
-    fontSize: 12,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
-  },
-  centerInput: {
-    flex: 1,
-    textAlign: "center",
-  },
-  presetStrip: {
-    gap: 6,
-  },
-  presetChip: {
-    alignItems: "center",
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 40,
-    minWidth: 58,
-    paddingHorizontal: tokens.spacing.sm,
-  },
-  presetChipText: {
-    fontSize: 12,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "800",
-  },
-  clearPill: {
-    borderRadius: tokens.radius.sm,
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  clearPillText: {
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  phase: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  optionalBlock: {
-    gap: 4,
-  },
+  content: { gap: tokens.spacing.md, padding: tokens.spacing.md, paddingBottom: tokens.spacing.xxl },
+  card: { borderRadius: tokens.radius.lg, borderWidth: 1, gap: tokens.spacing.sm, padding: tokens.spacing.lg },
+  phase: { fontSize: 15, fontWeight: "800" },
 });

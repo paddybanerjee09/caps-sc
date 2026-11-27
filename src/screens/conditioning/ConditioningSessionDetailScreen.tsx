@@ -235,7 +235,7 @@ export function ConditioningSessionDetailScreen({
               {session.status === "completed" ||
               session.status === "ended_early" ? (
                 <ActionButton
-                  label="Emphasis"
+                  label="Estimated training stimulus"
                   onPress={() =>
                     workspace.push({
                       key: `emphasis-${session.id}`,
@@ -278,7 +278,7 @@ export function ConditioningSessionDetailScreen({
                     tone="secondary"
                   />
                   <ActionButton
-                    label="Emphasis"
+                    label="Estimated training stimulus"
                     onPress={() =>
                       workspace.push({
                         key: `emphasis-${session.id}`,

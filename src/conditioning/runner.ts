@@ -231,6 +231,8 @@ export function endRunnerEarly(state: RunnerState, now: number) {
     totals = { ...totals, workMs: totals.workMs + partialWorkMs };
   } else if (phase?.type === "preparation") {
     totals = { ...totals, preparationMs: totals.preparationMs + running.phaseAccumulatedMs };
+  } else if (phase && phase.type !== "work") {
+    totals = { ...totals, prescribedRecoveryMs: totals.prescribedRecoveryMs + running.phaseAccumulatedMs };
   }
 
   return {
@@ -335,20 +337,27 @@ export function projectedTotals(state: RunnerState, now: number): RunnerTotals {
 
 export function occurrencesFromRunner(state: RunnerState): OccurrenceInput[] {
   const completedIds = new Set(state.completedOccurrenceIds);
-  return state.phases
-    .filter((phase) => phase.type === "work" && phase.occurrenceId)
-    .map((phase, index) => {
-      const id = phase.occurrenceId ?? phase.id;
+  const occurrences: OccurrenceInput[] = [];
+  let nextWork = state.phases.length;
+  for (let phaseIndex = state.phases.length - 1; phaseIndex >= 0; phaseIndex -= 1) {
+      const phase = state.phases[phaseIndex];
+      if (phase.type !== "work" || !phase.occurrenceId) continue;
+      const id = phase.occurrenceId;
       const completed = completedIds.has(id);
       const partial = state.partialOccurrenceId === id;
-      return {
-        actual: null,
+      const restSeconds = completed && nextWork < state.phases.length && nextWork <= state.phaseIndex
+        ? state.phases.slice(phaseIndex + 1, nextWork).reduce((sum, recovery) => sum + recovery.durationSeconds, 0)
+        : undefined;
+      occurrences.push({
+        actual: restSeconds === undefined ? null : {
+          distanceMeters: null, loadKg: null, machineCalories: null, reps: null, restSeconds,
+        },
         completionMethod: phase.completion,
         completionStatus: completed ? "completed" : partial ? "partial" : "pending",
         endedAt: null,
         id,
         phaseType: "work",
-        position: index,
+        position: 0,
         roundIndex: phase.roundIndex,
         setIndex: phase.setIndex,
         startedAt: null,
@@ -356,8 +365,10 @@ export function occurrencesFromRunner(state: RunnerState): OccurrenceInput[] {
         target: phase.target,
         workSeconds:
           state.occurrenceWorkMs[id] == null ? null : state.occurrenceWorkMs[id] / 1000,
-      };
-    });
+      });
+      nextWork = phaseIndex;
+  }
+  return occurrences.reverse().map((occurrence, position) => ({ ...occurrence, position }));
 }
 
 export function currentPhase(state: RunnerState) {

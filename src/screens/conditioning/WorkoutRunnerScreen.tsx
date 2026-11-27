@@ -194,6 +194,7 @@ export function WorkoutRunnerScreen({ sessionId }: { sessionId: string }) {
         const result = reconcileRunner(current, Date.now());
         runnerRef.current = result.state;
         setRunner(result.state);
+        setReviewing(result.state.status === "finished" || result.state.status === "ended_early");
         if (result.cuePhaseId) {
           cueRef.current = result.cuePhaseId;
         }
@@ -562,7 +563,9 @@ export function WorkoutRunnerScreen({ sessionId }: { sessionId: string }) {
               label="Mark complete"
               onPress={() => {
                 feedbackPhaseCue();
-                void update(completeCurrentWork(runner, Date.now()));
+                const next = completeCurrentWork(runner, Date.now());
+                void (next.status === "finished" ? finishReview(next) : update(next))
+                  .catch(caught => setError(messageFromUnknown(caught)));
               }}
             />
           ) : null}
@@ -592,6 +595,14 @@ export function WorkoutRunnerScreen({ sessionId }: { sessionId: string }) {
                   void (async () => {
                     if (!ownerId || !runner) {
                       return;
+                    }
+                    const recording = await getConditioningSession(db, ownerId, sessionId);
+                    if (recording?.status === "in_progress") {
+                      await finishConditioningSession(db, ownerId, sessionId, {
+                        activeSeconds: (runner.totals.workMs + runner.totals.prescribedRecoveryMs) / 1000,
+                        finishedAt: runner.lastPersistedAt,
+                        occurrences: occurrencesFromRunner(runner),
+                      });
                     }
                     await saveConditioningSession(db, ownerId, sessionId, {
                       occurrences: occurrencesFromRunner(runner),

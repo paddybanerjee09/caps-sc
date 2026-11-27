@@ -132,12 +132,49 @@ export type WorkoutSnapshot = {
   format: ConditioningFormat;
   interval: IntervalConfig | null;
   notes: string | null;
+  conditioningObservations?: ConditioningObservations;
   phases: PhaseDefinition[];
   plannerVersion: typeof PLANNER_VERSION;
   sprint: SprintConfig | null;
   targetRpe: number | null;
   title: string;
   version: typeof SNAPSHOT_VERSION;
+};
+
+export const conditioningActivityModes = ["run", "cycling", "assault_bike", "other"] as const;
+export const conditioningEfforts = ["easy", "moderate", "sustained_hard", "repeated_effort", "sprint"] as const;
+export type ConditioningEffort = (typeof conditioningEfforts)[number];
+export type ConditioningActivityMode = (typeof conditioningActivityModes)[number];
+export type ConditioningOutputUnit = "W" | "m/s" | "s";
+
+export type ConditioningProtocol = {
+  mode: ConditioningActivityMode;
+  test?: string;
+  source?: string;
+  machine?: string;
+  technique?: string;
+  distanceMeters?: number;
+};
+
+export type ConditioningReference = {
+  protocol: ConditioningProtocol;
+  testDate: string;
+  value: number;
+};
+
+export type ConditioningObservations = {
+  protocol: ConditioningProtocol;
+  criticalPower?: ConditioningReference;
+  criticalSpeed?: ConditioningReference;
+  vo2max?: ConditioningReference;
+  sprintBest?: ConditioningReference & { unit: ConditioningOutputUnit };
+  intensityBounds?: {
+    protocol: ConditioningProtocol;
+    testDate: string;
+    unit: "W" | "m/s";
+    moderate: number;
+    hard: number;
+  };
 };
 
 export type TemplateConfig = {
@@ -156,6 +193,13 @@ export type OccurrenceActual = {
   loadKg: number | null;
   machineCalories: number | null;
   reps: number | null;
+  effort?: ConditioningEffort;
+  restSeconds?: number;
+  restType?: "active" | "passive";
+  restRpe?: number;
+  watts?: number;
+  /** Calibrated measured spans; a single bout-wide average does not establish time in zone. */
+  oxygenUptake?: { seconds: number; mlKgMin: number }[];
 };
 
 export type OccurrenceInput = {

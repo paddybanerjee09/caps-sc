@@ -1,13 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { LogTimeChanger } from "../../components/LogTimeChanger";
-import { EstimatedFocusButton } from "../../components/training/EstimatedFocusButton";
 import { TrainingNumberField } from "../../components/training/TrainingNumberField";
 import { ActionButton, ConditioningFooter, ScreenHeading, ErrorText, FieldLabel, FormInput } from "../../components/conditioning/ConditioningFields";
 import { deviceTimeZone, formatLocalDate, localTimeFromInstant } from "../../conditioning/dates";
 import { templateConfigFromDraft, type WorkoutDraft } from "../../conditioning/drafts";
-import { emphasisColors, emphasisLabels, estimateSnapshotEmphasis } from "../../conditioning/emphasis";
 import { buildWorkoutSnapshot } from "../../conditioning/phases";
 import { formatName } from "../../conditioning/summaries";
 import { distanceToMeters, elevationToMeters, metersToDistance, metersToElevation, parseFiniteNumber } from "../../conditioning/units";
@@ -34,15 +32,6 @@ export function CreateConditioningSessionScreen() {
   const [saving, setSaving] = useState(false);
   const pending = useRef(false);
   const draft = editor?.draft;
-
-  const focus = useMemo(() => {
-    if (!draft) return null;
-    try {
-      return estimateSnapshotEmphasis(buildWorkoutSnapshot(templateConfigFromDraft(draft)), null, "target_preview");
-    } catch {
-      return null;
-    }
-  }, [draft]);
 
   function requestClose() {
     if (pending.current || !editor) return;
@@ -82,7 +71,6 @@ export function CreateConditioningSessionScreen() {
     }
   }
 
-  const primary = focus?.labels.primary ?? null;
   return (
     <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, styles.host, tablet && { backgroundColor: theme.colors.overlay }]}>
       <View style={[styles.panel, tablet ? { borderColor: theme.colors.borderStrong, borderWidth: 1, height: height * 0.9, maxWidth: 720, width: "92%" } : styles.phonePanel, { backgroundColor: theme.colors.background }]}>
@@ -102,7 +90,7 @@ export function CreateConditioningSessionScreen() {
             {draft.format === "sprint" ? <SprintFields distanceSystem={unitSettings.distance} elevationSystem={unitSettings.height} draft={draft} update={update} /> : null}
             {draft.format === "circuit" ? <CircuitFields draft={draft} update={update} onEditStation={(stationId) => workspace.push({ key: `station-${stationId ?? "new"}-${Date.now()}`, name: "station", stationId })} /> : null}
           </View>
-          <EstimatedFocusButton value={primary ? emphasisLabels[primary] : "Not enough evidence"} color={primary ? emphasisColors[primary] : theme.colors.textMuted} disabled={saving} onPress={() => workspace.push({ key: `emphasis-draft-${Date.now()}`, name: "emphasis", sessionId: null })} />
+          <ActionButton label="Estimated training stimulus" tone="secondary" disabled={saving} onPress={() => workspace.push({ key: `emphasis-draft-${Date.now()}`, name: "emphasis", sessionId: null })} />
           <ErrorText>{error}</ErrorText>
         </ScrollView>
         <ConditioningFooter disabled={saving} onBack={requestClose}>

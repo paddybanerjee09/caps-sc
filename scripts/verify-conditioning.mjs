@@ -44,6 +44,7 @@ import {
 } from "../src/conditioning/units.ts";
 import { createWorkoutDraft, templateConfigFromDraft } from "../src/conditioning/drafts.ts";
 import { estimateEmphasis, estimateSnapshotEmphasis } from "../src/conditioning/emphasis.ts";
+import { conditioningStimulus } from "../src/conditioning/stimulus.ts";
 import { estimateElevation } from "../src/conditioning/elevation.ts";
 import { syncConditioningBundle } from "../src/data/conditioningSync.ts";
 import {
@@ -600,7 +601,7 @@ assert.equal(sundayStart.cells[1].isSelected, true);
 assert.equal(sundayStart.cells[2].isToday, true);
 
 await migrateDatabase(adapter);
-assert.equal(db.prepare("PRAGMA user_version").get().user_version, 12);
+assert.equal(db.prepare("PRAGMA user_version").get().user_version, 13);
 await migrateDatabase(adapter);
 
 const ownerId = await getConditioningOwnerId(adapter);
@@ -785,6 +786,23 @@ assert.equal(logged.sessionRpe, null);
 assert.equal(logged.status, "completed");
 assert.equal(logged.notes, null);
 
+const observedProtocol = { mode: "cycling", test: "CP fixture", source: "meter fixture", machine: "Stationary Bike A" };
+const observedSnapshot = { ...snapshot, conditioningObservations: { protocol: observedProtocol, criticalPower: { protocol: observedProtocol, value: 250, testDate: "2026-11-19" } } };
+const actualBikeBout = { ...occurrence, id: createId("occurrence"), actual: {
+  distanceMeters: null, loadKg: null, machineCalories: null, reps: null, watts: 400,
+  restSeconds: 20, restType: "active", restRpe: 2, effort: "repeated_effort",
+} };
+const observedLog = await logConditioningSession(adapter, ownerId, {
+  finishedAt: Date.now() - 1000, performedAt, sessionRpe: 8, snapshot: observedSnapshot,
+  timezone: "UTC", metrics: { elapsedSeconds: 330 }, occurrences: [actualBikeBout],
+});
+const reopenedObservation = await getConditioningSession(adapter, ownerId, observedLog.id);
+assert.deepEqual(reopenedObservation.snapshot.conditioningObservations, observedSnapshot.conditioningObservations);
+assert.equal(reopenedObservation.elapsedSeconds, 330);
+assert.equal(reopenedObservation.sessionRpe, 8);
+assert.deepEqual((await listConditioningOccurrences(adapter, ownerId, observedLog.id))[0].actual, actualBikeBout.actual);
+assert.equal((await getConditioningSession(adapter, ownerId, logged.id)).snapshot.conditioningObservations, undefined);
+
 const point = {
   acceptance: "accepted",
   altitude: null,
@@ -820,4 +838,57 @@ await assert.rejects(() =>
 
 assert.equal(await findInProgressConditioningSession(adapter, ownerId), null);
 db.close();
-console.log("conditioning domain checks passed");
+const stimulusSetup = { mode: "cycling", test: "CP-v1", source: "power meter", machine: "Bike A" };
+const stimulusReference = { protocol: stimulusSetup, value: 250, testDate: "2026-11-19" };
+const makeStimulusWork = (seconds, restSeconds, effort = "repeated_effort", watts = 400) => Array.from({ length: 6 }, (_, position) => ({
+  id: `stimulus-${position}`, position, phaseType: "work", workSeconds: seconds, completionStatus: "completed",
+  actual: { watts, restSeconds: position < 5 ? restSeconds : undefined, effort },
+}));
+const stimulusInput = {
+  status: "completed", performedAt: Date.parse("2026-11-20T14:00:00Z"), performedLocalDate: "2026-11-20",
+  activeSeconds: null, elapsedSeconds: null, sessionSeconds: 330, sessionRpe: 8, continuous: false,
+  expectedWorkBouts: 6, sprintProtocol: false, now: Date.parse("2026-11-21T12:00:00Z"),
+  observations: { protocol: stimulusSetup, criticalPower: stimulusReference }, occurrences: makeStimulusWork(30, 30),
+};
+const measuredStimulus = conditioningStimulus(stimulusInput);
+assert.equal(measuredStimulus.above.value, 27);
+assert.equal(measuredStimulus.above.unit, "kJ");
+assert.equal(measuredStimulus.above.status, "available");
+assert.equal(measuredStimulus.vo2.value, null);
+const fallbackStimulus = conditioningStimulus({ ...stimulusInput, observations: { protocol: stimulusSetup } });
+assert.equal(fallbackStimulus.above.value, null);
+assert.equal(fallbackStimulus.exposure.value, 180);
+assert.equal(fallbackStimulus.exposure.method, "Protocol exposure");
+assert.equal(fallbackStimulus.exposure.status, "partial");
+const longerStimulus = conditioningStimulus({ ...stimulusInput, occurrences: makeStimulusWork(60, 60) });
+assert.equal(longerStimulus.ratio.value, measuredStimulus.ratio.value);
+assert.equal(longerStimulus.above.value, 54);
+assert.equal(conditioningStimulus({ ...stimulusInput, occurrences: stimulusInput.occurrences.slice(0, 5) }).above.status, "partial");
+assert.equal(conditioningStimulus({ ...stimulusInput, occurrences: [...stimulusInput.occurrences, stimulusInput.occurrences[0]] }).above.value, 27);
+assert.equal(conditioningStimulus({ ...stimulusInput, status: "planned" }).above.value, null);
+assert.equal(conditioningStimulus({ ...stimulusInput, sessionRpe: 0 }).sessionLoad.value, 0);
+const lowerPower = conditioningStimulus({ ...stimulusInput, occurrences: makeStimulusWork(30, 30, "easy", 200) });
+assert.equal(lowerPower.above.value, 0);
+const fanBike = { ...stimulusSetup, mode: "assault_bike", technique: "arms and legs" };
+const fanResult = conditioningStimulus({ ...stimulusInput, observations: { protocol: fanBike,
+  criticalPower: { ...stimulusReference, protocol: { ...fanBike, machine: "Bike B" } },
+  sprintBest: { protocol: { ...fanBike, technique: "legs only" }, value: 400, testDate: "2026-11-19", unit: "W" },
+}, occurrences: makeStimulusWork(8, 20, "sprint") });
+assert.equal(fanResult.above.value, null);
+assert.equal(fanResult.test.value, null);
+assert.equal(fanResult.sprint.value, 6);
+const splitProtocol = { mode: "run", test: "30 m fly", source: "timing gates", distanceMeters: 30 };
+const sprintInput = {
+  ...stimulusInput, sprintProtocol: true,
+  observations: { protocol: splitProtocol, sprintBest: { protocol: splitProtocol, value: 4, unit: "s", testDate: "2026-11-19" } },
+  expectedWorkBouts: 2,
+  occurrences: [4, 5].map((workSeconds, position) => ({ ...stimulusInput.occurrences[position], workSeconds,
+    actual: { effort: "sprint", distanceMeters: 30 } })),
+};
+const sprintResult = conditioningStimulus(sprintInput);
+assert.equal(sprintResult.test.value, 1);
+assert.equal(sprintResult.sprintBest.value, 4);
+assert.equal(sprintResult.sprintDrop[1].drop, 25);
+assert.equal(conditioningStimulus({ ...sprintInput, performedLocalDate: "2026-11-19" }).test.value, null, "the session cannot be its own dated reference");
+
+console.log("conditioning domain and observed stimulus checks passed");

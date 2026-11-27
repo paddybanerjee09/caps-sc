@@ -4,7 +4,7 @@ import { useAppTheme } from "../../theme/ThemeContext";
 
 /** Keep raw text editable; each training form validates when its action is pressed. */
 export function TrainingNumberField({
-  label, value, onChangeText, placeholder = "", editable = true, maxLength = 6,
+  label, value, onChangeText, placeholder = "", editable = true, maxLength = 6, decimal = false,
 }: {
   label: string;
   value: string;
@@ -12,6 +12,7 @@ export function TrainingNumberField({
   placeholder?: string;
   editable?: boolean;
   maxLength?: number;
+  decimal?: boolean;
 }) {
   const { theme } = useAppTheme();
   return (
@@ -20,7 +21,7 @@ export function TrainingNumberField({
       <TextInput
         accessibilityLabel={label}
         editable={editable}
-        keyboardType="number-pad"
+        keyboardType={decimal ? "decimal-pad" : "number-pad"}
         maxLength={maxLength}
         onChangeText={onChangeText}
         placeholder={placeholder}
