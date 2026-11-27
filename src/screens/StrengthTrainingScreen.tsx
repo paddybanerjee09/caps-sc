@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
@@ -6,14 +6,17 @@ import { ScreenTitleCard } from "../components/ScreenTitleCard";
 import { ActionButton } from "../components/ActionButton";
 import { MonthlyTimelineComponent } from "../components/MonthlyTimelineComponent";
 import { SavedWorkouts } from "../components/training/SavedWorkouts";
+import { SessionChooser, type SessionOption } from "../components/training/SessionChooser";
 import { TrainingSessionActions } from "../components/training/TrainingSessionActions";
 import { buildMonthGrid, type MonthEvent } from "../components/monthGrid";
 import { formatLocalDate } from "../conditioning/dates";
 import {
   createLogDraft,
+  defaultStrengthSessionTime,
   draftFromTemplate,
 } from "../strength/drafts";
 import { emphasisMarkerColor } from "../strength/emphasis";
+import type { StrengthSessionMode } from "../strength/types";
 import {
   getStrengthTemplate,
   listStrengthSessionsForDates,
@@ -28,11 +31,20 @@ import { feedbackWarn } from "../utils/feedback";
 
 const tokens = themes.dark;
 
-function draftForSavedTemplate(
-  template: NonNullable<Awaited<ReturnType<typeof getStrengthTemplate>>>,
-) {
-  return draftFromTemplate(template, Date.now());
-}
+const sessionOptions: SessionOption<StrengthSessionMode>[] = [
+  {
+    value: "planned",
+    title: "Planned Session",
+    description: "Schedule a future start time and set exercise targets.",
+    icon: "calendar-outline",
+  },
+  {
+    value: "completed",
+    title: "Current / Completed Session",
+    description: "Enter the workout end time and record each set.",
+    icon: "checkmark-circle-outline",
+  },
+];
 
 export function StrengthTrainingScreen() {
   const db = useSQLiteContext();
@@ -49,6 +61,9 @@ export function StrengthTrainingScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [sessionSource, setSessionSource] = useState<{ templateId: string | null } | null>(null);
+  const [openingSaved, setOpeningSaved] = useState(false);
+  const activeRequest = useRef<AbortController | null>(null);
   const fetchKey = `${month.year}:${month.monthIndex}:${selectedDate}:${workspace.revision}`;
   const loading = loadedKey !== fetchKey;
 
@@ -91,32 +106,69 @@ export function StrengthTrainingScreen() {
     };
   }, [fetchKey, load]);
 
+  useEffect(() => () => activeRequest.current?.abort(), []);
+
   const events = useMemo<MonthEvent[]>(
     () =>
-      sessions.map((session) => ({
-        color: session.emphasis.primary
-          ? emphasisMarkerColor(session.emphasis)
-          : theme.colors.textMuted,
-        id: session.id,
-        localDate: session.localEndDate,
-        status: "logged",
-        title: session.title,
-      })),
+      sessions.map((session) => {
+        const planned = session.status === "planned";
+        const time = new Date(planned ? session.startedAt : session.endedAt)
+          .toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+        return {
+          color: session.emphasis.primary
+            ? emphasisMarkerColor(session.emphasis)
+            : theme.colors.textMuted,
+          detail: planned ? `Planned · starts ${time}` : `Completed · ended ${time}`,
+          id: session.id,
+          localDate: session.localDate,
+          status: planned ? "planned" : "logged",
+          title: session.title,
+        };
+      }),
     [sessions, theme.colors.textMuted],
   );
 
-  async function openSaved(templateId: string) {
+  function openChooser(templateId: string | null) {
+    setTemplateError(null);
+    setSessionSource({ templateId });
+  }
+
+  function closeChooser() {
+    activeRequest.current?.abort();
+    activeRequest.current = null;
+    setSessionSource(null);
+    setOpeningSaved(false);
+  }
+
+  async function beginSession(mode: StrengthSessionMode) {
+    if (!sessionSource || activeRequest.current) return;
+
+    if (!sessionSource.templateId) {
+      closeChooser();
+      const draft = createLogDraft(defaultStrengthSessionTime(mode), undefined, mode);
+      workspace.openBuilder(draft);
+      return;
+    }
+
+    const request = new AbortController();
+    activeRequest.current = request;
+    setOpeningSaved(true);
     try {
-      const template = await getStrengthTemplate(db, templateId);
+      const template = await getStrengthTemplate(db, sessionSource.templateId);
+      if (request.signal.aborted) return;
       if (!template || template.archivedAt) {
         feedbackWarn();
         setTemplateError("That saved workout is no longer available.");
         return;
       }
-      workspace.openBuilder(draftForSavedTemplate(template), "log");
+      const draft = draftFromTemplate(template, defaultStrengthSessionTime(mode), undefined, mode);
+      workspace.openBuilder(draft);
     } catch {
+      if (request.signal.aborted) return;
       feedbackWarn();
       setTemplateError("Couldn’t open that saved workout. Try again.");
+    } finally {
+      if (!request.signal.aborted) closeChooser();
     }
   }
 
@@ -128,7 +180,7 @@ export function StrengthTrainingScreen() {
           <ActionButton label={`${loadError} Retry`} onPress={() => workspace.bumpRevision()} tone="quiet" />
         ) : null}
         <MonthlyTimelineComponent
-          emptyLabel={loading ? "Loading sessions…" : loadError ? "Couldn’t load sessions" : "No strength workout logged"}
+          emptyLabel={loading ? "Loading sessions…" : loadError ? "Couldn’t load sessions" : "No strength sessions on this date"}
           events={events}
           monthIndex={month.monthIndex}
           onEventPress={(event) => workspace.openDetail(event.id)}
@@ -139,7 +191,7 @@ export function StrengthTrainingScreen() {
           year={month.year}
         />
         <TrainingSessionActions
-          onFreeSession={() => workspace.openBuilder(createLogDraft(Date.now()), "log")}
+          onFreeSession={() => openChooser(null)}
         />
         <SavedWorkouts
           entries={templates}
@@ -149,9 +201,17 @@ export function StrengthTrainingScreen() {
             setTemplateError(null);
             workspace.bumpRevision();
           }}
-          onSelect={(id) => { void openSaved(id); }}
+          onSelect={openChooser}
         />
       </ScrollView>
+      {sessionSource ? (
+        <SessionChooser
+          busy={openingSaved}
+          onClose={closeChooser}
+          onSelect={(mode) => { void beginSession(mode); }}
+          options={sessionOptions}
+        />
+      ) : null}
     </View>
   );
 }

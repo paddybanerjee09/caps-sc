@@ -17,7 +17,7 @@ import {
 } from "../../strength/emphasis";
 import { tableField } from "../../strength/drafts";
 import type { StrengthExerciseRecord } from "../../strength/types";
-import { formatRestSeconds, formatRpe, formatSetLoad } from "../../strength/units";
+import { formatRestSeconds, formatRir, formatRpe, formatSetLoad } from "../../strength/units";
 import { useAppState } from "../../state/AppStateContext";
 import { useStrengthWorkspace } from "../../state/StrengthWorkspaceContext";
 import { useAppTheme } from "../../theme/ThemeContext";
@@ -61,6 +61,7 @@ export function StrengthSessionDetailScreen({ sessionId }: { sessionId: string }
   }, [db, sessionId]);
 
   const color = session ? emphasisMarkerColor(session.emphasis) : theme.colors.textMuted;
+  const planned = session?.status === "planned";
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
@@ -81,13 +82,14 @@ export function StrengthSessionDetailScreen({ sessionId }: { sessionId: string }
                   { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong },
                 ]}
               >
-                <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>LOGGED</Text>
+                <Text style={[styles.kicker, { color: theme.colors.textMuted }]}>
+                  {planned ? "PLANNED START" : "COMPLETED END"}
+                </Text>
                 <Text style={[styles.metric, { color: theme.colors.text }]}>
-                  {formatWhen(session.endedAt)}
+                  {formatWhen(planned ? session.startedAt : session.endedAt)}
                 </Text>
                 <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
-                  Estimated duration {formatDurationSeconds(session.durationSeconds)} · started{" "}
-                  {formatWhen(session.startedAt)}
+                  Estimated duration {formatDurationSeconds(session.durationSeconds)}
                 </Text>
                 <PressOpacity
                   accessibilityLabel={`Estimated focus ${emphasisHeadline(session.emphasis)}`}
@@ -123,6 +125,7 @@ function ExerciseCard({
 }) {
   const { theme } = useAppTheme();
   const sets = exercise.sets;
+  const target = exercise.target;
   const skipped = sets.filter((set) => set.skipped).length;
   return (
     <View
@@ -135,18 +138,36 @@ function ExerciseCard({
         {exercise.unilateral ? "PER SIDE" : exercise.equipment.toUpperCase()}
       </Text>
       <Text style={[styles.exercise, { color: theme.colors.text }]}>{exercise.name}</Text>
-      <Text style={[styles.metric, { color: theme.colors.text }]}>
+      {target ? (
+        <>
+          <Text style={[styles.metric, { color: theme.colors.text }]}>
+            {target.sets} sets · {target.repRange}{target.repRange === "1RM" ? "" : " reps"}
+          </Text>
+          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+            Target RPE {formatRpe(target.rpe)} · Target RIR {formatRir(target.rir)} · Rest {formatRestSeconds(target.restSeconds)}
+          </Text>
+          {sets.map((set) => (
+            <Text key={set.id} style={[styles.hint, { color: theme.colors.text }]}>
+              Set {set.position + 1} · {set.reps} reps · RPE {formatRpe(set.rpe)} · RIR {formatRir(set.rir)}
+            </Text>
+          ))}
+        </>
+      ) : (
+        <>
+          <Text style={[styles.metric, { color: theme.colors.text }]}>
         {tableField(sets, (set) => formatSetLoad(exercise.loadMode, set.loadKg, set.assistanceKg, unit))}
         {" · "}
         {skipped > 0 ? `${exercise.sets.length} sets, ${skipped} skipped` : `${exercise.sets.length} sets`}
         {" · "}
         {tableField(sets, (set) => String(set.reps))} reps
-      </Text>
-      <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+          </Text>
+          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
         RPE {tableField(sets, (set) => formatRpe(set.rpe))} · Rest{" "}
         {tableField(sets, (set) => formatRestSeconds(set.restSeconds))}
         {exercise.explosiveIntent ? " · Explosive" : ""}
-      </Text>
+          </Text>
+        </>
+      )}
       {exercise.notes ? (
         <Text style={[styles.hint, { color: theme.colors.text }]}>{exercise.notes}</Text>
       ) : null}
@@ -179,7 +200,7 @@ const styles = StyleSheet.create({
   },
   kicker: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
   metric: { fontSize: 16, fontVariant: ["tabular-nums"], fontWeight: "800" },
-  hint: { fontSize: 13, lineHeight: 18 },
+  hint: { fontSize: 13, lineHeight: 18, fontVariant: ["tabular-nums"] },
   focus: {
     alignItems: "center",
     borderRadius: 12,

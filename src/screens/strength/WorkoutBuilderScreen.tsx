@@ -1,29 +1,36 @@
-import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
+import { Keyboard, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 
 import { ActionButton } from "../../components/ActionButton";
-import { EstimatedFocusButton } from "../../components/training/EstimatedFocusButton";
-import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
 import { LogTimeChanger } from "../../components/LogTimeChanger";
+import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
+import { useExerciseTable } from "../../components/strength/ExerciseTable";
+import { EstimatedFocusButton } from "../../components/training/EstimatedFocusButton";
 import { createId } from "../../conditioning/ids";
 import { archiveStrengthTemplate, saveStrengthTemplate, listSameLiftReferences, logStrengthSession } from "../../data/strengthRepository";
-import { MAX_EXERCISES, projectTemplateDraft, removeExercise, tableField, validateStrengthDraft } from "../../strength/drafts";
-import { estimateDraftDurationSeconds, formatDurationSeconds } from "../../strength/duration";
-import { emphasisFromDraft, emphasisHeadline, emphasisMarkerColor, type StrengthEmphasis } from "../../strength/emphasis";
-import type { StrengthDraft } from "../../strength/types";
-import { formatRestSeconds, formatRpe } from "../../strength/units";
 import { useAppState } from "../../state/AppStateContext";
 import { useStrengthWorkspace } from "../../state/StrengthWorkspaceContext";
+import { addCatalogExercise, MAX_EXERCISES, removeExercise, strengthSessionTime, TITLE_MAX, updateExercise, validateStrengthDraft } from "../../strength/drafts";
+import { estimateDraftDurationSeconds, formatDurationSeconds } from "../../strength/duration";
+import { emphasisFromDraft, emphasisHeadline, emphasisMarkerColor, type EmphasisReference } from "../../strength/emphasis";
+import type { StrengthDraft } from "../../strength/types";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
 import { feedbackConfirm, feedbackWarn } from "../../utils/feedback";
 
 const tokens = themes.dark;
+const noReferences = new Map<string, EmphasisReference>();
 
 function templateContent(draft: StrengthDraft) {
-  const projected = projectTemplateDraft(draft);
-  return JSON.stringify({ title: projected.title.trim(), exercises: projected.exercises });
+  return JSON.stringify({
+    title: draft.title.trim(),
+    exercises: draft.exercises.map((exercise) => ({
+      id: exercise.id,
+      notes: exercise.notes.trim(),
+      target: exercise.target,
+    })),
+  });
 }
 
 export function WorkoutBuilderScreen() {
@@ -31,37 +38,85 @@ export function WorkoutBuilderScreen() {
   const { theme } = useAppTheme();
   const { bumpTimeline } = useAppState();
   const workspace = useStrengthWorkspace();
-  const { draft, saving } = workspace;
+  const { draft, saving, updateDraft } = workspace;
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<StrengthEmphasis | null>(null);
+  const [history, setHistory] = useState<{ key: string; references: Map<string, EmphasisReference> } | null>(null);
   const writing = useRef(false);
+  const pageRef = useRef<ComponentRef<typeof View>>(null);
+  const mode = draft?.sessionMode ?? "completed";
+  const planned = mode === "planned";
+  const exercises = draft?.exercises ?? [];
+  const timestamp = draft ? strengthSessionTime(draft) : 0;
+  const exerciseIds = JSON.stringify(exercises.flatMap((exercise) =>
+    exercise.catalogExerciseId ? [exercise.catalogExerciseId] : [],
+  ));
+  const historyKey = JSON.stringify([exerciseIds, timestamp]);
+
+  const { exerciseTable, exerciseOverlay, dismissExerciseOverlay, onExerciseOverlayLayout } = useExerciseTable({
+    pageRef,
+    exercises,
+    mode,
+    disabled: saving,
+    onAddExercise: (exercise) => {
+      if (exercises.length >= MAX_EXERCISES) {
+        setError("A workout can contain up to 40 exercises.");
+        feedbackWarn();
+        return;
+      }
+      setError(null);
+      updateDraft((current) => addCatalogExercise(current, exercise));
+    },
+    onChangeExercise: (id, update) => {
+      setError(null);
+      updateDraft((current) => updateExercise(current, id, update));
+    },
+    onRemoveExercise: (id) => {
+      workspace.requestConfirm({
+        confirmLabel: "Remove",
+        message: `${exercises.find((exercise) => exercise.id === id)?.name ?? "This exercise"} will leave this workout.`,
+        title: "Remove exercise?",
+        onConfirm: () => {
+          setError(null);
+          updateDraft((current) => removeExercise(current, id));
+        },
+      });
+    },
+  });
 
   useEffect(() => {
     if (workspace.stack.at(-1)?.name !== "builder") return;
-    workspace.registerBackHandler(() => { workspace.closeBranch(); return true; });
+    workspace.registerBackHandler(() => {
+      if (!dismissExerciseOverlay()) workspace.closeBranch();
+      return true;
+    });
     return () => workspace.registerBackHandler(null);
-  }, [workspace]);
+  }, [dismissExerciseOverlay, workspace]);
 
   useEffect(() => {
-    if (!draft) return;
     let cancelled = false;
-    void listSameLiftReferences(db, draft.exercises.flatMap((exercise) => exercise.catalogExerciseId ? [exercise.catalogExerciseId] : []), draft.endedAt)
-      .then((references) => { if (!cancelled) setPreview(emphasisFromDraft(draft.exercises, references)); })
-      .catch(() => { if (!cancelled) setPreview(null); });
+    void listSameLiftReferences(db, JSON.parse(exerciseIds) as string[], timestamp)
+      .then((references) => {
+        if (!cancelled) setHistory({ key: historyKey, references });
+      })
+      .catch(() => {
+        if (!cancelled) setHistory(null);
+      });
     return () => { cancelled = true; };
-  }, [db, draft]);
+  }, [db, exerciseIds, historyKey, timestamp]);
 
   if (!draft) return null;
 
-  const savedDraft = workspace.savedSnapshot ? JSON.parse(workspace.savedSnapshot) as typeof draft : null;
-  const isSaved = draft.sourceTemplateId != null && draft.saveAsTemplate && savedDraft != null && templateContent(draft) === templateContent(savedDraft);
-  const exercises = draft.exercises;
-  const focusColor = preview ? emphasisMarkerColor(preview) : theme.colors.textMuted;
-  const inputStyle = [styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong, color: theme.colors.text }];
-  const cardStyle = [styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }];
+  const savedDraft = workspace.savedSnapshot ? JSON.parse(workspace.savedSnapshot) as StrengthDraft : null;
+  const invalidTargetInput = exercises.some(({ restSecondsInput, target }) =>
+    restSecondsInput?.trim() && target?.restSeconds == null,
+  );
+  const isSaved = draft.sourceTemplateId != null && draft.saveAsTemplate && savedDraft != null
+    && !invalidTargetInput && templateContent(draft) === templateContent(savedDraft);
+  const preview = emphasisFromDraft(exercises, history?.key === historyKey ? history.references : noReferences, mode);
 
   async function toggleSaved() {
     if (!draft || writing.current) return;
+    dismissExerciseOverlay();
     writing.current = true;
     workspace.setSaving(true);
     setError(null);
@@ -86,9 +141,15 @@ export function WorkoutBuilderScreen() {
 
   async function log() {
     if (!draft || writing.current) return;
+    dismissExerciseOverlay();
+    Keyboard.dismiss();
     const now = Date.now();
     const validation = validateStrengthDraft(draft, "log", now);
-    if (validation) { feedbackWarn(); setError(validation); return; }
+    if (validation) {
+      feedbackWarn();
+      setError(validation);
+      return;
+    }
     writing.current = true;
     workspace.setSaving(true);
     setError(null);
@@ -101,61 +162,82 @@ export function WorkoutBuilderScreen() {
       workspace.resetWorkspace();
     } catch (cause) {
       feedbackWarn();
-      setError(cause instanceof Error ? cause.message : "Couldn’t log session. Try again.");
+      setError(cause instanceof Error ? cause.message : "Couldn’t save session. Try again.");
     } finally {
       writing.current = false;
       workspace.setSaving(false);
     }
   }
 
+  function close() {
+    dismissExerciseOverlay();
+    workspace.closeBranch();
+  }
+
   return (
-    <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
-      <WorkflowHeader title="Log Session" onClose={workspace.closeBranch} right={<LogTimeChanger maximumDate={new Date()} onChange={(date) => { if (!saving) workspace.updateDraft({ ...draft, endedAt: date.getTime() }); }} value={new Date(draft.endedAt)} />} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" style={styles.scroller}>
+    <View ref={pageRef} collapsable={false} onLayout={onExerciseOverlayLayout} style={[styles.page, { backgroundColor: theme.colors.background }]}>
+      <WorkflowHeader
+        title={planned ? "Plan Session" : "Log Session"}
+        onClose={close}
+        right={
+          <View pointerEvents={saving ? "none" : "auto"}>
+            <LogTimeChanger
+              label={planned ? "Workout start time" : "Workout end time"}
+              timeBoundary={planned ? "future" : "past"}
+              onChange={(date) => {
+                if (saving) return;
+                setError(null);
+                const instant = date.getTime();
+                updateDraft((current) => planned ? { ...current, scheduledStartAt: instant } : { ...current, endedAt: instant });
+              }}
+              value={new Date(timestamp)}
+            />
+          </View>
+        }
+      />
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" style={styles.page}>
         <View style={styles.titleBlock}>
-          <TextInput accessibilityLabel="Workout title" editable={!saving} maxLength={80} onChangeText={(title) => { setError(null); workspace.updateDraft({ ...draft, title }); }} placeholder="Workout title" placeholderTextColor={theme.colors.textMuted} style={inputStyle} value={draft.title} />
-          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>Estimated duration {formatDurationSeconds(estimateDraftDurationSeconds(draft.exercises))}</Text>
+          <TextInput
+            accessibilityLabel="Workout title"
+            editable={!saving}
+            maxLength={TITLE_MAX}
+            onChangeText={(title) => {
+              setError(null);
+              updateDraft((current) => ({ ...current, title }));
+            }}
+            placeholder="Workout title"
+            placeholderTextColor={theme.colors.textMuted}
+            style={[styles.input, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong, color: theme.colors.text }]}
+            value={draft.title}
+          />
+          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
+            {planned ? "Start time" : "End time"} · Estimated duration {formatDurationSeconds(estimateDraftDurationSeconds(exercises, mode))}
+          </Text>
         </View>
-        <View style={cardStyle}>
-          <Text accessibilityRole="header" style={[styles.kicker, { color: theme.colors.textMuted }]}>EXERCISES</Text>
-          <ActionButton disabled={saving || draft.exercises.length >= MAX_EXERCISES} label="Add Exercises" onPress={() => { workspace.setSearchQuery(""); workspace.push({ key: createId(), name: "picker" }); }} tone="secondary" />
-          {exercises.length === 0 ? <Text style={[styles.hint, { color: theme.colors.textMuted }]}>No exercises.</Text> : exercises.map((exercise) => (
-            <View key={exercise.id} style={[styles.exercise, { borderColor: theme.colors.border }]}>
-              <Text style={[styles.exerciseName, { color: theme.colors.text }]}>{exercise.name}</Text>
-              <Text style={[styles.metrics, { color: theme.colors.textMuted }]}>{exercise.sets.length} sets · {tableField(exercise.sets, (set) => String(set.reps))} reps · RPE {tableField(exercise.sets, (set) => formatRpe(set.rpe))} · {tableField(exercise.sets, (set) => formatRestSeconds(set.restSeconds))} rest</Text>
-              {exercise.notes ? <Text numberOfLines={2} style={[styles.hint, { color: theme.colors.textMuted }]}>{exercise.notes}</Text> : null}
-              <View style={styles.row}>
-                <ActionButton disabled={saving} label="Edit" onPress={() => workspace.push({ baseline: JSON.stringify(draft), exerciseId: exercise.id, fresh: false, key: createId(), name: "editor" })} tone="secondary" style={styles.flex} />
-                <ActionButton disabled={saving} label="Remove" onPress={() => workspace.requestConfirm({ confirmLabel: "Remove", message: `${exercise.name} will leave this workout.`, onConfirm: () => workspace.updateDraft(removeExercise(draft, exercise.id)), title: "Remove exercise?" })} tone="quiet" style={styles.flex} />
-              </View>
-            </View>
-          ))}
-        </View>
-        <EstimatedFocusButton disabled={saving} value={preview ? emphasisHeadline(preview) : "Not enough evidence"} onPress={() => workspace.push({ key: createId(), name: "emphasis", sessionId: null })} color={focusColor} />
-        {error ? <Text accessibilityRole="alert" selectable style={[styles.error, { color: theme.colors.tertiary }]}>{error}</Text> : null}
+        {exerciseTable}
+        <EstimatedFocusButton
+          disabled={saving}
+          value={emphasisHeadline(preview)}
+          onPress={() => workspace.push({ key: createId(), name: "emphasis", sessionId: null })}
+          color={preview.workSets ? emphasisMarkerColor(preview) : theme.colors.textMuted}
+        />
       </ScrollView>
-      <WorkflowFooter disabled={saving} equalActions onBack={workspace.closeBranch}>
+      {error ? <Text accessibilityRole="alert" selectable style={[styles.error, { color: theme.colors.text }]}>{error}</Text> : null}
+      <WorkflowFooter disabled={saving} equalActions onBack={close}>
         <ActionButton disabled={saving} label={isSaved ? "Unsave" : "Save"} onPress={() => { void toggleSaved(); }} tone="secondary" style={styles.flex} />
-        <ActionButton disabled={saving} label="Log Session" onPress={() => { void log(); }} style={styles.flex} />
+        <ActionButton disabled={saving} label={planned ? "Plan Session" : "Log Session"} onPress={() => { void log(); }} style={styles.flex} />
       </WorkflowFooter>
+      {exerciseOverlay}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  scroller: { flex: 1 },
   content: { padding: tokens.spacing.md, gap: tokens.spacing.md },
-  card: { borderWidth: 1, borderRadius: tokens.radius.lg, padding: tokens.spacing.lg, gap: tokens.spacing.md },
   input: { borderWidth: 1, borderRadius: 12, minHeight: 52, paddingHorizontal: 12, fontSize: 16 },
-  kicker: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
   titleBlock: { gap: 6 },
   subtitle: { paddingHorizontal: 4, fontSize: 12, fontVariant: ["tabular-nums"] },
-  exercise: { borderTopWidth: 1, paddingTop: 12, gap: 8 },
-  exerciseName: { fontSize: 16, fontWeight: "700" },
-  metrics: { fontSize: 13, lineHeight: 19, fontVariant: ["tabular-nums"] },
-  hint: { fontSize: 13, lineHeight: 18 },
-  error: { fontSize: 14 },
-  row: { flexDirection: "row", gap: 8 },
+  error: { fontSize: 14, paddingHorizontal: tokens.spacing.md, paddingBottom: tokens.spacing.xs },
   flex: { flex: 1, minWidth: 0 },
 });

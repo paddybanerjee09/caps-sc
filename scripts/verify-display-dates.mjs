@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { formatDisplayDate, formatDisplayMonth, formatDisplayYear } from '../src/utils/displayDate.ts';
-import { formatLogDay } from '../src/utils/logTime.ts';
+import { formatLogDay, nextLogMinute } from '../src/utils/logTime.ts';
 
 const initialZone=process.env.TZ;
 try {
@@ -16,6 +16,9 @@ try {
     assert.equal(formatDisplayYear('2026-11-22'),'2026');
     assert.equal(formatLogDay(new Date(2026,10,22,12),new Date(2026,10,22,8)),'Today, 22 Nov, 2026');
     assert.equal(formatLogDay(new Date(2026,10,21,12),new Date(2026,10,22,8)),'21 Nov, 2026');
+    assert.deepEqual(nextLogMinute(new Date(2026, 10, 22, 12, 0).getTime()), new Date(2026, 10, 22, 12, 1));
+    assert.deepEqual(nextLogMinute(new Date(2026, 10, 22, 23, 59, 30).getTime()), new Date(2026, 10, 23, 0, 0));
+    assert.deepEqual(nextLogMinute(new Date(2026, 10, 22, 12, 1).getTime(), 15), new Date(2026, 10, 22, 12, 15));
   }
   process.env.TZ='America/Toronto';
   assert.equal(formatDisplayDate('2026-11-22T02:00:00Z'),'21 Nov, 2026');

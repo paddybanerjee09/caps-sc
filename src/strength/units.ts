@@ -95,3 +95,7 @@ export function formatRpe(rpe: number | null) {
   }
   return String(rpe);
 }
+export function formatRir(rir: number | null | undefined) {
+  if (rir == null) return "--";
+  return rir === 10 ? "10+" : String(rir);
+}

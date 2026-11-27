@@ -1,4 +1,10 @@
 import { formatDisplayDate } from "./displayDate";
+
+export function nextLogMinute(now: number, minuteInterval = 1) {
+  const interval = minuteInterval * 60_000;
+  return new Date((Math.floor(now / interval) + 1) * interval);
+}
+
 /** Change the local calendar day, preserving wall-clock time across DST changes. */
 export function shiftLogDay(value: Date, amount: number) {
   const next = new Date(value);

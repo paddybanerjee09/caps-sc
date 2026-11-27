@@ -5,8 +5,6 @@ import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
 import { feedbackWarn } from "../../utils/feedback";
 import { useStrengthWorkspace } from "../../state/StrengthWorkspaceContext";
-import { AddExercisesScreen } from "./AddExercisesScreen";
-import { ExerciseEditorScreen } from "./ExerciseEditorScreen";
 import { StrengthAdaptationsScreen } from "./StrengthAdaptationsScreen";
 import { StrengthSessionDetailScreen } from "./StrengthSessionDetailScreen";
 import { WorkoutBuilderScreen } from "./WorkoutBuilderScreen";
@@ -98,15 +96,6 @@ function Cover() {
         { backgroundColor: theme.colors.background },
       ]}
     >
-      {top.name === "picker" ? <AddExercisesScreen key={top.key} /> : null}
-      {top.name === "editor" ? (
-        <ExerciseEditorScreen
-          key={top.key}
-          baseline={top.baseline}
-          exerciseId={top.exerciseId}
-          fresh={top.fresh}
-        />
-      ) : null}
       {top.name === "emphasis" ? (
         <StrengthAdaptationsScreen sessionId={top.sessionId} />
       ) : null}
@@ -119,13 +108,13 @@ function Cover() {
 
 export function StrengthStack() {
   const { confirm, stack } = useStrengthWorkspace();
-  const builderOpen = stack.some((entry) => entry.name === "builder");
+  const builder = stack.find((entry) => entry.name === "builder");
   if (stack.length === 0 && !confirm) {
     return null;
   }
   return (
     <View style={StyleSheet.absoluteFill}>
-      {builderOpen ? <WorkoutBuilderScreen /> : null}
+      {builder ? <WorkoutBuilderScreen key={builder.key} /> : null}
       <Cover />
       <StrengthConfirm />
     </View>

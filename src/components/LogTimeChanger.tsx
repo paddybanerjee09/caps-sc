@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAppTheme } from "../theme/ThemeContext";
 import { readableTextColor, themes } from "../theme/theme";
-import { clampLogDate, formatLogDay, shiftLogDay } from "../utils/logTime";
+import { clampLogDate, formatLogDay, nextLogMinute, shiftLogDay } from "../utils/logTime";
 import { PressOpacity } from "./PressOpacity";
 
 const tokens = themes.dark;
@@ -22,23 +22,43 @@ type LogTimeChangerProps = {
   maximumDate?: Date;
   minimumDate?: Date;
   onChange: (date: Date) => void;
+  timeBoundary?: "future" | "past";
   value: Date;
 };
 
-export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, value, minuteInterval = 1, rejectInvalidWallTime = false }: LogTimeChangerProps) {
+export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, timeBoundary, value, minuteInterval = 1, rejectInvalidWallTime = false }: LogTimeChangerProps) {
   const { theme } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
+  const [boundaryTime, setBoundaryTime] = useState<number | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
   const wheelHour = useRef<number | null>(null);
   const wheelMinute = useRef<number | null>(null);
   const primaryText = readableTextColor(theme.colors.tertiary);
 
+  function dateBounds(now: number | null) {
+    return {
+      lower: timeBoundary === "future" && now !== null ? nextLogMinute(now, minuteInterval) : minimumDate,
+      upper: timeBoundary === "past" && now !== null ? new Date(now) : maximumDate,
+    };
+  }
+
+  function refreshDateBounds() {
+    const now = Date.now();
+    setBoundaryTime(now);
+    return dateBounds(now);
+  }
+
+  function clampSelection(date: Date) {
+    const { lower, upper } = refreshDateBounds();
+    return clampLogDate(date, lower, upper);
+  }
+
   function openPicker() {
     Keyboard.dismiss();
     setTimeError(null);
-    setDraft(clampLogDate(value, minimumDate, maximumDate));
+    setDraft(clampSelection(value));
     wheelHour.current = null;
     wheelMinute.current = null;
     setOpen(true);
@@ -56,10 +76,11 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
     setTimeError(null);
     wheelHour.current = null;
     wheelMinute.current = null;
+    const { lower, upper } = refreshDateBounds();
     setDraft((current) => {
       const next = new Date(current);
       next.setHours(hour, minute, 0, 0);
-      return clampLogDate(next, minimumDate, maximumDate);
+      return clampLogDate(next, lower, upper);
     });
   }
 
@@ -76,9 +97,10 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
     wheelHour.current = null;
     wheelMinute.current = null;
     setTimeError(null);
-    setDraft(clampLogDate(shifted, minimumDate, maximumDate));
+    setDraft(clampSelection(shifted));
   }
 
+  const { lower, upper } = dateBounds(boundaryTime);
   const previousDay = shiftLogDay(draft, -1);
   previousDay.setHours(23, 59, 59, 999);
   const nextDay = shiftLogDay(draft, 1);
@@ -104,11 +126,11 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
               <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.dialogContent}>
                 <Text accessibilityRole="header" style={[styles.title, { color: theme.colors.text }]}>Log Time</Text>
                 <View style={styles.dayBar}>
-                  <PressOpacity accessibilityLabel="Previous log day" disabled={!!minimumDate && previousDay < minimumDate} onPress={() => changeDay(-1)} style={styles.dayArrow}>
+                  <PressOpacity accessibilityLabel="Previous log day" disabled={!!lower && previousDay < lower} onPress={() => changeDay(-1)} style={styles.dayArrow}>
                     <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
                   </PressOpacity>
                   <Text style={[styles.dayText, { color: theme.colors.text }]}>{formatLogDay(draft)}</Text>
-                  <PressOpacity accessibilityLabel="Next log day" disabled={!!maximumDate && nextDay > maximumDate} onPress={() => changeDay(1)} style={styles.dayArrow}>
+                  <PressOpacity accessibilityLabel="Next log day" disabled={!!upper && nextDay > upper} onPress={() => changeDay(1)} style={styles.dayArrow}>
                     <Ionicons name="chevron-forward" size={22} color={theme.colors.text} />
                   </PressOpacity>
                 </View>
@@ -133,7 +155,7 @@ export function LogTimeChanger({ label, maximumDate, minimumDate, onChange, valu
                     setTimeError("That local time does not exist on this date. Choose another time.");
                     return;
                   }
-                  onChange(clampLogDate(selected, minimumDate, maximumDate));
+                  onChange(clampSelection(selected));
                   setOpen(false);
                 }} style={[styles.action, { backgroundColor: theme.colors.tertiary, borderColor: theme.colors.tertiary }]}>
                   <Text style={[styles.actionText, { color: primaryText }]}>Done</Text>

@@ -5,6 +5,7 @@ import { useSQLiteContext } from "expo-sqlite";
 import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
 import { PressOpacity } from "../../components/PressOpacity";
 import { getStrengthSession, listSameLiftReferences } from "../../data/strengthRepository";
+import { strengthSessionTime } from "../../strength/drafts";
 import {
   emphasisFromDraft,
   emphasisHeadline,
@@ -22,13 +23,13 @@ const tokens = themes.dark;
 
 const meanings: Record<StrengthQuality, string> = {
   hypertrophy:
-    "Challenging sets of 5–30 reps.",
+    "Challenging sets of 5–30 reps, adjusted for reps in reserve.",
   muscular_endurance:
-    "High-rep sets with short rests.",
+    "High-rep sets, with effort and rest considered when recorded.",
   power:
     "Work marked with explosive intent.",
   strength:
-    "Load relative to prior same-lift work.",
+    "Load relative to prior same-lift work or low-rep sets near maximum.",
 };
 
 export function StrengthAdaptationsScreen({ sessionId }: { sessionId: string | null }) {
@@ -65,16 +66,18 @@ export function StrengthAdaptationsScreen({ sessionId }: { sessionId: string | n
         draft.exercises
           .map((exercise) => exercise.catalogExerciseId)
           .filter((id): id is string => id != null),
-        workspace.mode === "log" ? draft.endedAt : Date.now(),
+        strengthSessionTime(draft),
       );
       if (!cancelled) {
-        setResult(emphasisFromDraft(draft.exercises, references));
+        setResult(emphasisFromDraft(draft.exercises, references, draft.sessionMode));
       }
-    })();
+    })().catch(() => {
+      if (!cancelled) setResult(null);
+    });
     return () => {
       cancelled = true;
     };
-  }, [db, sessionId, workspace.draft, workspace.mode]);
+  }, [db, sessionId, workspace.draft]);
 
   return (
     <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
