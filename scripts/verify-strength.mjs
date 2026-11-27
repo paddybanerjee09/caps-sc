@@ -611,7 +611,11 @@ await assert.rejects(
 assert.equal(await getStrengthSession(db, plan.sessionId), null);
 assert.equal(fresh.prepare("SELECT COUNT(*) AS count FROM timeline_entries").get().count, plannedCount);
 
-const savedPlan = await logStrengthSession(db, plan, plannedOptions);
+const planWithStaleSets = updateExercise(plan, plan.exercises[0].id, (exercise) => ({
+  ...exercise,
+  sets: hypertrophy.exercises[0].sets,
+}));
+const savedPlan = await logStrengthSession(db, planWithStaleSets, plannedOptions);
 const planRecord = await getStrengthSession(db, savedPlan.sessionId);
 assert.equal(planRecord.status, "planned");
 assert.equal(planRecord.startedAt, plannedStart);
