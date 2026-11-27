@@ -52,7 +52,7 @@ export function useExerciseTable({
   const { theme } = useAppTheme();
   const favouriteColor = useExerciseFavouriteColor();
   const { fontScale } = useWindowDimensions();
-  const source = useExerciseCatalog();
+  const source = useExerciseCatalog(!prescriptionReadOnly);
   const searchAnchor = useRef<ComponentRef<typeof View>>(null);
   const searchInput = useRef<ComponentRef<typeof TextInput>>(null);
   const [query, setQuery] = useState("");
