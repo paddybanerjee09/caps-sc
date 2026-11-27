@@ -4,6 +4,7 @@ import { deviceTimeZone, formatLocalDate, isIanaTimeZone } from "../conditioning
 import { createId } from "../conditioning/ids";
 import { CATALOG_SEED } from "../strength/catalogSeed";
 import {
+  draftToCompletePlan,
   performedSets,
   plannedSetTarget,
   projectTemplateDraft,
@@ -64,6 +65,14 @@ export type StrengthLogResult = {
   templateId: string | null;
   timelineEntryId: number;
 };
+
+type StrengthLogOptions = {
+  beforeCommit?: () => void;
+  now?: number;
+  timeZone?: string;
+};
+
+const completionQueues = new WeakMap<SQLiteDatabase, Promise<StrengthLogResult>>();
 
 type ExerciseRow = {
   equipment: string;
@@ -394,40 +403,18 @@ export async function listSameLiftReferences(
 export async function logStrengthSession(
   db: SQLiteDatabase,
   draft: StrengthDraft,
-  options?: {
-    beforeCommit?: () => void;
-    now?: number;
+  options?: StrengthLogOptions & {
     /** Explicit-save workflows log a snapshot without changing reusable workouts. */
     persistTemplate?: boolean;
-    timeZone?: string;
   },
 ) {
   const existing = await getStrengthSession(db, draft.sessionId);
-  if (existing) {
-    const replay: StrengthLogResult = {
-      alreadySaved: true,
-      sessionId: existing.id,
-      templateId: existing.sourceTemplateId,
-      timelineEntryId: existing.timelineEntryId,
-    };
-    return replay;
-  }
+  if (existing) return sessionLogResult(existing, true);
 
   const now = options?.now ?? Date.now();
   const timeZone = options?.timeZone ?? deviceTimeZone();
-  if (!isIanaTimeZone(timeZone)) {
-    throw new Error("Choose a valid workout time zone.");
-  }
-  const error = validateStrengthDraft(draft, "log", now);
-  if (error) {
-    throw new Error(error);
-  }
+  assertValidStrengthLog(draft, now, timeZone);
   const mode = draft.sessionMode ?? "completed";
-  const timestamp = strengthSessionTime(draft);
-  const durationSeconds = estimateDraftDurationSeconds(draft.exercises, mode);
-  if (durationSeconds == null) {
-    throw new Error("Add at least one work set.");
-  }
   const persistTemplate = options?.persistTemplate !== false;
   const templateDraft = persistTemplate && draft.saveAsTemplate ? projectTemplateDraft(draft) : null;
   if (templateDraft) {
@@ -437,17 +424,8 @@ export async function logStrengthSession(
     }
   }
 
-  const references = await listSameLiftReferences(
-    db,
-    draft.exercises
-      .map((exercise) => exercise.catalogExerciseId)
-      .filter((id): id is string => id != null),
-    timestamp,
-  );
-  const emphasis = emphasisFromDraft(draft.exercises, references, mode);
-  const startedAt = mode === "planned" ? timestamp : sessionStartMs(timestamp, durationSeconds);
-  const endedAt = mode === "planned" ? timestamp + durationSeconds * 1000 : timestamp;
-  const localEndDate = formatLocalDate(new Date(endedAt));
+  const { durationSeconds, emphasis, startedAt, endedAt, localEndDate } =
+    await estimateStrengthSession(db, draft, mode);
   const scheduledLocalDate = mode === "planned" ? formatLocalDate(new Date(startedAt)) : null;
   const title = draft.title.trim();
   let templateId = draft.sourceTemplateId;
@@ -506,12 +484,124 @@ export async function logStrengthSession(
   if (!saved) {
     throw new Error("Strength session did not save.");
   }
+  return sessionLogResult(saved, false);
+}
+
+/** Record actuals on the original scheduled session and its linked timeline entry. */
+export async function completeStrengthSession(
+  db: SQLiteDatabase,
+  draft: StrengthDraft,
+  options?: StrengthLogOptions,
+): Promise<StrengthLogResult> {
+  const now = options?.now ?? Date.now();
+  // One connection cannot nest withTransactionAsync calls. Let concurrent completion
+  // requests see the committed status (or retry after a rolled-back attempt).
+  const previous = completionQueues.get(db);
+  const completion = Promise.resolve(previous).catch(() => undefined)
+    .then(() => completePlan(db, draft, now, options));
+  completionQueues.set(db, completion);
+  try {
+    return await completion;
+  } finally {
+    if (completionQueues.get(db) === completion) completionQueues.delete(db);
+  }
+}
+
+async function completePlan(
+  db: SQLiteDatabase,
+  draft: StrengthDraft,
+  now: number,
+  options?: StrengthLogOptions,
+): Promise<StrengthLogResult> {
+  if (draft.sessionMode !== "completed") throw new Error("Open the plan to log its completed sets.");
+  const plan = await getStrengthSession(db, draft.sessionId);
+  if (!plan) throw new Error("This planned workout could not be found.");
+  if (plan.status === "completed") return sessionLogResult(plan, true);
+
+  // Read the prescription from storage. Only the actual inputs and end time
+  // come from the editor, so stale target values cannot replace the saved plan.
+  const completed = draftToCompletePlan(plan, draft.endedAt);
+  const stalePlanError = "The exercise list changed. Reopen this planned workout.";
+  if (completed.exercises.length !== draft.exercises.length) throw new Error(stalePlanError);
+  for (const [index, exercise] of completed.exercises.entries()) {
+    const input = draft.exercises[index];
+    if (input.id !== exercise.id || input.sets.length !== exercise.sets.length) {
+      throw new Error(stalePlanError);
+    }
+    exercise.sets = exercise.sets.map((set, setIndex) => ({ ...set, actual: input.sets[setIndex].actual }));
+  }
+
+  const timeZone = options?.timeZone ?? deviceTimeZone();
+  assertValidStrengthLog(completed, now, timeZone);
+  const { durationSeconds, emphasis, startedAt, endedAt, localEndDate } =
+    await estimateStrengthSession(db, completed, "completed");
+
+  let alreadySaved = false;
+  await db.withTransactionAsync(async () => {
+    const claimed = await db.runAsync(
+      `UPDATE timeline_entries SET status = 'completed', start_at = ?, end_at = ?, updated_at = ?
+       WHERE id = ? AND kind = 'strength' AND status = 'planned'`,
+      [startedAt, endedAt, now, plan.timelineEntryId],
+    );
+    if (claimed.changes !== 1) {
+      const current = await getStrengthSession(db, plan.id);
+      if (current?.status !== "completed") throw new Error("This planned workout could not be found.");
+      alreadySaved = true;
+      return;
+    }
+    const updated = await db.runAsync(
+      `UPDATE strength_sessions
+       SET started_at = ?, ended_at = ?, local_end_date = ?, scheduled_local_date = NULL,
+           timezone = ?, duration_seconds = ?, emphasis_json = ?, emphasis_version = ?
+       WHERE id = ? AND timeline_entry_id = ?`,
+      [
+        startedAt, endedAt, localEndDate, timeZone, durationSeconds, JSON.stringify(emphasis),
+        STRENGTH_EMPHASIS_VERSION, plan.id, plan.timelineEntryId,
+      ],
+    );
+    if (updated.changes !== 1) throw new Error("This planned workout could not be found.");
+    for (const exercise of completed.exercises) {
+      await insertSets(db, "session", exercise.id, exercise);
+    }
+    options?.beforeCommit?.();
+  });
+
+  return sessionLogResult(plan, alreadySaved);
+}
+
+function sessionLogResult(session: StrengthSessionRecord, alreadySaved: boolean): StrengthLogResult {
   return {
-    alreadySaved: false,
-    sessionId: saved.id,
-    templateId: saved.sourceTemplateId,
-    timelineEntryId: saved.timelineEntryId,
-  } satisfies StrengthLogResult;
+    alreadySaved,
+    sessionId: session.id,
+    templateId: session.sourceTemplateId,
+    timelineEntryId: session.timelineEntryId,
+  };
+}
+
+function assertValidStrengthLog(draft: StrengthDraft, now: number, timeZone: string) {
+  if (!isIanaTimeZone(timeZone)) throw new Error("Choose a valid workout time zone.");
+  const error = validateStrengthDraft(draft, "log", now);
+  if (error) throw new Error(error);
+}
+
+async function estimateStrengthSession(db: SQLiteDatabase, draft: StrengthDraft, mode: StrengthSessionMode) {
+  const timestamp = strengthSessionTime(draft);
+  const durationSeconds = estimateDraftDurationSeconds(draft.exercises, mode);
+  if (durationSeconds == null) throw new Error("Add at least one work set.");
+  const references = await listSameLiftReferences(
+    db,
+    draft.exercises.flatMap((exercise) => exercise.catalogExerciseId ? [exercise.catalogExerciseId] : []),
+    timestamp,
+  );
+  const startedAt = mode === "planned" ? timestamp : sessionStartMs(timestamp, durationSeconds);
+  const endedAt = mode === "planned" ? timestamp + durationSeconds * 1000 : timestamp;
+  return {
+    durationSeconds,
+    emphasis: emphasisFromDraft(draft.exercises, references, mode),
+    startedAt,
+    endedAt,
+    localEndDate: formatLocalDate(new Date(endedAt)),
+  };
 }
 
 async function insertTemplate(
@@ -567,8 +657,6 @@ async function insertExercises(
   exercises: readonly ExerciseDraft[],
 ) {
   const includePerformed = snapshot === "session";
-  const performedColumns = includePerformed ? ", skipped, warmup" : "";
-  const performedValues = includePerformed ? ", ?, ?" : "";
 
   for (const [index, exercise] of exercises.entries()) {
     // Template snapshots own their row identities, including after Save/Unsave/Save.
@@ -593,27 +681,39 @@ async function insertExercises(
         serializeTarget(exercise),
       ],
     );
-    const sets = includePerformed ? performedSets(exercise) : exercise.sets;
-    for (const [setIndex, set] of sets.entries()) {
-      await db.runAsync(
-        `INSERT INTO strength_${snapshot}_sets (
-          id, ${snapshot}_exercise_id, position, load_kg, assistance_kg,
-          reps, rpe, rir, rest_seconds${performedColumns}
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?${performedValues})`,
-        [
-          includePerformed ? set.id : createId(),
-          snapshotExerciseId,
-          setIndex,
-          storedLoad(exercise.loadMode, set.loadKg),
-          exercise.loadMode === "assisted" ? set.assistanceKg : null,
-          set.reps,
-          set.rpe,
-          set.rir ?? null,
-          set.restSeconds,
-          ...(includePerformed ? [set.skipped ? 1 : 0, set.warmup ? 1 : 0] : []),
-        ],
-      );
-    }
+    await insertSets(db, snapshot, snapshotExerciseId, exercise);
+  }
+}
+
+async function insertSets(
+  db: SQLiteDatabase,
+  snapshot: StrengthSnapshot,
+  snapshotExerciseId: string,
+  exercise: ExerciseDraft,
+) {
+  const includePerformed = snapshot === "session";
+  const performedColumns = includePerformed ? ", skipped, warmup" : "";
+  const performedValues = includePerformed ? ", ?, ?" : "";
+  const sets = includePerformed ? performedSets(exercise) : exercise.sets;
+  for (const [setIndex, set] of sets.entries()) {
+    await db.runAsync(
+      `INSERT INTO strength_${snapshot}_sets (
+        id, ${snapshot}_exercise_id, position, load_kg, assistance_kg,
+        reps, rpe, rir, rest_seconds${performedColumns}
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?${performedValues})`,
+      [
+        includePerformed ? set.id : createId(),
+        snapshotExerciseId,
+        setIndex,
+        storedLoad(exercise.loadMode, set.loadKg),
+        exercise.loadMode === "assisted" ? set.assistanceKg : null,
+        set.reps,
+        set.rpe,
+        set.rir ?? null,
+        set.restSeconds,
+        ...(includePerformed ? [set.skipped ? 1 : 0, set.warmup ? 1 : 0] : []),
+      ],
+    );
   }
 }
 

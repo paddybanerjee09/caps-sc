@@ -79,9 +79,32 @@ export function draftFromTemplate(
   };
 }
 
+export function draftToCompletePlan(
+  plan: {
+    exercises: readonly StrengthExerciseRecord[];
+    id: string;
+    sourceTemplateId: string | null;
+    status: StrengthSessionMode;
+    title: string;
+  },
+  now: number,
+): StrengthDraft {
+  if (plan.status !== "planned") throw new Error("This workout is already completed.");
+  return {
+    ...createLogDraft(now, plan.id, "completed"),
+    exercises: plan.exercises
+      .slice()
+      .sort((left, right) => left.position - right.position)
+      .map((record) => exerciseFromRecord(record, "completed", record.id)),
+    sourceTemplateId: plan.sourceTemplateId,
+    title: plan.title,
+  };
+}
+
 function exerciseFromRecord(
   record: StrengthExerciseRecord,
   mode?: StrengthSessionMode,
+  id = createId(),
 ): ExerciseDraft {
   const ordered = record.sets.slice().sort((left, right) => left.position - right.position);
   const first = ordered[0];
@@ -108,7 +131,7 @@ function exerciseFromRecord(
     catalogExerciseId: record.catalogExerciseId,
     equipment: record.equipment,
     explosiveIntent: record.explosiveIntent,
-    id: createId(),
+    id,
     loadMode: record.loadMode,
     muscleGroups: record.muscleGroups,
     name: record.name,

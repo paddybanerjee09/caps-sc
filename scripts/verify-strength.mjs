@@ -11,6 +11,7 @@ import {
   customizeSet,
   defaultStrengthSessionTime,
   draftFromTemplate,
+  draftToCompletePlan,
   getStrengthTarget,
   matchSetToRepeat,
   projectTemplateDraft,
@@ -43,6 +44,7 @@ import { migrateDatabase } from "../src/data/database.ts";
 import { strengthMigrationSql } from "../src/data/strengthMigration.ts";
 import {
   archiveStrengthTemplate,
+  completeStrengthSession,
   createCustomExercise,
   createStrengthTemplate,
   getStrengthSession,
@@ -695,6 +697,123 @@ assert.deepEqual(completed.exercises[0].sets.map(({ reps, rpe, rir }) => [reps, 
 ]);
 assert.equal(fresh.prepare("SELECT status FROM timeline_entries WHERE id = ?").get(savedCompleted.timelineEntryId).status, "completed");
 assert.deepEqual((await getStrengthTemplate(db, planTemplateId)).exercises[0].sets, []);
+
+// Completing a calendar plan updates its existing rows and keeps its prescription.
+const scheduledWorkout = addCatalogExercise(
+  draftFromTemplate(planTemplate, plannedStart, "planned-to-completed", "planned"),
+  findSeed("deadlift"),
+);
+const annotatedWorkout = {
+  ...scheduledWorkout,
+  exercises: scheduledWorkout.exercises.map((exercise, index) => ({
+    ...exercise,
+    notes: index === 0 ? "Use competition grip." : "Reset between reps.",
+    repeat: index === 0 ? { ...exercise.repeat, loadKg: 80 } : exercise.repeat,
+  })),
+};
+const savedWorkout = await logStrengthSession(db, annotatedWorkout, plannedOptions);
+const beforeCompletion = await getStrengthSession(db, savedWorkout.sessionId);
+const sourceTemplateBefore = await getStrengthTemplate(db, planTemplateId);
+const readTimeline = () => fresh.prepare("SELECT * FROM timeline_entries WHERE id = ?").get(savedWorkout.timelineEntryId);
+const timelineBefore = readTimeline();
+const sessionCountBefore = fresh.prepare("SELECT COUNT(*) AS count FROM strength_sessions").get().count;
+const timelineCountBefore = fresh.prepare("SELECT COUNT(*) AS count FROM timeline_entries").get().count;
+const performedEnd = new Date(2026, 10, 28, 12, 15).getTime();
+const completionOptions = { now: performedEnd + 60_000, timeZone: plannedOptions.timeZone };
+const completion = draftToCompletePlan(beforeCompletion, completionOptions.now);
+
+assert.equal(completion.sessionId, beforeCompletion.id);
+assert.equal(completion.sessionMode, "completed");
+assert.equal(completion.endedAt, completionOptions.now);
+assert.deepEqual(completion.exercises.map(({ id }) => id), beforeCompletion.exercises.map(({ id }) => id));
+assert.deepEqual(completion.exercises.map(getStrengthTarget), annotatedWorkout.exercises.map(getStrengthTarget));
+assert.deepEqual(
+  completion.exercises.map(({ sets }) => sets.map(({ actual }) => actual)),
+  completion.exercises.map((exercise) =>
+    Array.from({ length: getStrengthTarget(exercise).sets }, () => ({ reps: "", rpe: "", rir: "" }))),
+);
+await assert.rejects(
+  () => completeStrengthSession(db, completion, completionOptions),
+  /Enter 1 to 100 reps.*set 1/,
+);
+assert.deepEqual(await getStrengthSession(db, savedWorkout.sessionId), beforeCompletion);
+assert.deepEqual(readTimeline(), timelineBefore);
+
+const completedWorkout = {
+  ...completion,
+  endedAt: performedEnd,
+  exercises: completion.exercises.map((exercise) => ({
+    ...exercise,
+    sets: exercise.sets.map((set, index) => ({ ...set, actual: actualInputs[index] })),
+  })),
+};
+await assert.rejects(
+  () => completeStrengthSession(db, { ...completedWorkout, endedAt: completionOptions.now + 1 }, completionOptions),
+  /end time.*not in the future/,
+);
+await assert.rejects(
+  () => completeStrengthSession(db, { ...completedWorkout, exercises: completedWorkout.exercises.slice(1) }, completionOptions),
+  /exercise list changed/i,
+);
+await assert.rejects(
+  () => completeStrengthSession(db, completedWorkout, {
+    ...completionOptions,
+    beforeCommit: () => { throw new Error("completion rollback"); },
+  }),
+  /completion rollback/,
+);
+assert.deepEqual(await getStrengthSession(db, savedWorkout.sessionId), beforeCompletion);
+assert.deepEqual(readTimeline(), timelineBefore);
+
+// Completion reads the prescription from SQLite even if a stale editor sends different targets.
+const submittedWorkout = updateExercise(completedWorkout, completion.exercises[0].id, (exercise) => ({
+  ...exercise,
+  notes: "Edited in a stale editor.",
+  target: { ...exercise.target, repRange: "1RM", rpe: 10, rir: 0, restSeconds: 0 },
+}));
+const completionResults = await Promise.all([
+  completeStrengthSession(db, submittedWorkout, completionOptions),
+  completeStrengthSession(db, submittedWorkout, completionOptions),
+]);
+const recorded = completionResults.find(({ alreadySaved }) => !alreadySaved);
+assert.ok(recorded);
+assert.deepEqual(completionResults.filter(({ alreadySaved }) => alreadySaved), [{ ...recorded, alreadySaved: true }]);
+assert.equal(recorded.sessionId, savedWorkout.sessionId);
+assert.equal(recorded.timelineEntryId, savedWorkout.timelineEntryId);
+assert.equal(recorded.templateId, planTemplateId);
+const afterCompletion = await getStrengthSession(db, recorded.sessionId);
+assert.equal(afterCompletion.status, "completed");
+assert.equal(afterCompletion.endedAt, performedEnd);
+assert.equal(afterCompletion.localDate, "2026-11-28");
+assert.equal(afterCompletion.localEndDate, "2026-11-28");
+assert.equal(afterCompletion.durationSeconds, estimateDraftDurationSeconds(completedWorkout.exercises, "completed"));
+assert.equal(afterCompletion.startedAt, sessionStartMs(performedEnd, afterCompletion.durationSeconds));
+assert.equal(afterCompletion.exercises[0].target.loadKg, 80);
+assert.deepEqual(afterCompletion.exercises.map(({ sets: _sets, ...exercise }) => exercise),
+  beforeCompletion.exercises.map(({ sets: _sets, ...exercise }) => exercise));
+assert.deepEqual(afterCompletion.exercises.map(({ sets }) => sets.map(({ reps, rpe, rir }) => [reps, rpe, rir])), [
+  [[8, 7, 2], [7, 10, 10], [6, null, 0]],
+  [[8, 7, 2]],
+]);
+assert.ok(afterCompletion.exercises.every(({ sets }) => sets.every(({ loadKg }) => loadKg === null)));
+assert.deepEqual(afterCompletion.emphasis, emphasisFor(completedWorkout));
+assert.notDeepEqual(afterCompletion.emphasis, beforeCompletion.emphasis);
+assert.equal(readTimeline().status, "completed");
+assert.equal(readTimeline().end_at, performedEnd);
+assert.equal(readTimeline().start_at, afterCompletion.startedAt);
+assert.equal(readTimeline().created_at, timelineBefore.created_at);
+assert.ok(!(await listStrengthSessionsForDates(db, "2026-11-27", "2026-11-27"))
+  .some(({ id }) => id === recorded.sessionId));
+assert.deepEqual(
+  (await listStrengthSessionsForDates(db, "2026-11-28", "2026-11-28"))
+    .filter(({ id }) => id === recorded.sessionId)
+    .map(({ status }) => status),
+  ["completed"],
+);
+
+assert.deepEqual(await getStrengthTemplate(db, planTemplateId), sourceTemplateBefore);
+assert.equal(fresh.prepare("SELECT COUNT(*) AS count FROM strength_sessions").get().count, sessionCountBefore);
+assert.equal(fresh.prepare("SELECT COUNT(*) AS count FROM timeline_entries").get().count, timelineCountBefore);
 
 // Upgrade one completed v11 exercise and its stored v1 estimate without rewriting either.
 const v11 = new DatabaseSync(":memory:");
