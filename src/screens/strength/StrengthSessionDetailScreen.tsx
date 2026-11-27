@@ -13,10 +13,6 @@ import {
   type StrengthSessionRecord,
 } from "../../data/strengthRepository";
 import { formatDurationSeconds } from "../../strength/duration";
-import {
-  emphasisHeadline,
-  emphasisMarkerColor,
-} from "../../strength/emphasis";
 import { draftToCompletePlan, tableField } from "../../strength/drafts";
 import type { StrengthExerciseRecord } from "../../strength/types";
 import { formatRir, formatRpe, formatSetLoad } from "../../strength/units";
@@ -62,7 +58,6 @@ export function StrengthSessionDetailScreen({ sessionId }: { sessionId: string }
     };
   }, [db, sessionId]);
 
-  const color = session ? emphasisMarkerColor(session.emphasis) : theme.colors.textMuted;
   const planned = session?.status === "planned";
 
   return (
@@ -88,18 +83,13 @@ export function StrengthSessionDetailScreen({ sessionId }: { sessionId: string }
             <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
               Estimated duration {formatDurationSeconds(session.durationSeconds)}
             </Text>
-            <PressOpacity
-              accessibilityLabel={`Estimated focus ${emphasisHeadline(session.emphasis)}`}
+            {!planned ? <ActionButton
+              label="Estimated training stimulus"
+              tone="secondary"
               onPress={() =>
                 workspace.push({ key: createId(), name: "emphasis", sessionId: session.id })
               }
-              style={[styles.focus, { borderColor: color, backgroundColor: theme.colors.surfaceMuted }]}
-            >
-              <View style={[styles.dot, { backgroundColor: color }]} />
-              <Text style={[styles.headerAction, { color: theme.colors.text }]}>
-                Estimated focus · {emphasisHeadline(session.emphasis)}
-              </Text>
-            </PressOpacity>
+            /> : null}
           </View>
         ) : null}
         {session && session.exercises.length > 0 ? (
@@ -132,9 +122,11 @@ function ExerciseRecordTable({
   const showLegacyLoad = exercises.some((exercise) => !exercise.target);
   const columns = [...exerciseTableColumns, ...(showLegacyLoad ? [76] : []), 115];
   const widths = columns.map((width) => Math.ceil(width * Math.max(1, fontScale)));
-  const tableWidth = widths.reduce((total, width) => total + width, 0) + exerciseTableColumnGap * (widths.length - 1);
+  const actualWidths = [64, 40, 40, 40, 40, 90, 70, 90, 130, 100, 75].map((width) => Math.ceil(width * Math.max(1, fontScale)));
+  const totalWidth = (row: number[]) => row.reduce((total, width) => total + width, 0) + exerciseTableColumnGap * (row.length - 1);
+  const tableWidth = Math.max(totalWidth(widths), expandedId ? totalWidth(actualWidths) : 0);
   const labels = [...exerciseTableLabels, ...(showLegacyLoad ? ["Load"] : []), "Details"];
-  const actualLabels = ["Actual sets", "Set #", "Reps", "RPE", "RIR"];
+  const actualLabels = ["Set type", "Set #", "Reps", "RPE", "RIR", "Load", "Work (s)", "Preceding rest (s)", "Range of motion", "Intent", "Test"];
 
   return (
     <View
@@ -177,20 +169,29 @@ function ExerciseRecordTable({
                   labels={labels}
                   values={values}
                   widths={widths}
-                  toggle={target && sets.length > 0 ? {
+                  toggle={sets.length > 0 ? {
                     expanded,
                     onPress: () => setExpandedId((current) => current === exercise.id ? null : exercise.id),
                   } : undefined}
                 />
                 {expanded ? (
                   <View style={{ backgroundColor: theme.colors.surfaceMuted }}>
-                    <RecordRow heading labels={actualLabels} values={actualLabels} widths={widths} />
+                    <RecordRow heading labels={actualLabels} values={actualLabels} widths={actualWidths} />
                     {sets.map((set) => (
                       <RecordRow
                         key={set.id}
                         labels={actualLabels}
-                        values={["", String(set.position + 1), String(set.reps), formatRpe(set.rpe), formatRir(set.rir)]}
-                        widths={widths}
+                        values={[
+                          set.skipped ? "Skipped" : set.warmup ? "Warm-up" : set.isometric ? "Hold" : "Work",
+                          String(set.position + 1),
+                          set.isometric || set.skipped ? "—" : String(set.reps),
+                          set.rpe == null ? "—" : formatRpe(set.rpe),
+                          set.rir == null ? "—" : formatRir(set.rir),
+                          set.loadKg == null && set.assistanceKg == null ? "—" : formatSetLoad(exercise.loadMode, set.loadKg, set.assistanceKg, unit),
+                          String(set.workSeconds ?? "—"), String(set.precedingRestSeconds ?? "—"),
+                          set.rom ?? "—", set.intent ?? "—", set.testedMax ? "Tested 1RM" : "—",
+                        ]}
+                        widths={actualWidths}
                       />
                     ))}
                   </View>
@@ -269,7 +270,6 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
   flex: { flex: 1 },
   content: { gap: tokens.spacing.md, padding: tokens.spacing.md },
-  headerAction: { fontSize: 16, fontWeight: "700" },
   card: {
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
@@ -279,16 +279,6 @@ const styles = StyleSheet.create({
   kicker: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
   metric: { fontSize: 16, fontVariant: ["tabular-nums"], fontWeight: "800" },
   hint: { fontSize: 13, lineHeight: 18, fontVariant: ["tabular-nums"] },
-  focus: {
-    alignItems: "center",
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: tokens.spacing.sm,
-    minHeight: 48,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  dot: { borderRadius: 6, height: 12, width: 12 },
   exerciseTable: { borderWidth: 1, borderRadius: tokens.radius.lg, paddingHorizontal: 6 },
   exerciseGroup: { borderTopWidth: StyleSheet.hairlineWidth },
   row: { flexDirection: "row", alignItems: "center", gap: exerciseTableColumnGap, minHeight: 24, paddingVertical: 3 },

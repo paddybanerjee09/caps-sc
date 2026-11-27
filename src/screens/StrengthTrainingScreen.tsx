@@ -10,12 +10,12 @@ import { SessionChooser, type SessionOption } from "../components/training/Sessi
 import { TrainingSessionActions } from "../components/training/TrainingSessionActions";
 import { buildMonthGrid, type MonthEvent } from "../components/monthGrid";
 import { formatLocalDate } from "../conditioning/dates";
+import { timelineCategories } from "../constants/timelineCategories";
 import {
   createLogDraft,
   defaultStrengthSessionTime,
   draftFromTemplate,
 } from "../strength/drafts";
-import { emphasisMarkerColor } from "../strength/emphasis";
 import type { StrengthSessionMode } from "../strength/types";
 import {
   getStrengthTemplate,
@@ -115,9 +115,7 @@ export function StrengthTrainingScreen() {
         const time = new Date(planned ? session.startedAt : session.endedAt)
           .toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
         return {
-          color: session.emphasis.primary
-            ? emphasisMarkerColor(session.emphasis)
-            : theme.colors.textMuted,
+          color: timelineCategories.strength.color,
           detail: planned ? `Planned · starts ${time}` : `Completed · ended ${time}`,
           id: session.id,
           localDate: session.localDate,
@@ -125,7 +123,7 @@ export function StrengthTrainingScreen() {
           title: session.title,
         };
       }),
-    [sessions, theme.colors.textMuted],
+    [sessions],
   );
 
   function openChooser(templateId: string | null) {

@@ -3,9 +3,10 @@ import { useEffect, useRef, useState, type ComponentRef, type RefObject } from "
 import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, type TextInputProps } from "react-native";
 import Animated, { Easing, LinearTransition, ReduceMotion } from "react-native-reanimated";
 
-import { getStrengthTarget, MAX_EXERCISES, MAX_NOTES, MAX_REST_SECONDS, MAX_SETS, setStrengthTarget, updateSet } from "../../strength/drafts";
+import { getStrengthTarget, MAX_EXERCISES, MAX_NOTES, MAX_REST_SECONDS, MAX_ROM_LENGTH, MAX_SETS, setStrengthTarget, supportsStrengthMaxTest, updateSet } from "../../strength/drafts";
 import { STRENGTH_REP_RANGES, type CatalogExercise, type ExerciseDraft, type SetDraft, type StrengthExerciseTarget, type StrengthRepRange, type StrengthSessionMode } from "../../strength/types";
 import { formatRir, formatRpe } from "../../strength/units";
+import { useAppState } from "../../state/AppStateContext";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
 import { feedbackSelection } from "../../utils/feedback";
@@ -20,6 +21,9 @@ export const exerciseTableLabels = ["Exercise", "Sets", "Range", "RPE", "RIR", "
 const targetAccessibilityLabels = ["Exercise", "Sets", "Rep range", "Targeted RPE", "Targeted RIR", "Rest between sets in seconds", "Notes"];
 const editorColumnWidths = [260, 68, 108, 104, 104, 94, 220];
 const editorColumnGap = 12;
+const actualWidths = [130, 60, 70, 70, 70, 100, 100, 115, 135, 130, 130];
+const actualKinds = ["reps", "hold", "warmup", "skipped"] as const;
+const kindLabels = { reps: "Work", hold: "Timed hold", warmup: "Warm-up", skipped: "Skipped" };
 const MENU_GAP = tokens.spacing.xs;
 const MENU_INSET = tokens.spacing.sm;
 const rowTransition = LinearTransition.duration(220).easing(Easing.out(Easing.cubic)).reduceMotion(ReduceMotion.System);
@@ -140,7 +144,9 @@ export function useExerciseTable({
   }
   if (!prescriptionReadOnly) widths.push(48);
   const columns = widths.map((width) => Math.ceil(width * Math.max(1, fontScale)));
-  const minWidth = columns.reduce((sum, width) => sum + width, 0) + editorColumnGap * (columns.length - 1);
+  const actualColumns = actualWidths.map((width) => Math.ceil(width * Math.max(1, fontScale)));
+  const totalWidth = (values: number[]) => values.reduce((sum, width) => sum + width, 0) + editorColumnGap * (values.length - 1);
+  const minWidth = Math.max(totalWidth(columns), mode === "completed" ? totalWidth(actualColumns) : 0);
   const extraWidth = Math.max(0, tableWidth - minWidth);
   columns[0] += Math.floor(extraWidth / 2);
   columns[6] += Math.ceil(extraWidth / 2);
@@ -205,6 +211,7 @@ export function useExerciseTable({
             <TableHeadings columns={columns} labels={["Exercise", "Sets", "Rep Range", "Target RPE", "Target RIR", "Rest (s)", "Notes"]} accessibilityLabels={targetAccessibilityLabels} />
             {exercises.map((exercise, index) => (
               <ExerciseRow
+                actualColumns={actualColumns}
                 columns={columns}
                 disabled={disabled}
                 exercise={exercise}
@@ -305,9 +312,10 @@ function inlineNotes(notes: string) {
 }
 
 function ExerciseRow({
-  columns, disabled, exercise, expandInitially, mode, onChange, onOpenRange, onRemove,
+  actualColumns, columns, disabled, exercise, expandInitially, mode, onChange, onOpenRange, onRemove,
   prescriptionReadOnly, rangeExpanded, onTextInputFocus, onTextInputBlur,
 }: TextInputFocusCallbacks & {
+  actualColumns: number[];
   columns: number[];
   disabled: boolean;
   exercise: ExerciseDraft;
@@ -320,6 +328,7 @@ function ExerciseRow({
   rangeExpanded: boolean;
 }) {
   const { theme } = useAppTheme();
+  const { unitSettings } = useAppState();
   const [expanded, setExpanded] = useState(expandInitially);
   const rangeAnchor = useRef<ComponentRef<typeof View>>(null);
   const target = getStrengthTarget(exercise);
@@ -338,13 +347,14 @@ function ExerciseRow({
     onChange((current) => ({ ...setStrengthTarget(current, { restSeconds }, mode), restSecondsInput: input }));
   }
 
-  function changeActual(setId: string, field: keyof NonNullable<SetDraft["actual"]>, raw: string) {
-    if (!/^\d*$/.test(raw) && !(field === "rir" && raw === "10+")) return;
+  function changeActual(setId: string, patch: Partial<NonNullable<SetDraft["actual"]>>) {
     onChange((current) => updateSet(current, setId, (set) => ({
       ...set,
-      actual: { reps: "", rpe: "", rir: "", ...set.actual, [field]: raw },
+      actual: { reps: "", rpe: "", rir: "", ...set.actual, ...patch },
     })));
   }
+  const massUnit = unitSettings.weight === "metric" ? "kg" : "lb";
+  const loadLabel = `${exercise.loadMode === "assisted" ? "Assistance" : exercise.loadMode === "bodyweight" ? "Added load" : "Load"} (${massUnit})`;
 
   return (
     <Animated.View layout={rowTransition} style={[styles.exercise, { borderColor: theme.colors.border }]}>
@@ -430,29 +440,96 @@ function ExerciseRow({
       </View>
       {hasActualSets && expanded ? (
         <View style={[styles.actualSets, { borderColor: theme.colors.border }]}>
-          <TableHeadings columns={columns} labels={["Actual sets", "Set #", "Reps", "RPE", "RIR"]} />
-          {exercise.sets.map((set, index) => (
+          <TableHeadings columns={actualColumns} labels={["Actual sets", "Set #", "Reps", "RPE", "RIR", loadLabel, "Work (s)", "Preceding rest (s)", "Range of motion", "Intent", "1RM test"]} />
+          {exercise.sets.map((set, index) => {
+            const kind = set.actual?.kind ?? "reps";
+            const intent = set.actual?.intent;
+            const skipped = kind === "skipped";
+            const hold = kind === "hold";
+            const label = `${exercise.name}, set ${index + 1}`;
+            return (
             <View key={set.id} style={styles.row}>
-              <View style={{ width: columns[0] }} />
-              <Text style={[styles.setNumber, { color: theme.colors.textMuted, width: columns[1] }]}>{index + 1}</Text>
+              <ActualSetOption
+                accessibilityLabel={`${label}, set type, ${kindLabels[kind]}`}
+                disabled={disabled}
+                onPress={() => changeActual(set.id, { kind: actualKinds[(actualKinds.indexOf(kind) + 1) % actualKinds.length], testedMax: false })}
+                value={kindLabels[kind]}
+                width={actualColumns[0]}
+              />
+              <Text style={[styles.setNumber, { color: theme.colors.textMuted, width: actualColumns[1] }]}>{index + 1}</Text>
               {(["reps", "rpe", "rir"] as const).map((field, metricIndex) => (
                 <ActualSetInput
-                  disabled={disabled}
+                  disabled={disabled || skipped || (field === "reps" && hold)}
                   field={field}
                   key={field}
-                  label={`${exercise.name}, set ${index + 1}, ${field === "reps" ? "reps" : field.toUpperCase()}`}
-                  onChange={(raw) => changeActual(set.id, field, raw)}
+                  label={`${label}, ${field === "reps" ? "reps" : field.toUpperCase()}`}
+                  onChange={(raw) => changeActual(set.id, { [field]: raw })}
                   onTextInputBlur={onTextInputBlur}
                   onTextInputFocus={onTextInputFocus}
-                  raw={set.actual?.[field] ?? ""}
-                  width={columns[metricIndex + 2]}
+                  raw={skipped || (field === "reps" && hold) ? "" : set.actual?.[field] ?? ""}
+                  width={actualColumns[metricIndex + 2]}
                 />
               ))}
+              {([
+                ["load", loadLabel, "decimal-pad", 12],
+                ["workSeconds", "active work seconds", "number-pad", 4],
+                ["precedingRestSeconds", "preceding rest seconds", "number-pad", 4],
+                ["rom", "range of motion", "default", MAX_ROM_LENGTH],
+              ] as const).map(([field, name, keyboardType, maxLength], fieldIndex) => (
+                <CompactInput
+                  {...focusCallbacks}
+                  accessibilityLabel={`${label}, ${name}`}
+                  editable={!disabled && !skipped}
+                  key={field}
+                  keyboardType={keyboardType}
+                  maxLength={maxLength}
+                  numeric={keyboardType !== "default"}
+                  onChangeText={(raw) => changeActual(set.id, field === "load"
+                    ? { load: raw, loadUnit: unitSettings.weight }
+                    : { [field]: raw })}
+                  value={skipped ? "" : set.actual?.[field] ?? ""}
+                  width={actualColumns[fieldIndex + 5]}
+                />
+              ))}
+              <ActualSetOption
+                accessibilityLabel={`${label}, movement intent, ${intent ?? "unlogged"}`}
+                disabled={disabled || skipped || hold}
+                onPress={() => changeActual(set.id, { intent: intent === "explosive" ? "controlled" : intent === "controlled" ? undefined : "explosive" })}
+                value={skipped || hold ? "—" : intent ?? "Unlogged"}
+                width={actualColumns[9]}
+              />
+              {supportsStrengthMaxTest(exercise) && kind === "reps" ? (
+                <ActualSetOption
+                  accessibilityLabel={`${label}, tested one-repetition maximum, ${set.actual?.testedMax ? "recorded" : "unmarked"}`}
+                  disabled={disabled}
+                  onPress={() => changeActual(set.id, { testedMax: !set.actual?.testedMax })}
+                  value={set.actual?.testedMax ? "Tested 1RM" : "Mark test"}
+                  width={actualColumns[10]}
+                />
+              ) : null}
             </View>
-          ))}
+            );
+          })}
         </View>
       ) : null}
     </Animated.View>
+  );
+}
+
+function ActualSetOption({ accessibilityLabel, disabled, onPress, value, width }: {
+  accessibilityLabel: string; disabled: boolean; onPress: () => void; value: string; width: number;
+}) {
+  const { theme } = useAppTheme();
+  return (
+    <PressOpacity
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.actualOption, { width, borderColor: theme.colors.borderStrong, backgroundColor: theme.colors.surfaceMuted }]}
+    >
+      <Text numberOfLines={1} style={[styles.actualOptionText, { color: theme.colors.text }]}>{value}</Text>
+    </PressOpacity>
   );
 }
 
@@ -492,15 +569,15 @@ function ActualSetInput({
   );
 }
 
-function CompactInput({ numeric = false, width, ...props }: Pick<
+function CompactInput({ numeric = false, width, keyboardType, ...props }: Pick<
   TextInputProps,
-  "accessibilityLabel" | "editable" | "maxLength" | "onBlur" | "onChangeText" | "onFocus" | "value"
+  "accessibilityLabel" | "editable" | "keyboardType" | "maxLength" | "onBlur" | "onChangeText" | "onFocus" | "value"
 > & { numeric?: boolean; width: number }) {
   const { theme } = useAppTheme();
   return (
     <TextInput
       {...props}
-      keyboardType={numeric ? "number-pad" : "default"}
+      keyboardType={keyboardType ?? (numeric ? "number-pad" : "default")}
       placeholder="—"
       placeholderTextColor={theme.colors.textMuted}
       returnKeyType="done"
@@ -515,6 +592,8 @@ function CompactInput({ numeric = false, width, ...props }: Pick<
 }
 
 const styles = StyleSheet.create({
+  actualOption: { minHeight: 36, alignItems: "center", justifyContent: "center", borderWidth: 1, borderRadius: 6 },
+  actualOptionText: { fontSize: 12, fontWeight: "700", textTransform: "capitalize" },
   card: { borderWidth: 1, borderRadius: tokens.radius.lg, paddingHorizontal: 6, paddingVertical: tokens.spacing.sm, gap: tokens.spacing.xs },
   kicker: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
   hint: { fontSize: 13 },

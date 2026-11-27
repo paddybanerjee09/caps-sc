@@ -43,12 +43,27 @@ export type RepeatTarget = {
 };
 
 export type SetDraft = RepeatTarget & {
-  actual?: { reps: string; rpe: string; rir: string };
+  actual?: {
+    reps: string;
+    rpe: string;
+    rir: string;
+    load?: string;
+    loadUnit?: "metric" | "imperial";
+    workSeconds?: string;
+    precedingRestSeconds?: string;
+    rom?: string;
+    intent?: StrengthSetIntent;
+    kind?: StrengthActualSetKind;
+    testedMax?: boolean;
+  };
   followsRepeat: boolean;
   id: string;
   skipped: boolean;
   warmup: boolean;
 };
+
+export type StrengthActualSetKind = "reps" | "hold" | "warmup" | "skipped";
+export type StrengthSetIntent = "explosive" | "controlled";
 
 export type ExerciseDraft = {
   catalogExerciseId: string | null;
@@ -103,6 +118,12 @@ export type StrengthSetRecord = {
   rpe: number | null;
   skipped: boolean;
   warmup: boolean;
+  workSeconds?: number | null;
+  precedingRestSeconds?: number | null;
+  rom?: string | null;
+  intent?: StrengthSetIntent | null;
+  isometric?: boolean;
+  testedMax?: boolean;
 };
 
 export type StrengthTemplateRecord = {

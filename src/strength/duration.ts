@@ -15,7 +15,10 @@ export const DURATION_ASSUMPTIONS = {
 } as const;
 
 export type DurationExercise = {
-  sets: readonly Pick<SetDraft, "reps" | "restSeconds" | "skipped" | "warmup">[];
+  sets: readonly (Pick<SetDraft, "reps" | "restSeconds" | "skipped" | "warmup"> & {
+    workSeconds?: number | null;
+    precedingRestSeconds?: number | null;
+  })[];
 };
 
 function workSets(sets: DurationExercise["sets"]) {
@@ -36,10 +39,10 @@ export function estimateDurationSeconds(
   let seconds = 0;
   blocks.forEach((sets, blockIndex) => {
     for (const set of sets) {
-      seconds += DURATION_ASSUMPTIONS.secondsPerRep * set.reps;
+      seconds += set.workSeconds ?? DURATION_ASSUMPTIONS.secondsPerRep * set.reps;
     }
     for (let index = 0; index < sets.length - 1; index += 1) {
-      const rest = sets[index]?.restSeconds;
+      const rest = sets[index + 1]?.precedingRestSeconds ?? sets[index]?.restSeconds;
       seconds +=
         rest == null
           ? DURATION_ASSUMPTIONS.missingBetweenSetRestSeconds

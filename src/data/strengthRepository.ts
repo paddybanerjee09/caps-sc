@@ -1,7 +1,8 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-import { deviceTimeZone, formatLocalDate, isIanaTimeZone } from "../conditioning/dates";
+import { deviceTimeZone, isIanaTimeZone } from "../conditioning/dates";
 import { createId } from "../conditioning/ids";
+import { localDateInZone, shiftDate } from "../recovery/dates";
 import { CATALOG_SEED } from "../strength/catalogSeed";
 import {
   draftToCompletePlan,
@@ -22,6 +23,7 @@ import {
   type EmphasisReference,
   type StrengthEmphasis,
 } from "../strength/emphasis";
+import type { StrengthMaxReference, StrengthStimulusExercise } from "../strength/stimulus";
 import type {
   CatalogExercise,
   CatalogSource,
@@ -30,6 +32,7 @@ import type {
   StrengthDraft,
   StrengthExerciseRecord,
   StrengthSessionMode,
+  StrengthSetIntent,
   StrengthSetRecord,
   StrengthTemplateRecord,
 } from "../strength/types";
@@ -100,6 +103,12 @@ type SetRow = {
   rpe: number | null;
   skipped?: number;
   warmup?: number;
+  work_seconds?: number | null;
+  preceding_rest_seconds?: number | null;
+  rom?: string | null;
+  intent?: StrengthSetIntent | null;
+  isometric?: number;
+  tested_max?: number;
 };
 
 type StrengthSnapshot = "template" | "session";
@@ -337,6 +346,69 @@ export async function getStrengthSession(db: SQLiteDatabase, sessionId: string) 
   return record;
 }
 
+export async function getStrengthStimulusContext(
+  db: SQLiteDatabase,
+  sessionId: string,
+  endedAt: number,
+  localDate: string,
+  exerciseIds: readonly string[],
+) {
+  const ids = [...new Set(exerciseIds)];
+  const referenceRows = ids.length ? db.getAllAsync<{
+    exercise_id: string; equipment: string; unilateral: number; rom: string | null;
+    load_kg: number; ended_at: number; session_id: string;
+  }>(
+    `SELECT e.exercise_id, e.equipment, e.unilateral, sets.rom, sets.load_kg, s.ended_at, s.id AS session_id
+     FROM strength_session_sets sets
+     JOIN strength_session_exercises e ON e.id = sets.session_exercise_id
+     JOIN strength_sessions s ON s.id = e.session_id
+     JOIN timeline_entries t ON t.id = s.timeline_entry_id
+     WHERE t.status = 'completed' AND s.ended_at < ? AND s.id != ?
+       AND sets.tested_max = 1 AND sets.skipped = 0 AND sets.warmup = 0 AND sets.isometric = 0
+       AND sets.reps = 1 AND sets.load_kg > 0 AND e.load_mode = 'external'
+       AND e.exercise_id IN (${ids.map(() => "?").join(", ")})`,
+    [endedAt, sessionId, ...ids],
+  ) : Promise.resolve([]);
+
+  const [referenceData, recentRows] = await Promise.all([
+    referenceRows,
+    db.getAllAsync<{
+      exercise_id: string | null; id: string; equipment: string; name: string; unilateral: number;
+      load_mode: LoadMode; muscle_groups_json: string; set_id: string; reps: number;
+      isometric: number; work_seconds: number | null; rir: number | null;
+    }>(
+      `SELECT e.exercise_id, e.id, e.equipment, e.name, e.unilateral, e.load_mode, e.muscle_groups_json,
+              sets.id AS set_id, sets.reps, sets.isometric, sets.work_seconds, sets.rir
+       FROM strength_sessions s
+       JOIN timeline_entries t ON t.id = s.timeline_entry_id
+       JOIN strength_session_exercises e ON e.session_id = s.id
+       JOIN strength_session_sets sets ON sets.session_exercise_id = e.id
+       WHERE t.status = 'completed' AND s.id != ? AND s.ended_at < ?
+         AND s.local_end_date BETWEEN ? AND ? AND sets.skipped = 0 AND sets.warmup = 0`,
+      [sessionId, endedAt, shiftDate(localDate, -6), localDate],
+    ),
+  ]);
+  const references: StrengthMaxReference[] = referenceData.map((row) => ({
+    catalogExerciseId: row.exercise_id, equipment: row.equipment, unilateral: row.unilateral === 1,
+    rom: row.rom, kg: row.load_kg, performedAt: row.ended_at, sessionId: row.session_id,
+  }));
+  const recent = new Map<string, StrengthStimulusExercise & { sets: StrengthSetRecord[] }>();
+  for (const row of recentRows) {
+    const exercise = recent.get(row.id) ?? {
+      catalogExerciseId: row.exercise_id, equipment: row.equipment, id: row.id, loadMode: row.load_mode,
+      muscleGroups: parseStringList(row.muscle_groups_json), name: row.name, unilateral: row.unilateral === 1,
+      sets: [],
+    };
+    exercise.sets.push({
+      id: row.set_id, reps: row.reps, isometric: row.isometric === 1, workSeconds: row.work_seconds,
+      rir: row.rir, skipped: false, warmup: false, position: exercise.sets.length,
+      rpe: null, restSeconds: null, loadKg: null, assistanceKg: null,
+    });
+    recent.set(row.id, exercise);
+  }
+  return { references, recent: [...recent.values()] };
+}
+
 export async function listSameLiftReferences(
   db: SQLiteDatabase,
   exerciseIds: readonly string[],
@@ -425,8 +497,8 @@ export async function logStrengthSession(
   }
 
   const { durationSeconds, emphasis, startedAt, endedAt, localEndDate } =
-    await estimateStrengthSession(db, draft, mode);
-  const scheduledLocalDate = mode === "planned" ? formatLocalDate(new Date(startedAt)) : null;
+    await estimateStrengthSession(db, draft, mode, timeZone);
+  const scheduledLocalDate = mode === "planned" ? localDateInZone(startedAt, timeZone) : null;
   const title = draft.title.trim();
   let templateId = draft.sourceTemplateId;
 
@@ -534,7 +606,7 @@ async function completePlan(
   const timeZone = options?.timeZone ?? deviceTimeZone();
   assertValidStrengthLog(completed, now, timeZone);
   const { durationSeconds, emphasis, startedAt, endedAt, localEndDate } =
-    await estimateStrengthSession(db, completed, "completed");
+    await estimateStrengthSession(db, completed, "completed", timeZone);
 
   let alreadySaved = false;
   await db.withTransactionAsync(async () => {
@@ -584,7 +656,7 @@ function assertValidStrengthLog(draft: StrengthDraft, now: number, timeZone: str
   if (error) throw new Error(error);
 }
 
-async function estimateStrengthSession(db: SQLiteDatabase, draft: StrengthDraft, mode: StrengthSessionMode) {
+async function estimateStrengthSession(db: SQLiteDatabase, draft: StrengthDraft, mode: StrengthSessionMode, timeZone: string) {
   const timestamp = strengthSessionTime(draft);
   const durationSeconds = estimateDraftDurationSeconds(draft.exercises, mode);
   if (durationSeconds == null) throw new Error("Add at least one work set.");
@@ -600,7 +672,7 @@ async function estimateStrengthSession(db: SQLiteDatabase, draft: StrengthDraft,
     emphasis: emphasisFromDraft(draft.exercises, references, mode),
     startedAt,
     endedAt,
-    localEndDate: formatLocalDate(new Date(endedAt)),
+    localEndDate: localDateInZone(endedAt, timeZone),
   };
 }
 
@@ -692,9 +764,13 @@ async function insertSets(
   exercise: ExerciseDraft,
 ) {
   const includePerformed = snapshot === "session";
-  const performedColumns = includePerformed ? ", skipped, warmup" : "";
-  const performedValues = includePerformed ? ", ?, ?" : "";
-  const sets = includePerformed ? performedSets(exercise) : exercise.sets;
+  const performedColumns = includePerformed
+    ? ", skipped, warmup, work_seconds, preceding_rest_seconds, rom, intent, isometric, tested_max"
+    : "";
+  const performedValues = includePerformed ? ", ?, ?, ?, ?, ?, ?, ?, ?" : "";
+  const sets = includePerformed ? performedSets(exercise) : exercise.sets.map((set) => ({
+    ...set, workSeconds: null, precedingRestSeconds: null, rom: null, intent: null, isometric: false, testedMax: false,
+  }));
   for (const [setIndex, set] of sets.entries()) {
     await db.runAsync(
       `INSERT INTO strength_${snapshot}_sets (
@@ -711,7 +787,16 @@ async function insertSets(
         set.rpe,
         set.rir ?? null,
         set.restSeconds,
-        ...(includePerformed ? [set.skipped ? 1 : 0, set.warmup ? 1 : 0] : []),
+        ...(includePerformed ? [
+          set.skipped ? 1 : 0,
+          set.warmup ? 1 : 0,
+          set.workSeconds ?? null,
+          set.precedingRestSeconds ?? null,
+          set.rom ?? null,
+          set.intent ?? null,
+          set.isometric ? 1 : 0,
+          set.testedMax ? 1 : 0,
+        ] : []),
       ],
     );
   }
@@ -789,7 +874,9 @@ async function loadExercises(
   }
   const ids = exercises.map((exercise) => exercise.id);
   const placeholders = ids.map(() => "?").join(", ");
-  const performedColumns = snapshot === "session" ? ", skipped, warmup" : "";
+  const performedColumns = snapshot === "session"
+    ? ", skipped, warmup, work_seconds, preceding_rest_seconds, rom, intent, isometric, tested_max"
+    : "";
   const sets = await db.getAllAsync<SetRow>(
     `SELECT id, ${snapshot}_exercise_id AS parent_id, position, load_kg, assistance_kg,
             reps, rpe, rir, rest_seconds${performedColumns}
@@ -812,6 +899,12 @@ async function loadExercises(
       ...(set.rir != null ? { rir: set.rir } : {}),
       skipped: set.skipped === 1,
       warmup: set.warmup === 1,
+      ...(set.work_seconds != null ? { workSeconds: set.work_seconds } : {}),
+      ...(set.preceding_rest_seconds != null ? { precedingRestSeconds: set.preceding_rest_seconds } : {}),
+      ...(set.rom != null ? { rom: set.rom } : {}),
+      ...(set.intent != null ? { intent: set.intent } : {}),
+      ...(set.isometric === 1 ? { isometric: true } : {}),
+      ...(set.tested_max === 1 ? { testedMax: true } : {}),
     });
     byExercise.set(set.parent_id, bucket);
   }

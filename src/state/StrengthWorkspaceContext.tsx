@@ -105,7 +105,7 @@ export function StrengthWorkspaceProvider({ children }: { children: ReactNode })
       function confirmDiscard(action: () => void) {
         if (savingRef.current) return;
         const hasPerformedEntries = draft?.exercises.some((exercise) =>
-          exercise.sets.some(({ actual }) => actual && Object.values(actual).some((value) => value.trim())),
+          exercise.sets.some(({ actual }) => actual && Object.values(actual).some((value) => typeof value === "string" ? value.trim() !== "" : value === true)),
         );
         if (draft && (hasPerformedEntries || JSON.stringify(draft) !== savedSnapshot)) {
           setConfirm({

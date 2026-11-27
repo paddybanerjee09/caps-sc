@@ -6,21 +6,18 @@ import { ActionButton } from "../../components/ActionButton";
 import { LogTimeChanger } from "../../components/LogTimeChanger";
 import { WorkflowHeader, WorkflowFooter } from "../../components/WorkflowChrome";
 import { useExerciseTable } from "../../components/strength/ExerciseTable";
-import { EstimatedFocusButton } from "../../components/training/EstimatedFocusButton";
 import { createId } from "../../conditioning/ids";
-import { archiveStrengthTemplate, completeStrengthSession, saveStrengthTemplate, listSameLiftReferences, logStrengthSession } from "../../data/strengthRepository";
+import { archiveStrengthTemplate, completeStrengthSession, saveStrengthTemplate, logStrengthSession } from "../../data/strengthRepository";
 import { useAppState } from "../../state/AppStateContext";
 import { useStrengthWorkspace } from "../../state/StrengthWorkspaceContext";
 import { addCatalogExercise, MAX_EXERCISES, removeExercise, strengthSessionTime, TITLE_MAX, updateExercise, validateStrengthDraft } from "../../strength/drafts";
 import { estimateDraftDurationSeconds, formatDurationSeconds } from "../../strength/duration";
-import { emphasisFromDraft, emphasisHeadline, emphasisMarkerColor, type EmphasisReference } from "../../strength/emphasis";
 import type { StrengthDraft } from "../../strength/types";
 import { useAppTheme } from "../../theme/ThemeContext";
 import { themes } from "../../theme/theme";
 import { feedbackConfirm, feedbackWarn } from "../../utils/feedback";
 
 const tokens = themes.dark;
-const noReferences = new Map<string, EmphasisReference>();
 
 function templateContent(draft: StrengthDraft) {
   return JSON.stringify({
@@ -40,7 +37,6 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
   const workspace = useStrengthWorkspace();
   const { draft, saving, setTextInputFocused, textInputFocused, updateDraft } = workspace;
   const [error, setError] = useState<string | null>(null);
-  const [history, setHistory] = useState<{ key: string; references: Map<string, EmphasisReference> } | null>(null);
   const writing = useRef(false);
   const pageRef = useRef<ComponentRef<typeof View>>(null);
   const blurFrame = useRef<number | null>(null);
@@ -48,10 +44,6 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
   const planned = mode === "planned";
   const exercises = draft?.exercises ?? [];
   const timestamp = draft ? strengthSessionTime(draft) : 0;
-  const exerciseIds = JSON.stringify(exercises.flatMap((exercise) =>
-    exercise.catalogExerciseId ? [exercise.catalogExerciseId] : [],
-  ));
-  const historyKey = JSON.stringify([exerciseIds, timestamp]);
 
   const dismissTextInput = useCallback(() => {
     Keyboard.dismiss();
@@ -128,18 +120,6 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
     setTextInputFocused(false);
   }, [setTextInputFocused]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void listSameLiftReferences(db, JSON.parse(exerciseIds) as string[], timestamp)
-      .then((references) => {
-        if (!cancelled) setHistory({ key: historyKey, references });
-      })
-      .catch(() => {
-        if (!cancelled) setHistory(null);
-      });
-    return () => { cancelled = true; };
-  }, [db, exerciseIds, historyKey, timestamp]);
-
   if (!draft) return null;
 
   const savedDraft = !completingPlan && workspace.savedSnapshot ? JSON.parse(workspace.savedSnapshot) as StrengthDraft : null;
@@ -148,7 +128,6 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
   );
   const isSaved = draft.sourceTemplateId != null && draft.saveAsTemplate && savedDraft != null
     && !invalidTargetInput && templateContent(draft) === templateContent(savedDraft);
-  const preview = emphasisFromDraft(exercises, history?.key === historyKey ? history.references : noReferences, mode);
 
   async function toggleSaved() {
     if (!draft || writing.current) return;
@@ -269,15 +248,15 @@ export function WorkoutBuilderScreen({ completingPlan = false }: { completingPla
           </Text>
         </View>
         {exerciseTable}
-        <EstimatedFocusButton
+        {!planned ? <ActionButton
           disabled={saving}
-          value={emphasisHeadline(preview)}
+          label="Estimated training stimulus"
           onPress={() => {
             dismissTextInput();
             workspace.push({ key: createId(), name: "emphasis", sessionId: null });
           }}
-          color={preview.workSets ? emphasisMarkerColor(preview) : theme.colors.textMuted}
-        />
+          tone="secondary"
+        /> : null}
       </ScrollView>
       {error ? <Text accessibilityRole="alert" selectable style={[styles.error, { color: theme.colors.text }]}>{error}</Text> : null}
       {!textInputFocused ? (

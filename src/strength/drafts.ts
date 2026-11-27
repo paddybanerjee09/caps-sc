@@ -1,4 +1,6 @@
 import { createId } from "../conditioning/ids";
+import { parseDecimalInput } from "../utils/numericInput";
+import { convertWeightToKilograms } from "../utils/weight";
 import { STRENGTH_REP_RANGES } from "./types";
 import type {
   CatalogExercise,
@@ -19,6 +21,8 @@ export const MAX_REPS = 100;
 export const MAX_REST_SECONDS = 600;
 export const MAX_SETS = 20;
 export const TITLE_MAX = 80;
+export const MAX_ACTUAL_SECONDS = 3600;
+export const MAX_ROM_LENGTH = 60;
 
 const emptyRepeat = (): RepeatTarget => ({
   assistanceKg: null,
@@ -277,20 +281,56 @@ function optionalWholeNumber(value: string, min: number, max: number) {
   return number >= min && number <= max ? number : NaN;
 }
 
-function parseActual(actual: NonNullable<SetDraft["actual"]>) {
+export function supportsStrengthMaxTest(exercise: Pick<ExerciseDraft, "catalogExerciseId" | "equipment" | "loadMode">) {
+  return exercise.catalogExerciseId != null && exercise.loadMode === "external"
+    && ["barbell", "dumbbell", "kettlebell", "ez curl bar"].includes(exercise.equipment.toLowerCase());
+}
+
+function parseActual(actual: NonNullable<SetDraft["actual"]>, mode: LoadMode) {
+  const skipped = actual.kind === "skipped";
+  const rawLoad = actual.load?.trim();
+  const amount = skipped || !rawLoad ? null : parseDecimalInput(rawLoad) ?? NaN;
+  const load = amount == null ? null : convertWeightToKilograms(amount, actual.loadUnit ?? "metric");
   return {
-    reps: optionalWholeNumber(actual.reps, 1, MAX_REPS),
-    rpe: optionalWholeNumber(actual.rpe, 1, 10),
-    rir: actual.rir.trim() === "10+" ? 10 : optionalWholeNumber(actual.rir, 0, 10),
+    // SQLite's legacy reps column is positive. A hold's placeholder is never
+    // counted or displayed as a repetition.
+    reps: actual.kind === "hold" || skipped ? 1 : optionalWholeNumber(actual.reps, 1, MAX_REPS),
+    rpe: skipped ? null : optionalWholeNumber(actual.rpe, 1, 10),
+    rir: skipped ? null : actual.rir.trim() === "10+" ? 10 : optionalWholeNumber(actual.rir, 0, 10),
+    loadKg: mode === "assisted" ? null : load,
+    assistanceKg: mode === "assisted" ? load : null,
+    workSeconds: skipped ? null : optionalWholeNumber(actual.workSeconds ?? "", 1, MAX_ACTUAL_SECONDS),
+    precedingRestSeconds: skipped ? null : optionalWholeNumber(actual.precedingRestSeconds ?? "", 0, MAX_ACTUAL_SECONDS),
+    rom: skipped ? null : actual.rom?.trim() || null,
+    intent: skipped ? null : actual.intent ?? null,
+    isometric: actual.kind === "hold",
+    skipped,
+    warmup: actual.kind === "warmup",
+    testedMax: !skipped && actual.testedMax === true,
   };
 }
 
-export function performedSets(exercise: ExerciseDraft): SetDraft[] {
+type PerformedSet = SetDraft & Partial<Pick<ReturnType<typeof parseActual>,
+  "workSeconds" | "precedingRestSeconds" | "rom" | "intent" | "isometric" | "testedMax"
+>>;
+
+function invalidActualNumber(actual: ReturnType<typeof parseActual>) {
+  return [actual.reps, actual.rpe, actual.rir, actual.loadKg, actual.assistanceKg, actual.workSeconds, actual.precedingRestSeconds]
+    .some((value) => value != null && !Number.isFinite(value));
+}
+
+export function performedSets(exercise: ExerciseDraft): PerformedSet[] {
   return exercise.sets.flatMap((set) => {
     if (!set.actual) return [set];
-    const { reps, rpe, rir } = parseActual(set.actual);
-    if (reps == null || Number.isNaN(reps) || Number.isNaN(rpe) || Number.isNaN(rir)) return [];
-    return [{ ...set, reps, rpe, rir }];
+    const actual = parseActual(set.actual, exercise.loadMode);
+    if (actual.reps == null || invalidActualNumber(actual) || (actual.isometric && actual.workSeconds == null)) return [];
+    return [{
+      ...set,
+      ...actual,
+      reps: actual.reps,
+      loadKg: set.actual.load === undefined ? set.loadKg : actual.loadKg,
+      assistanceKg: set.actual.load === undefined ? set.assistanceKg : actual.assistanceKg,
+    }];
   });
 }
 
@@ -479,10 +519,20 @@ export function validateStrengthDraft(
         return `Enter 1 to 100 reps for ${row}.`;
       }
       if (set.actual) {
-        const { reps, rpe, rir } = parseActual(set.actual);
-        if (reps == null || Number.isNaN(reps)) return `Enter 1 to 100 reps for ${row}.`;
-        if (Number.isNaN(rpe)) return `Enter RPE from 1 to 10 for ${row}.`;
-        if (Number.isNaN(rir)) return `Enter RIR from 0 to 10+ for ${row}.`;
+        const actual = parseActual(set.actual, exercise.loadMode);
+        if (actual.reps == null || Number.isNaN(actual.reps)) return `Enter 1 to 100 reps for ${row}.`;
+        if (Number.isNaN(actual.rpe)) return `Enter RPE from 1 to 10 for ${row}.`;
+        if (Number.isNaN(actual.rir)) return `Enter RIR from 0 to 10+ for ${row}.`;
+        if (Number.isNaN(actual.workSeconds) || (actual.isometric && actual.workSeconds == null)) return `Enter 1 to 3600 work seconds for ${row}.`;
+        if (Number.isNaN(actual.precedingRestSeconds)) return `Enter 0 to 3600 preceding rest seconds for ${row}.`;
+        if (actual.rom != null && actual.rom.length > MAX_ROM_LENGTH) return `Range of motion must be 60 characters or fewer for ${row}.`;
+        if (actual.intent != null && !["explosive", "controlled"].includes(actual.intent)) return `Choose an intent for ${row}.`;
+        if (actual.testedMax && (!supportsStrengthMaxTest(exercise) || actual.reps !== 1 || actual.isometric || actual.skipped || actual.warmup || !actual.loadKg || !Number.isFinite(actual.loadKg))) {
+          return `A tested 1RM needs a completed single rep with a recorded free-weight load for ${row}.`;
+        }
+        const weightError = weightErrorFor(exercise.loadMode, { ...set, ...actual, reps: actual.reps });
+        if (weightError) return weightError;
+        if (actual.skipped || actual.warmup) continue;
       }
       if (!Number.isInteger(set.reps) || set.reps <= 0 || set.reps > MAX_REPS) {
         return "Reps must be a positive whole number.";

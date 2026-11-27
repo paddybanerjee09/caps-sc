@@ -40,6 +40,7 @@ import {
   strengthQualityColors,
 } from "../src/strength/emphasis.ts";
 import { formatLoadAmount } from "../src/strength/units.ts";
+import { calculateStrengthStimulus } from "../src/strength/stimulus.ts";
 import { migrateDatabase } from "../src/data/database.ts";
 import { strengthMigrationSql } from "../src/data/strengthMigration.ts";
 import {
@@ -48,6 +49,7 @@ import {
   createCustomExercise,
   createStrengthTemplate,
   getStrengthSession,
+  getStrengthStimulusContext,
   getStrengthTemplate,
   listSameLiftReferences,
   listStrengthExercises,
@@ -301,7 +303,7 @@ assert.equal(
 const fresh = new DatabaseSync(":memory:");
 const db = adapterFor(fresh);
 await migrateDatabase(db);
-assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 12);
+assert.equal(fresh.prepare("PRAGMA user_version").get().user_version, 13);
 assert.equal(
   fresh.prepare("SELECT COUNT(*) AS count FROM strength_exercises").get().count,
   CATALOG_SEED.length,
@@ -432,7 +434,7 @@ upgradeDb.exec(`
 `);
 const upgrade = adapterFor(upgradeDb);
 await migrateDatabase(upgrade);
-assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 12);
+assert.equal(upgradeDb.prepare("PRAGMA user_version").get().user_version, 13);
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'strength_sessions'").get());
 assert.ok(upgradeDb.prepare("SELECT name FROM sqlite_master WHERE name = 'timeline_entries'").get());
 assert.equal(
@@ -871,12 +873,111 @@ assert.equal(v11.prepare("PRAGMA user_version").get().user_version, 11);
 assert.ok(!v11.prepare("PRAGMA table_info(strength_sessions)").all().some((column) => column.name === "scheduled_local_date"));
 await migrateDatabase(legacy);
 await migrateDatabase(legacy);
-assert.equal(v11.prepare("PRAGMA user_version").get().user_version, 12);
+assert.equal(v11.prepare("PRAGMA user_version").get().user_version, 13);
 const legacySession = await getStrengthSession(legacy, "legacy");
 assert.equal(legacySession.status, "completed");
 assert.equal(legacySession.localDate, "1970-01-01");
 assert.equal(legacySession.emphasis.modelVersion, "strength-emphasis-v1");
 const [legacySet] = legacySession.exercises[0].sets;
 assert.deepEqual([legacySet.loadKg, legacySet.reps, legacySet.rpe, legacySet.rir ?? null], [100, 5, 8.5, null]);
+assert.deepEqual(
+  [legacySet.workSeconds, legacySet.precedingRestSeconds, legacySet.rom, legacySet.intent, legacySet.isometric, legacySet.testedMax],
+  Array(6).fill(undefined),
+);
+
+{
+  const observed = (id, changes = {}) => ({
+    id, reps: 5, loadKg: 80, assistanceKg: null, restSeconds: null, rpe: null,
+    rir: null, warmup: false, skipped: false, ...changes,
+  });
+  const lift = (id, sets, changes = {}) => ({
+    id, name: "Bench Press", catalogExerciseId: bench.id, equipment: bench.equipment, unilateral: false,
+    loadMode: "external", muscleGroups: ["chest"], sets, ...changes,
+  });
+  const reference = { catalogExerciseId: bench.id, equipment: bench.equipment, unilateral: false, rom: null, kg: 100, performedAt: 10_000, sessionId: "reference" };
+  const stimulus = (exercises, changes = {}) => calculateStrengthStimulus({
+    exercises, sessionId: "stimulus", endedAt: 20_000, now: 20_000, status: "completed", ...changes,
+  });
+  const direct = lift("direct", [
+    observed("a", { reps: 2, rir: 2 }), observed("b", { reps: 8, rir: 2 }), observed("c", { reps: 17, rir: 2 }),
+  ]);
+  const secondary = lift("secondary", [observed("d", { rir: 4 }), observed("e", { rir: 4 })], {
+    catalogExerciseId: "known-secondary-lift", muscleGroups: [], secondaryMuscleGroups: ["chest"],
+  });
+  assert.equal(stimulus([direct, secondary]).hypertrophy[0].weighted.value, 3.5);
+  const mixed = stimulus([lift("mix", [
+    observed("hard", { rir: 0 }), observed("unknown-rir"), observed("warmup", { rir: 0, warmup: true }),
+    observed("skipped", { rir: 0, skipped: true }), observed("hard", { rir: 0 }),
+  ])]);
+  assert.equal(mixed.workingSets, 2);
+  assert.equal(mixed.hypertrophy[0].weighted.value, 1);
+  assert.equal(mixed.hypertrophy[0].weighted.status, "partial");
+  assert.deepEqual(mixed.hypertrophy[0].weighted.coverage, { valid: 1, total: 2 });
+  const unknownRir = stimulus([lift("unknown-rir", [observed("u", { rpe: 10 })])]);
+  assert.equal(unknownRir.hypertrophy[0].workingSets.value, 1);
+  assert.equal(unknownRir.hypertrophy[0].weighted.value, null);
+  assert.equal(stimulus([lift("zero", [observed("easy", { rir: 8 })])]).hypertrophy[0].weighted.value, 0);
+  assert.equal(stimulus([direct], { status: "planned" }).workingSets, 0);
+  assert.equal(stimulus([direct], { endedAt: 20_001 }).workingSets, 0);
+  assert.equal(stimulus([direct], { references: [{ ...reference, performedAt: 20_000 }] }).exercises[0].max.value, null);
+  assert.equal(stimulus([direct], { references: [{ ...reference, sessionId: "stimulus" }] }).exercises[0].max.value, null);
+  const relative = stimulus([lift("scored", [observed("load", { reps: 5, loadKg: 50 })])], { references: [reference] });
+  assert.equal(relative.exercises[0].max.value, 1.25);
+  const variants = stimulus([lift("scored", [observed("full"), observed("partial", { rom: "Partial ROM" })])], { references: [reference] });
+  assert.equal(variants.exercises.length, 2);
+  assert.equal(variants.exercises[1].max.value, null);
+  assert.equal(variants.exercises[1].repetitions.value, 5);
+  const stale = stimulus([lift("scored", [observed("above-1rm", { loadKg: 110 })])], { references: [reference] }).exercises[0];
+  assert.equal(stale.max.value, null);
+  assert.ok(stale.max.reasonCodes.includes("stale"));
+  assert.equal(stale.repetitions.value, 5);
+  const unfamiliar = stimulus([lift("new-lift", [observed("unknown-load", { loadKg: null })], { catalogExerciseId: null })], { references: [reference] }).exercises[0];
+  assert.equal(unfamiliar.max.value, null);
+  assert.equal(unfamiliar.practiceSets, 1);
+  const timing = stimulus([lift("timed", [
+    observed("slow", { reps: 3, workSeconds: 20, intent: "explosive", concentricVelocityMps: { methodKey: "encoder-a", values: [0.25, 0.2, 0.125] } }),
+    observed("hold", { reps: 1, isometric: true, workSeconds: 40, precedingRestSeconds: 60 }),
+  ])]).exercises[0];
+  assert.equal(timing.repetitions.value, 3);
+  assert.equal(timing.holdSeconds.value, 40);
+  assert.equal(timing.density.value, 50);
+  assert.equal(timing.longest.value, 40);
+  assert.equal(timing.explosive.value, 3);
+  assert.equal(timing.power.length, 0, "slow reps with explosive intent do not claim measured power");
+  assert.equal(timing.velocity[0].best.value, 0.25);
+  assert.equal(timing.velocityLoss[0].result.value, 50);
+
+  const stimulusDb = new DatabaseSync(":memory:");
+  const stimulusAdapter = adapterFor(stimulusDb);
+  await migrateDatabase(stimulusAdapter);
+  let actualDraft = benchDraft(Date.UTC(2026, 10, 1, 12), { sets: 4, sessionId: "tested-max" });
+  const actualInput = [
+    { reps: "1", rpe: "", rir: "0", load: "100", workSeconds: "8", precedingRestSeconds: "0", rom: "Full ROM", intent: "controlled", testedMax: true },
+    { reps: "", rpe: "", rir: "", kind: "hold", workSeconds: "35" },
+    { reps: "4", rpe: "", rir: "", kind: "warmup" },
+    { reps: "", rpe: "invalid prior draft", rir: "", kind: "skipped" },
+  ];
+  actualDraft = updateExercise(actualDraft, actualDraft.exercises[0].id, (lift) => ({
+    ...lift, sets: lift.sets.map((set, index) => ({ ...set, actual: actualInput[index] })),
+  }));
+  assert.equal(validateStrengthDraft(actualDraft, "log", actualDraft.endedAt), null);
+  const testSave = await logStrengthSession(stimulusAdapter, actualDraft, { now: actualDraft.endedAt, timeZone: "UTC" });
+  const tested = await getStrengthSession(stimulusAdapter, testSave.sessionId);
+  assert.deepEqual(tested.exercises[0].sets.map((set) => ({
+    work: set.workSeconds, rest: set.precedingRestSeconds, intent: set.intent, rom: set.rom,
+    testedMax: set.testedMax ?? false, hold: set.isometric ?? false, skipped: set.skipped, warmup: set.warmup,
+  })), [
+    { work: 8, rest: 0, intent: "controlled", rom: "Full ROM", testedMax: true, hold: false, skipped: false, warmup: false },
+    { work: 35, rest: undefined, intent: undefined, rom: undefined, testedMax: false, hold: true, skipped: false, warmup: false },
+    { work: undefined, rest: undefined, intent: undefined, rom: undefined, testedMax: false, hold: false, skipped: false, warmup: true },
+    { work: undefined, rest: undefined, intent: undefined, rom: undefined, testedMax: false, hold: false, skipped: true, warmup: false },
+  ]);
+  assert.equal(tested.exercises[0].sets[0].rir, 0);
+  assert.equal((await getStrengthStimulusContext(stimulusAdapter, tested.id, tested.endedAt, "2026-11-01", [bench.id])).references.length, 0);
+  const pastContext = await getStrengthStimulusContext(stimulusAdapter, "new-log", tested.endedAt + 1, "2026-11-01", [bench.id]);
+  assert.equal(pastContext.references.length, 1);
+  assert.equal(pastContext.references[0].kg, 100);
+  assert.equal(pastContext.recent[0].sets.length, 2);
+}
 
 console.log("strength checks passed");
